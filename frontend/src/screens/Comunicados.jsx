@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
-import { listarComunicados, crearComunicado } from "../api/comunicados";
+import {
+  listarComunicados,
+  crearComunicado,
+  borrarComunicado,
+} from "../api/comunicados";
 import Modal from "../components/Modal";
 import Tarjeta from "../components/Tarjeta";
 
@@ -26,10 +30,42 @@ export default function Comunicados() {
   const [errorCarga, setErrorCarga] = useState(null);
   const [expandidos, setExpandidos] = useState(() => new Set());
   const [modalCrearAbierto, setModalCrearAbierto] = useState(false);
+  const [modalBorrar, setModalBorrar] = useState(null);
+  const [idBorrando, setIdBorrando] = useState(null);
+  const [errorBorrado, setErrorBorrado] = useState(null);
 
   function handleCreado(nuevo) {
     setComunicados((prev) => [nuevo, ...prev]);
     setModalCrearAbierto(false);
+  }
+
+  async function handleConfirmarBorrado() {
+    if (!modalBorrar) return;
+    const id = modalBorrar.id;
+    setIdBorrando(id);
+
+    const r = await borrarComunicado(id);
+
+    setIdBorrando(null);
+    setModalBorrar(null);
+
+    if (r.status === 204) {
+      setComunicados((prev) => prev.filter((c) => c.id !== id));
+      setErrorBorrado(null);
+      return;
+    }
+    if (r.status === 404) {
+      setComunicados((prev) => prev.filter((c) => c.id !== id));
+      setErrorBorrado("El comunicado ya no existe.");
+      return;
+    }
+    if (r.status === 403) {
+      setErrorBorrado("No tenés permisos para borrar comunicados.");
+      return;
+    }
+    if (r.status !== 401) {
+      setErrorBorrado("No se pudo borrar el comunicado. Intentá de nuevo.");
+    }
   }
 
   function toggleExpandir(id) {
@@ -77,6 +113,11 @@ export default function Comunicados() {
 
       {cargando && <p>Cargando…</p>}
       {errorCarga && <p role="alert" className="error-banner">{errorCarga}</p>}
+      {errorBorrado && (
+        <p role="alert" className="error-banner">
+          {errorBorrado}
+        </p>
+      )}
       {!cargando && !errorCarga && comunicados.length === 0 && (
         <p>No hay comunicados publicados.</p>
       )}
@@ -92,15 +133,29 @@ export default function Comunicados() {
               <p className={expandidos.has(c.id) ? "" : "cuerpo-truncado"}>
                 {c.cuerpo}
               </p>
-              {cuerpoLargo(c.cuerpo) && (
+              {(cuerpoLargo(c.cuerpo) || user.rol === "administracion") && (
                 <div className="tarjeta-acciones">
-                  <button
-                    type="button"
-                    className="boton-link"
-                    onClick={() => toggleExpandir(c.id)}
-                  >
-                    {expandidos.has(c.id) ? "Ver menos" : "Ver más"}
-                  </button>
+                  {cuerpoLargo(c.cuerpo) && (
+                    <button
+                      type="button"
+                      className="boton-link"
+                      onClick={() => toggleExpandir(c.id)}
+                    >
+                      {expandidos.has(c.id) ? "Ver menos" : "Ver más"}
+                    </button>
+                  )}
+                  {user.rol === "administracion" && (
+                    <button
+                      type="button"
+                      className="boton-borrar"
+                      disabled={idBorrando === c.id}
+                      onClick={() =>
+                        setModalBorrar({ id: c.id, titulo: c.titulo })
+                      }
+                    >
+                      Borrar
+                    </button>
+                  )}
                 </div>
               )}
             </Tarjeta>
@@ -117,6 +172,36 @@ export default function Comunicados() {
             onCreado={handleCreado}
             onCancelar={() => setModalCrearAbierto(false)}
           />
+        </Modal>
+      )}
+
+      {modalBorrar && (
+        <Modal
+          titulo="Borrar comunicado"
+          onClose={() => setModalBorrar(null)}
+        >
+          <p>
+            ¿Borrar el comunicado «<strong>{modalBorrar.titulo}</strong>»? Esta
+            acción no se puede deshacer.
+          </p>
+          <div className="modal-acciones">
+            <button
+              type="button"
+              className="boton-secundario"
+              onClick={() => setModalBorrar(null)}
+              disabled={idBorrando === modalBorrar.id}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="boton-peligro"
+              onClick={handleConfirmarBorrado}
+              disabled={idBorrando === modalBorrar.id}
+            >
+              {idBorrando === modalBorrar.id ? "Borrando…" : "Borrar"}
+            </button>
+          </div>
         </Modal>
       )}
     </section>
