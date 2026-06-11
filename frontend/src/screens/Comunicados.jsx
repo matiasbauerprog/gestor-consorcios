@@ -12,11 +12,27 @@ function formatearFecha(iso) {
   });
 }
 
+function cuerpoLargo(cuerpo) {
+  if (cuerpo.length > 280) return true;
+  if (cuerpo.split("\n").length > 3) return true;
+  return false;
+}
+
 export default function Comunicados() {
   const { user } = useAuth();
   const [comunicados, setComunicados] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState(null);
+  const [expandidos, setExpandidos] = useState(() => new Set());
+
+  function toggleExpandir(id) {
+    setExpandidos((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   useEffect(() => {
     let cancelado = false;
@@ -64,7 +80,20 @@ export default function Comunicados() {
               <p className="meta">
                 {formatearFecha(c.fecha_publicacion)} · Administración
               </p>
-              <p>{c.cuerpo}</p>
+              <p className={expandidos.has(c.id) ? "" : "cuerpo-truncado"}>
+                {c.cuerpo}
+              </p>
+              {cuerpoLargo(c.cuerpo) && (
+                <div className="tarjeta-acciones">
+                  <button
+                    type="button"
+                    className="boton-link"
+                    onClick={() => toggleExpandir(c.id)}
+                  >
+                    {expandidos.has(c.id) ? "Ver menos" : "Ver más"}
+                  </button>
+                </div>
+              )}
             </Tarjeta>
           </li>
         ))}
