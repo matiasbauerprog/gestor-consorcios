@@ -666,6 +666,31 @@ paths:
         '403':
           $ref: '#/components/responses/AccesoDenegado'
 
+  /comunicados/{comunicado_id}:
+    delete:
+      tags: [Comunicación]
+      summary: Borrar un comunicado (soft-delete)
+      description: |
+        Marca el comunicado como eliminado. Operación irreversible desde la UI.
+        Solo accesible para Administración. Los comunicados eliminados dejan de
+        aparecer en `GET /comunicados`.
+      operationId: borrarComunicado
+      parameters:
+        - name: comunicado_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Comunicado eliminado exitosamente.
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
   # =========================================================================
   # 4. AMENITIES (RESERVA DE ESPACIOS)
   # =========================================================================
