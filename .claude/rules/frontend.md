@@ -26,6 +26,21 @@ paths:
 - Consumir los colores siempre vía `var(--color-...)`. **Nunca hardcodear hex/rgb dentro de componentes** — eso rompe la paleta unificada.
 - Cambiar el tema = editar una sola línea por variable.
 
+## Responsive / Mobile-first
+- **Mobile-first como default.** El CSS base apunta a viewports angostos (≥320px). Las mejoras para pantallas más grandes se hacen con `@media (min-width: ...)`, nunca con `max-width`.
+- **Breakpoints estándar del proyecto:**
+  ```css
+  /* base = mobile (≥320px) */
+  @media (min-width: 600px)  { /* tablet */ }
+  @media (min-width: 960px)  { /* desktop */ }
+  ```
+- **Layout flexible:** en mobile las cosas apilan (`flex-direction: column`); a partir de tablet/desktop pasan a `row`. Sidebar visible sólo desde ≥960px (drawer/menú abajo en mobile).
+- **Sin overflow horizontal.** Nada hardcodeado en px que pueda exceder 100vw. Imágenes/media siempre con `max-width: 100%; height: auto`.
+- **Targets táctiles ≥44px de alto** (botones, links de nav, inputs).
+- **Unidades relativas:** `rem`/`em`/`%` para tamaños; `px` sólo para bordes, sombras y detalles.
+- **Test mínimo:** la pantalla tiene que ser usable a **375px** de ancho (iPhone SE). En el DevTools del browser: device toolbar → iPhone SE.
+- Las clases existentes (`.app-shell`, `.app-sidebar`, `.app-content`, `.tarjeta`, `.modal`, etc.) deben revisarse y adaptarse a este criterio.
+
 ## Estado y comportamiento (React)
 - **Estado siempre en hooks (`useState` / `useReducer`).** Nunca guardar datos de usuario, formularios o errores manipulando el DOM directamente (`document.querySelector`, `innerHTML`, etc.) ni en `useRef` para datos que deberían disparar re-render.
 - **Triángulo dinámico explícito** en formularios:

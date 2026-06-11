@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, status
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -20,8 +22,10 @@ def listar_comunicados(
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(get_current_user),
 ) -> list[Comunicado]:
-    stmt = select(Comunicado).order_by(
-        Comunicado.fecha_publicacion.desc(), Comunicado.id.desc()
+    stmt = (
+        select(Comunicado)
+        .where(Comunicado.eliminado_at.is_(None))
+        .order_by(Comunicado.fecha_publicacion.desc(), Comunicado.id.desc())
     )
     return list(db.scalars(stmt).all())
 
@@ -47,3 +51,24 @@ def crear_comunicado(
     db.commit()
     db.refresh(comunicado)
     return comunicado
+
+
+@router.delete(
+    "/{comunicado_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Borrar un comunicado (soft-delete)",
+)
+def borrar_comunicado(
+    comunicado_id: int,
+    db: Session = Depends(get_db),
+    _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+) -> None:
+    comunicado = db.get(Comunicado, comunicado_id)
+    if comunicado is None or comunicado.eliminado_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="El comunicado no existe.",
+        )
+    comunicado.eliminado_at = datetime.now(timezone.utc)
+    db.commit()
+    return None

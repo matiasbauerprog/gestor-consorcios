@@ -47,6 +47,7 @@ button {
   font-family: inherit;
   font-size: 1rem;
   padding: 0.6em 1.2em;
+  min-height: 44px;
   border: none;
   border-radius: var(--radius);
   background: var(--color-primary);
@@ -68,6 +69,7 @@ input {
   font-family: inherit;
   font-size: 1rem;
   padding: 0.55em 0.75em;
+  min-height: 44px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
@@ -89,6 +91,12 @@ label {
   color: var(--color-text-muted);
 }
 
+img, svg, video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
 /* ---------- Login ---------- */
 
 .login-page {
@@ -101,7 +109,7 @@ label {
 
 .login-card {
   background: var(--color-surface);
-  padding: 2rem;
+  padding: 1.5rem;
   border-radius: var(--radius);
   box-shadow: var(--shadow-md);
   width: 100%;
@@ -133,7 +141,7 @@ label {
   margin: 0;
 }
 
-/* ---------- App shell (logged-in) ---------- */
+/* ---------- App shell (logged-in) — mobile-first ---------- */
 
 .app-shell {
   min-height: 100vh;
@@ -144,11 +152,11 @@ label {
 .app-header {
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
-  padding: 1rem 1.5rem;
+  padding: 0.75rem 1rem;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
 }
 
 .app-header h1 {
@@ -159,15 +167,23 @@ label {
 .app-user {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  font-size: 0.9rem;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
   color: var(--color-text-muted);
+}
+
+.app-user > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .app-user button {
   background: transparent;
   color: var(--color-primary);
   padding: 0.4em 0.8em;
+  min-height: 44px;
   border: 1px solid var(--color-border);
 }
 
@@ -175,10 +191,337 @@ label {
   background: var(--color-bg);
 }
 
+/* ---------- App body (sidebar + content) — mobile-first ---------- */
+
+.app-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.app-sidebar {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  padding: 0;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.app-sidebar nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: row;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  padding: 0.7em 1em;
+  min-height: 44px;
+  color: var(--color-text);
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.sidebar-link:hover {
+  background: var(--color-bg);
+}
+
+.sidebar-link.activo {
+  background: var(--color-bg);
+  border-bottom-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
 .app-content {
   flex: 1;
-  padding: 2rem 1.5rem;
-  max-width: 960px;
+  padding: 1rem;
   width: 100%;
-  margin: 0 auto;
+  margin: 0;
+}
+
+/* ---------- Sección genérica ---------- */
+
+.seccion-header {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.error-banner {
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
+  padding: 0.6em 0.8em;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+}
+
+/* ---------- Tarjeta ---------- */
+
+.tarjeta {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.tarjeta h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+
+.tarjeta .meta {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  margin: 0 0 0.5rem;
+}
+
+.tarjeta p {
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Lista de comunicados ---------- */
+
+.lista-comunicados {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.cuerpo-truncado {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tarjeta-acciones {
+  margin-top: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.boton-link {
+  background: transparent;
+  color: var(--color-primary);
+  padding: 0.3em 0.5em;
+  min-height: 44px;
+  border: none;
+  font-size: 0.9rem;
+}
+
+.boton-link:hover:not(:disabled) {
+  background: var(--color-bg);
+  text-decoration: underline;
+}
+
+.boton-borrar {
+  background: transparent;
+  color: var(--color-danger);
+  padding: 0.3em 0.5em;
+  min-height: 44px;
+  border: 1px solid var(--color-danger);
+  font-size: 0.9rem;
+}
+
+.boton-borrar:hover:not(:disabled) {
+  background: var(--color-danger-bg);
+}
+
+/* ---------- Modal — mobile-first (full screen en mobile) ---------- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  z-index: 1000;
+  padding: 0;
+}
+
+.modal {
+  background: var(--color-surface);
+  border-radius: 0;
+  box-shadow: var(--shadow-md);
+  width: 100%;
+  max-width: 100%;
+  max-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.modal-cerrar {
+  background: transparent;
+  color: var(--color-text-muted);
+  padding: 0.2em 0.5em;
+  min-height: 44px;
+  min-width: 44px;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.modal-cuerpo {
+  padding: 1.25rem;
+  overflow-y: auto;
+}
+
+.modal-cuerpo form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.modal-cuerpo textarea {
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.55em 0.75em;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+}
+
+.modal-cuerpo textarea:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -1px;
+  border-color: var(--color-primary);
+}
+
+.modal-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.boton-secundario {
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.boton-secundario:hover:not(:disabled) {
+  background: var(--color-bg);
+}
+
+.boton-peligro {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+/* ============================================================ */
+/* Tablet (≥600px)                                              */
+/* ============================================================ */
+@media (min-width: 600px) {
+  .login-card {
+    padding: 2rem;
+  }
+
+  .app-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+  }
+
+  .app-user {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    font-size: 0.9rem;
+  }
+
+  .app-content {
+    padding: 1.5rem;
+  }
+
+  .seccion-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .modal-backdrop {
+    padding: 1rem;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal {
+    max-width: 520px;
+    max-height: 90vh;
+    border-radius: var(--radius);
+  }
+}
+
+/* ============================================================ */
+/* Desktop (≥960px) — sidebar vertical a la izquierda           */
+/* ============================================================ */
+@media (min-width: 960px) {
+  .app-body {
+    flex-direction: row;
+  }
+
+  .app-sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--color-border);
+    border-bottom: none;
+    padding: 1rem 0;
+    overflow-x: visible;
+  }
+
+  .app-sidebar nav ul {
+    flex-direction: column;
+  }
+
+  .sidebar-link {
+    padding: 0.7em 1.5em;
+    border-left: 3px solid transparent;
+    border-bottom: none;
+  }
+
+  .sidebar-link.activo {
+    border-left-color: var(--color-primary);
+    border-bottom-color: transparent;
+  }
+
+  .app-content {
+    padding: 2rem 1.5rem;
+    max-width: 960px;
+    margin: 0 auto;
+  }
 }

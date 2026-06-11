@@ -169,6 +169,9 @@ class Comunicado(Base):
         nullable=False,
         index=True,
     )
+    eliminado_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
 
 
 class Expensa(Base):
