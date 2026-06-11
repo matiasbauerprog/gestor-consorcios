@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where py *)",
+      "Bash(where python3 *)",
+      "Bash(where uv *)",
+      "Bash(uv venv *)",
+      "Bash(uv pip *)",
+      "Bash(.venv\\\\Scripts\\\\python.exe -m pytest -v)",
+      "Bash(./.venv/Scripts/python.exe -m pytest -v)",
+      "Bash(./.venv/Scripts/python.exe -m pytest -q)",
+      "Bash(./.venv/Scripts/python.exe -m pytest tests/test_trabajos.py -v)",
+      "Bash(./.venv/Scripts/python.exe -m pytest)",
+      "Bash(./.venv/Scripts/python.exe -c \"import email_validator; print\\(email_validator.__version__\\)\")",
+      "Bash(python -m pytest -v)",
+      "Bash(py -m pytest -v)",
+      "Bash(where.exe python *)",
+      "Bash(uv run *)",
+      "Bash(.venv/Scripts/python -m pytest tests/test_comprobantes.py -v)",
+      "Bash(.venv/Scripts/python -m pytest)",
+      "Bash(.venv/Scripts/python -m pytest tests/test_departamentos.py tests/test_usuarios.py tests/test_amenities.py -v)",
+      "Bash(python -m pytest -v --tb=short)",
+      "Bash(py -m pytest -v --tb=short)",
+      "Bash(where python *)",
+      "Bash(\".venv/Scripts/python.exe\" -m pytest -v --tb=short)",
+      "Skill(superpowers:brainstorming)",
+      "Skill(superpowers:writing-plans)",
+      "Skill(superpowers:subagent-driven-development)",
+      "Bash(git init *)",
+      "Bash(git add *)"
+    ]
+  }
+}

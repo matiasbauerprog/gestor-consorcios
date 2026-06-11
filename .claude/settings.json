@@ -1,0 +1,18 @@
+{
+  "model": "claude-opus-4-7",
+  "permissions": {
+    "allow": [
+      "Edit(./backend/**)",
+      "Edit(./frontend/**)",
+      "Read(./**)"
+    ],
+    "ask": [
+      "Bash(uv add *)",
+      "Bash(uv remove *)"
+    ],
+    "deny": [
+      "Bash(git push *)",
+      "Read(./.env)"
+    ]
+  }
+}

@@ -1,0 +1,1686 @@
+openapi: 3.1.0
+info:
+  title: Sistema Integral de Gestión de Consorcios
+  description: |
+    API REST para la gestión integral de consorcios. Permite administrar expensas,
+    tareas y presupuestos, comunicación interna y reserva de amenities. El acceso a
+    los recursos está restringido por roles fijos: Administración, Departamentos
+    (Inquilinos/Propietarios) y Representantes.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8000
+    description: Servidor local de desarrollo
+
+tags:
+  - name: Auth
+    description: Autenticación e intercambio de credenciales por token JWT
+  - name: Expensas
+    description: Gestión de expensas y comprobantes de pago
+  - name: Tareas
+    description: Peticiones de departamentos, trabajos y presupuestos
+  - name: Comunicación
+    description: Comunicados del consorcio
+  - name: Amenities
+    description: Disponibilidad y reservas de espacios comunes
+  - name: Administracion
+    description: Alta y edición de departamentos, usuarios y amenities (solo Administración)
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  # =========================================================================
+  # 0. AUTH
+  # =========================================================================
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Obtener los datos del usuario autenticado
+      description: |
+        Devuelve los datos del usuario asociado al token JWT presentado. Útil para
+        que el frontend recupere el perfil tras un refresh sin necesidad de volver
+        a loguear. La identidad se obtiene exclusivamente del token.
+      operationId: obtenerUsuarioActual
+      responses:
+        '200':
+          description: Datos del usuario actual recuperados exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          description: El usuario asociado al token ya no existe.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revocar el token actual (logout)
+      description: |
+        Marca el `jti` del JWT presentado como revocado hasta su vencimiento
+        natural. Tras un logout exitoso, cualquier intento de usar el mismo
+        token devuelve 401 con `detail: "Token revocado."`. La blacklist es
+        in-memory y se pierde al reiniciar el servidor (los tokens revocados
+        vuelven a ser válidos hasta su `exp` original).
+      operationId: logout
+      responses:
+        '204':
+          description: Token revocado exitosamente. Sin cuerpo de respuesta.
+        '401':
+          description: Token ausente, inválido, expirado o ya revocado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/cambiar-password:
+    post:
+      tags: [Auth]
+      summary: Cambiar la contraseña del usuario autenticado
+      description: |
+        Permite al usuario autenticado cambiar su propia contraseña. Requiere
+        confirmar la contraseña actual: si no coincide se devuelve 401 sin
+        modificar nada. El identificador del usuario se obtiene exclusivamente
+        del token (nunca del body). En éxito no se devuelve cuerpo (204) y el
+        token actual sigue siendo válido — esto NO cierra la sesión.
+      operationId: cambiarPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CambiarPasswordIn'
+      responses:
+        '204':
+          description: Contraseña actualizada exitosamente. Sin cuerpo de respuesta.
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          description: Token ausente/inválido, o la contraseña actual es incorrecta.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: El usuario asociado al token ya no existe.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Autenticar usuario y obtener token JWT
+      description: |
+        Intercambia un par (email, password) por un token JWT de tipo Bearer.
+        El token devuelto debe enviarse en el header `Authorization: Bearer <token>`
+        en las llamadas subsiguientes a endpoints protegidos. El endpoint es
+        público (no requiere autenticación previa). En caso de credenciales
+        inválidas se devuelve 401 con un mensaje genérico para prevenir
+        enumeración de usuarios.
+      operationId: login
+      security: []  # endpoint público: sin Bearer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginIn'
+      responses:
+        '200':
+          description: Autenticación exitosa.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenOut'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          description: Credenciales inválidas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =========================================================================
+  # 1. EXPENSAS
+  # =========================================================================
+
+  /expensas:
+    get:
+      tags: [Expensas]
+      summary: Listar expensas
+      description: |
+        Devuelve el historial de expensas. Administración ve todas las expensas
+        del consorcio (historial general); los Departamentos ven únicamente las
+        asociadas a su propia unidad (aislamiento server-side por el
+        `departamento_id` del token). Soporta filtros opcionales por período y
+        estado, y paginación mediante `limit` / `offset`.
+      operationId: listarExpensas
+      parameters:
+        - name: periodo
+          in: query
+          required: false
+          description: Filtrar por período (formato YYYY-MM).
+          schema:
+            type: string
+            pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+            examples: ["2026-05"]
+        - name: estado
+          in: query
+          required: false
+          description: Filtrar por estado de la expensa.
+          schema:
+            type: string
+            enum: [pendiente, pagada, vencida]
+        - name: limit
+          in: query
+          required: false
+          description: Cantidad máxima de resultados a devolver.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 200
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          description: Cantidad de resultados a saltar (paginación).
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Lista de expensas recuperada exitosamente.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Expensa'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+
+    post:
+      tags: [Expensas]
+      summary: Crear una nueva expensa
+      description: |
+        Crea una expensa para un período determinado. Solo accesible para
+        Administración. Una expensa es única por la combinación
+        `(departamento_id, periodo)` — si ya existe se devuelve 409.
+      operationId: crearExpensa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpensaCrear'
+      responses:
+        '201':
+          description: Expensa creada exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expensa'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          description: El departamento indicado no existe.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Ya existe una expensa para ese departamento y período.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /expensas/{expensa_id}:
+    get:
+      tags: [Expensas]
+      summary: Obtener detalle de una expensa
+      description: |
+        Devuelve el detalle de una expensa puntual. Los Departamentos solo pueden
+        consultar expensas asociadas a su propia unidad.
+      operationId: obtenerExpensa
+      parameters:
+        - name: expensa_id
+          in: path
+          required: true
+          description: Identificador único de la expensa.
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Detalle de la expensa recuperado exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expensa'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+  /expensas/{expensa_id}/comprobantes:
+    post:
+      tags: [Expensas]
+      summary: Presentar comprobante de pago de una expensa
+      description: |
+        Permite a un Departamento adjuntar el comprobante de pago de la expensa
+        indicada. Solo Departamentos asociados a la unidad de la expensa pueden
+        utilizar este endpoint.
+      operationId: presentarComprobante
+      parameters:
+        - name: expensa_id
+          in: path
+          required: true
+          description: Identificador único de la expensa.
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComprobanteCrear'
+      responses:
+        '201':
+          description: Comprobante registrado exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comprobante'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+  /comprobantes/{comprobante_id}:
+    patch:
+      tags: [Expensas]
+      summary: Aprobar o rechazar un comprobante
+      description: |
+        Permite a Administración decidir sobre un comprobante en estado
+        `pendiente_verificacion`. Si se aprueba, la expensa asociada se marca
+        automáticamente como `pagada`. Si se rechaza, la expensa queda en su
+        estado actual. Estados terminales (aprobado/rechazado) son inmutables.
+      operationId: actualizarComprobante
+      parameters:
+        - name: comprobante_id
+          in: path
+          required: true
+          description: Identificador único del comprobante.
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComprobanteActualizar'
+      responses:
+        '200':
+          description: Comprobante actualizado exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comprobante'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          description: El comprobante ya fue verificado y no puede modificarse.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =========================================================================
+  # 2. TAREAS PARA HACER
+  # =========================================================================
+
+  /peticiones:
+    get:
+      tags: [Tareas]
+      summary: Listar peticiones
+      description: |
+        Lista general de peticiones. Los Departamentos solo ven sus propias
+        peticiones; Administración y Representantes ven todas.
+      operationId: listarPeticiones
+      responses:
+        '200':
+          description: Lista de peticiones recuperada exitosamente.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Peticion'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+
+    post:
+      tags: [Tareas]
+      summary: Crear una petición
+      description: |
+        Permite a un Departamento registrar una nueva petición (ej. reparación
+        en espacio común).
+      operationId: crearPeticion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PeticionCrear'
+      responses:
+        '201':
+          description: Petición creada exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Peticion'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+
+  /peticiones/{peticion_id}:
+    get:
+      tags: [Tareas]
+      summary: Obtener detalle de una petición
+      description: |
+        Devuelve el detalle y el estado actual de una petición. Los Departamentos
+        solo pueden consultar peticiones que ellos mismos hayan creado.
+      operationId: obtenerPeticion
+      parameters:
+        - name: peticion_id
+          in: path
+          required: true
+          description: Identificador único de la petición.
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Detalle de la petición recuperado exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Peticion'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+    patch:
+      tags: [Tareas]
+      summary: Rechazar una petición
+      description: |
+        Permite a Administración/Representantes rechazar una petición que está
+        en estado `abierta`. La aceptación se materializa creando un trabajo vía
+        `POST /trabajos`, que también transiciona la petición a
+        `convertida_en_trabajo` — por eso este endpoint solo cubre la rama de
+        rechazo. Una petición ya rechazada o convertida en trabajo devuelve 409.
+      operationId: actualizarPeticion
+      parameters:
+        - name: peticion_id
+          in: path
+          required: true
+          description: Identificador único de la petición.
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PeticionActualizar'
+      responses:
+        '200':
+          description: Petición actualizada exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Peticion'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          description: Transición de estado no permitida desde el estado actual.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /trabajos:
+    post:
+      tags: [Tareas]
+      summary: Crear un trabajo a realizar
+      description: |
+        Crea un trabajo. Si se incluye `peticion_id`, el trabajo queda asociado
+        a esa petición y la transiciona a `convertida_en_trabajo`. Si se omite,
+        el trabajo se crea sin petición previa. Solo accesible para
+        Administración y Representantes.
+      operationId: crearTrabajo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrabajoCrear'
+      responses:
+        '201':
+          description: Trabajo creado exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trabajo'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+  /trabajos/{trabajo_id}:
+    patch:
+      tags: [Tareas]
+      summary: Cerrar un trabajo (finalizar o cancelar)
+      description: |
+        Permite a Administración/Representantes cerrar un trabajo en estado
+        `en_curso`. Transiciones válidas: `en_curso → finalizado` y
+        `en_curso → cancelado`. Los estados `finalizado` y `cancelado` son
+        terminales — intentar modificarlos devuelve 409.
+      operationId: actualizarTrabajo
+      parameters:
+        - name: trabajo_id
+          in: path
+          required: true
+          description: Identificador único del trabajo.
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrabajoActualizar'
+      responses:
+        '200':
+          description: Trabajo actualizado exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trabajo'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          description: Transición de estado no permitida desde el estado actual.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /trabajos/{trabajo_id}/presupuestos:
+    post:
+      tags: [Tareas]
+      summary: Registrar/aprobar presupuesto de un proveedor
+      description: |
+        Adjunta a un trabajo el presupuesto de un proveedor y permite marcarlo como
+        aprobado. Solo accesible para Administración y Representantes.
+      operationId: registrarPresupuesto
+      parameters:
+        - name: trabajo_id
+          in: path
+          required: true
+          description: Identificador único del trabajo.
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PresupuestoCrear'
+      responses:
+        '201':
+          description: Presupuesto registrado exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Presupuesto'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+  # =========================================================================
+  # 3. COMUNICACIÓN
+  # =========================================================================
+
+  /comunicados:
+    get:
+      tags: [Comunicación]
+      summary: Listar comunicados
+      description: Devuelve los comunicados publicados. Accesible para todos los roles autenticados.
+      operationId: listarComunicados
+      responses:
+        '200':
+          description: Lista de comunicados recuperada exitosamente.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comunicado'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+
+    post:
+      tags: [Comunicación]
+      summary: Publicar un comunicado
+      description: Crea un nuevo comunicado del consorcio. Solo accesible para Administración.
+      operationId: crearComunicado
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComunicadoCrear'
+      responses:
+        '201':
+          description: Comunicado publicado exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comunicado'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+
+  # =========================================================================
+  # 4. AMENITIES (RESERVA DE ESPACIOS)
+  # =========================================================================
+
+  /amenities:
+    get:
+      tags: [Amenities]
+      summary: Listar amenities
+      description: |
+        Devuelve los amenities disponibles en el consorcio (SUM, Laundry, etc.).
+        Accesible para todos los roles autenticados.
+      operationId: listarAmenities
+      responses:
+        '200':
+          description: Lista de amenities recuperada exitosamente.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Amenity'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+
+    post:
+      tags: [Administracion]
+      summary: Crear un amenity (espacio común)
+      description: |
+        Crea un nuevo amenity. Solo accesible para Administración. El `nombre`
+        es único en el consorcio — si ya existe se devuelve 409.
+      operationId: crearAmenity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AmenityCrear'
+      responses:
+        '201':
+          description: Amenity creado exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Amenity'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '409':
+          description: Ya existe un amenity con ese nombre.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /amenities/{amenity_id}:
+    patch:
+      tags: [Administracion]
+      summary: Editar un amenity
+      description: |
+        Permite a Administración modificar `nombre` y/o `descripcion` de un
+        amenity. Solo se actualizan los campos enviados (PATCH parcial). El
+        nuevo `nombre` debe seguir siendo único (409 si colisiona con otro).
+      operationId: actualizarAmenity
+      parameters:
+        - name: amenity_id
+          in: path
+          required: true
+          description: Identificador único del amenity.
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AmenityActualizar'
+      responses:
+        '200':
+          description: Amenity actualizado exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Amenity'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          description: Ya existe otro amenity con ese nombre.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /amenities/{amenity_id}/disponibilidad:
+    get:
+      tags: [Amenities]
+      summary: Consultar disponibilidad de un amenity
+      description: |
+        Devuelve los bloques horarios disponibles y reservados para un amenity
+        (SUM, Laundry, etc.) en un rango de fechas. Accesible para todos los roles.
+      operationId: consultarDisponibilidad
+      parameters:
+        - name: amenity_id
+          in: path
+          required: true
+          description: Identificador único del amenity.
+          schema:
+            type: integer
+            format: int64
+        - name: desde
+          in: query
+          required: true
+          description: Fecha inicial del rango a consultar (ISO 8601).
+          schema:
+            type: string
+            format: date
+        - name: hasta
+          in: query
+          required: true
+          description: Fecha final del rango a consultar (ISO 8601).
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Disponibilidad recuperada exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Disponibilidad'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+  /amenities/{amenity_id}/reservas:
+    post:
+      tags: [Amenities]
+      summary: Reservar un amenity
+      description: |
+        Crea una nueva reserva para el amenity indicado. Accesible para todos
+        los roles autenticados. El `usuario_id` se asigna server-side desde el
+        token JWT; cualquier valor en el body es ignorado. `inicio` debe ser
+        estrictamente anterior a `fin` (400 si no). Si el rango solicitado se
+        superpone con una reserva confirmada existente para el mismo amenity,
+        se devuelve 409 Conflict.
+      operationId: crearReserva
+      parameters:
+        - name: amenity_id
+          in: path
+          required: true
+          description: Identificador único del amenity.
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservaCrear'
+      responses:
+        '201':
+          description: Reserva creada exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reserva'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          description: El horario solicitado se superpone con una reserva existente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /reservas:
+    get:
+      tags: [Amenities]
+      summary: Listar mis reservas
+      description: |
+        Devuelve las reservas asociadas al usuario autenticado. Administración y
+        Representantes ven todas las reservas. Los Departamentos ven solo las
+        reservas que ellos mismos crearon. La identidad se obtiene del token.
+      operationId: listarReservas
+      parameters:
+        - name: estado
+          in: query
+          required: false
+          description: Filtrar por estado de la reserva.
+          schema:
+            type: string
+            enum: [confirmada, cancelada]
+      responses:
+        '200':
+          description: Lista de reservas recuperada exitosamente.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Reserva'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+
+  # =========================================================================
+  # 5. ADMINISTRACIÓN (ALTAS Y EDICIÓN)
+  # =========================================================================
+
+  /departamentos:
+    get:
+      tags: [Administracion]
+      summary: Listar departamentos
+      description: |
+        Devuelve los departamentos (unidades funcionales) del consorcio. Solo
+        accesible para Administración.
+      operationId: listarDepartamentos
+      responses:
+        '200':
+          description: Lista de departamentos recuperada exitosamente.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Departamento'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+
+    post:
+      tags: [Administracion]
+      summary: Crear un departamento (unidad funcional)
+      description: |
+        Crea un nuevo departamento. Solo accesible para Administración. El
+        `codigo` (ej. UF-1A) es único en el consorcio — si ya existe se
+        devuelve 409.
+      operationId: crearDepartamento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartamentoCrear'
+      responses:
+        '201':
+          description: Departamento creado exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Departamento'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '409':
+          description: Ya existe un departamento con ese código.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /departamentos/{departamento_id}:
+    patch:
+      tags: [Administracion]
+      summary: Editar un departamento
+      description: |
+        Permite a Administración modificar la `descripcion` de un departamento.
+        El `codigo` es inmutable post-creación porque identifica a la unidad en
+        documentos externos.
+      operationId: actualizarDepartamento
+      parameters:
+        - name: departamento_id
+          in: path
+          required: true
+          description: Identificador único del departamento.
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartamentoActualizar'
+      responses:
+        '200':
+          description: Departamento actualizado exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Departamento'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+  /usuarios:
+    get:
+      tags: [Administracion]
+      summary: Listar usuarios
+      description: |
+        Devuelve los usuarios registrados en el sistema. Solo accesible para
+        Administración. No incluye hashes de contraseñas.
+      operationId: listarUsuarios
+      responses:
+        '200':
+          description: Lista de usuarios recuperada exitosamente.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UsuarioOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+
+    post:
+      tags: [Administracion]
+      summary: Crear un usuario
+      description: |
+        Crea un nuevo usuario. Solo accesible para Administración. La
+        contraseña se hashea server-side y nunca se devuelve. Los usuarios con
+        rol `departamento` requieren `departamento_id`; los demás roles no
+        deben llevarlo.
+      operationId: crearUsuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsuarioCrear'
+      responses:
+        '201':
+          description: Usuario creado exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioOut'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          description: El departamento indicado no existe.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Ya existe un usuario con ese email.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /usuarios/{usuario_id}:
+    patch:
+      tags: [Administracion]
+      summary: Editar un usuario
+      description: |
+        Permite a Administración modificar `email`, `rol` y/o `departamento_id`
+        de un usuario. La contraseña NO se modifica acá — el propio usuario la
+        cambia vía `POST /auth/cambiar-password`. Solo se actualizan los
+        campos enviados (PATCH parcial). Tras aplicar los cambios, el estado
+        final debe respetar la invariante rol↔departamento_id: si el resultado
+        es inconsistente se devuelve 400.
+      operationId: actualizarUsuario
+      parameters:
+        - name: usuario_id
+          in: path
+          required: true
+          description: Identificador único del usuario.
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsuarioActualizar'
+      responses:
+        '200':
+          description: Usuario actualizado exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioOut'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          description: Ya existe otro usuario con ese email.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /reservas/{reserva_id}:
+    delete:
+      tags: [Amenities]
+      summary: Cancelar una reserva
+      description: |
+        Marca la reserva como `cancelada`. Solo el dueño de la reserva o
+        Administración pueden cancelarla. Una reserva ya cancelada devuelve
+        409 Conflict.
+      operationId: cancelarReserva
+      parameters:
+        - name: reserva_id
+          in: path
+          required: true
+          description: Identificador único de la reserva.
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Reserva cancelada exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reserva'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          description: La reserva ya está cancelada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+# ===========================================================================
+# COMPONENTS
+# ===========================================================================
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Autenticación mediante token JWT en el header Authorization.
+
+  responses:
+
+    PedidoInvalido:
+      description: El pedido es inválido o le faltan campos requeridos.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NoAutenticado:
+      description: No se proporcionó token de autenticación o es inválido.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    AccesoDenegado:
+      description: El rol del usuario no tiene permisos para acceder al recurso.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NoEncontrado:
+      description: El recurso solicitado no existe.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+
+    Error:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string
+          description: Descripción legible del error.
+          examples: ["No tiene permisos para acceder a este recurso."]
+
+    # ---------------------------- Auth ------------------------------------
+
+    LoginIn:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          minLength: 3
+          maxLength: 255
+          examples: ["admin@consorcio.local"]
+        password:
+          type: string
+          minLength: 1
+          maxLength: 255
+          format: password
+
+    CambiarPasswordIn:
+      type: object
+      required: [current_password, new_password]
+      properties:
+        current_password:
+          type: string
+          minLength: 1
+          maxLength: 255
+          format: password
+          description: Contraseña actual del usuario (para confirmar identidad).
+        new_password:
+          type: string
+          minLength: 8
+          maxLength: 255
+          format: password
+          description: Nueva contraseña a establecer. Mínimo 8 caracteres.
+
+    TokenOut:
+      type: object
+      required: [access_token, token_type, expires_in, user]
+      properties:
+        access_token:
+          type: string
+          description: JWT firmado con HS256.
+        token_type:
+          type: string
+          enum: [bearer]
+        expires_in:
+          type: integer
+          format: int32
+          description: Segundos hasta el vencimiento del token.
+        user:
+          $ref: '#/components/schemas/UsuarioOut'
+
+    UsuarioOut:
+      type: object
+      required: [id, email, rol]
+      properties:
+        id:
+          type: integer
+          format: int64
+        email:
+          type: string
+        rol:
+          type: string
+          enum: [administracion, representante, departamento]
+        departamento_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Solo presente para usuarios con rol `departamento`.
+
+    # ---------------------------- Expensas --------------------------------
+
+    Expensa:
+      type: object
+      required: [id, departamento_id, periodo, monto, estado]
+      properties:
+        id:
+          type: integer
+          format: int64
+        departamento_id:
+          type: integer
+          format: int64
+          description: Unidad funcional a la que se asocia la expensa.
+        periodo:
+          type: string
+          description: Período de la expensa (YYYY-MM).
+          examples: ["2026-05"]
+        monto:
+          type: number
+          format: double
+          examples: [85230.50]
+        estado:
+          type: string
+          enum: [pendiente, pagada, vencida]
+        fecha_vencimiento:
+          type: string
+          format: date
+
+    ExpensaCrear:
+      type: object
+      required: [departamento_id, periodo, monto, fecha_vencimiento]
+      properties:
+        departamento_id:
+          type: integer
+          format: int64
+          minimum: 1
+        periodo:
+          type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+          examples: ["2026-05"]
+        monto:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+        fecha_vencimiento:
+          type: string
+          format: date
+
+    Comprobante:
+      type: object
+      required: [id, expensa_id, fecha_pago, monto, estado]
+      properties:
+        id:
+          type: integer
+          format: int64
+        expensa_id:
+          type: integer
+          format: int64
+        fecha_pago:
+          type: string
+          format: date
+        monto:
+          type: number
+          format: double
+        archivo_url:
+          type: string
+          format: uri
+          description: URL del comprobante adjunto.
+        estado:
+          type: string
+          enum: [pendiente_verificacion, aprobado, rechazado]
+
+    ComprobanteCrear:
+      type: object
+      required: [fecha_pago, monto]
+      properties:
+        fecha_pago:
+          type: string
+          format: date
+        monto:
+          type: number
+          format: double
+        archivo_url:
+          type: string
+          format: uri
+
+    ComprobanteActualizar:
+      type: object
+      required: [estado]
+      properties:
+        estado:
+          type: string
+          enum: [aprobado, rechazado]
+          description: Decisión final sobre el comprobante.
+
+    # ---------------------------- Tareas ----------------------------------
+
+    Peticion:
+      type: object
+      required: [id, departamento_id, titulo, descripcion, estado, fecha_creacion]
+      properties:
+        id:
+          type: integer
+          format: int64
+        departamento_id:
+          type: integer
+          format: int64
+        titulo:
+          type: string
+        descripcion:
+          type: string
+        estado:
+          type: string
+          enum: [abierta, convertida_en_trabajo, rechazada]
+        fecha_creacion:
+          type: string
+          format: date-time
+
+    PeticionCrear:
+      type: object
+      required: [titulo, descripcion]
+      properties:
+        titulo:
+          type: string
+        descripcion:
+          type: string
+
+    PeticionActualizar:
+      type: object
+      required: [estado]
+      properties:
+        estado:
+          type: string
+          enum: [rechazada]
+          description: Único estado al que se puede transicionar manualmente.
+
+    Trabajo:
+      type: object
+      required: [id, descripcion, estado, fecha_creacion]
+      properties:
+        id:
+          type: integer
+          format: int64
+        peticion_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: |
+            Petición que originó el trabajo. Null si el trabajo se creó desde
+            cero (sin petición previa).
+        descripcion:
+          type: string
+        estado:
+          type: string
+          enum: [en_curso, finalizado, cancelado]
+        fecha_creacion:
+          type: string
+          format: date-time
+
+    TrabajoCrear:
+      type: object
+      required: [descripcion]
+      properties:
+        peticion_id:
+          type: integer
+          format: int64
+          minimum: 1
+          nullable: true
+          description: |
+            Petición que origina el trabajo. Si se omite o es null, el trabajo
+            se crea "desde cero" sin petición asociada.
+        descripcion:
+          type: string
+
+    TrabajoActualizar:
+      type: object
+      required: [estado]
+      properties:
+        estado:
+          type: string
+          enum: [finalizado, cancelado]
+          description: Estado terminal al que se cierra el trabajo.
+
+    Presupuesto:
+      type: object
+      required: [id, trabajo_id, proveedor, monto, estado, fecha_presentacion]
+      properties:
+        id:
+          type: integer
+          format: int64
+        trabajo_id:
+          type: integer
+          format: int64
+        proveedor:
+          type: string
+        monto:
+          type: number
+          format: double
+        estado:
+          type: string
+          enum: [presentado, aprobado, rechazado]
+        fecha_presentacion:
+          type: string
+          format: date
+
+    PresupuestoCrear:
+      type: object
+      required: [proveedor, monto]
+      properties:
+        proveedor:
+          type: string
+        monto:
+          type: number
+          format: double
+        aprobado:
+          type: boolean
+          default: false
+          description: Si es true, el presupuesto se crea ya aprobado.
+
+    # ---------------------------- Comunicación ----------------------------
+
+    Comunicado:
+      type: object
+      required: [id, titulo, cuerpo, fecha_publicacion, autor_id]
+      properties:
+        id:
+          type: integer
+          format: int64
+        titulo:
+          type: string
+        cuerpo:
+          type: string
+        fecha_publicacion:
+          type: string
+          format: date-time
+        autor_id:
+          type: integer
+          format: int64
+
+    ComunicadoCrear:
+      type: object
+      required: [titulo, cuerpo]
+      properties:
+        titulo:
+          type: string
+        cuerpo:
+          type: string
+
+    # ---------------------------- Amenities -------------------------------
+
+    Amenity:
+      type: object
+      required: [id, nombre]
+      properties:
+        id:
+          type: integer
+          format: int64
+        nombre:
+          type: string
+        descripcion:
+          type: string
+          nullable: true
+
+    AmenityCrear:
+      type: object
+      required: [nombre]
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 100
+        descripcion:
+          type: string
+          maxLength: 500
+          nullable: true
+
+    AmenityActualizar:
+      type: object
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 100
+        descripcion:
+          type: string
+          maxLength: 500
+          nullable: true
+
+    Departamento:
+      type: object
+      required: [id, codigo]
+      properties:
+        id:
+          type: integer
+          format: int64
+        codigo:
+          type: string
+          description: Identificador funcional de la unidad (ej. UF-1A).
+          examples: ["UF-1A"]
+        descripcion:
+          type: string
+          nullable: true
+
+    DepartamentoCrear:
+      type: object
+      required: [codigo]
+      properties:
+        codigo:
+          type: string
+          minLength: 1
+          maxLength: 32
+          examples: ["UF-3C"]
+        descripcion:
+          type: string
+          maxLength: 255
+          nullable: true
+
+    DepartamentoActualizar:
+      type: object
+      properties:
+        descripcion:
+          type: string
+          maxLength: 255
+          nullable: true
+
+    UsuarioCrear:
+      type: object
+      required: [email, password, rol]
+      properties:
+        email:
+          type: string
+          minLength: 3
+          maxLength: 255
+        password:
+          type: string
+          minLength: 8
+          maxLength: 255
+          format: password
+        rol:
+          type: string
+          enum: [administracion, representante, departamento]
+        departamento_id:
+          type: integer
+          format: int64
+          minimum: 1
+          nullable: true
+          description: |
+            Requerido si `rol == departamento`. Prohibido para los demás roles.
+
+    UsuarioActualizar:
+      type: object
+      properties:
+        email:
+          type: string
+          minLength: 3
+          maxLength: 255
+        rol:
+          type: string
+          enum: [administracion, representante, departamento]
+        departamento_id:
+          type: integer
+          format: int64
+          minimum: 1
+          nullable: true
+
+    Disponibilidad:
+      type: object
+      required: [amenity_id, bloques]
+      properties:
+        amenity_id:
+          type: integer
+          format: int64
+        bloques:
+          type: array
+          items:
+            $ref: '#/components/schemas/BloqueHorario'
+
+    BloqueHorario:
+      type: object
+      required: [inicio, fin, disponible]
+      properties:
+        inicio:
+          type: string
+          format: date-time
+        fin:
+          type: string
+          format: date-time
+        disponible:
+          type: boolean
+
+    Reserva:
+      type: object
+      required: [id, amenity_id, usuario_id, inicio, fin, estado]
+      properties:
+        id:
+          type: integer
+          format: int64
+        amenity_id:
+          type: integer
+          format: int64
+        usuario_id:
+          type: integer
+          format: int64
+        inicio:
+          type: string
+          format: date-time
+        fin:
+          type: string
+          format: date-time
+        estado:
+          type: string
+          enum: [confirmada, cancelada]
+
+    ReservaCrear:
+      type: object
+      required: [inicio, fin]
+      properties:
+        inicio:
+          type: string
+          format: date-time
+        fin:
+          type: string
+          format: date-time
