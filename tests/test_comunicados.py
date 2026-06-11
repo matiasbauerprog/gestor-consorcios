@@ -135,3 +135,18 @@ def test_crear_comunicado_body_incompleto_devuelve_400(client, headers_admin):
         headers=headers_admin,
     )
     assert r.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# DELETE /comunicados/{comunicado_id}
+# ---------------------------------------------------------------------------
+
+
+def test_borrar_comunicado_admin_devuelve_204(client, headers_admin):
+    r = client.delete("/comunicados/200", headers=headers_admin)
+    assert r.status_code == 204
+    assert r.content == b""
+
+    # El comunicado ya no aparece en el GET.
+    r = client.get("/comunicados", headers=headers_admin)
+    assert r.json() == []
