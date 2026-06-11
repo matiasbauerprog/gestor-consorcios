@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 
 export default function Login() {
   const { login } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
@@ -23,6 +25,7 @@ export default function Login() {
 
     if (result.status === 200) {
       login(result.data.access_token, result.data.user);
+      navigate("/comunicados", { replace: true });
       return;
     }
 

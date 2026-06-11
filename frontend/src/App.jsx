@@ -1,49 +1,31 @@
-import { AuthProvider, useAuth } from "./auth/AuthContext";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./auth/AuthContext";
+import AppLayout from "./components/AppLayout";
+import RequireAuth from "./components/RequireAuth";
 import Login from "./screens/Login";
-
-function Shell() {
-  const { user, hydrating, logout } = useAuth();
-
-  if (hydrating) {
-    return <p style={{ padding: "2rem", textAlign: "center" }}>Cargando...</p>;
-  }
-
-  if (!user) {
-    return <Login />;
-  }
-
-  return (
-    <div className="app-shell">
-      <header className="app-header">
-        <h1>Gestión de Consorcios</h1>
-        <nav className="app-user">
-          <span>
-            {user.email} <strong>({user.rol})</strong>
-          </span>
-          <button type="button" onClick={logout}>
-            Cerrar sesión
-          </button>
-        </nav>
-      </header>
-
-      <main className="app-content">
-        <section>
-          <h2>Bienvenido/a</h2>
-          <p>Aún no hay módulos implementados.</p>
-          <p>
-            Próximos pasos: comunicados, expensas, peticiones, trabajos, reservas
-            y administración.
-          </p>
-        </section>
-      </main>
-    </div>
-  );
-}
+import Comunicados from "./screens/Comunicados";
+import NotFound from "./screens/NotFound";
 
 export default function App() {
   return (
     <AuthProvider>
-      <Shell />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/"
+            element={
+              <RequireAuth>
+                <AppLayout />
+              </RequireAuth>
+            }
+          >
+            <Route index element={<Navigate to="/comunicados" replace />} />
+            <Route path="comunicados" element={<Comunicados />} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
     </AuthProvider>
   );
 }
