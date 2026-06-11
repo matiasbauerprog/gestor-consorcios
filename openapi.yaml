@@ -679,8 +679,10 @@ paths:
         - name: comunicado_id
           in: path
           required: true
+          description: Identificador único del comunicado.
           schema:
             type: integer
+            format: int64
       responses:
         '204':
           description: Comunicado eliminado exitosamente.
