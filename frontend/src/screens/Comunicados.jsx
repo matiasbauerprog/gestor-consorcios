@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
-import { listarComunicados } from "../api/comunicados";
+import { listarComunicados, crearComunicado } from "../api/comunicados";
+import Modal from "../components/Modal";
 import Tarjeta from "../components/Tarjeta";
 
 function formatearFecha(iso) {
@@ -24,6 +25,12 @@ export default function Comunicados() {
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState(null);
   const [expandidos, setExpandidos] = useState(() => new Set());
+  const [modalCrearAbierto, setModalCrearAbierto] = useState(false);
+
+  function handleCreado(nuevo) {
+    setComunicados((prev) => [nuevo, ...prev]);
+    setModalCrearAbierto(false);
+  }
 
   function toggleExpandir(id) {
     setExpandidos((prev) => {
@@ -62,7 +69,9 @@ export default function Comunicados() {
       <header className="seccion-header">
         <h2>Comunicados</h2>
         {user.rol === "administracion" && (
-          <button type="button">+ Nuevo comunicado</button>
+          <button type="button" onClick={() => setModalCrearAbierto(true)}>
+            + Nuevo comunicado
+          </button>
         )}
       </header>
 
@@ -98,6 +107,92 @@ export default function Comunicados() {
           </li>
         ))}
       </ul>
+
+      {modalCrearAbierto && (
+        <Modal
+          titulo="Nuevo comunicado"
+          onClose={() => setModalCrearAbierto(false)}
+        >
+          <FormularioNuevoComunicado
+            onCreado={handleCreado}
+            onCancelar={() => setModalCrearAbierto(false)}
+          />
+        </Modal>
+      )}
     </section>
+  );
+}
+
+function FormularioNuevoComunicado({ onCreado, onCancelar }) {
+  const [titulo, setTitulo] = useState("");
+  const [cuerpo, setCuerpo] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function onSubmit(e) {
+    e.preventDefault();
+    setError(null);
+    setEnviando(true);
+
+    const r = await crearComunicado({ titulo, cuerpo });
+    setEnviando(false);
+
+    if (r.status === 201) {
+      onCreado(r.data);
+      return;
+    }
+    if (r.status === 400) {
+      setError(r.data?.detail || "Revisá los campos del formulario.");
+      return;
+    }
+    if (r.status === 403) {
+      setError("No tenés permisos para publicar comunicados.");
+      return;
+    }
+    if (r.status !== 401) {
+      setError("Ocurrió un error inesperado. Intentá de nuevo.");
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit} noValidate>
+      <label>
+        Título
+        <input
+          type="text"
+          value={titulo}
+          onChange={(e) => setTitulo(e.target.value)}
+          maxLength={255}
+          required
+          autoFocus
+        />
+      </label>
+
+      <label>
+        Cuerpo
+        <textarea
+          value={cuerpo}
+          onChange={(e) => setCuerpo(e.target.value)}
+          maxLength={5000}
+          required
+        />
+      </label>
+
+      {error && <p role="alert" className="error-banner">{error}</p>}
+
+      <div className="modal-acciones">
+        <button
+          type="button"
+          className="boton-secundario"
+          onClick={onCancelar}
+          disabled={enviando}
+        >
+          Cancelar
+        </button>
+        <button type="submit" disabled={enviando}>
+          {enviando ? "Publicando…" : "Publicar"}
+        </button>
+      </div>
+    </form>
   );
 }
