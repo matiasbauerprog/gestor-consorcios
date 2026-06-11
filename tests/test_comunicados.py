@@ -150,3 +150,34 @@ def test_borrar_comunicado_admin_devuelve_204(client, headers_admin):
     # El comunicado ya no aparece en el GET.
     r = client.get("/comunicados", headers=headers_admin)
     assert r.json() == []
+
+
+def test_borrar_comunicado_sin_token_devuelve_401(client):
+    r = client.delete("/comunicados/200")
+    assert r.status_code == 401
+
+
+def test_borrar_comunicado_como_departamento_devuelve_403(client, headers_depto_a):
+    r = client.delete("/comunicados/200", headers=headers_depto_a)
+    assert r.status_code == 403
+
+
+def test_borrar_comunicado_como_representante_devuelve_403(client, headers_representante):
+    r = client.delete("/comunicados/200", headers=headers_representante)
+    assert r.status_code == 403
+
+
+def test_borrar_comunicado_inexistente_devuelve_404(client, headers_admin):
+    r = client.delete("/comunicados/99999", headers=headers_admin)
+    assert r.status_code == 404
+    assert r.json()["detail"] == "El comunicado no existe."
+
+
+def test_borrar_comunicado_ya_borrado_devuelve_404(client, headers_admin):
+    # Primero borrarlo.
+    r1 = client.delete("/comunicados/200", headers=headers_admin)
+    assert r1.status_code == 204
+    # Segunda vez: 404.
+    r2 = client.delete("/comunicados/200", headers=headers_admin)
+    assert r2.status_code == 404
+    assert r2.json()["detail"] == "El comunicado no existe."
