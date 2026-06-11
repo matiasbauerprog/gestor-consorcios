@@ -51,6 +51,19 @@ def test_listar_comunicados_orden_por_fecha_desc(client, headers_admin):
     assert titulos[2] == "Bienvenida"
 
 
+def test_listar_comunicados_omite_los_eliminados(client, headers_admin, db_session):
+    from datetime import datetime, timezone
+    from backend.models import Comunicado
+
+    # Marcar el comunicado sembrado (id=200) como eliminado.
+    db_session.get(Comunicado, 200).eliminado_at = datetime.now(timezone.utc)
+    db_session.commit()
+
+    r = client.get("/comunicados", headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json() == []
+
+
 # ---------------------------------------------------------------------------
 # POST /comunicados
 # ---------------------------------------------------------------------------
