@@ -6,7 +6,16 @@ const MODULOS = [
     nombre: "Comunicación",
     rolesPermitidos: ["administracion", "representante", "departamento"],
   },
-  // Los próximos módulos se agregan acá (expensas, peticiones, trabajos, reservas, administración).
+  {
+    ruta: "/expensas",
+    nombre: "Expensas",
+    rolesPermitidos: ["administracion", "departamento"],
+  },
+  {
+    ruta: "/comprobantes",
+    nombre: "Comprobantes",
+    rolesPermitidos: ["administracion", "departamento"],
+  },
 ];
 
 export default function Sidebar({ rol }) {
