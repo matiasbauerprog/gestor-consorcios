@@ -125,17 +125,6 @@ class ExpensaCrear(BaseModel):
     fecha_vencimiento: date
 
 
-class ExpensaOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    departamento_id: int
-    periodo: str
-    monto: float
-    estado: EstadoExpensa
-    fecha_vencimiento: date
-
-
 class ComprobanteCrear(BaseModel):
     fecha_pago: date
     monto: float = Field(..., gt=0)
@@ -144,6 +133,14 @@ class ComprobanteCrear(BaseModel):
 
 class ComprobanteActualizar(BaseModel):
     estado: Literal[EstadoComprobante.aprobado, EstadoComprobante.rechazado]
+
+
+class ExpensaResumen(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    departamento_id: int
+    periodo: str
+    monto: float
 
 
 class ComprobanteOut(BaseModel):
@@ -155,6 +152,19 @@ class ComprobanteOut(BaseModel):
     monto: float
     archivo_url: str | None
     estado: EstadoComprobante
+    expensa: ExpensaResumen | None = None
+
+
+class ExpensaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    departamento_id: int
+    periodo: str
+    monto: float
+    estado: EstadoExpensa
+    fecha_vencimiento: date
+    ultimo_comprobante: ComprobanteOut | None = None
 
 
 class ReservaCrear(BaseModel):

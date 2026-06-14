@@ -196,7 +196,11 @@ class Expensa(Base):
     fecha_vencimiento: Mapped[date] = mapped_column(Date, nullable=False)
 
     departamento: Mapped["Departamento"] = relationship(back_populates="expensas")
-    comprobantes: Mapped[list["Comprobante"]] = relationship(back_populates="expensa")
+    comprobantes: Mapped[list["Comprobante"]] = relationship(
+        back_populates="expensa",
+        order_by="desc(Comprobante.fecha_creacion), desc(Comprobante.id)",
+        lazy="selectin",
+    )
 
 
 class Comprobante(Base):
