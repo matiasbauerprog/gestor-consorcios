@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 
 
-from datetime import date
+from datetime import date, timedelta
 from backend.models import Comprobante, EstadoComprobante
 
 
@@ -417,6 +417,28 @@ def test_presentar_comprobante_body_invalido_faltan_campos_devuelve_400(client, 
         headers=headers_depto_a,
     )
     assert r.status_code == 400
+
+
+def test_presentar_comprobante_fecha_futura_devuelve_400(client, headers_depto_a):
+    futura = (date.today() + timedelta(days=1)).isoformat()
+    r = client.post(
+        "/expensas/100/comprobantes",
+        json={"fecha_pago": futura, "monto": 85000.00},
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 400
+    assert "futura" in r.json()["detail"].lower()
+
+
+def test_presentar_comprobante_fecha_hoy_201(client, headers_depto_a):
+    hoy = date.today().isoformat()
+    r = client.post(
+        "/expensas/100/comprobantes",
+        json={"fecha_pago": hoy, "monto": 85000.00},
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 201
+    assert r.json()["fecha_pago"] == hoy
 
 
 def test_presentar_comprobante_devuelve_expensa_resumen(client, headers_depto_a):

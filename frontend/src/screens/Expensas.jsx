@@ -401,6 +401,7 @@ function FormularioNuevaExpensa({ departamentoId, onCreada, onCancelar }) {
 }
 
 function FormularioPresentarComprobante({ expensa, onPresentado, onCancelar }) {
+  const hoy = new Date().toISOString().slice(0, 10);
   const [fechaPago, setFechaPago] = useState("");
   const [monto, setMonto] = useState(String(expensa.monto));
   const [archivoUrl, setArchivoUrl] = useState("");
@@ -451,6 +452,7 @@ function FormularioPresentarComprobante({ expensa, onPresentado, onCancelar }) {
           type="date"
           value={fechaPago}
           onChange={(e) => setFechaPago(e.target.value)}
+          max={hoy}
           required
           autoFocus
         />
