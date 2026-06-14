@@ -317,9 +317,23 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ComprobanteCrear'
+              type: object
+              required: [fecha_pago, monto]
+              properties:
+                fecha_pago:
+                  type: string
+                  format: date
+                monto:
+                  type: number
+                  format: double
+                  minimum: 0
+                  exclusiveMinimum: true
+                archivo:
+                  type: string
+                  format: binary
+                  description: Imagen del comprobante (JPG/PNG/WebP, máx 5 MB).
       responses:
         '201':
           description: Comprobante registrado exitosamente.
@@ -335,6 +349,8 @@ paths:
           $ref: '#/components/responses/AccesoDenegado'
         '404':
           $ref: '#/components/responses/NoEncontrado'
+        '413':
+          $ref: '#/components/responses/PayloadGrande'
 
   /comprobantes:
     get:
@@ -1276,6 +1292,13 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
 
+    PayloadGrande:
+      description: Archivo demasiado grande.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
   schemas:
 
     Error:
@@ -1443,10 +1466,10 @@ components:
         monto:
           type: number
           format: double
-        archivo_url:
+        archivo_path:
           type: string
-          format: uri
-          description: URL del comprobante adjunto.
+          description: URL pública relativa de la imagen (`/uploads/comprobantes/<uuid>.<ext>`) o `null` si no se adjuntó archivo.
+          nullable: true
         estado:
           type: string
           enum: [pendiente_verificacion, aprobado, rechazado]
@@ -1455,20 +1478,6 @@ components:
           oneOf:
             - $ref: '#/components/schemas/ExpensaResumen'
             - type: 'null'
-
-    ComprobanteCrear:
-      type: object
-      required: [fecha_pago, monto]
-      properties:
-        fecha_pago:
-          type: string
-          format: date
-        monto:
-          type: number
-          format: double
-        archivo_url:
-          type: string
-          format: uri
 
     ComprobanteActualizar:
       type: object
