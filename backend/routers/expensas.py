@@ -1,6 +1,6 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -14,7 +14,8 @@ from ..models import (
     Expensa,
     Rol,
 )
-from ..schemas import ComprobanteCrear, ComprobanteOut, ExpensaCrear, ExpensaOut
+from ..schemas import ComprobanteOut, ExpensaCrear, ExpensaOut
+from ..storage import guardar_imagen_comprobante
 
 
 def _expensa_to_out(expensa) -> ExpensaOut:
@@ -154,7 +155,9 @@ def obtener_expensa(
 )
 def presentar_comprobante(
     expensa_id: int,
-    payload: ComprobanteCrear,
+    fecha_pago: date = Form(...),
+    monto: float = Form(..., gt=0),
+    archivo: UploadFile | None = File(default=None),
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.departamento)),
 ) -> Comprobante:
@@ -165,25 +168,27 @@ def presentar_comprobante(
             detail="La expensa solicitada no existe.",
         )
 
-    # Aislamiento por unidad: el departamento solo puede presentar comprobantes
-    # sobre expensas asociadas a su propia unidad.
     if expensa.departamento_id != user.departamento_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tiene permisos para acceder a este recurso.",
         )
 
-    if payload.fecha_pago > date.today():
+    if fecha_pago > date.today():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="La fecha de pago no puede ser futura.",
         )
 
+    archivo_path = None
+    if archivo is not None and archivo.filename:
+        archivo_path = guardar_imagen_comprobante(archivo)
+
     comprobante = Comprobante(
         expensa_id=expensa.id,
-        fecha_pago=payload.fecha_pago,
-        monto=payload.monto,
-        archivo_url=payload.archivo_url,
+        fecha_pago=fecha_pago,
+        monto=monto,
+        archivo_path=archivo_path,
         estado=EstadoComprobante.pendiente_verificacion,
     )
     db.add(comprobante)

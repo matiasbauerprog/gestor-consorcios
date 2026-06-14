@@ -21,7 +21,7 @@ def test_listar_expensas_ultimo_comprobante_es_el_mas_reciente(
         expensa_id=100,
         fecha_pago=date(2026, 5, 5),
         monto=50000.0,
-        archivo_url=None,
+        archivo_path=None,
         estado=EstadoComprobante.rechazado,
     )
     c_nuevo = Comprobante(
@@ -29,7 +29,7 @@ def test_listar_expensas_ultimo_comprobante_es_el_mas_reciente(
         expensa_id=100,
         fecha_pago=date(2026, 5, 6),
         monto=85000.0,
-        archivo_url="https://drive.example/x.pdf",
+        archivo_path=None,
         estado=EstadoComprobante.pendiente_verificacion,
     )
     db_session.add_all([c_viejo, c_nuevo])

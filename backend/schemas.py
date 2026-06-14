@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
 
 from .models import (
     EstadoComprobante,
@@ -125,11 +125,6 @@ class ExpensaCrear(BaseModel):
     fecha_vencimiento: date
 
 
-class ComprobanteCrear(BaseModel):
-    fecha_pago: date
-    monto: float = Field(..., gt=0)
-    archivo_url: str | None = Field(default=None, max_length=2048)
-
 
 class ComprobanteActualizar(BaseModel):
     estado: Literal[EstadoComprobante.aprobado, EstadoComprobante.rechazado]
@@ -150,9 +145,15 @@ class ComprobanteOut(BaseModel):
     expensa_id: int
     fecha_pago: date
     monto: float
-    archivo_url: str | None
+    archivo_path: str | None
     estado: EstadoComprobante
     expensa: ExpensaResumen | None = None
+
+    @field_serializer("archivo_path")
+    def _archivo_path_to_url(self, v: str | None) -> str | None:
+        if v is None:
+            return None
+        return f"/uploads/{v}"
 
 
 class ExpensaOut(BaseModel):
