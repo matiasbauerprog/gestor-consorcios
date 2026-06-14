@@ -14,6 +14,17 @@ from ..models import (
 )
 from ..schemas import ComprobanteCrear, ComprobanteOut, ExpensaCrear, ExpensaOut
 
+
+def _expensa_to_out(expensa) -> ExpensaOut:
+    """Serialize an Expensa ORM object to ExpensaOut, populating ultimo_comprobante."""
+    data = ExpensaOut.model_validate(expensa)
+    data.ultimo_comprobante = (
+        ComprobanteOut.model_validate(expensa.comprobantes[0])
+        if expensa.comprobantes
+        else None
+    )
+    return data
+
 router = APIRouter(prefix="/expensas", tags=["Expensas"])
 
 _PERIODO_PATTERN = r"^\d{4}-(0[1-9]|1[0-2])$"
@@ -53,7 +64,8 @@ def listar_expensas(
         stmt = stmt.where(Expensa.estado == estado)
 
     stmt = stmt.offset(offset).limit(limit)
-    return list(db.scalars(stmt).all())
+    expensas = list(db.scalars(stmt).all())
+    return [_expensa_to_out(e) for e in expensas]
 
 
 @router.post(
@@ -123,7 +135,7 @@ def obtener_expensa(
             detail="No tiene permisos para acceder a este recurso.",
         )
 
-    return expensa
+    return _expensa_to_out(expensa)
 
 
 @router.post(
