@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { listarExpensas } from "../api/expensas";
+import { listarExpensas, crearExpensa } from "../api/expensas";
+import Modal from "../components/Modal";
 import SelectorDepartamento from "../components/SelectorDepartamento";
 import BadgeEstado from "../components/BadgeEstado";
 import Tarjeta from "../components/Tarjeta";
@@ -62,8 +63,16 @@ export default function Expensas() {
   const [cargando, setCargando] = useState(false);
   const [errorCarga, setErrorCarga] = useState(null);
   const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState(null);
+  const [modalCrearAbierto, setModalCrearAbierto] = useState(false);
+  const [errorAccion, setErrorAccion] = useState(null);
 
   const esAdmin = user.rol === "administracion";
+
+  function handleExpensaCreada(nueva) {
+    setExpensas((prev) => [nueva, ...prev]);
+    setModalCrearAbierto(false);
+    setErrorAccion(null);
+  }
 
   useEffect(() => {
     if (esAdmin && departamentoSeleccionado === null) {
@@ -104,6 +113,13 @@ export default function Expensas() {
               onChange={setDepartamentoSeleccionado}
               permitirVacio={false}
             />
+            <button
+              type="button"
+              disabled={departamentoSeleccionado === null}
+              onClick={() => setModalCrearAbierto(true)}
+            >
+              + Nueva expensa
+            </button>
           </div>
         )}
       </header>
@@ -114,6 +130,7 @@ export default function Expensas() {
 
       {cargando && <p>Cargando…</p>}
       {errorCarga && <p role="alert" className="error-banner">{errorCarga}</p>}
+      {errorAccion && <p role="alert" className="error-banner">{errorAccion}</p>}
       {!cargando && !errorCarga && expensas.length === 0 &&
         (!esAdmin || departamentoSeleccionado !== null) && (
           <p>No hay expensas para mostrar.</p>
@@ -136,6 +153,106 @@ export default function Expensas() {
       <p>
         <Link to="/comprobantes">Ver todos los comprobantes →</Link>
       </p>
+
+      {modalCrearAbierto && (
+        <Modal titulo="Nueva expensa" onClose={() => setModalCrearAbierto(false)}>
+          <FormularioNuevaExpensa
+            departamentoId={departamentoSeleccionado}
+            onCreada={handleExpensaCreada}
+            onCancelar={() => setModalCrearAbierto(false)}
+          />
+        </Modal>
+      )}
     </section>
+  );
+}
+
+function FormularioNuevaExpensa({ departamentoId, onCreada, onCancelar }) {
+  const [periodo, setPeriodo] = useState("");
+  const [monto, setMonto] = useState("");
+  const [fechaVencimiento, setFechaVencimiento] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function onSubmit(e) {
+    e.preventDefault();
+    setError(null);
+    setEnviando(true);
+
+    const r = await crearExpensa({
+      departamento_id: departamentoId,
+      periodo,
+      monto: Number(monto),
+      fecha_vencimiento: fechaVencimiento,
+    });
+    setEnviando(false);
+
+    if (r.status === 201) {
+      onCreada(r.data);
+      return;
+    }
+    if (r.status === 400) {
+      setError(r.data?.detail || "Revisá los campos del formulario.");
+      return;
+    }
+    if (r.status === 404) {
+      setError("El departamento indicado no existe.");
+      return;
+    }
+    if (r.status === 409) {
+      setError(r.data?.detail || "Ya existe una expensa para ese departamento en ese período.");
+      return;
+    }
+    if (r.status !== 401) {
+      setError("Ocurrió un error inesperado. Intentá de nuevo.");
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit} noValidate>
+      <label>
+        Período (YYYY-MM)
+        <input
+          type="text"
+          value={periodo}
+          onChange={(e) => setPeriodo(e.target.value)}
+          pattern="\d{4}-(0[1-9]|1[0-2])"
+          placeholder="2026-06"
+          required
+          autoFocus
+        />
+      </label>
+      <label>
+        Monto
+        <input
+          type="number"
+          value={monto}
+          onChange={(e) => setMonto(e.target.value)}
+          min="1"
+          step="0.01"
+          required
+        />
+      </label>
+      <label>
+        Fecha de vencimiento
+        <input
+          type="date"
+          value={fechaVencimiento}
+          onChange={(e) => setFechaVencimiento(e.target.value)}
+          required
+        />
+      </label>
+
+      {error && <p role="alert" className="error-banner">{error}</p>}
+
+      <div className="modal-acciones">
+        <button type="button" className="boton-secundario" onClick={onCancelar} disabled={enviando}>
+          Cancelar
+        </button>
+        <button type="submit" disabled={enviando}>
+          {enviando ? "Creando…" : "Crear expensa"}
+        </button>
+      </div>
+    </form>
   );
 }
