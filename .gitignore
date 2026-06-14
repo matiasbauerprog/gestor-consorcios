@@ -42,3 +42,7 @@ Thumbs.db
 .claude/shell-snapshots/
 .claude/todos/
 .claude/statsig/
+
+# Archivos subidos por usuarios (las imágenes de comprobantes)
+backend/uploads/comprobantes/*
+!backend/uploads/comprobantes/.gitkeep

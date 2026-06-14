@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./consorcio.db"
     SEED_ENABLED: bool = True
     SEED_DEFAULT_PASSWORD: str = ""
+    UPLOAD_DIR: str = "backend/uploads"
+    MAX_UPLOAD_SIZE_BYTES: int = 5 * 1024 * 1024
 
     @field_validator("SECRET_KEY")
     @classmethod
