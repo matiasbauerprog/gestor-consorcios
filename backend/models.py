@@ -196,7 +196,11 @@ class Expensa(Base):
     fecha_vencimiento: Mapped[date] = mapped_column(Date, nullable=False)
 
     departamento: Mapped["Departamento"] = relationship(back_populates="expensas")
-    comprobantes: Mapped[list["Comprobante"]] = relationship(back_populates="expensa")
+    comprobantes: Mapped[list["Comprobante"]] = relationship(
+        back_populates="expensa",
+        order_by="desc(Comprobante.fecha_creacion), desc(Comprobante.id)",
+        lazy="selectin",
+    )
 
 
 class Comprobante(Base):
@@ -210,7 +214,7 @@ class Comprobante(Base):
     )
     fecha_pago: Mapped[date] = mapped_column(Date, nullable=False)
     monto: Mapped[float] = mapped_column(Float, nullable=False)
-    archivo_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    archivo_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     estado: Mapped[EstadoComprobante] = mapped_column(
         SqlEnum(EstadoComprobante, name="estado_comprobante"),
         nullable=False,

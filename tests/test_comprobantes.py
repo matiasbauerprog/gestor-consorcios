@@ -1,4 +1,91 @@
 # ---------------------------------------------------------------------------
+# GET /comprobantes
+# ---------------------------------------------------------------------------
+
+
+import pathlib
+from datetime import date, timedelta
+from backend.models import Comprobante, EstadoComprobante
+
+
+def _crear_comprobante(db, expensa_id, fecha_pago, monto, estado):
+    c = Comprobante(
+        expensa_id=expensa_id,
+        fecha_pago=fecha_pago,
+        monto=monto,
+        archivo_path=None,
+        estado=estado,
+    )
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+    return c
+
+
+def test_listar_comprobantes_sin_token_devuelve_401(client):
+    r = client.get("/comprobantes")
+    assert r.status_code == 401
+
+
+def test_listar_comprobantes_como_representante_devuelve_403(client, headers_representante):
+    r = client.get("/comprobantes", headers=headers_representante)
+    assert r.status_code == 403
+
+
+def test_listar_comprobantes_admin_devuelve_todos(client, headers_admin, db_session):
+    _crear_comprobante(db_session, 100, date(2026, 5, 5), 85000, EstadoComprobante.aprobado)
+    _crear_comprobante(db_session, 101, date(2026, 5, 6), 92000, EstadoComprobante.pendiente_verificacion)
+
+    r = client.get("/comprobantes", headers=headers_admin)
+    assert r.status_code == 200
+    assert len(r.json()) == 2
+
+
+def test_listar_comprobantes_admin_filtra_por_estado(client, headers_admin, db_session):
+    _crear_comprobante(db_session, 100, date(2026, 5, 5), 85000, EstadoComprobante.aprobado)
+    _crear_comprobante(db_session, 101, date(2026, 5, 6), 92000, EstadoComprobante.pendiente_verificacion)
+
+    r = client.get("/comprobantes?estado=aprobado", headers=headers_admin)
+    assert r.status_code == 200
+    comprobantes = r.json()
+    assert len(comprobantes) == 1
+    assert comprobantes[0]["estado"] == "aprobado"
+
+
+def test_listar_comprobantes_admin_filtra_por_departamento(client, headers_admin, db_session):
+    _crear_comprobante(db_session, 100, date(2026, 5, 5), 85000, EstadoComprobante.aprobado)  # depto 1
+    _crear_comprobante(db_session, 101, date(2026, 5, 6), 92000, EstadoComprobante.pendiente_verificacion)  # depto 2
+
+    r = client.get("/comprobantes?departamento_id=1", headers=headers_admin)
+    assert r.status_code == 200
+    comprobantes = r.json()
+    assert len(comprobantes) == 1
+    assert comprobantes[0]["expensa"]["departamento_id"] == 1
+
+
+def test_listar_comprobantes_departamento_solo_ve_los_suyos(client, headers_depto_a, db_session):
+    _crear_comprobante(db_session, 100, date(2026, 5, 5), 85000, EstadoComprobante.aprobado)  # depto 1
+    _crear_comprobante(db_session, 101, date(2026, 5, 6), 92000, EstadoComprobante.pendiente_verificacion)  # depto 2
+
+    r = client.get("/comprobantes", headers=headers_depto_a)
+    assert r.status_code == 200
+    comprobantes = r.json()
+    assert len(comprobantes) == 1
+    assert comprobantes[0]["expensa"]["departamento_id"] == 1
+
+
+def test_listar_comprobantes_departamento_ignora_query_de_otro_depto(client, headers_depto_a, db_session):
+    _crear_comprobante(db_session, 100, date(2026, 5, 5), 85000, EstadoComprobante.aprobado)  # depto 1
+    _crear_comprobante(db_session, 101, date(2026, 5, 6), 92000, EstadoComprobante.pendiente_verificacion)  # depto 2
+
+    r = client.get("/comprobantes?departamento_id=2", headers=headers_depto_a)
+    assert r.status_code == 200
+    comprobantes = r.json()
+    # Sigue devolviendo solo los de su propio depto.
+    assert all(c["expensa"]["departamento_id"] == 1 for c in comprobantes)
+
+
+# ---------------------------------------------------------------------------
 # GET /expensas
 # ---------------------------------------------------------------------------
 
@@ -243,22 +330,30 @@ def test_obtener_expensa_inexistente_devuelve_404(client, headers_admin):
 # ---------------------------------------------------------------------------
 
 
-_PAYLOAD_OK = {
-    "fecha_pago": "2026-05-28",
-    "monto": 85000.00,
-    "archivo_url": "https://files.local/comprobante.pdf",
-}
+_DATA_OK = {"fecha_pago": "2026-05-28", "monto": "85000.00"}
+
+
+def _imagen_jpg_bytes(size: int = 256) -> bytes:
+    """Devuelve `size` bytes que arrancan con el magic header JPEG.
+    FastAPI solo mira el content_type del part, no inspecciona el contenido."""
+    head = b"\xff\xd8\xff\xe0"  # SOI + APP0
+    return head + (b"\x00" * max(size - len(head), 0))
+
+
+def _files_con_imagen() -> dict:
+    return {"archivo": ("comprobante.jpg", _imagen_jpg_bytes(), "image/jpeg")}
 
 
 def test_presentar_comprobante_sin_token_devuelve_401(client):
-    r = client.post("/expensas/100/comprobantes", json=_PAYLOAD_OK)
+    r = client.post("/expensas/100/comprobantes", data=_DATA_OK)
     assert r.status_code == 401
 
 
 def test_presentar_comprobante_como_departamento_dueno_201(client, headers_depto_a):
     r = client.post(
         "/expensas/100/comprobantes",
-        json=_PAYLOAD_OK,
+        data=_DATA_OK,
+        files=_files_con_imagen(),
         headers=headers_depto_a,
     )
     assert r.status_code == 201
@@ -266,23 +361,27 @@ def test_presentar_comprobante_como_departamento_dueno_201(client, headers_depto
     assert body["expensa_id"] == 100
     assert body["monto"] == 85000.00
     assert body["fecha_pago"] == "2026-05-28"
-    assert body["archivo_url"] == _PAYLOAD_OK["archivo_url"]
+    assert body["archivo_path"].startswith("/uploads/comprobantes/")
+    assert body["archivo_path"].endswith(".jpg")
     # Estado inicial siempre pendiente_verificacion, independiente del cuerpo.
     assert body["estado"] == "pendiente_verificacion"
 
 
-def test_presentar_comprobante_sin_archivo_url_201(client, headers_depto_a):
-    payload = {"fecha_pago": "2026-05-28", "monto": 85000.00}
-    r = client.post("/expensas/100/comprobantes", json=payload, headers=headers_depto_a)
+def test_presentar_comprobante_sin_archivo_201(client, headers_depto_a):
+    r = client.post(
+        "/expensas/100/comprobantes",
+        data=_DATA_OK,
+        headers=headers_depto_a,
+    )
     assert r.status_code == 201
-    assert r.json()["archivo_url"] is None
+    assert r.json()["archivo_path"] is None
 
 
 def test_presentar_comprobante_depto_ajeno_devuelve_403(client, headers_depto_a):
     # Expensa 101 pertenece al depto B; depto A no puede acceder.
     r = client.post(
         "/expensas/101/comprobantes",
-        json=_PAYLOAD_OK,
+        data=_DATA_OK,
         headers=headers_depto_a,
     )
     assert r.status_code == 403
@@ -291,7 +390,7 @@ def test_presentar_comprobante_depto_ajeno_devuelve_403(client, headers_depto_a)
 def test_presentar_comprobante_como_admin_devuelve_403(client, headers_admin):
     r = client.post(
         "/expensas/100/comprobantes",
-        json=_PAYLOAD_OK,
+        data=_DATA_OK,
         headers=headers_admin,
     )
     assert r.status_code == 403
@@ -300,7 +399,7 @@ def test_presentar_comprobante_como_admin_devuelve_403(client, headers_admin):
 def test_presentar_comprobante_como_representante_devuelve_403(client, headers_representante):
     r = client.post(
         "/expensas/100/comprobantes",
-        json=_PAYLOAD_OK,
+        data=_DATA_OK,
         headers=headers_representante,
     )
     assert r.status_code == 403
@@ -309,7 +408,7 @@ def test_presentar_comprobante_como_representante_devuelve_403(client, headers_r
 def test_presentar_comprobante_expensa_inexistente_devuelve_404(client, headers_depto_a):
     r = client.post(
         "/expensas/9999/comprobantes",
-        json=_PAYLOAD_OK,
+        data=_DATA_OK,
         headers=headers_depto_a,
     )
     assert r.status_code == 404
@@ -318,7 +417,7 @@ def test_presentar_comprobante_expensa_inexistente_devuelve_404(client, headers_
 def test_presentar_comprobante_body_invalido_monto_negativo_devuelve_400(client, headers_depto_a):
     r = client.post(
         "/expensas/100/comprobantes",
-        json={"fecha_pago": "2026-05-28", "monto": -1},
+        data={"fecha_pago": "2026-05-28", "monto": "-1"},
         headers=headers_depto_a,
     )
     assert r.status_code == 400
@@ -327,7 +426,85 @@ def test_presentar_comprobante_body_invalido_monto_negativo_devuelve_400(client,
 def test_presentar_comprobante_body_invalido_faltan_campos_devuelve_400(client, headers_depto_a):
     r = client.post(
         "/expensas/100/comprobantes",
-        json={"monto": 1000},
+        data={"monto": "1000"},
         headers=headers_depto_a,
     )
     assert r.status_code == 400
+
+
+def test_presentar_comprobante_fecha_futura_devuelve_400(client, headers_depto_a):
+    futura = (date.today() + timedelta(days=1)).isoformat()
+    r = client.post(
+        "/expensas/100/comprobantes",
+        data={"fecha_pago": futura, "monto": "85000.00"},
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 400
+    assert "futura" in r.json()["detail"].lower()
+
+
+def test_presentar_comprobante_fecha_hoy_201(client, headers_depto_a):
+    hoy = date.today().isoformat()
+    r = client.post(
+        "/expensas/100/comprobantes",
+        data={"fecha_pago": hoy, "monto": "85000.00"},
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 201
+    assert r.json()["fecha_pago"] == hoy
+
+
+def test_presentar_comprobante_devuelve_expensa_resumen(client, headers_depto_a):
+    r = client.post(
+        "/expensas/100/comprobantes",
+        data={"fecha_pago": "2026-06-05", "monto": "85000.00"},
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 201
+    body = r.json()
+    assert "expensa" in body
+    assert body["expensa"] is not None
+    assert body["expensa"]["departamento_id"] == 1
+    assert body["expensa"]["periodo"] == "2026-05"
+
+
+def test_presentar_comprobante_persiste_imagen_en_disco(client, headers_depto_a, tmp_path):
+    from backend.config import get_settings
+
+    r = client.post(
+        "/expensas/100/comprobantes",
+        data=_DATA_OK,
+        files=_files_con_imagen(),
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 201
+    archivo_url = r.json()["archivo_path"]
+    rel = archivo_url.removeprefix("/uploads/")
+    destino = pathlib.Path(get_settings().UPLOAD_DIR) / rel
+    assert destino.exists()
+    assert destino.read_bytes()[:4] == b"\xff\xd8\xff\xe0"
+
+
+def test_presentar_comprobante_archivo_no_imagen_devuelve_400(client, headers_depto_a):
+    files = {"archivo": ("comprobante.txt", b"hola mundo", "text/plain")}
+    r = client.post(
+        "/expensas/100/comprobantes",
+        data=_DATA_OK,
+        files=files,
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 400
+    assert "imagen" in r.json()["detail"].lower()
+
+
+def test_presentar_comprobante_archivo_demasiado_grande_devuelve_413(client, headers_depto_a):
+    grande = _imagen_jpg_bytes(size=5 * 1024 * 1024 + 1)
+    files = {"archivo": ("grande.jpg", grande, "image/jpeg")}
+    r = client.post(
+        "/expensas/100/comprobantes",
+        data=_DATA_OK,
+        files=files,
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 413
+    assert "5 MB" in r.json()["detail"]

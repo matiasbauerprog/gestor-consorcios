@@ -4,6 +4,8 @@ import AppLayout from "./components/AppLayout";
 import RequireAuth from "./components/RequireAuth";
 import Login from "./screens/Login";
 import Comunicados from "./screens/Comunicados";
+import Expensas from "./screens/Expensas";
+import Comprobantes from "./screens/Comprobantes";
 import NotFound from "./screens/NotFound";
 
 export default function App() {
@@ -22,6 +24,8 @@ export default function App() {
           >
             <Route index element={<Navigate to="/comunicados" replace />} />
             <Route path="comunicados" element={<Comunicados />} />
+            <Route path="expensas" element={<Expensas />} />
+            <Route path="comprobantes" element={<Comprobantes />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

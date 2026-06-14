@@ -162,6 +162,18 @@ def _seed(db) -> None:
     db.commit()
 
 
+@pytest.fixture(autouse=True)
+def _temp_upload_dir(tmp_path, monkeypatch) -> Iterator[None]:
+    """Apunta `Settings.UPLOAD_DIR` a tmp_path para que los tests no escriban
+    en el filesystem real del repo."""
+    from backend.config import get_settings as _gs
+
+    upload_root = tmp_path / "uploads"
+    (upload_root / "comprobantes").mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(_gs(), "UPLOAD_DIR", str(upload_root))
+    yield
+
+
 @pytest.fixture()
 def client(db_session) -> Iterator[TestClient]:
     def _override_get_db():

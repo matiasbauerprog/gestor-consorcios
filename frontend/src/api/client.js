@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+export const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 let _authToken = null;
 let _onUnauthorized = null;
@@ -14,8 +14,9 @@ export function setUnauthorizedHandler(handler) {
 export async function apiFetch(path, { token, body, method = "GET", headers = {}, ...rest } = {}) {
   const tokenToUse = token !== undefined ? token : _authToken;
   const finalHeaders = { ...headers };
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
 
-  if (body !== undefined && !finalHeaders["Content-Type"]) {
+  if (body !== undefined && !isFormData && !finalHeaders["Content-Type"]) {
     finalHeaders["Content-Type"] = "application/json";
   }
 
@@ -26,7 +27,7 @@ export async function apiFetch(path, { token, body, method = "GET", headers = {}
   const res = await fetch(API_BASE + path, {
     method,
     headers: finalHeaders,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
     ...rest,
   });
 

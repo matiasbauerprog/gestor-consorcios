@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from datetime import date
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -12,7 +14,19 @@ from ..models import (
     Expensa,
     Rol,
 )
-from ..schemas import ComprobanteCrear, ComprobanteOut, ExpensaCrear, ExpensaOut
+from ..schemas import ComprobanteOut, ExpensaCrear, ExpensaOut
+from ..storage import guardar_imagen_comprobante
+
+
+def _expensa_to_out(expensa) -> ExpensaOut:
+    """Serialize an Expensa ORM object to ExpensaOut, populating ultimo_comprobante."""
+    data = ExpensaOut.model_validate(expensa)
+    data.ultimo_comprobante = (
+        ComprobanteOut.model_validate(expensa.comprobantes[0])
+        if expensa.comprobantes
+        else None
+    )
+    return data
 
 router = APIRouter(prefix="/expensas", tags=["Expensas"])
 
@@ -35,6 +49,7 @@ def listar_expensas(
         default=None,
         description="Filtrar por estado de la expensa.",
     ),
+    departamento_id: int | None = Query(default=None, gt=0, description="Filtrar por depto (Admin)."),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
@@ -52,8 +67,14 @@ def listar_expensas(
     if estado is not None:
         stmt = stmt.where(Expensa.estado == estado)
 
+    # El query departamento_id solo aplica para Admin. Para Depto, su token define qué ve;
+    # cualquier valor en el query se ignora (server-side hardening).
+    if user.rol != Rol.departamento and departamento_id is not None:
+        stmt = stmt.where(Expensa.departamento_id == departamento_id)
+
     stmt = stmt.offset(offset).limit(limit)
-    return list(db.scalars(stmt).all())
+    expensas = list(db.scalars(stmt).all())
+    return [_expensa_to_out(e) for e in expensas]
 
 
 @router.post(
@@ -123,7 +144,7 @@ def obtener_expensa(
             detail="No tiene permisos para acceder a este recurso.",
         )
 
-    return expensa
+    return _expensa_to_out(expensa)
 
 
 @router.post(
@@ -134,7 +155,9 @@ def obtener_expensa(
 )
 def presentar_comprobante(
     expensa_id: int,
-    payload: ComprobanteCrear,
+    fecha_pago: date = Form(...),
+    monto: float = Form(..., gt=0),
+    archivo: UploadFile | None = File(default=None),
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.departamento)),
 ) -> Comprobante:
@@ -145,19 +168,27 @@ def presentar_comprobante(
             detail="La expensa solicitada no existe.",
         )
 
-    # Aislamiento por unidad: el departamento solo puede presentar comprobantes
-    # sobre expensas asociadas a su propia unidad.
     if expensa.departamento_id != user.departamento_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tiene permisos para acceder a este recurso.",
         )
 
+    if fecha_pago > date.today():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La fecha de pago no puede ser futura.",
+        )
+
+    archivo_path = None
+    if archivo is not None and archivo.filename:
+        archivo_path = guardar_imagen_comprobante(archivo)
+
     comprobante = Comprobante(
         expensa_id=expensa.id,
-        fecha_pago=payload.fecha_pago,
-        monto=payload.monto,
-        archivo_url=payload.archivo_url,
+        fecha_pago=fecha_pago,
+        monto=monto,
+        archivo_path=archivo_path,
         estado=EstadoComprobante.pendiente_verificacion,
     )
     db.add(comprobante)
