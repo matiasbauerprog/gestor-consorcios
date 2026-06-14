@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { listarExpensas, crearExpensa, presentarComprobante } from "../api/expensas";
 import Modal from "../components/Modal";
+import { actualizarComprobante } from "../api/comprobantes";
 import SelectorDepartamento from "../components/SelectorDepartamento";
 import BadgeEstado from "../components/BadgeEstado";
 import Tarjeta from "../components/Tarjeta";
@@ -86,6 +87,51 @@ export default function Expensas() {
     setErrorAccion(null);
   }
 
+  const [modalConfirmar, setModalConfirmar] = useState(null);
+  const [accionando, setAccionando] = useState(false);
+
+  async function handleDecision(comprobanteId, estadoNuevo, expensaId) {
+    setAccionando(true);
+    const r = await actualizarComprobante(comprobanteId, { estado: estadoNuevo });
+    setAccionando(false);
+
+    if (r.status === 200) {
+      setExpensas((prev) =>
+        prev.map((e) => {
+          if (e.id !== expensaId) return e;
+          const nuevoEstadoExpensa = estadoNuevo === "aprobado" ? "pagada" : e.estado;
+          return {
+            ...e,
+            estado: nuevoEstadoExpensa,
+            ultimo_comprobante: r.data,
+          };
+        })
+      );
+      setModalConfirmar(null);
+      setErrorAccion(null);
+      return;
+    }
+    if (r.status === 404) {
+      setErrorAccion("El comprobante no existe.");
+      setModalConfirmar(null);
+      return;
+    }
+    if (r.status === 409) {
+      setErrorAccion("El comprobante ya fue verificado.");
+      setModalConfirmar(null);
+      return;
+    }
+    if (r.status === 403) {
+      setErrorAccion("No tenés permisos para verificar comprobantes.");
+      setModalConfirmar(null);
+      return;
+    }
+    if (r.status !== 401) {
+      setErrorAccion("No se pudo verificar el comprobante. Intentá de nuevo.");
+      setModalConfirmar(null);
+    }
+  }
+
   useEffect(() => {
     if (esAdmin && departamentoSeleccionado === null) {
       setExpensas([]);
@@ -155,7 +201,7 @@ export default function Expensas() {
               expensa={e}
               rol={user.rol}
               onPresentar={() => setModalPresentar(e)}
-              onConfirmar={() => {}}
+              onConfirmar={() => setModalConfirmar({ expensa: e, comprobante: e.ultimo_comprobante })}
               onVer={() => {}}
             />
           </li>
@@ -183,6 +229,60 @@ export default function Expensas() {
             onPresentado={(c) => handleComprobantePresentado(c, modalPresentar.id)}
             onCancelar={() => setModalPresentar(null)}
           />
+        </Modal>
+      )}
+
+      {modalConfirmar && (
+        <Modal titulo="Confirmar comprobante" onClose={() => setModalConfirmar(null)}>
+          <p className="meta">
+            Expensa {modalConfirmar.expensa.periodo} — ${modalConfirmar.expensa.monto.toLocaleString("es-AR")}
+          </p>
+          <p>Pagado el {modalConfirmar.comprobante.fecha_pago}</p>
+          <p>Monto: ${modalConfirmar.comprobante.monto.toLocaleString("es-AR")}</p>
+          {modalConfirmar.comprobante.archivo_url && (
+            <p>
+              <a href={modalConfirmar.comprobante.archivo_url} target="_blank" rel="noopener noreferrer">
+                Ver archivo adjunto
+              </a>
+            </p>
+          )}
+          <div className="modal-acciones">
+            <button
+              type="button"
+              className="boton-secundario"
+              onClick={() => setModalConfirmar(null)}
+              disabled={accionando}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="boton-peligro"
+              onClick={() =>
+                handleDecision(
+                  modalConfirmar.comprobante.id,
+                  "rechazado",
+                  modalConfirmar.expensa.id
+                )
+              }
+              disabled={accionando}
+            >
+              {accionando ? "Procesando…" : "Rechazar"}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                handleDecision(
+                  modalConfirmar.comprobante.id,
+                  "aprobado",
+                  modalConfirmar.expensa.id
+                )
+              }
+              disabled={accionando}
+            >
+              {accionando ? "Procesando…" : "Aprobar"}
+            </button>
+          </div>
         </Modal>
       )}
     </section>
