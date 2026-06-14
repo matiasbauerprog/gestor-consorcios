@@ -4,7 +4,20 @@
     "allow": [
       "Edit(./backend/**)",
       "Edit(./frontend/**)",
-      "Read(./**)"
+      "Read(./**)",
+      "Bash(./.venv/Scripts/python.exe -m pytest)",
+      "Bash(./.venv/Scripts/python.exe -m pytest -v)",
+      "Bash(.venv/Scripts/python -m pytest)",
+      "Bash(.venv/Scripts/python -m pytest -v)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx tsc -p tsconfig.app.json --noEmit)",
+      "Bash(where py)",
+      "Bash(where python)",
+      "Bash(where python3)",
+      "Bash(where node)",
+      "Bash(where uv)",
+      "Bash(where gh)",
+      "Bash(where vercel)"
     ],
     "ask": [
       "Bash(uv add *)",
