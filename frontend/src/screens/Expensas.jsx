@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { listarExpensas, crearExpensa } from "../api/expensas";
+import { listarExpensas, crearExpensa, presentarComprobante } from "../api/expensas";
 import Modal from "../components/Modal";
 import SelectorDepartamento from "../components/SelectorDepartamento";
 import BadgeEstado from "../components/BadgeEstado";
@@ -74,6 +74,18 @@ export default function Expensas() {
     setErrorAccion(null);
   }
 
+  const [modalPresentar, setModalPresentar] = useState(null);
+
+  function handleComprobantePresentado(nuevoComprobante, expensaId) {
+    setExpensas((prev) =>
+      prev.map((e) =>
+        e.id === expensaId ? { ...e, ultimo_comprobante: nuevoComprobante } : e
+      )
+    );
+    setModalPresentar(null);
+    setErrorAccion(null);
+  }
+
   useEffect(() => {
     if (esAdmin && departamentoSeleccionado === null) {
       setExpensas([]);
@@ -142,7 +154,7 @@ export default function Expensas() {
             <TarjetaExpensa
               expensa={e}
               rol={user.rol}
-              onPresentar={() => {}}
+              onPresentar={() => setModalPresentar(e)}
               onConfirmar={() => {}}
               onVer={() => {}}
             />
@@ -160,6 +172,16 @@ export default function Expensas() {
             departamentoId={departamentoSeleccionado}
             onCreada={handleExpensaCreada}
             onCancelar={() => setModalCrearAbierto(false)}
+          />
+        </Modal>
+      )}
+
+      {modalPresentar && (
+        <Modal titulo="Presentar comprobante" onClose={() => setModalPresentar(null)}>
+          <FormularioPresentarComprobante
+            expensa={modalPresentar}
+            onPresentado={(c) => handleComprobantePresentado(c, modalPresentar.id)}
+            onCancelar={() => setModalPresentar(null)}
           />
         </Modal>
       )}
@@ -251,6 +273,97 @@ function FormularioNuevaExpensa({ departamentoId, onCreada, onCancelar }) {
         </button>
         <button type="submit" disabled={enviando}>
           {enviando ? "Creando…" : "Crear expensa"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function FormularioPresentarComprobante({ expensa, onPresentado, onCancelar }) {
+  const [fechaPago, setFechaPago] = useState("");
+  const [monto, setMonto] = useState(String(expensa.monto));
+  const [archivoUrl, setArchivoUrl] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function onSubmit(e) {
+    e.preventDefault();
+    setError(null);
+    setEnviando(true);
+
+    const r = await presentarComprobante(expensa.id, {
+      fecha_pago: fechaPago,
+      monto: Number(monto),
+      archivo_url: archivoUrl.trim() || null,
+    });
+    setEnviando(false);
+
+    if (r.status === 201) {
+      onPresentado(r.data);
+      return;
+    }
+    if (r.status === 400) {
+      setError(r.data?.detail || "Revisá los campos del formulario.");
+      return;
+    }
+    if (r.status === 403) {
+      setError("No tenés permisos para presentar este comprobante.");
+      return;
+    }
+    if (r.status === 404) {
+      setError("La expensa solicitada no existe.");
+      return;
+    }
+    if (r.status !== 401) {
+      setError("Ocurrió un error inesperado. Intentá de nuevo.");
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit} noValidate>
+      <p className="meta">
+        Expensa: {expensa.periodo} — ${expensa.monto.toLocaleString("es-AR")}
+      </p>
+      <label>
+        Fecha de pago
+        <input
+          type="date"
+          value={fechaPago}
+          onChange={(e) => setFechaPago(e.target.value)}
+          required
+          autoFocus
+        />
+      </label>
+      <label>
+        Monto pagado
+        <input
+          type="number"
+          value={monto}
+          onChange={(e) => setMonto(e.target.value)}
+          min="1"
+          step="0.01"
+          required
+        />
+      </label>
+      <label>
+        Link al comprobante (opcional)
+        <input
+          type="url"
+          value={archivoUrl}
+          onChange={(e) => setArchivoUrl(e.target.value)}
+          placeholder="https://drive.google.com/..."
+          maxLength={2048}
+        />
+      </label>
+
+      {error && <p role="alert" className="error-banner">{error}</p>}
+
+      <div className="modal-acciones">
+        <button type="button" className="boton-secundario" onClick={onCancelar} disabled={enviando}>
+          Cancelar
+        </button>
+        <button type="submit" disabled={enviando}>
+          {enviando ? "Enviando…" : "Presentar"}
         </button>
       </div>
     </form>
