@@ -3,6 +3,58 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { listarExpensas } from "../api/expensas";
 import SelectorDepartamento from "../components/SelectorDepartamento";
+import BadgeEstado from "../components/BadgeEstado";
+import Tarjeta from "../components/Tarjeta";
+
+function estaVencida(expensa, hoy = new Date()) {
+  if (expensa.estado !== "pendiente") return false;
+  const venc = new Date(expensa.fecha_vencimiento + "T00:00:00");
+  return venc < new Date(hoy.toISOString().slice(0, 10) + "T00:00:00");
+}
+
+function leyendaDeExpensa(expensa) {
+  if (expensa.estado === "pagada") return null;
+  const uc = expensa.ultimo_comprobante;
+  if (!uc) return "Aún no presentó comprobante";
+  if (uc.estado === "pendiente_verificacion") return "Comprobante pendiente de verificación";
+  if (uc.estado === "rechazado") return "Último comprobante rechazado";
+  return null;
+}
+
+function formatearMonto(v) {
+  return v.toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
+}
+
+function TarjetaExpensa({ expensa, rol, onPresentar, onConfirmar, onVer }) {
+  const vencida = estaVencida(expensa);
+  const leyenda = leyendaDeExpensa(expensa);
+  const uc = expensa.ultimo_comprobante;
+  const esAdmin = rol === "administracion";
+  const esDepto = rol === "departamento";
+
+  let boton = null;
+  if (expensa.estado === "pagada") {
+    boton = <button type="button" onClick={onVer}>Ver comprobante</button>;
+  } else if (!uc && esDepto) {
+    boton = <button type="button" onClick={onPresentar}>Presentar comprobante</button>;
+  } else if (uc?.estado === "rechazado" && esDepto) {
+    boton = <button type="button" onClick={onPresentar}>Presentar otro comprobante</button>;
+  } else if (uc?.estado === "pendiente_verificacion" && esAdmin) {
+    boton = <button type="button" onClick={onConfirmar}>Confirmar</button>;
+  }
+
+  return (
+    <Tarjeta>
+      <h3>{expensa.periodo} — {formatearMonto(expensa.monto)}</h3>
+      <p className="meta">Vence {expensa.fecha_vencimiento}</p>
+      <p>
+        <BadgeEstado estado={expensa.estado} vencida={vencida} />
+      </p>
+      {leyenda && <p className="leyenda">ⓘ {leyenda}</p>}
+      {boton && <div className="tarjeta-acciones">{boton}</div>}
+    </Tarjeta>
+  );
+}
 
 export default function Expensas() {
   const { user } = useAuth();
@@ -70,11 +122,13 @@ export default function Expensas() {
       <ul className="lista-expensas">
         {expensas.map((e) => (
           <li key={e.id}>
-            <article className="tarjeta">
-              <h3>{e.periodo} — ${e.monto.toLocaleString("es-AR")}</h3>
-              <p className="meta">vence {e.fecha_vencimiento}</p>
-              <p>Estado: {e.estado}</p>
-            </article>
+            <TarjetaExpensa
+              expensa={e}
+              rol={user.rol}
+              onPresentar={() => {}}
+              onConfirmar={() => {}}
+              onVer={() => {}}
+            />
           </li>
         ))}
       </ul>
