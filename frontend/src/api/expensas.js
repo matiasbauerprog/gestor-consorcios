@@ -20,9 +20,13 @@ export function crearExpensa(payload) {
   });
 }
 
-export function presentarComprobante(expensa_id, payload) {
+export function presentarComprobante(expensa_id, { fecha_pago, monto, archivo }) {
+  const fd = new FormData();
+  fd.append("fecha_pago", fecha_pago);
+  fd.append("monto", String(monto));
+  if (archivo) fd.append("archivo", archivo);
   return apiFetch(`/expensas/${expensa_id}/comprobantes`, {
     method: "POST",
-    body: payload,
+    body: fd,
   });
 }
