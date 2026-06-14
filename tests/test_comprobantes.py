@@ -331,3 +331,19 @@ def test_presentar_comprobante_body_invalido_faltan_campos_devuelve_400(client, 
         headers=headers_depto_a,
     )
     assert r.status_code == 400
+
+
+def test_presentar_comprobante_devuelve_expensa_resumen(client, headers_depto_a):
+    payload = {
+        "fecha_pago": "2026-06-05",
+        "monto": 85000.00,
+        "archivo_url": None,
+    }
+    r = client.post("/expensas/100/comprobantes", json=payload, headers=headers_depto_a)
+    assert r.status_code == 201
+    body = r.json()
+    assert "expensa" in body
+    assert body["expensa"] is not None
+    assert body["expensa"]["departamento_id"] == 1
+    assert body["expensa"]["periodo"] == "2026-05"
+    assert body["expensa"]["monto"] == 85000.00
