@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { listarComprobantes, actualizarComprobante } from "../api/comprobantes";
+import { API_BASE } from "../api/client";
 import BadgeEstado from "../components/BadgeEstado";
 import SelectorDepartamento from "../components/SelectorDepartamento";
 import Tarjeta from "../components/Tarjeta";
@@ -119,8 +120,8 @@ export default function Comprobantes() {
               )}
               <p><BadgeEstado estado={c.estado} /></p>
               {c.archivo_path && (
-                <a href={c.archivo_path} target="_blank" rel="noopener noreferrer">
-                  <img src={c.archivo_path} alt="Comprobante" className="comprobante-img" />
+                <a href={`${API_BASE}${c.archivo_path}`} target="_blank" rel="noopener noreferrer">
+                  <img src={`${API_BASE}${c.archivo_path}`} alt="Comprobante" className="comprobante-img" />
                 </a>
               )}
               {esAdmin && c.estado === "pendiente_verificacion" && (

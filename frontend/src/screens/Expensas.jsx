@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import { listarExpensas, crearExpensa, presentarComprobante } from "../api/expensas";
 import Modal from "../components/Modal";
 import { actualizarComprobante } from "../api/comprobantes";
+import { API_BASE } from "../api/client";
 import SelectorDepartamento from "../components/SelectorDepartamento";
 import BadgeEstado from "../components/BadgeEstado";
 import Tarjeta from "../components/Tarjeta";
@@ -34,15 +35,18 @@ function TarjetaExpensa({ expensa, rol, onPresentar, onConfirmar, onVer }) {
   const esAdmin = rol === "administracion";
   const esDepto = rol === "departamento";
 
-  let boton = null;
+  const acciones = [];
   if (expensa.estado === "pagada") {
-    boton = <button type="button" onClick={onVer}>Ver comprobante</button>;
+    acciones.push(<button key="ver" type="button" onClick={onVer}>Ver comprobante</button>);
   } else if (!uc && esDepto) {
-    boton = <button type="button" onClick={onPresentar}>Presentar comprobante</button>;
+    acciones.push(<button key="presentar" type="button" onClick={onPresentar}>Presentar comprobante</button>);
   } else if (uc?.estado === "rechazado" && esDepto) {
-    boton = <button type="button" onClick={onPresentar}>Presentar otro comprobante</button>;
+    acciones.push(<button key="ver" type="button" className="boton-secundario" onClick={onVer}>Ver mi comprobante</button>);
+    acciones.push(<button key="presentar" type="button" onClick={onPresentar}>Presentar otro comprobante</button>);
+  } else if (uc?.estado === "pendiente_verificacion" && esDepto) {
+    acciones.push(<button key="ver" type="button" onClick={onVer}>Ver mi comprobante</button>);
   } else if (uc?.estado === "pendiente_verificacion" && esAdmin) {
-    boton = <button type="button" onClick={onConfirmar}>Confirmar</button>;
+    acciones.push(<button key="confirmar" type="button" onClick={onConfirmar}>Confirmar</button>);
   }
 
   return (
@@ -53,7 +57,7 @@ function TarjetaExpensa({ expensa, rol, onPresentar, onConfirmar, onVer }) {
         <BadgeEstado estado={expensa.estado} vencida={vencida} />
       </p>
       {leyenda && <p className="leyenda">ⓘ {leyenda}</p>}
-      {boton && <div className="tarjeta-acciones">{boton}</div>}
+      {acciones.length > 0 && <div className="tarjeta-acciones">{acciones}</div>}
     </Tarjeta>
   );
 }
@@ -242,12 +246,12 @@ export default function Expensas() {
           <p>Monto: ${modalConfirmar.comprobante.monto.toLocaleString("es-AR")}</p>
           {modalConfirmar.comprobante.archivo_path && (
             <a
-              href={modalConfirmar.comprobante.archivo_path}
+              href={`${API_BASE}${modalConfirmar.comprobante.archivo_path}`}
               target="_blank"
               rel="noopener noreferrer"
             >
               <img
-                src={modalConfirmar.comprobante.archivo_path}
+                src={`${API_BASE}${modalConfirmar.comprobante.archivo_path}`}
                 alt="Comprobante"
                 className="comprobante-img"
               />
@@ -299,8 +303,8 @@ export default function Expensas() {
           <p>Monto: <strong>${modalVer.monto.toLocaleString("es-AR")}</strong></p>
           <p>Estado: <BadgeEstado estado={modalVer.estado} /></p>
           {modalVer.archivo_path ? (
-            <a href={modalVer.archivo_path} target="_blank" rel="noopener noreferrer">
-              <img src={modalVer.archivo_path} alt="Comprobante" className="comprobante-img" />
+            <a href={`${API_BASE}${modalVer.archivo_path}`} target="_blank" rel="noopener noreferrer">
+              <img src={`${API_BASE}${modalVer.archivo_path}`} alt="Comprobante" className="comprobante-img" />
             </a>
           ) : (
             <p className="meta">Sin archivo adjunto.</p>
