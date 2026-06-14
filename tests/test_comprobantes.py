@@ -3,6 +3,7 @@
 # ---------------------------------------------------------------------------
 
 
+import pathlib
 from datetime import date, timedelta
 from backend.models import Comprobante, EstadoComprobante
 
@@ -465,3 +466,45 @@ def test_presentar_comprobante_devuelve_expensa_resumen(client, headers_depto_a)
     assert body["expensa"] is not None
     assert body["expensa"]["departamento_id"] == 1
     assert body["expensa"]["periodo"] == "2026-05"
+
+
+def test_presentar_comprobante_persiste_imagen_en_disco(client, headers_depto_a, tmp_path):
+    from backend.config import get_settings
+
+    r = client.post(
+        "/expensas/100/comprobantes",
+        data=_DATA_OK,
+        files=_files_con_imagen(),
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 201
+    archivo_url = r.json()["archivo_path"]
+    rel = archivo_url.removeprefix("/uploads/")
+    destino = pathlib.Path(get_settings().UPLOAD_DIR) / rel
+    assert destino.exists()
+    assert destino.read_bytes()[:4] == b"\xff\xd8\xff\xe0"
+
+
+def test_presentar_comprobante_archivo_no_imagen_devuelve_400(client, headers_depto_a):
+    files = {"archivo": ("comprobante.txt", b"hola mundo", "text/plain")}
+    r = client.post(
+        "/expensas/100/comprobantes",
+        data=_DATA_OK,
+        files=files,
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 400
+    assert "imagen" in r.json()["detail"].lower()
+
+
+def test_presentar_comprobante_archivo_demasiado_grande_devuelve_413(client, headers_depto_a):
+    grande = _imagen_jpg_bytes(size=5 * 1024 * 1024 + 1)
+    files = {"archivo": ("grande.jpg", grande, "image/jpeg")}
+    r = client.post(
+        "/expensas/100/comprobantes",
+        data=_DATA_OK,
+        files=files,
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 413
+    assert "5 MB" in r.json()["detail"]
