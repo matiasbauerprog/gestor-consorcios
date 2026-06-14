@@ -175,6 +175,16 @@ paths:
             type: string
             pattern: '^\d{4}-(0[1-9]|1[0-2])$'
             examples: ["2026-05"]
+        - name: departamento_id
+          in: query
+          required: false
+          description: |
+            Filtrar por departamento. Sólo efectivo para Administración;
+            los usuarios Departamento siempre ven solo sus propias expensas.
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
         - name: estado
           in: query
           required: false
@@ -325,6 +335,59 @@ paths:
           $ref: '#/components/responses/AccesoDenegado'
         '404':
           $ref: '#/components/responses/NoEncontrado'
+
+  /comprobantes:
+    get:
+      tags: [Expensas]
+      summary: Listar comprobantes
+      description: |
+        Devuelve comprobantes. Administración ve todos los del consorcio;
+        Departamento ve sólo los de sus propias expensas (filtrado server-side).
+        Representante no tiene acceso.
+      operationId: listarComprobantes
+      parameters:
+        - name: estado
+          in: query
+          required: false
+          description: Filtrar por estado del comprobante.
+          schema:
+            $ref: '#/components/schemas/EstadoComprobante'
+        - name: departamento_id
+          in: query
+          required: false
+          description: Filtrar por departamento (Admin). Ignorado para Departamento.
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Lista de comprobantes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comprobante'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
 
   /comprobantes/{comprobante_id}:
     patch:
@@ -1315,6 +1378,11 @@ components:
         fecha_vencimiento:
           type: string
           format: date
+        ultimo_comprobante:
+          description: Comprobante más reciente asociado, o null si no hay.
+          oneOf:
+            - $ref: '#/components/schemas/Comprobante'
+            - type: 'null'
 
     ExpensaCrear:
       type: object
@@ -1335,6 +1403,24 @@ components:
         fecha_vencimiento:
           type: string
           format: date
+
+    ExpensaResumen:
+      type: object
+      description: Resumen mínimo de una expensa para embeber en comprobantes.
+      properties:
+        departamento_id:
+          type: integer
+          format: int64
+        periodo:
+          type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+        monto:
+          type: number
+          format: double
+      required:
+        - departamento_id
+        - periodo
+        - monto
 
     Comprobante:
       type: object
@@ -1359,6 +1445,11 @@ components:
         estado:
           type: string
           enum: [pendiente_verificacion, aprobado, rechazado]
+        expensa:
+          description: Resumen de la expensa asociada (departamento, período, monto).
+          oneOf:
+            - $ref: '#/components/schemas/ExpensaResumen'
+            - type: 'null'
 
     ComprobanteCrear:
       type: object
