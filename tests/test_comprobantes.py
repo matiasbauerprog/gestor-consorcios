@@ -1,4 +1,90 @@
 # ---------------------------------------------------------------------------
+# GET /comprobantes
+# ---------------------------------------------------------------------------
+
+
+from datetime import date
+from backend.models import Comprobante, EstadoComprobante
+
+
+def _crear_comprobante(db, expensa_id, fecha_pago, monto, estado):
+    c = Comprobante(
+        expensa_id=expensa_id,
+        fecha_pago=fecha_pago,
+        monto=monto,
+        archivo_url=None,
+        estado=estado,
+    )
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+    return c
+
+
+def test_listar_comprobantes_sin_token_devuelve_401(client):
+    r = client.get("/comprobantes")
+    assert r.status_code == 401
+
+
+def test_listar_comprobantes_como_representante_devuelve_403(client, headers_representante):
+    r = client.get("/comprobantes", headers=headers_representante)
+    assert r.status_code == 403
+
+
+def test_listar_comprobantes_admin_devuelve_todos(client, headers_admin, db_session):
+    _crear_comprobante(db_session, 100, date(2026, 5, 5), 85000, EstadoComprobante.aprobado)
+    _crear_comprobante(db_session, 101, date(2026, 5, 6), 92000, EstadoComprobante.pendiente_verificacion)
+
+    r = client.get("/comprobantes", headers=headers_admin)
+    assert r.status_code == 200
+    assert len(r.json()) == 2
+
+
+def test_listar_comprobantes_admin_filtra_por_estado(client, headers_admin, db_session):
+    _crear_comprobante(db_session, 100, date(2026, 5, 5), 85000, EstadoComprobante.aprobado)
+    _crear_comprobante(db_session, 101, date(2026, 5, 6), 92000, EstadoComprobante.pendiente_verificacion)
+
+    r = client.get("/comprobantes?estado=aprobado", headers=headers_admin)
+    assert r.status_code == 200
+    comprobantes = r.json()
+    assert len(comprobantes) == 1
+    assert comprobantes[0]["estado"] == "aprobado"
+
+
+def test_listar_comprobantes_admin_filtra_por_departamento(client, headers_admin, db_session):
+    _crear_comprobante(db_session, 100, date(2026, 5, 5), 85000, EstadoComprobante.aprobado)  # depto 1
+    _crear_comprobante(db_session, 101, date(2026, 5, 6), 92000, EstadoComprobante.pendiente_verificacion)  # depto 2
+
+    r = client.get("/comprobantes?departamento_id=1", headers=headers_admin)
+    assert r.status_code == 200
+    comprobantes = r.json()
+    assert len(comprobantes) == 1
+    assert comprobantes[0]["expensa"]["departamento_id"] == 1
+
+
+def test_listar_comprobantes_departamento_solo_ve_los_suyos(client, headers_depto_a, db_session):
+    _crear_comprobante(db_session, 100, date(2026, 5, 5), 85000, EstadoComprobante.aprobado)  # depto 1
+    _crear_comprobante(db_session, 101, date(2026, 5, 6), 92000, EstadoComprobante.pendiente_verificacion)  # depto 2
+
+    r = client.get("/comprobantes", headers=headers_depto_a)
+    assert r.status_code == 200
+    comprobantes = r.json()
+    assert len(comprobantes) == 1
+    assert comprobantes[0]["expensa"]["departamento_id"] == 1
+
+
+def test_listar_comprobantes_departamento_ignora_query_de_otro_depto(client, headers_depto_a, db_session):
+    _crear_comprobante(db_session, 100, date(2026, 5, 5), 85000, EstadoComprobante.aprobado)  # depto 1
+    _crear_comprobante(db_session, 101, date(2026, 5, 6), 92000, EstadoComprobante.pendiente_verificacion)  # depto 2
+
+    r = client.get("/comprobantes?departamento_id=2", headers=headers_depto_a)
+    assert r.status_code == 200
+    comprobantes = r.json()
+    # Sigue devolviendo solo los de su propio depto.
+    assert all(c["expensa"]["departamento_id"] == 1 for c in comprobantes)
+
+
+# ---------------------------------------------------------------------------
 # GET /expensas
 # ---------------------------------------------------------------------------
 
