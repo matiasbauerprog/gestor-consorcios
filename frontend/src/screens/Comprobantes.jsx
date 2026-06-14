@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
-import { listarComprobantes } from "../api/comprobantes";
+import { listarComprobantes, actualizarComprobante } from "../api/comprobantes";
 import BadgeEstado from "../components/BadgeEstado";
 import SelectorDepartamento from "../components/SelectorDepartamento";
 import Tarjeta from "../components/Tarjeta";
@@ -21,6 +21,36 @@ export default function Comprobantes() {
   const [errorCarga, setErrorCarga] = useState(null);
   const [filtroEstado, setFiltroEstado] = useState("");
   const [filtroDepto, setFiltroDepto] = useState(null);
+  const [accionandoId, setAccionandoId] = useState(null);
+  const [errorAccion, setErrorAccion] = useState(null);
+
+  async function handleDecision(id, estadoNuevo) {
+    setAccionandoId(id);
+    const r = await actualizarComprobante(id, { estado: estadoNuevo });
+    setAccionandoId(null);
+
+    if (r.status === 200) {
+      setComprobantes((prev) => prev.map((c) => (c.id === id ? r.data : c)));
+      setErrorAccion(null);
+      return;
+    }
+    if (r.status === 404) {
+      setComprobantes((prev) => prev.filter((c) => c.id !== id));
+      setErrorAccion("El comprobante no existe.");
+      return;
+    }
+    if (r.status === 409) {
+      setErrorAccion("El comprobante ya fue verificado.");
+      return;
+    }
+    if (r.status === 403) {
+      setErrorAccion("No tenés permisos para esta operación.");
+      return;
+    }
+    if (r.status !== 401) {
+      setErrorAccion("Ocurrió un error. Intentá de nuevo.");
+    }
+  }
 
   useEffect(() => {
     let cancelado = false;
@@ -71,6 +101,7 @@ export default function Comprobantes() {
 
       {cargando && <p>Cargando…</p>}
       {errorCarga && <p role="alert" className="error-banner">{errorCarga}</p>}
+      {errorAccion && <p role="alert" className="error-banner">{errorAccion}</p>}
       {!cargando && !errorCarga && comprobantes.length === 0 && (
         <p>No hay comprobantes con esos filtros.</p>
       )}
@@ -93,6 +124,25 @@ export default function Comprobantes() {
                     Ver archivo
                   </a>
                 </p>
+              )}
+              {esAdmin && c.estado === "pendiente_verificacion" && (
+                <div className="tarjeta-acciones">
+                  <button
+                    type="button"
+                    onClick={() => handleDecision(c.id, "aprobado")}
+                    disabled={accionandoId === c.id}
+                  >
+                    {accionandoId === c.id ? "…" : "Aprobar"}
+                  </button>
+                  <button
+                    type="button"
+                    className="boton-borrar"
+                    onClick={() => handleDecision(c.id, "rechazado")}
+                    disabled={accionandoId === c.id}
+                  >
+                    {accionandoId === c.id ? "…" : "Rechazar"}
+                  </button>
+                </div>
               )}
             </Tarjeta>
           </li>
