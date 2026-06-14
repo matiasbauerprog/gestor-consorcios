@@ -89,6 +89,7 @@ export default function Expensas() {
 
   const [modalConfirmar, setModalConfirmar] = useState(null);
   const [accionando, setAccionando] = useState(false);
+  const [modalVer, setModalVer] = useState(null);
 
   async function handleDecision(comprobanteId, estadoNuevo, expensaId) {
     setAccionando(true);
@@ -202,7 +203,7 @@ export default function Expensas() {
               rol={user.rol}
               onPresentar={() => setModalPresentar(e)}
               onConfirmar={() => setModalConfirmar({ expensa: e, comprobante: e.ultimo_comprobante })}
-              onVer={() => {}}
+              onVer={() => setModalVer(e.ultimo_comprobante)}
             />
           </li>
         ))}
@@ -282,6 +283,26 @@ export default function Expensas() {
             >
               {accionando ? "Procesando…" : "Aprobar"}
             </button>
+          </div>
+        </Modal>
+      )}
+
+      {modalVer && (
+        <Modal titulo="Comprobante" onClose={() => setModalVer(null)}>
+          <p>Fecha de pago: <strong>{modalVer.fecha_pago}</strong></p>
+          <p>Monto: <strong>${modalVer.monto.toLocaleString("es-AR")}</strong></p>
+          <p>Estado: <BadgeEstado estado={modalVer.estado} /></p>
+          {modalVer.archivo_url ? (
+            <p>
+              <a href={modalVer.archivo_url} target="_blank" rel="noopener noreferrer">
+                Ver archivo adjunto
+              </a>
+            </p>
+          ) : (
+            <p className="meta">Sin archivo adjunto.</p>
+          )}
+          <div className="modal-acciones">
+            <button type="button" onClick={() => setModalVer(null)}>Cerrar</button>
           </div>
         </Modal>
       )}
