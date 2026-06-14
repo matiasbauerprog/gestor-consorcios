@@ -28,14 +28,25 @@ const SECCIONES = [
   },
 ];
 
-export default function Sidebar({ rol }) {
+export default function Sidebar({ rol, abierto, onCerrar }) {
   const seccionesVisibles = SECCIONES.map((s) => ({
     ...s,
     modulos: s.modulos.filter((m) => m.rolesPermitidos.includes(rol)),
   })).filter((s) => s.modulos.length > 0);
 
   return (
-    <aside className="app-sidebar">
+    <aside className={abierto ? "app-sidebar abierto" : "app-sidebar"}>
+      <div className="sidebar-cabecera">
+        <span className="sidebar-cabecera-titulo">Menú</span>
+        <button
+          type="button"
+          className="sidebar-cerrar"
+          onClick={onCerrar}
+          aria-label="Cerrar menú"
+        >
+          ✕
+        </button>
+      </div>
       <nav>
         {seccionesVisibles.map((s) => (
           <div key={s.titulo} className="sidebar-section">
@@ -45,6 +56,7 @@ export default function Sidebar({ rol }) {
                 <li key={m.ruta}>
                   <NavLink
                     to={m.ruta}
+                    onClick={onCerrar}
                     className={({ isActive }) =>
                       isActive ? "sidebar-link activo" : "sidebar-link"
                     }
