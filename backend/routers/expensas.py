@@ -46,6 +46,7 @@ def listar_expensas(
         default=None,
         description="Filtrar por estado de la expensa.",
     ),
+    departamento_id: int | None = Query(default=None, gt=0, description="Filtrar por depto (Admin)."),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
@@ -62,6 +63,11 @@ def listar_expensas(
         stmt = stmt.where(Expensa.periodo == periodo)
     if estado is not None:
         stmt = stmt.where(Expensa.estado == estado)
+
+    # El query departamento_id solo aplica para Admin. Para Depto, su token define qué ve;
+    # cualquier valor en el query se ignora (server-side hardening).
+    if user.rol != Rol.departamento and departamento_id is not None:
+        stmt = stmt.where(Expensa.departamento_id == departamento_id)
 
     stmt = stmt.offset(offset).limit(limit)
     expensas = list(db.scalars(stmt).all())
