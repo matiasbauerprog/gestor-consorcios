@@ -240,12 +240,18 @@ export default function Expensas() {
           </p>
           <p>Pagado el {modalConfirmar.comprobante.fecha_pago}</p>
           <p>Monto: ${modalConfirmar.comprobante.monto.toLocaleString("es-AR")}</p>
-          {modalConfirmar.comprobante.archivo_url && (
-            <p>
-              <a href={modalConfirmar.comprobante.archivo_url} target="_blank" rel="noopener noreferrer">
-                Ver archivo adjunto
-              </a>
-            </p>
+          {modalConfirmar.comprobante.archivo_path && (
+            <a
+              href={modalConfirmar.comprobante.archivo_path}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img
+                src={modalConfirmar.comprobante.archivo_path}
+                alt="Comprobante"
+                className="comprobante-img"
+              />
+            </a>
           )}
           <div className="modal-acciones">
             <button
@@ -292,12 +298,10 @@ export default function Expensas() {
           <p>Fecha de pago: <strong>{modalVer.fecha_pago}</strong></p>
           <p>Monto: <strong>${modalVer.monto.toLocaleString("es-AR")}</strong></p>
           <p>Estado: <BadgeEstado estado={modalVer.estado} /></p>
-          {modalVer.archivo_url ? (
-            <p>
-              <a href={modalVer.archivo_url} target="_blank" rel="noopener noreferrer">
-                Ver archivo adjunto
-              </a>
-            </p>
+          {modalVer.archivo_path ? (
+            <a href={modalVer.archivo_path} target="_blank" rel="noopener noreferrer">
+              <img src={modalVer.archivo_path} alt="Comprobante" className="comprobante-img" />
+            </a>
           ) : (
             <p className="meta">Sin archivo adjunto.</p>
           )}
@@ -404,9 +408,20 @@ function FormularioPresentarComprobante({ expensa, onPresentado, onCancelar }) {
   const hoy = new Date().toISOString().slice(0, 10);
   const [fechaPago, setFechaPago] = useState("");
   const [monto, setMonto] = useState(String(expensa.monto));
-  const [archivoUrl, setArchivoUrl] = useState("");
+  const [archivo, setArchivo] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!archivo) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(archivo);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [archivo]);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -416,7 +431,7 @@ function FormularioPresentarComprobante({ expensa, onPresentado, onCancelar }) {
     const r = await presentarComprobante(expensa.id, {
       fecha_pago: fechaPago,
       monto: Number(monto),
-      archivo_url: archivoUrl.trim() || null,
+      archivo,
     });
     setEnviando(false);
 
@@ -434,6 +449,10 @@ function FormularioPresentarComprobante({ expensa, onPresentado, onCancelar }) {
     }
     if (r.status === 404) {
       setError("La expensa solicitada no existe.");
+      return;
+    }
+    if (r.status === 413) {
+      setError(r.data?.detail || "El archivo es demasiado grande.");
       return;
     }
     if (r.status !== 401) {
@@ -469,15 +488,17 @@ function FormularioPresentarComprobante({ expensa, onPresentado, onCancelar }) {
         />
       </label>
       <label>
-        Link al comprobante (opcional)
+        Foto del comprobante (opcional)
         <input
-          type="url"
-          value={archivoUrl}
-          onChange={(e) => setArchivoUrl(e.target.value)}
-          placeholder="https://drive.google.com/..."
-          maxLength={2048}
+          type="file"
+          accept="image/*"
+          onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
         />
       </label>
+
+      {previewUrl && (
+        <img src={previewUrl} alt="Vista previa del comprobante" className="comprobante-img" />
+      )}
 
       {error && <p role="alert" className="error-banner">{error}</p>}
 

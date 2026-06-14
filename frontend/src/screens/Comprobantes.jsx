@@ -118,12 +118,10 @@ export default function Comprobantes() {
                 <p className="meta">Departamento: {c.expensa.departamento_id}</p>
               )}
               <p><BadgeEstado estado={c.estado} /></p>
-              {c.archivo_url && (
-                <p>
-                  <a href={c.archivo_url} target="_blank" rel="noopener noreferrer">
-                    Ver archivo
-                  </a>
-                </p>
+              {c.archivo_path && (
+                <a href={c.archivo_path} target="_blank" rel="noopener noreferrer">
+                  <img src={c.archivo_path} alt="Comprobante" className="comprobante-img" />
+                </a>
               )}
               {esAdmin && c.estado === "pendiente_verificacion" && (
                 <div className="tarjeta-acciones">
