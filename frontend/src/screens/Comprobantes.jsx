@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { listarComprobantes, actualizarComprobante } from "../api/comprobantes";
 import { API_BASE } from "../api/client";
@@ -16,12 +17,16 @@ const ESTADOS = [
 export default function Comprobantes() {
   const { user } = useAuth();
   const esAdmin = user.rol === "administracion";
+  const [searchParams] = useSearchParams();
+  const deptoInicial = searchParams.get("departamento_id");
 
   const [comprobantes, setComprobantes] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState(null);
   const [filtroEstado, setFiltroEstado] = useState("");
-  const [filtroDepto, setFiltroDepto] = useState(null);
+  const [filtroDepto, setFiltroDepto] = useState(
+    deptoInicial ? Number(deptoInicial) : null,
+  );
   const [accionandoId, setAccionandoId] = useState(null);
   const [errorAccion, setErrorAccion] = useState(null);
 

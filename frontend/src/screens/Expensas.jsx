@@ -205,9 +205,21 @@ export default function Expensas() {
         ))}
       </ul>
 
-      <p>
-        <Link to="/comprobantes">Ver todos los comprobantes →</Link>
-      </p>
+      {esAdmin && (
+        <p>
+          <Link
+            to={
+              departamentoSeleccionado !== null
+                ? `/comprobantes?departamento_id=${departamentoSeleccionado}`
+                : "/comprobantes"
+            }
+          >
+            {departamentoSeleccionado !== null
+              ? "Ver comprobantes de este departamento →"
+              : "Ver todos los comprobantes →"}
+          </Link>
+        </p>
+      )}
 
       {modalCrearAbierto && (
         <Modal titulo="Nueva expensa" onClose={() => setModalCrearAbierto(false)}>
