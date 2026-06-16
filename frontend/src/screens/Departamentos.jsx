@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Tarjeta from "../components/Tarjeta";
 import {
   listarDepartamentos,
   listarCoeficientesDepartamento,
@@ -44,11 +45,6 @@ export default function Departamentos() {
     recargar();
   }, []);
 
-  function resumen(coefs) {
-    if (!coefs || coefs.length === 0) return "—";
-    return coefs.map((c) => `${c.codigo}: ${c.porcentaje}%`).join(" · ");
-  }
-
   if (cargando) return <main className="app-content"><p>Cargando…</p></main>;
 
   return (
@@ -57,35 +53,41 @@ export default function Departamentos() {
         <h2>Departamentos</h2>
       </header>
 
-      {error && <p className="error">{error}</p>}
+      {error && <p role="alert" className="error-banner">{error}</p>}
+      {departamentos.length === 0 && <p>No hay departamentos cargados.</p>}
 
-      <table className="tabla">
-        <thead>
-          <tr>
-            <th>Código</th>
-            <th>Descripción</th>
-            <th>Coeficientes</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {departamentos.map((d) => (
-            <tr key={d.id}>
-              <td>{d.codigo}</td>
-              <td>{d.descripcion || "—"}</td>
-              <td>{resumen(coeficientesPorDepto[d.id])}</td>
-              <td>
-                <button
-                  type="button"
-                  onClick={() => setModal({ departamento: d, coeficientes: coeficientesPorDepto[d.id] || [] })}
-                >
-                  Editar coeficientes
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <ul className="lista-config">
+        {departamentos.map((d) => {
+          const coefs = coeficientesPorDepto[d.id] || [];
+          return (
+            <li key={d.id}>
+              <Tarjeta>
+                <h3>{d.codigo}</h3>
+                {d.descripcion && <p className="meta">{d.descripcion}</p>}
+                {coefs.length === 0 ? (
+                  <p className="meta">Sin coeficientes asignados.</p>
+                ) : (
+                  <ul className="lista-coeficientes">
+                    {coefs.map((c) => (
+                      <li key={c.clase_prorrateo_id}>
+                        <strong>{c.codigo}</strong> — {c.nombre}: {c.porcentaje}%
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="tarjeta-acciones">
+                  <button
+                    type="button"
+                    onClick={() => setModal({ departamento: d, coeficientes: coefs })}
+                  >
+                    Editar coeficientes
+                  </button>
+                </div>
+              </Tarjeta>
+            </li>
+          );
+        })}
+      </ul>
 
       {modal && (
         <ModalCoeficientes

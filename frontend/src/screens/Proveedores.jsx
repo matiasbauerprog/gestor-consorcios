@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Tarjeta from "../components/Tarjeta";
 import {
   listarProveedores,
   crearProveedor,
@@ -44,8 +45,8 @@ export default function Proveedores() {
     <main className="app-content">
       <header className="cabecera-pantalla">
         <h2>Proveedores</h2>
-        <div>
-          <label>
+        <div className="cabecera-acciones">
+          <label className="filtro-checkbox">
             <input
               type="checkbox"
               checked={mostrarInactivos}
@@ -59,39 +60,30 @@ export default function Proveedores() {
         </div>
       </header>
 
-      {error && <p className="error">{error}</p>}
+      {error && <p role="alert" className="error-banner">{error}</p>}
+      {proveedores.length === 0 && <p>No hay proveedores con esos filtros.</p>}
 
-      <table className="tabla">
-        <thead>
-          <tr>
-            <th>Razón social</th>
-            <th>Nombre fantasía</th>
-            <th>CUIT</th>
-            <th>Dirección</th>
-            <th>Activo</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {proveedores.map((p) => (
-            <tr key={p.id}>
-              <td>{p.razon_social}</td>
-              <td>{p.nombre_fantasia || "—"}</td>
-              <td>{p.cuit}</td>
-              <td>{p.direccion || "—"}</td>
-              <td>{p.activo ? "Sí" : "No"}</td>
-              <td>
+      <ul className="lista-config">
+        {proveedores.map((p) => (
+          <li key={p.id}>
+            <Tarjeta>
+              <h3>{p.razon_social}</h3>
+              {p.nombre_fantasia && <p className="meta">Nombre fantasía: {p.nombre_fantasia}</p>}
+              <p className="meta">CUIT: {p.cuit}</p>
+              {p.direccion && <p className="meta">Dirección: {p.direccion}</p>}
+              <p className="meta">Estado: {p.activo ? "Activo" : "Inactivo"}</p>
+              <div className="tarjeta-acciones">
                 <button type="button" onClick={() => setModal({ tipo: "editar", proveedor: p })}>
                   Editar
                 </button>
                 <button type="button" onClick={() => toggleActivo(p)}>
                   {p.activo ? "Desactivar" : "Activar"}
                 </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              </div>
+            </Tarjeta>
+          </li>
+        ))}
+      </ul>
 
       {modal?.tipo === "crear" && (
         <ModalProveedor

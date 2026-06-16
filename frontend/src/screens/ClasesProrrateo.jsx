@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Tarjeta from "../components/Tarjeta";
 import {
   listarClasesProrrateo,
   crearClaseProrrateo,
@@ -52,36 +53,31 @@ export default function ClasesProrrateo() {
         </button>
       </header>
 
-      {error && <p className="error">{error}</p>}
+      {error && <p role="alert" className="error-banner">{error}</p>}
+      {clases.length === 0 && <p>No hay clases cargadas.</p>}
 
-      <table className="tabla">
-        <thead>
-          <tr>
-            <th>Código</th>
-            <th>Nombre</th>
-            <th>Descripción</th>
-            <th>Activa</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {clases.map((c) => (
-            <tr key={c.id}>
-              <td>{c.codigo}</td>
-              <td>{c.nombre}</td>
-              <td>{c.descripcion || "—"}</td>
-              <td>{c.activa ? "Sí" : "No"}</td>
-              <td>
-                <button type="button" onClick={() => setModal({ tipo: "editar", clase: c })}>Editar</button>
+      <ul className="lista-config">
+        {clases.map((c) => (
+          <li key={c.id}>
+            <Tarjeta>
+              <h3>{c.codigo} · {c.nombre}</h3>
+              {c.descripcion && <p className="meta">{c.descripcion}</p>}
+              <p className="meta">Estado: {c.activa ? "Activa" : "Inactiva"}</p>
+              <div className="tarjeta-acciones">
+                <button type="button" onClick={() => setModal({ tipo: "editar", clase: c })}>
+                  Editar
+                </button>
                 <button type="button" onClick={() => toggleActiva(c)}>
                   {c.activa ? "Desactivar" : "Activar"}
                 </button>
-                <button type="button" onClick={() => borrar(c)}>Eliminar</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                <button type="button" className="boton-borrar" onClick={() => borrar(c)}>
+                  Eliminar
+                </button>
+              </div>
+            </Tarjeta>
+          </li>
+        ))}
+      </ul>
 
       {modal?.tipo === "crear" && (
         <ModalForm
