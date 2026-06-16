@@ -174,3 +174,155 @@ def test_crear_depto_y_usar_para_expensa_y_usuario(client, headers_admin):
     )
     assert r.status_code == 201
     assert r.json()["departamento_id"] == creado["id"]
+
+
+# ---------------------------------------------------------------------------
+# GET /departamentos/{id}/coeficientes
+# ---------------------------------------------------------------------------
+
+
+def test_get_coeficientes_sin_token_devuelve_401(client):
+    r = client.get("/departamentos/1/coeficientes")
+    assert r.status_code == 401
+
+
+def test_get_coeficientes_como_depto_devuelve_403(client, headers_depto_a):
+    r = client.get("/departamentos/1/coeficientes", headers=headers_depto_a)
+    assert r.status_code == 403
+
+
+def test_get_coeficientes_depto_inexistente_devuelve_404(client, headers_admin):
+    r = client.get("/departamentos/9999/coeficientes", headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_get_coeficientes_sin_filas_devuelve_lista_vacia(client, headers_admin):
+    r = client.get("/departamentos/1/coeficientes", headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json() == []
+
+
+# ---------------------------------------------------------------------------
+# PUT /departamentos/{id}/coeficientes (replace-all)
+# ---------------------------------------------------------------------------
+
+
+def test_put_coeficientes_sin_token_devuelve_401(client):
+    r = client.put(
+        "/departamentos/1/coeficientes",
+        json={"coeficientes": [{"clase_prorrateo_id": 500, "porcentaje": 50.0}]},
+    )
+    assert r.status_code == 401
+
+
+def test_put_coeficientes_como_depto_devuelve_403(client, headers_depto_a):
+    r = client.put(
+        "/departamentos/1/coeficientes",
+        json={"coeficientes": []},
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 403
+
+
+def test_put_coeficientes_depto_inexistente_devuelve_404(client, headers_admin):
+    r = client.put(
+        "/departamentos/9999/coeficientes",
+        json={"coeficientes": [{"clase_prorrateo_id": 500, "porcentaje": 25.0}]},
+        headers=headers_admin,
+    )
+    assert r.status_code == 404
+
+
+def test_put_coeficientes_clase_inexistente_devuelve_404(client, headers_admin):
+    r = client.put(
+        "/departamentos/1/coeficientes",
+        json={"coeficientes": [{"clase_prorrateo_id": 9999, "porcentaje": 25.0}]},
+        headers=headers_admin,
+    )
+    assert r.status_code == 404
+
+
+def test_put_coeficientes_porcentaje_fuera_de_rango_devuelve_400(client, headers_admin):
+    r = client.put(
+        "/departamentos/1/coeficientes",
+        json={"coeficientes": [{"clase_prorrateo_id": 500, "porcentaje": 150.0}]},
+        headers=headers_admin,
+    )
+    assert r.status_code == 400
+
+
+def test_put_coeficientes_clase_duplicada_devuelve_400(client, headers_admin):
+    r = client.put(
+        "/departamentos/1/coeficientes",
+        json={
+            "coeficientes": [
+                {"clase_prorrateo_id": 500, "porcentaje": 25.0},
+                {"clase_prorrateo_id": 500, "porcentaje": 75.0},
+            ]
+        },
+        headers=headers_admin,
+    )
+    assert r.status_code == 400
+
+
+def test_put_coeficientes_crea_y_get_devuelve_filas(client, headers_admin):
+    r = client.put(
+        "/departamentos/1/coeficientes",
+        json={"coeficientes": [{"clase_prorrateo_id": 500, "porcentaje": 33.3333}]},
+        headers=headers_admin,
+    )
+    assert r.status_code == 200
+
+    r2 = client.get("/departamentos/1/coeficientes", headers=headers_admin)
+    data = r2.json()
+    assert len(data) == 1
+    assert data[0]["clase_prorrateo_id"] == 500
+    assert data[0]["codigo"] == "A"
+    assert data[0]["porcentaje"] == 33.3333
+
+
+def test_put_coeficientes_replace_borra_los_previos(client, headers_admin):
+    # Setup: poner uno.
+    client.put(
+        "/departamentos/1/coeficientes",
+        json={"coeficientes": [{"clase_prorrateo_id": 500, "porcentaje": 50.0}]},
+        headers=headers_admin,
+    )
+    # Crear otra clase.
+    nueva = client.post(
+        "/clases-prorrateo",
+        json={"codigo": "BB", "nombre": "Otra"},
+        headers=headers_admin,
+    ).json()
+
+    # Reemplazar con solo la nueva.
+    client.put(
+        "/departamentos/1/coeficientes",
+        json={"coeficientes": [{"clase_prorrateo_id": nueva["id"], "porcentaje": 80.0}]},
+        headers=headers_admin,
+    )
+
+    r = client.get("/departamentos/1/coeficientes", headers=headers_admin)
+    data = r.json()
+    assert len(data) == 1
+    assert data[0]["clase_prorrateo_id"] == nueva["id"]
+
+
+def test_put_coeficientes_lista_vacia_borra_todo(client, headers_admin):
+    # Setup.
+    client.put(
+        "/departamentos/1/coeficientes",
+        json={"coeficientes": [{"clase_prorrateo_id": 500, "porcentaje": 50.0}]},
+        headers=headers_admin,
+    )
+
+    # Vaciar.
+    r = client.put(
+        "/departamentos/1/coeficientes",
+        json={"coeficientes": []},
+        headers=headers_admin,
+    )
+    assert r.status_code == 200
+
+    r2 = client.get("/departamentos/1/coeficientes", headers=headers_admin)
+    assert r2.json() == []
