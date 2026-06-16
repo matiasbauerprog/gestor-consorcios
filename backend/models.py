@@ -8,6 +8,7 @@ from sqlalchemy import (
     Enum as SqlEnum,
     Float,
     ForeignKey,
+    Integer,
     String,
     UniqueConstraint,
     func,
@@ -68,6 +69,14 @@ class Rubro(str, enum.Enum):
     gastos_administracion = "gastos_administracion"
     seguros = "seguros"
     gastos_generales = "gastos_generales"
+
+
+class FormaPago(str, enum.Enum):
+    transferencia = "transferencia"
+    debito_automatico = "debito_automatico"
+    cheque = "cheque"
+    efectivo = "efectivo"
+    otro = "otro"
 
 
 class Departamento(Base):
@@ -363,3 +372,68 @@ class ConfiguracionConsorcio(Base):
     banco_numero_cuenta: Mapped[str] = mapped_column(String(50), nullable=False)
     banco_cbu: Mapped[str] = mapped_column(String(22), nullable=False)
     banco_alias: Mapped[str | None] = mapped_column(String(50))
+
+
+class GastoHabitual(Base):
+    __tablename__ = "gastos_habituales"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nombre: Mapped[str] = mapped_column(String(120), nullable=False)
+    rubro: Mapped[Rubro] = mapped_column(SqlEnum(Rubro, name="rubro"), nullable=False)
+    clase_prorrateo_id: Mapped[int] = mapped_column(
+        ForeignKey("clases_prorrateo.id", ondelete="RESTRICT"), nullable=False
+    )
+    proveedor_id: Mapped[int] = mapped_column(
+        ForeignKey("proveedores.id", ondelete="RESTRICT"), nullable=False
+    )
+    concepto: Mapped[str] = mapped_column(String(500), nullable=False)
+    monto: Mapped[float] = mapped_column(Float, nullable=False)
+    forma_pago: Mapped[FormaPago] = mapped_column(
+        SqlEnum(FormaPago, name="forma_pago"), nullable=False
+    )
+    activa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    fecha_creacion: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class Gasto(Base):
+    __tablename__ = "gastos"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    periodo: Mapped[str] = mapped_column(String(7), index=True, nullable=False)
+    rubro: Mapped[Rubro] = mapped_column(SqlEnum(Rubro, name="rubro"), nullable=False)
+
+    # Excluyentes: clase_prorrateo_id O departamento_id, nunca ambos, nunca ninguno.
+    # La excluyencia se valida en el schema Pydantic, no a nivel DB.
+    clase_prorrateo_id: Mapped[int | None] = mapped_column(
+        ForeignKey("clases_prorrateo.id", ondelete="RESTRICT"), nullable=True
+    )
+    departamento_id: Mapped[int | None] = mapped_column(
+        ForeignKey("departamentos.id", ondelete="RESTRICT"), nullable=True
+    )
+
+    proveedor_id: Mapped[int] = mapped_column(
+        ForeignKey("proveedores.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    concepto: Mapped[str] = mapped_column(String(500), nullable=False)
+    monto: Mapped[float] = mapped_column(Float, nullable=False)
+
+    forma_pago: Mapped[FormaPago] = mapped_column(
+        SqlEnum(FormaPago, name="forma_pago"), nullable=False
+    )
+    fecha_pago: Mapped[date] = mapped_column(Date, nullable=False)
+
+    numero_factura: Mapped[str | None] = mapped_column(String(50))
+    fecha_factura: Mapped[date | None] = mapped_column(Date)
+
+    cuota_actual: Mapped[int | None] = mapped_column(Integer)
+    cuota_total: Mapped[int | None] = mapped_column(Integer)
+
+    gasto_habitual_id: Mapped[int | None] = mapped_column(
+        ForeignKey("gastos_habituales.id", ondelete="SET NULL")
+    )
+
+    fecha_creacion: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
