@@ -26,6 +26,31 @@ const SECCIONES = [
       },
     ],
   },
+  {
+    titulo: "Configuración",
+    modulos: [
+      {
+        ruta: "/configuracion",
+        nombre: "Datos del consorcio",
+        rolesPermitidos: ["administracion"],
+      },
+      {
+        ruta: "/clases-prorrateo",
+        nombre: "Clases de prorrateo",
+        rolesPermitidos: ["administracion"],
+      },
+      {
+        ruta: "/proveedores",
+        nombre: "Proveedores",
+        rolesPermitidos: ["administracion"],
+      },
+      {
+        ruta: "/departamentos",
+        nombre: "Departamentos",
+        rolesPermitidos: ["administracion"],
+      },
+    ],
+  },
 ];
 
 export default function Sidebar({ rol, abierto, onCerrar }) {

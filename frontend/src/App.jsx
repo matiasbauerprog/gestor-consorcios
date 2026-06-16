@@ -6,6 +6,10 @@ import Login from "./screens/Login";
 import Comunicados from "./screens/Comunicados";
 import Expensas from "./screens/Expensas";
 import Comprobantes from "./screens/Comprobantes";
+import Configuracion from "./screens/Configuracion";
+import ClasesProrrateo from "./screens/ClasesProrrateo";
+import Proveedores from "./screens/Proveedores";
+import Departamentos from "./screens/Departamentos";
 import NotFound from "./screens/NotFound";
 
 export default function App() {
@@ -26,6 +30,10 @@ export default function App() {
             <Route path="comunicados" element={<Comunicados />} />
             <Route path="expensas" element={<Expensas />} />
             <Route path="comprobantes" element={<Comprobantes />} />
+            <Route path="configuracion" element={<Configuracion />} />
+            <Route path="clases-prorrateo" element={<ClasesProrrateo />} />
+            <Route path="proveedores" element={<Proveedores />} />
+            <Route path="departamentos" element={<Departamentos />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
