@@ -35,10 +35,14 @@ from backend.models import (  # noqa: E402
     EstadoPeticion,
     EstadoReserva,
     Expensa,
+    FormaPago,
+    Gasto,
+    GastoHabitual,
     Peticion,
     Proveedor,
     Reserva,
     Rol,
+    Rubro,
     Usuario,
 )
 
@@ -197,6 +201,36 @@ def _seed(db) -> None:
                 banco_numero_cuenta="000-1234567/8",
                 banco_cbu="0000000000000000000000",
                 banco_alias=None,
+            ),
+            # Fase 2: plantilla habitual de ejemplo (id=700)
+            GastoHabitual(
+                id=700,
+                nombre="Plantilla Test",
+                rubro=Rubro.abonos_y_servicios,
+                clase_prorrateo_id=500,  # clase A sembrada en Fase 1
+                proveedor_id=600,  # proveedor sembrado en Fase 1
+                concepto="Servicio mensual de prueba",
+                monto=10000.0,
+                forma_pago=FormaPago.transferencia,
+                activa=True,
+            ),
+            # Fase 2: gasto puntual de ejemplo (id=800), prorrateable por clase A
+            Gasto(
+                id=800,
+                periodo="2026-06",
+                rubro=Rubro.servicios_publicos,
+                clase_prorrateo_id=500,
+                departamento_id=None,
+                proveedor_id=600,
+                concepto="Luz pasillos",
+                monto=15000.0,
+                forma_pago=FormaPago.transferencia,
+                fecha_pago=date(2026, 6, 10),
+                numero_factura=None,
+                fecha_factura=None,
+                cuota_actual=None,
+                cuota_total=None,
+                gasto_habitual_id=None,
             ),
         ]
     )
