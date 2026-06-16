@@ -58,6 +58,18 @@ class EstadoReserva(str, enum.Enum):
     cancelada = "cancelada"
 
 
+class Rubro(str, enum.Enum):
+    sueldos_y_cargas_sociales = "sueldos_y_cargas_sociales"
+    servicios_publicos = "servicios_publicos"
+    abonos_y_servicios = "abonos_y_servicios"
+    mantenimiento_partes_comunes = "mantenimiento_partes_comunes"
+    trabajos_reparaciones_unidades = "trabajos_reparaciones_unidades"
+    gastos_bancarios = "gastos_bancarios"
+    gastos_administracion = "gastos_administracion"
+    seguros = "seguros"
+    gastos_generales = "gastos_generales"
+
+
 class Departamento(Base):
     __tablename__ = "departamentos"
 
@@ -68,6 +80,9 @@ class Departamento(Base):
     usuarios: Mapped[list["Usuario"]] = relationship(back_populates="departamento")
     peticiones: Mapped[list["Peticion"]] = relationship(back_populates="departamento")
     expensas: Mapped[list["Expensa"]] = relationship(back_populates="departamento")
+    coeficientes: Mapped[list["CoeficienteDepartamento"]] = relationship(
+        back_populates="departamento", cascade="all, delete-orphan"
+    )
 
 
 class Usuario(Base):
@@ -263,3 +278,88 @@ class Reserva(Base):
     )
 
     amenity: Mapped["Amenity"] = relationship(back_populates="reservas")
+
+
+class ClaseProrrateo(Base):
+    __tablename__ = "clases_prorrateo"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    codigo: Mapped[str] = mapped_column(String(8), unique=True, nullable=False)
+    nombre: Mapped[str] = mapped_column(String(120), nullable=False)
+    descripcion: Mapped[str | None] = mapped_column(String(500))
+    activa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    fecha_creacion: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    coeficientes: Mapped[list["CoeficienteDepartamento"]] = relationship(
+        back_populates="clase"
+    )
+
+
+class CoeficienteDepartamento(Base):
+    __tablename__ = "coeficientes_departamento"
+    __table_args__ = (
+        UniqueConstraint(
+            "departamento_id", "clase_prorrateo_id", name="uq_coef_depto_clase"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    departamento_id: Mapped[int] = mapped_column(
+        ForeignKey("departamentos.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    clase_prorrateo_id: Mapped[int] = mapped_column(
+        ForeignKey("clases_prorrateo.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    porcentaje: Mapped[float] = mapped_column(Float, nullable=False)
+
+    departamento: Mapped["Departamento"] = relationship(back_populates="coeficientes")
+    clase: Mapped["ClaseProrrateo"] = relationship(back_populates="coeficientes")
+
+
+class Proveedor(Base):
+    __tablename__ = "proveedores"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    razon_social: Mapped[str] = mapped_column(String(255), nullable=False)
+    nombre_fantasia: Mapped[str | None] = mapped_column(String(255))
+    cuit: Mapped[str] = mapped_column(String(13), unique=True, nullable=False)
+    direccion: Mapped[str | None] = mapped_column(String(500))
+    activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    fecha_creacion: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class ConfiguracionConsorcio(Base):
+    __tablename__ = "configuracion_consorcio"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    # consorcio
+    consorcio_nombre: Mapped[str] = mapped_column(String(255), nullable=False)
+    consorcio_domicilio: Mapped[str] = mapped_column(String(500), nullable=False)
+    consorcio_cuit: Mapped[str] = mapped_column(String(13), nullable=False)
+    consorcio_convenio_suterh: Mapped[str | None] = mapped_column(String(50))
+
+    # administración
+    admin_nombre: Mapped[str] = mapped_column(String(255), nullable=False)
+    admin_domicilio: Mapped[str] = mapped_column(String(500), nullable=False)
+    admin_email: Mapped[str] = mapped_column(String(255), nullable=False)
+    admin_telefono: Mapped[str] = mapped_column(String(50), nullable=False)
+    admin_cuit: Mapped[str] = mapped_column(String(13), nullable=False)
+    admin_rpa: Mapped[str] = mapped_column(String(50), nullable=False)
+    admin_situacion_fiscal: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    # banco
+    banco_titular: Mapped[str] = mapped_column(String(255), nullable=False)
+    banco_nombre: Mapped[str] = mapped_column(String(100), nullable=False)
+    banco_sucursal: Mapped[str | None] = mapped_column(String(50))
+    banco_numero_cuenta: Mapped[str] = mapped_column(String(50), nullable=False)
+    banco_cbu: Mapped[str] = mapped_column(String(22), nullable=False)
+    banco_alias: Mapped[str | None] = mapped_column(String(50))
