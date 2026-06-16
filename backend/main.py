@@ -14,6 +14,7 @@ from .database import Base, SessionLocal, engine
 from .routers import (
     amenities,
     auth,
+    clases_prorrateo,
     comprobantes,
     comunicados,
     departamentos,
@@ -81,6 +82,7 @@ app.include_router(amenities.router)
 app.include_router(reservas.router)
 app.include_router(departamentos.router)
 app.include_router(usuarios.router)
+app.include_router(clases_prorrateo.router)
 
 _uploads_path = Path(get_settings().UPLOAD_DIR)
 _uploads_path.mkdir(parents=True, exist_ok=True)
