@@ -34,8 +34,8 @@ const FORMAS_PAGO = [
 ];
 
 const TABS = [
-  { path: "/gastos", label: "Únicos", end: true },
-  { path: "/gastos/habituales", label: "Habituales" },
+  { path: "/gastos", label: "Del mes", end: true },
+  { path: "/gastos/habituales", label: "Recurrentes" },
 ];
 
 function labelRubro(value) {
@@ -109,7 +109,7 @@ export default function Gastos() {
     if (r.status === 201) {
       recargar();
       const n = r.data.length;
-      setError(n === 0 ? "No había habituales nuevos para cargar." : null);
+      setError(n === 0 ? "No había gastos recurrentes nuevos para cargar." : null);
     } else if (r.status !== 401) {
       setError(r.data?.detail || "No se pudieron cargar los habituales.");
     }
@@ -144,8 +144,7 @@ export default function Gastos() {
 
       <section className="filtros-gastos">
         <label>Período <input
-          type="text"
-          placeholder="2026-06"
+          type="month"
           value={filtros.periodo}
           onChange={(e) => cambiarFiltro("periodo", e.target.value)}
         /></label>
@@ -181,7 +180,7 @@ export default function Gastos() {
 
       <div className="cabecera-acciones">
         <button type="button" onClick={handleCargarHabituales} disabled={!filtros.periodo}>
-          Cargar gastos habituales del mes
+          Cargar gastos recurrentes del mes
         </button>
         <button type="button" onClick={() => setModal({ tipo: "crear" })}>
           + Nuevo gasto
@@ -206,7 +205,7 @@ export default function Gastos() {
                   ? <>Clase {clasePorId(g.clase_prorrateo_id)}</>
                   : <>Particular a {deptoPorId(g.departamento_id)}</>}
                 {g.cuota_actual && <> · Cuota {g.cuota_actual}/{g.cuota_total}</>}
-                {g.gasto_habitual_id && <> · Habitual</>}
+                {g.gasto_habitual_id && <> · Recurrente</>}
               </p>
               <div className="tarjeta-acciones">
                 <button type="button" onClick={() => setModal({ tipo: "editar", gasto: g })}>
@@ -348,11 +347,9 @@ function ModalGasto({ tipo, gastoInicial, clases, proveedores, departamentos, on
         <h3>{esEditar ? "Editar gasto" : "Nuevo gasto"}</h3>
         <form onSubmit={onSubmit}>
           <label>Período <input
-            type="text"
-            placeholder="2026-06"
+            type="month"
             value={form.periodo}
             onChange={(e) => set("periodo", e.target.value)}
-            pattern="\d{4}-(0[1-9]|1[0-2])"
             required
           /></label>
 

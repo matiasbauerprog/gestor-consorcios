@@ -31,8 +31,8 @@ const FORMAS_PAGO = [
 ];
 
 const TABS = [
-  { path: "/gastos", label: "Únicos", end: true },
-  { path: "/gastos/habituales", label: "Habituales" },
+  { path: "/gastos", label: "Del mes", end: true },
+  { path: "/gastos/habituales", label: "Recurrentes" },
 ];
 
 function labelRubro(value) {
@@ -65,7 +65,7 @@ export default function GastosHabituales() {
       setHabituales(r.data);
       setError(null);
     } else if (r.status !== 401) {
-      setError(r.data?.detail || "No se pudieron cargar las plantillas.");
+      setError(r.data?.detail || "No se pudieron cargar los gastos recurrentes.");
     }
     setCargando(false);
   }
@@ -85,7 +85,7 @@ export default function GastosHabituales() {
   }
 
   async function borrar(h) {
-    if (!confirm(`¿Eliminar la plantilla "${h.nombre}"?`)) return;
+    if (!confirm(`¿Eliminar el gasto recurrente "${h.nombre}"?`)) return;
     const r = await eliminarGastoHabitual(h.id);
     if (r.status === 200 || r.status === 204) recargar();
     else if (r.status !== 401) setError(r.data?.detail || "Error al eliminar.");
@@ -116,13 +116,13 @@ export default function GastosHabituales() {
           Mostrar inactivas
         </label>
         <button type="button" onClick={() => setModal({ tipo: "crear" })}>
-          + Nueva plantilla
+          + Nuevo gasto recurrente
         </button>
       </div>
 
       {error && <p role="alert" className="error-banner">{error}</p>}
       {cargando && <p>Cargando…</p>}
-      {!cargando && habituales.length === 0 && <p>No hay plantillas para mostrar.</p>}
+      {!cargando && habituales.length === 0 && <p>No hay gastos recurrentes para mostrar.</p>}
 
       <ul className="lista-config">
         {habituales.map((h) => (
@@ -226,7 +226,7 @@ function ModalHabitual({ tipo, inicial, clases, proveedores, onCerrar, onGuardad
   return (
     <div className="modal-backdrop" onClick={onCerrar}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{esEditar ? "Editar plantilla" : "Nueva plantilla"}</h3>
+        <h3>{esEditar ? "Editar gasto recurrente" : "Nuevo gasto recurrente"}</h3>
         <form onSubmit={onSubmit}>
           <label>Nombre <input value={form.nombre}
             onChange={(e) => set("nombre", e.target.value)} maxLength={120} required /></label>
