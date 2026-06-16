@@ -253,6 +253,13 @@ def _seed(db) -> None:
                 proveedor_id=600,  # proveedor sembrado en Fase 1
                 activo=True,
             ),
+            # Fase 3: liquidación histórica para empleado 900 (fuerza soft-delete en tests)
+            LiquidacionEmpleado(
+                id=970,
+                empleado_id=900,
+                periodo="2025-01",
+                sueldo_bruto=1000000.0,
+            ),
             # Fase 3: dos haberes mínimos
             Haber(
                 id=940,
