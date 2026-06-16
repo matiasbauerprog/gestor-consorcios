@@ -24,6 +24,11 @@ const SECCIONES = [
         nombre: "Comprobantes",
         rolesPermitidos: ["administracion", "departamento"],
       },
+      {
+        ruta: "/gastos",
+        nombre: "Gastos",
+        rolesPermitidos: ["administracion"],
+      },
     ],
   },
   {
