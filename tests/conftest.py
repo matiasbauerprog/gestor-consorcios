@@ -27,13 +27,16 @@ from datetime import date, datetime  # noqa: E402
 
 from backend.models import (  # noqa: E402
     Amenity,
+    ClaseProrrateo,
     Comunicado,
+    ConfiguracionConsorcio,
     Departamento,
     EstadoExpensa,
     EstadoPeticion,
     EstadoReserva,
     Expensa,
     Peticion,
+    Proveedor,
     Reserva,
     Rol,
     Usuario,
@@ -156,6 +159,44 @@ def _seed(db) -> None:
                 inicio=datetime(2026, 7, 15, 14, 0),
                 fin=datetime(2026, 7, 15, 17, 0),
                 estado=EstadoReserva.confirmada,
+            ),
+            # Fase 1: clase de prorrateo de ejemplo (id=500)
+            ClaseProrrateo(
+                id=500,
+                codigo="A",
+                nombre="Expensas ordinarias",
+                descripcion="Prorrateo principal",
+                activa=True,
+            ),
+            # Fase 1: proveedor de ejemplo (id=600)
+            Proveedor(
+                id=600,
+                razon_social="Proveedor Test SA",
+                nombre_fantasia="Test",
+                cuit="30-12345678-9",
+                direccion="Calle Falsa 123",
+                activo=True,
+            ),
+            # Fase 1: configuración del consorcio (singleton id=1)
+            ConfiguracionConsorcio(
+                id=1,
+                consorcio_nombre="Consorcio Test",
+                consorcio_domicilio="Av. Test 100",
+                consorcio_cuit="30-99999999-9",
+                consorcio_convenio_suterh=None,
+                admin_nombre="Admin Test",
+                admin_domicilio="Oficinas 200",
+                admin_email="admin@test.local",
+                admin_telefono="11-1111-1111",
+                admin_cuit="20-11111111-1",
+                admin_rpa="0001",
+                admin_situacion_fiscal="Monotributo",
+                banco_titular="Consorcio Test",
+                banco_nombre="Banco Test",
+                banco_sucursal="001",
+                banco_numero_cuenta="000-1234567/8",
+                banco_cbu="0000000000000000000000",
+                banco_alias=None,
             ),
         ]
     )

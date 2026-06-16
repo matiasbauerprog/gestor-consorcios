@@ -1249,6 +1249,276 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /clases-prorrateo:
+    get:
+      tags: [Configuración]
+      summary: Listar clases de prorrateo
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: activa
+          required: false
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ClaseProrrateoOut' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+    post:
+      tags: [Configuración]
+      summary: Crear clase de prorrateo
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClaseProrrateoCrear' }
+      responses:
+        '201':
+          description: Creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClaseProrrateoOut' }
+        '400': { $ref: '#/components/responses/PedidoInvalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '409':
+          description: Ya existe una clase con ese código.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /clases-prorrateo/{clase_prorrateo_id}:
+    parameters:
+      - in: path
+        name: clase_prorrateo_id
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Configuración]
+      summary: Obtener clase
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClaseProrrateoOut' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+    patch:
+      tags: [Configuración]
+      summary: Editar clase
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClaseProrrateoActualizar' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClaseProrrateoOut' }
+        '400': { $ref: '#/components/responses/PedidoInvalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+    delete:
+      tags: [Configuración]
+      summary: Eliminar clase (hard si no tiene coeficientes; soft si tiene)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Soft-delete (devuelve la clase desactivada)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClaseProrrateoOut' }
+        '204':
+          description: Hard-delete
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+
+  /proveedores:
+    get:
+      tags: [Configuración]
+      summary: Listar proveedores
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: activo
+          required: false
+          schema: { type: boolean, default: true }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ProveedorOut' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+    post:
+      tags: [Configuración]
+      summary: Crear proveedor
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProveedorCrear' }
+      responses:
+        '201':
+          description: Creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProveedorOut' }
+        '400': { $ref: '#/components/responses/PedidoInvalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '409':
+          description: Ya existe un proveedor con ese CUIT.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /proveedores/{proveedor_id}:
+    parameters:
+      - in: path
+        name: proveedor_id
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Configuración]
+      summary: Obtener proveedor
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProveedorOut' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+    patch:
+      tags: [Configuración]
+      summary: Editar proveedor
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProveedorActualizar' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProveedorOut' }
+        '400': { $ref: '#/components/responses/PedidoInvalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+    delete:
+      tags: [Configuración]
+      summary: Desactivar proveedor (soft-delete)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK (proveedor desactivado)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProveedorOut' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+
+  /configuracion:
+    get:
+      tags: [Configuración]
+      summary: Obtener configuración del consorcio (todos los roles)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConfiguracionConsorcioOut' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+    put:
+      tags: [Configuración]
+      summary: Actualizar configuración del consorcio (admin)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfiguracionConsorcioActualizar' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConfiguracionConsorcioOut' }
+        '400': { $ref: '#/components/responses/PedidoInvalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+
+  /departamentos/{departamento_id}/coeficientes:
+    parameters:
+      - in: path
+        name: departamento_id
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Administracion]
+      summary: Listar coeficientes del departamento
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CoeficienteOut' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+    put:
+      tags: [Administracion]
+      summary: Reemplazar todos los coeficientes del departamento
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CoeficientesReemplazar' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CoeficienteOut' }
+        '400': { $ref: '#/components/responses/PedidoInvalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+
 # ===========================================================================
 # COMPONENTS
 # ===========================================================================
@@ -1816,3 +2086,122 @@ components:
         fin:
           type: string
           format: date-time
+
+    ClaseProrrateoCrear:
+      type: object
+      required: [codigo, nombre]
+      properties:
+        codigo: { type: string, minLength: 1, maxLength: 8 }
+        nombre: { type: string, minLength: 1, maxLength: 120 }
+        descripcion: { type: string, maxLength: 500, nullable: true }
+
+    ClaseProrrateoActualizar:
+      type: object
+      properties:
+        nombre: { type: string, minLength: 1, maxLength: 120, nullable: true }
+        descripcion: { type: string, maxLength: 500, nullable: true }
+        activa: { type: boolean, nullable: true }
+
+    ClaseProrrateoOut:
+      type: object
+      required: [id, codigo, nombre, activa]
+      properties:
+        id: { type: integer }
+        codigo: { type: string }
+        nombre: { type: string }
+        descripcion: { type: string, nullable: true }
+        activa: { type: boolean }
+
+    ProveedorCrear:
+      type: object
+      required: [razon_social, cuit]
+      properties:
+        razon_social: { type: string, minLength: 1, maxLength: 255 }
+        nombre_fantasia: { type: string, maxLength: 255, nullable: true }
+        cuit: { type: string, pattern: '^\d{2}-\d{8}-\d{1}$' }
+        direccion: { type: string, maxLength: 500, nullable: true }
+
+    ProveedorActualizar:
+      type: object
+      properties:
+        razon_social: { type: string, minLength: 1, maxLength: 255, nullable: true }
+        nombre_fantasia: { type: string, maxLength: 255, nullable: true }
+        direccion: { type: string, maxLength: 500, nullable: true }
+        activo: { type: boolean, nullable: true }
+
+    ProveedorOut:
+      type: object
+      required: [id, razon_social, cuit, activo]
+      properties:
+        id: { type: integer }
+        razon_social: { type: string }
+        nombre_fantasia: { type: string, nullable: true }
+        cuit: { type: string }
+        direccion: { type: string, nullable: true }
+        activo: { type: boolean }
+
+    ConfiguracionConsorcioOut:
+      type: object
+      required:
+        - id
+        - consorcio_nombre
+        - consorcio_domicilio
+        - consorcio_cuit
+        - admin_nombre
+        - admin_domicilio
+        - admin_email
+        - admin_telefono
+        - admin_cuit
+        - admin_rpa
+        - admin_situacion_fiscal
+        - banco_titular
+        - banco_nombre
+        - banco_numero_cuenta
+        - banco_cbu
+      properties:
+        id: { type: integer }
+        consorcio_nombre: { type: string }
+        consorcio_domicilio: { type: string }
+        consorcio_cuit: { type: string }
+        consorcio_convenio_suterh: { type: string, nullable: true }
+        admin_nombre: { type: string }
+        admin_domicilio: { type: string }
+        admin_email: { type: string }
+        admin_telefono: { type: string }
+        admin_cuit: { type: string }
+        admin_rpa: { type: string }
+        admin_situacion_fiscal: { type: string }
+        banco_titular: { type: string }
+        banco_nombre: { type: string }
+        banco_sucursal: { type: string, nullable: true }
+        banco_numero_cuenta: { type: string }
+        banco_cbu: { type: string, minLength: 22, maxLength: 22 }
+        banco_alias: { type: string, nullable: true }
+
+    ConfiguracionConsorcioActualizar:
+      allOf:
+        - $ref: '#/components/schemas/ConfiguracionConsorcioOut'
+
+    CoeficienteItem:
+      type: object
+      required: [clase_prorrateo_id, porcentaje]
+      properties:
+        clase_prorrateo_id: { type: integer, minimum: 1 }
+        porcentaje: { type: number, minimum: 0, maximum: 100 }
+
+    CoeficientesReemplazar:
+      type: object
+      required: [coeficientes]
+      properties:
+        coeficientes:
+          type: array
+          items: { $ref: '#/components/schemas/CoeficienteItem' }
+
+    CoeficienteOut:
+      type: object
+      required: [clase_prorrateo_id, codigo, nombre, porcentaje]
+      properties:
+        clase_prorrateo_id: { type: integer }
+        codigo: { type: string }
+        nombre: { type: string }
+        porcentaje: { type: number }

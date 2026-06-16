@@ -11,6 +11,7 @@ from .models import (
     EstadoReserva,
     EstadoTrabajo,
     Rol,
+    Rubro,
 )
 
 
@@ -261,3 +262,123 @@ class UsuarioActualizar(BaseModel):
     email: str | None = Field(default=None, min_length=3, max_length=255)
     rol: Rol | None = None
     departamento_id: int | None = Field(default=None, gt=0)
+
+
+class ClaseProrrateoCrear(BaseModel):
+    codigo: str = Field(..., min_length=1, max_length=8)
+    nombre: str = Field(..., min_length=1, max_length=120)
+    descripcion: str | None = Field(default=None, max_length=500)
+
+
+class ClaseProrrateoActualizar(BaseModel):
+    # codigo es inmutable
+    nombre: str | None = Field(default=None, min_length=1, max_length=120)
+    descripcion: str | None = Field(default=None, max_length=500)
+    activa: bool | None = None
+
+
+class ClaseProrrateoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    codigo: str
+    nombre: str
+    descripcion: str | None
+    activa: bool
+
+
+_CUIT_PATTERN = r"^\d{2}-\d{8}-\d{1}$"
+
+
+class ProveedorCrear(BaseModel):
+    razon_social: str = Field(..., min_length=1, max_length=255)
+    nombre_fantasia: str | None = Field(default=None, max_length=255)
+    cuit: str = Field(..., pattern=_CUIT_PATTERN)
+    direccion: str | None = Field(default=None, max_length=500)
+
+
+class ProveedorActualizar(BaseModel):
+    # cuit es inmutable
+    razon_social: str | None = Field(default=None, min_length=1, max_length=255)
+    nombre_fantasia: str | None = Field(default=None, max_length=255)
+    direccion: str | None = Field(default=None, max_length=500)
+    activo: bool | None = None
+
+
+class ProveedorOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    razon_social: str
+    nombre_fantasia: str | None
+    cuit: str
+    direccion: str | None
+    activo: bool
+
+
+class ConfiguracionConsorcioActualizar(BaseModel):
+    consorcio_nombre: str = Field(..., min_length=1, max_length=255)
+    consorcio_domicilio: str = Field(..., min_length=1, max_length=500)
+    consorcio_cuit: str = Field(..., pattern=_CUIT_PATTERN)
+    consorcio_convenio_suterh: str | None = Field(default=None, max_length=50)
+
+    admin_nombre: str = Field(..., min_length=1, max_length=255)
+    admin_domicilio: str = Field(..., min_length=1, max_length=500)
+    admin_email: str = Field(..., min_length=3, max_length=255)
+    admin_telefono: str = Field(..., min_length=1, max_length=50)
+    admin_cuit: str = Field(..., pattern=_CUIT_PATTERN)
+    admin_rpa: str = Field(..., min_length=1, max_length=50)
+    admin_situacion_fiscal: str = Field(..., min_length=1, max_length=100)
+
+    banco_titular: str = Field(..., min_length=1, max_length=255)
+    banco_nombre: str = Field(..., min_length=1, max_length=100)
+    banco_sucursal: str | None = Field(default=None, max_length=50)
+    banco_numero_cuenta: str = Field(..., min_length=1, max_length=50)
+    banco_cbu: str = Field(..., min_length=22, max_length=22)
+    banco_alias: str | None = Field(default=None, max_length=50)
+
+
+class ConfiguracionConsorcioOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    consorcio_nombre: str
+    consorcio_domicilio: str
+    consorcio_cuit: str
+    consorcio_convenio_suterh: str | None
+    admin_nombre: str
+    admin_domicilio: str
+    admin_email: str
+    admin_telefono: str
+    admin_cuit: str
+    admin_rpa: str
+    admin_situacion_fiscal: str
+    banco_titular: str
+    banco_nombre: str
+    banco_sucursal: str | None
+    banco_numero_cuenta: str
+    banco_cbu: str
+    banco_alias: str | None
+
+
+class CoeficienteItem(BaseModel):
+    clase_prorrateo_id: int = Field(..., gt=0)
+    porcentaje: float = Field(..., ge=0, le=100)
+
+
+class CoeficientesReemplazar(BaseModel):
+    coeficientes: list[CoeficienteItem]
+
+    @model_validator(mode="after")
+    def _validar_clases_unicas(self) -> "CoeficientesReemplazar":
+        ids = [c.clase_prorrateo_id for c in self.coeficientes]
+        if len(ids) != len(set(ids)):
+            raise ValueError("No puede repetirse `clase_prorrateo_id` en el payload.")
+        return self
+
+
+class CoeficienteOut(BaseModel):
+    clase_prorrateo_id: int
+    codigo: str
+    nombre: str
+    porcentaje: float
