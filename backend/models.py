@@ -79,6 +79,24 @@ class FormaPago(str, enum.Enum):
     otro = "otro"
 
 
+class CategoriaEmpleado(str, enum.Enum):
+    encargado_permanente_con_vivienda = "encargado_permanente_con_vivienda"
+    encargado_permanente_sin_vivienda = "encargado_permanente_sin_vivienda"
+    encargado_suplente = "encargado_suplente"
+    ayudante = "ayudante"
+
+
+class TipoConcepto(str, enum.Enum):
+    descuento = "descuento"
+    contribucion = "contribucion"
+
+
+class TipoHaber(str, enum.Enum):
+    monto_fijo = "monto_fijo"
+    porcentaje_sobre_basico = "porcentaje_sobre_basico"
+    cantidad_x_valor = "cantidad_x_valor"
+
+
 class Departamento(Base):
     __tablename__ = "departamentos"
 
@@ -434,6 +452,124 @@ class Gasto(Base):
         ForeignKey("gastos_habituales.id", ondelete="SET NULL")
     )
 
+    liquidacion_id: Mapped[int | None] = mapped_column(
+        ForeignKey("liquidaciones_empleado.id", ondelete="SET NULL"), nullable=True
+    )
+
     fecha_creacion: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class Empleado(Base):
+    __tablename__ = "empleados"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nombre_completo: Mapped[str] = mapped_column(String(255), nullable=False)
+    cuil: Mapped[str] = mapped_column(String(13), unique=True, nullable=False)
+    categoria: Mapped[CategoriaEmpleado] = mapped_column(
+        SqlEnum(CategoriaEmpleado, name="categoria_empleado"), nullable=False
+    )
+    fecha_ingreso: Mapped[date] = mapped_column(Date, nullable=False)
+    fecha_egreso: Mapped[date | None] = mapped_column(Date)
+    sueldo_basico: Mapped[float] = mapped_column(Float, nullable=False)
+    proveedor_id: Mapped[int] = mapped_column(
+        ForeignKey("proveedores.id", ondelete="RESTRICT"), nullable=False
+    )
+    activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    fecha_creacion: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class Haber(Base):
+    __tablename__ = "haberes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nombre: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    tipo: Mapped[TipoHaber] = mapped_column(SqlEnum(TipoHaber, name="tipo_haber"), nullable=False)
+    valor_default: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    orden: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
+class ConceptoLiquidacion(Base):
+    __tablename__ = "conceptos_liquidacion"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nombre: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    tipo: Mapped[TipoConcepto] = mapped_column(SqlEnum(TipoConcepto, name="tipo_concepto"), nullable=False)
+    porcentaje: Mapped[float] = mapped_column(Float, nullable=False)
+    proveedor_id: Mapped[int | None] = mapped_column(
+        ForeignKey("proveedores.id", ondelete="RESTRICT"), nullable=True
+    )
+    orden: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
+class LiquidacionEmpleado(Base):
+    __tablename__ = "liquidaciones_empleado"
+    __table_args__ = (
+        UniqueConstraint("empleado_id", "periodo", name="uq_liquidacion_empleado_periodo"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    empleado_id: Mapped[int] = mapped_column(
+        ForeignKey("empleados.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    periodo: Mapped[str] = mapped_column(String(7), nullable=False, index=True)
+    sueldo_bruto: Mapped[float] = mapped_column(Float, nullable=False)
+    fecha_creacion: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    haberes: Mapped[list["LiquidacionHaber"]] = relationship(
+        back_populates="liquidacion",
+        cascade="all, delete-orphan",
+        order_by="LiquidacionHaber.orden",
+    )
+    detalle: Mapped[list["LiquidacionDetalle"]] = relationship(
+        back_populates="liquidacion",
+        cascade="all, delete-orphan",
+        order_by="LiquidacionDetalle.orden",
+    )
+
+
+class LiquidacionHaber(Base):
+    __tablename__ = "liquidaciones_haber"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    liquidacion_id: Mapped[int] = mapped_column(
+        ForeignKey("liquidaciones_empleado.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    nombre: Mapped[str] = mapped_column(String(120), nullable=False)
+    tipo: Mapped[TipoHaber | None] = mapped_column(
+        SqlEnum(TipoHaber, name="tipo_haber"), nullable=True
+    )
+    valor: Mapped[float | None] = mapped_column(Float, nullable=True)
+    cantidad: Mapped[float | None] = mapped_column(Float, nullable=True)
+    monto: Mapped[float] = mapped_column(Float, nullable=False)
+    orden: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    liquidacion: Mapped["LiquidacionEmpleado"] = relationship(back_populates="haberes")
+
+
+class LiquidacionDetalle(Base):
+    __tablename__ = "liquidaciones_detalle"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    liquidacion_id: Mapped[int] = mapped_column(
+        ForeignKey("liquidaciones_empleado.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    concepto_nombre: Mapped[str] = mapped_column(String(120), nullable=False)
+    concepto_tipo: Mapped[TipoConcepto] = mapped_column(
+        SqlEnum(TipoConcepto, name="tipo_concepto"), nullable=False
+    )
+    porcentaje_aplicado: Mapped[float] = mapped_column(Float, nullable=False)
+    monto: Mapped[float] = mapped_column(Float, nullable=False)
+    proveedor_id: Mapped[int | None] = mapped_column(
+        ForeignKey("proveedores.id", ondelete="SET NULL"), nullable=True
+    )
+    orden: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    liquidacion: Mapped["LiquidacionEmpleado"] = relationship(back_populates="detalle")
