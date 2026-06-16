@@ -10,11 +10,18 @@ from ..models import (
     ClaseProrrateo,
     Departamento,
     Gasto,
+    GastoHabitual,
     Proveedor,
     Rol,
     Rubro,
 )
-from ..schemas import GastoActualizar, GastoCrear, GastoOut, PlanCuotasCrear
+from ..schemas import (
+    CargarHabitualesIn,
+    GastoActualizar,
+    GastoCrear,
+    GastoOut,
+    PlanCuotasCrear,
+)
 
 router = APIRouter(prefix="/gastos", tags=["Gastos"])
 
@@ -292,3 +299,56 @@ def crear_plan_cuotas(
     for g in gastos:
         db.refresh(g)
     return gastos
+
+
+@router.post(
+    "/cargar-habituales",
+    response_model=list[GastoOut],
+    status_code=status.HTTP_201_CREATED,
+    summary="Materializar plantillas habituales activas en un período (idempotente)",
+)
+def cargar_habituales(
+    payload: CargarHabitualesIn,
+    db: Session = Depends(get_db),
+    _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+) -> list[Gasto]:
+    anio, mes = map(int, payload.periodo.split("-"))
+    fecha_pago_default = date(anio, mes, 1)
+
+    # Plantillas activas que aún no tienen gasto generado en este período.
+    plantillas_activas = db.scalars(
+        select(GastoHabitual).where(GastoHabitual.activa == True)  # noqa: E712
+    ).all()
+
+    ids_ya_generadas = set(
+        db.scalars(
+            select(Gasto.gasto_habitual_id).where(
+                Gasto.periodo == payload.periodo,
+                Gasto.gasto_habitual_id.is_not(None),
+            )
+        ).all()
+    )
+
+    nuevos: list[Gasto] = []
+    for plantilla in plantillas_activas:
+        if plantilla.id in ids_ya_generadas:
+            continue
+        gasto = Gasto(
+            periodo=payload.periodo,
+            rubro=plantilla.rubro,
+            clase_prorrateo_id=plantilla.clase_prorrateo_id,
+            departamento_id=None,
+            proveedor_id=plantilla.proveedor_id,
+            concepto=plantilla.concepto,
+            monto=plantilla.monto,
+            forma_pago=plantilla.forma_pago,
+            fecha_pago=fecha_pago_default,
+            gasto_habitual_id=plantilla.id,
+        )
+        db.add(gasto)
+        nuevos.append(gasto)
+
+    db.commit()
+    for g in nuevos:
+        db.refresh(g)
+    return nuevos

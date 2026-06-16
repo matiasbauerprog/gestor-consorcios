@@ -274,3 +274,89 @@ def test_plan_cuotas_cruza_anio(client, headers_admin):
     gastos = r.json()
     assert [g["periodo"] for g in gastos] == ["2026-11", "2026-12", "2027-01"]
     assert [g["fecha_pago"] for g in gastos] == ["2026-11-15", "2026-12-15", "2027-01-15"]
+
+
+# ---------------------------------------------------------------------------
+# POST /gastos/cargar-habituales
+# ---------------------------------------------------------------------------
+
+
+def test_cargar_habituales_sin_token_devuelve_401(client):
+    r = client.post("/gastos/cargar-habituales", json={"periodo": "2026-07"})
+    assert r.status_code == 401
+
+
+def test_cargar_habituales_como_depto_devuelve_403(client, headers_depto_a):
+    r = client.post(
+        "/gastos/cargar-habituales",
+        json={"periodo": "2026-07"},
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 403
+
+
+def test_cargar_habituales_genera_un_gasto_por_plantilla_activa(client, headers_admin):
+    # En el seed hay 1 plantilla activa (id=700).
+    r = client.post(
+        "/gastos/cargar-habituales",
+        json={"periodo": "2026-07"},
+        headers=headers_admin,
+    )
+    assert r.status_code == 201
+    generados = r.json()
+    assert len(generados) == 1
+    assert generados[0]["periodo"] == "2026-07"
+    assert generados[0]["gasto_habitual_id"] == 700
+    assert generados[0]["concepto"] == "Servicio mensual de prueba"
+    assert generados[0]["monto"] == 10000
+
+
+def test_cargar_habituales_es_idempotente(client, headers_admin):
+    # Primera llamada genera 1.
+    r1 = client.post(
+        "/gastos/cargar-habituales",
+        json={"periodo": "2026-07"},
+        headers=headers_admin,
+    )
+    assert len(r1.json()) == 1
+
+    # Segunda llamada no genera nada (ya existe).
+    r2 = client.post(
+        "/gastos/cargar-habituales",
+        json={"periodo": "2026-07"},
+        headers=headers_admin,
+    )
+    assert r2.status_code == 201
+    assert r2.json() == []
+
+
+def test_cargar_habituales_ignora_plantillas_inactivas(client, headers_admin):
+    # Desactivar la plantilla 700.
+    client.patch("/gastos-habituales/700", json={"activa": False}, headers=headers_admin)
+
+    r = client.post(
+        "/gastos/cargar-habituales",
+        json={"periodo": "2026-08"},
+        headers=headers_admin,
+    )
+    assert r.status_code == 201
+    assert r.json() == []
+
+
+def test_cargar_habituales_periodo_invalido_devuelve_400(client, headers_admin):
+    r = client.post(
+        "/gastos/cargar-habituales",
+        json={"periodo": "abc"},
+        headers=headers_admin,
+    )
+    assert r.status_code == 400
+
+
+def test_cargar_habituales_usa_fecha_primer_dia_del_periodo(client, headers_admin):
+    r = client.post(
+        "/gastos/cargar-habituales",
+        json={"periodo": "2026-07"},
+        headers=headers_admin,
+    )
+    generado = r.json()[0]
+    assert generado["fecha_pago"] == "2026-07-01"
