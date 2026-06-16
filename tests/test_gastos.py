@@ -196,3 +196,81 @@ def test_delete_gasto_es_hard_delete(client, headers_admin):
 def test_delete_gasto_inexistente_devuelve_404(client, headers_admin):
     r = client.delete("/gastos/9999", headers=headers_admin)
     assert r.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# POST /gastos/plan-cuotas
+# ---------------------------------------------------------------------------
+
+
+_PLAN_VALIDO = {
+    "periodo": "2026-06",
+    "rubro": "abonos_y_servicios",
+    "clase_prorrateo_id": 500,
+    "departamento_id": None,
+    "proveedor_id": 600,
+    "concepto": "Seguro anual",
+    "monto": 50000,
+    "forma_pago": "transferencia",
+    "fecha_pago": "2026-06-10",
+    "cuota_total": 3,
+}
+
+
+def test_plan_cuotas_sin_token_devuelve_401(client):
+    r = client.post("/gastos/plan-cuotas", json=_PLAN_VALIDO)
+    assert r.status_code == 401
+
+
+def test_plan_cuotas_como_depto_devuelve_403(client, headers_depto_a):
+    r = client.post("/gastos/plan-cuotas", json=_PLAN_VALIDO, headers=headers_depto_a)
+    assert r.status_code == 403
+
+
+def test_plan_cuotas_crea_n_gastos_consecutivos(client, headers_admin):
+    r = client.post("/gastos/plan-cuotas", json=_PLAN_VALIDO, headers=headers_admin)
+    assert r.status_code == 201
+    gastos = r.json()
+    assert len(gastos) == 3
+
+    # Períodos consecutivos.
+    assert [g["periodo"] for g in gastos] == ["2026-06", "2026-07", "2026-08"]
+
+    # Cuotas numeradas correctamente.
+    assert [g["cuota_actual"] for g in gastos] == [1, 2, 3]
+    assert all(g["cuota_total"] == 3 for g in gastos)
+
+    # Fechas de pago desplazadas 1 mes.
+    assert [g["fecha_pago"] for g in gastos] == ["2026-06-10", "2026-07-10", "2026-08-10"]
+
+    # Mismo concepto, monto, proveedor.
+    assert all(g["concepto"] == "Seguro anual" for g in gastos)
+    assert all(g["monto"] == 50000 for g in gastos)
+
+
+def test_plan_cuotas_total_uno_devuelve_400(client, headers_admin):
+    payload = dict(_PLAN_VALIDO, cuota_total=1)
+    r = client.post("/gastos/plan-cuotas", json=payload, headers=headers_admin)
+    assert r.status_code == 400
+
+
+def test_plan_cuotas_clase_y_depto_juntos_devuelve_400(client, headers_admin):
+    payload = dict(_PLAN_VALIDO, clase_prorrateo_id=500, departamento_id=1)
+    r = client.post("/gastos/plan-cuotas", json=payload, headers=headers_admin)
+    assert r.status_code == 400
+
+
+def test_plan_cuotas_proveedor_inexistente_devuelve_404(client, headers_admin):
+    payload = dict(_PLAN_VALIDO, proveedor_id=9999)
+    r = client.post("/gastos/plan-cuotas", json=payload, headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_plan_cuotas_cruza_anio(client, headers_admin):
+    # Empezando en noviembre, 3 cuotas → nov, dic, ene del año siguiente.
+    payload = dict(_PLAN_VALIDO, periodo="2026-11", fecha_pago="2026-11-15", cuota_total=3)
+    r = client.post("/gastos/plan-cuotas", json=payload, headers=headers_admin)
+    assert r.status_code == 201
+    gastos = r.json()
+    assert [g["periodo"] for g in gastos] == ["2026-11", "2026-12", "2027-01"]
+    assert [g["fecha_pago"] for g in gastos] == ["2026-11-15", "2026-12-15", "2027-01-15"]

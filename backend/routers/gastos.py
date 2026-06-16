@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -12,9 +14,33 @@ from ..models import (
     Rol,
     Rubro,
 )
-from ..schemas import GastoActualizar, GastoCrear, GastoOut
+from ..schemas import GastoActualizar, GastoCrear, GastoOut, PlanCuotasCrear
 
 router = APIRouter(prefix="/gastos", tags=["Gastos"])
+
+
+def _sumar_un_mes(periodo: str) -> str:
+    """Recibe 'YYYY-MM' y devuelve el mes siguiente como 'YYYY-MM'."""
+    anio, mes = map(int, periodo.split("-"))
+    mes += 1
+    if mes == 13:
+        mes = 1
+        anio += 1
+    return f"{anio:04d}-{mes:02d}"
+
+
+def _sumar_un_mes_date(fecha: date) -> date:
+    """Suma un mes a la fecha. Si el día no existe en el mes siguiente
+    (ej. 31 de enero → febrero), usa el último día del mes."""
+    import calendar
+    anio = fecha.year
+    mes = fecha.month + 1
+    if mes == 13:
+        mes = 1
+        anio += 1
+    ultimo_dia = calendar.monthrange(anio, mes)[1]
+    dia = min(fecha.day, ultimo_dia)
+    return date(anio, mes, dia)
 
 
 def _validar_referencias(
@@ -216,3 +242,53 @@ def eliminar_gasto(
     db.delete(gasto)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/plan-cuotas",
+    response_model=list[GastoOut],
+    status_code=status.HTTP_201_CREATED,
+    summary="Crear plan de N cuotas (genera N gastos consecutivos)",
+)
+def crear_plan_cuotas(
+    payload: PlanCuotasCrear,
+    db: Session = Depends(get_db),
+    _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+) -> list[Gasto]:
+    _validar_referencias(
+        db,
+        payload.clase_prorrateo_id,
+        payload.departamento_id,
+        payload.proveedor_id,
+    )
+
+    gastos: list[Gasto] = []
+    periodo_actual = payload.periodo
+    fecha_actual = payload.fecha_pago
+
+    for i in range(payload.cuota_total):
+        gasto = Gasto(
+            periodo=periodo_actual,
+            rubro=payload.rubro,
+            clase_prorrateo_id=payload.clase_prorrateo_id,
+            departamento_id=payload.departamento_id,
+            proveedor_id=payload.proveedor_id,
+            concepto=payload.concepto,
+            monto=payload.monto,
+            forma_pago=payload.forma_pago,
+            fecha_pago=fecha_actual,
+            numero_factura=payload.numero_factura,
+            fecha_factura=payload.fecha_factura,
+            cuota_actual=i + 1,
+            cuota_total=payload.cuota_total,
+        )
+        db.add(gasto)
+        gastos.append(gasto)
+
+        periodo_actual = _sumar_un_mes(periodo_actual)
+        fecha_actual = _sumar_un_mes_date(fecha_actual)
+
+    db.commit()
+    for g in gastos:
+        db.refresh(g)
+    return gastos
