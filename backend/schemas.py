@@ -10,6 +10,7 @@ from .models import (
     EstadoPresupuesto,
     EstadoReserva,
     EstadoTrabajo,
+    FormaPago,
     Rol,
     Rubro,
 )
@@ -382,3 +383,146 @@ class CoeficienteOut(BaseModel):
     codigo: str
     nombre: str
     porcentaje: float
+
+
+class GastoHabitualCrear(BaseModel):
+    nombre: str = Field(..., min_length=1, max_length=120)
+    rubro: Rubro
+    clase_prorrateo_id: int = Field(..., gt=0)
+    proveedor_id: int = Field(..., gt=0)
+    concepto: str = Field(..., min_length=1, max_length=500)
+    monto: float = Field(..., gt=0)
+    forma_pago: FormaPago
+
+
+class GastoHabitualActualizar(BaseModel):
+    nombre: str | None = Field(default=None, min_length=1, max_length=120)
+    rubro: Rubro | None = None
+    clase_prorrateo_id: int | None = Field(default=None, gt=0)
+    proveedor_id: int | None = Field(default=None, gt=0)
+    concepto: str | None = Field(default=None, min_length=1, max_length=500)
+    monto: float | None = Field(default=None, gt=0)
+    forma_pago: FormaPago | None = None
+    activa: bool | None = None
+
+
+class GastoHabitualOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nombre: str
+    rubro: Rubro
+    clase_prorrateo_id: int
+    proveedor_id: int
+    concepto: str
+    monto: float
+    forma_pago: FormaPago
+    activa: bool
+
+
+_PERIODO_PATTERN_GASTO = r"^\d{4}-(0[1-9]|1[0-2])$"
+
+
+class GastoCrear(BaseModel):
+    periodo: str = Field(..., pattern=_PERIODO_PATTERN_GASTO)
+    rubro: Rubro
+    clase_prorrateo_id: int | None = Field(default=None, gt=0)
+    departamento_id: int | None = Field(default=None, gt=0)
+    proveedor_id: int = Field(..., gt=0)
+    concepto: str = Field(..., min_length=1, max_length=500)
+    monto: float = Field(..., gt=0)
+    forma_pago: FormaPago
+    fecha_pago: date
+    numero_factura: str | None = Field(default=None, max_length=50)
+    fecha_factura: date | None = None
+    cuota_actual: int | None = Field(default=None, ge=1)
+    cuota_total: int | None = Field(default=None, ge=1)
+
+    @model_validator(mode="after")
+    def _validar_clase_o_depto(self) -> "GastoCrear":
+        tiene_clase = self.clase_prorrateo_id is not None
+        tiene_depto = self.departamento_id is not None
+        if tiene_clase == tiene_depto:
+            raise ValueError(
+                "Debe indicarse exactamente uno de `clase_prorrateo_id` "
+                "o `departamento_id` (excluyentes)."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _validar_cuotas(self) -> "GastoCrear":
+        a = self.cuota_actual
+        t = self.cuota_total
+        if (a is None) != (t is None):
+            raise ValueError(
+                "`cuota_actual` y `cuota_total` deben ir ambos o ninguno."
+            )
+        if a is not None and t is not None and a > t:
+            raise ValueError("`cuota_actual` no puede exceder `cuota_total`.")
+        return self
+
+
+class GastoActualizar(BaseModel):
+    periodo: str | None = Field(default=None, pattern=_PERIODO_PATTERN_GASTO)
+    rubro: Rubro | None = None
+    clase_prorrateo_id: int | None = Field(default=None, gt=0)
+    departamento_id: int | None = Field(default=None, gt=0)
+    proveedor_id: int | None = Field(default=None, gt=0)
+    concepto: str | None = Field(default=None, min_length=1, max_length=500)
+    monto: float | None = Field(default=None, gt=0)
+    forma_pago: FormaPago | None = None
+    fecha_pago: date | None = None
+    numero_factura: str | None = Field(default=None, max_length=50)
+    fecha_factura: date | None = None
+    cuota_actual: int | None = Field(default=None, ge=1)
+    cuota_total: int | None = Field(default=None, ge=1)
+
+
+class GastoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    periodo: str
+    rubro: Rubro
+    clase_prorrateo_id: int | None
+    departamento_id: int | None
+    proveedor_id: int
+    concepto: str
+    monto: float
+    forma_pago: FormaPago
+    fecha_pago: date
+    numero_factura: str | None
+    fecha_factura: date | None
+    cuota_actual: int | None
+    cuota_total: int | None
+    gasto_habitual_id: int | None
+
+
+class PlanCuotasCrear(BaseModel):
+    """Body para POST /gastos/plan-cuotas. Reutiliza casi todos los campos de
+    GastoCrear pero exige cuota_total ≥ 2 (uno solo no es un plan)."""
+    periodo: str = Field(..., pattern=_PERIODO_PATTERN_GASTO)
+    rubro: Rubro
+    clase_prorrateo_id: int | None = Field(default=None, gt=0)
+    departamento_id: int | None = Field(default=None, gt=0)
+    proveedor_id: int = Field(..., gt=0)
+    concepto: str = Field(..., min_length=1, max_length=500)
+    monto: float = Field(..., gt=0)
+    forma_pago: FormaPago
+    fecha_pago: date
+    numero_factura: str | None = Field(default=None, max_length=50)
+    fecha_factura: date | None = None
+    cuota_total: int = Field(..., ge=2)
+
+    @model_validator(mode="after")
+    def _validar_clase_o_depto(self) -> "PlanCuotasCrear":
+        if (self.clase_prorrateo_id is None) == (self.departamento_id is None):
+            raise ValueError(
+                "Debe indicarse exactamente uno de `clase_prorrateo_id` "
+                "o `departamento_id` (excluyentes)."
+            )
+        return self
+
+
+class CargarHabitualesIn(BaseModel):
+    periodo: str = Field(..., pattern=_PERIODO_PATTERN_GASTO)
