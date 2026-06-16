@@ -17,6 +17,7 @@ from .routers import (
     clases_prorrateo,
     comprobantes,
     comunicados,
+    conceptos_liquidacion,
     configuracion,
     departamentos,
     empleados,
@@ -94,6 +95,7 @@ app.include_router(proveedores.router)
 app.include_router(configuracion.router)
 app.include_router(gastos_habituales.router)
 app.include_router(gastos.router)
+app.include_router(conceptos_liquidacion.router)
 app.include_router(haberes.router)
 
 _uploads_path = Path(get_settings().UPLOAD_DIR)
