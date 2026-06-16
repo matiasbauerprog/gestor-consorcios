@@ -25,6 +25,8 @@ tags:
     description: Disponibilidad y reservas de espacios comunes
   - name: Administracion
     description: Alta y edición de departamentos, usuarios y amenities (solo Administración)
+  - name: Gastos
+    description: Gastos del consorcio y plantillas recurrentes
 
 security:
   - bearerAuth: []
@@ -1519,6 +1521,264 @@ paths:
         '403': { $ref: '#/components/responses/AccesoDenegado' }
         '404': { $ref: '#/components/responses/NoEncontrado' }
 
+  # =========================================================================
+  # GASTOS
+  # =========================================================================
+
+  /gastos:
+    get:
+      tags: [Gastos]
+      summary: Listar gastos del consorcio (admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: periodo
+          required: false
+          schema: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+        - in: query
+          name: rubro
+          required: false
+          schema: { type: string }
+        - in: query
+          name: clase_prorrateo_id
+          required: false
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: departamento_id
+          required: false
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: proveedor_id
+          required: false
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: gasto_habitual_id
+          required: false
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: limit
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - in: query
+          name: offset
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/GastoOut' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+    post:
+      tags: [Gastos]
+      summary: Crear un gasto (admin)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GastoCrear' }
+      responses:
+        '201':
+          description: Creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GastoOut' }
+        '400': { $ref: '#/components/responses/PedidoInvalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+
+  /gastos/plan-cuotas:
+    post:
+      tags: [Gastos]
+      summary: Crear plan de N cuotas (admin)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlanCuotasCrear' }
+      responses:
+        '201':
+          description: N gastos creados
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/GastoOut' }
+        '400': { $ref: '#/components/responses/PedidoInvalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+
+  /gastos/cargar-habituales:
+    post:
+      tags: [Gastos]
+      summary: Materializar plantillas habituales activas en un período (admin)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CargarHabitualesIn' }
+      responses:
+        '201':
+          description: Lista de gastos generados (puede ser vacía si todos ya estaban).
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/GastoOut' }
+        '400': { $ref: '#/components/responses/PedidoInvalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+
+  /gastos/{gasto_id}:
+    parameters:
+      - in: path
+        name: gasto_id
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Gastos]
+      summary: Obtener gasto
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GastoOut' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+    patch:
+      tags: [Gastos]
+      summary: Editar gasto
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GastoActualizar' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GastoOut' }
+        '400': { $ref: '#/components/responses/PedidoInvalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+    delete:
+      tags: [Gastos]
+      summary: Eliminar gasto
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Eliminado }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+
+  /gastos-habituales:
+    get:
+      tags: [Gastos]
+      summary: Listar plantillas (admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: activa
+          required: false
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/GastoHabitualOut' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+    post:
+      tags: [Gastos]
+      summary: Crear plantilla
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GastoHabitualCrear' }
+      responses:
+        '201':
+          description: Creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GastoHabitualOut' }
+        '400': { $ref: '#/components/responses/PedidoInvalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+
+  /gastos-habituales/{gasto_habitual_id}:
+    parameters:
+      - in: path
+        name: gasto_habitual_id
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Gastos]
+      summary: Obtener plantilla
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GastoHabitualOut' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+    patch:
+      tags: [Gastos]
+      summary: Editar plantilla
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GastoHabitualActualizar' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GastoHabitualOut' }
+        '400': { $ref: '#/components/responses/PedidoInvalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+    delete:
+      tags: [Gastos]
+      summary: Eliminar plantilla (hard si no tiene gastos; soft si tiene)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Soft-delete
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GastoHabitualOut' }
+        '204': { description: Hard-delete }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+
 # ===========================================================================
 # COMPONENTS
 # ===========================================================================
@@ -2205,3 +2465,135 @@ components:
         codigo: { type: string }
         nombre: { type: string }
         porcentaje: { type: number }
+
+    GastoOut:
+      type: object
+      required: [id, periodo, rubro, proveedor_id, concepto, monto, forma_pago, fecha_pago]
+      properties:
+        id: { type: integer }
+        periodo: { type: string }
+        rubro: { type: string }
+        clase_prorrateo_id: { type: integer, nullable: true }
+        departamento_id: { type: integer, nullable: true }
+        proveedor_id: { type: integer }
+        concepto: { type: string }
+        monto: { type: number }
+        forma_pago:
+          type: string
+          enum: [transferencia, debito_automatico, cheque, efectivo, otro]
+        fecha_pago: { type: string, format: date }
+        numero_factura: { type: string, nullable: true }
+        fecha_factura: { type: string, format: date, nullable: true }
+        cuota_actual: { type: integer, nullable: true }
+        cuota_total: { type: integer, nullable: true }
+        gasto_habitual_id: { type: integer, nullable: true }
+
+    GastoCrear:
+      type: object
+      required: [periodo, rubro, proveedor_id, concepto, monto, forma_pago, fecha_pago]
+      properties:
+        periodo: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+        rubro: { type: string }
+        clase_prorrateo_id: { type: integer, minimum: 1, nullable: true }
+        departamento_id: { type: integer, minimum: 1, nullable: true }
+        proveedor_id: { type: integer, minimum: 1 }
+        concepto: { type: string, minLength: 1, maxLength: 500 }
+        monto: { type: number, exclusiveMinimum: 0 }
+        forma_pago:
+          type: string
+          enum: [transferencia, debito_automatico, cheque, efectivo, otro]
+        fecha_pago: { type: string, format: date }
+        numero_factura: { type: string, maxLength: 50, nullable: true }
+        fecha_factura: { type: string, format: date, nullable: true }
+        cuota_actual: { type: integer, minimum: 1, nullable: true }
+        cuota_total: { type: integer, minimum: 1, nullable: true }
+
+    GastoActualizar:
+      type: object
+      properties:
+        periodo: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$', nullable: true }
+        rubro: { type: string, nullable: true }
+        clase_prorrateo_id: { type: integer, minimum: 1, nullable: true }
+        departamento_id: { type: integer, minimum: 1, nullable: true }
+        proveedor_id: { type: integer, minimum: 1, nullable: true }
+        concepto: { type: string, minLength: 1, maxLength: 500, nullable: true }
+        monto: { type: number, exclusiveMinimum: 0, nullable: true }
+        forma_pago:
+          type: string
+          enum: [transferencia, debito_automatico, cheque, efectivo, otro]
+          nullable: true
+        fecha_pago: { type: string, format: date, nullable: true }
+        numero_factura: { type: string, maxLength: 50, nullable: true }
+        fecha_factura: { type: string, format: date, nullable: true }
+        cuota_actual: { type: integer, minimum: 1, nullable: true }
+        cuota_total: { type: integer, minimum: 1, nullable: true }
+
+    PlanCuotasCrear:
+      type: object
+      required: [periodo, rubro, proveedor_id, concepto, monto, forma_pago, fecha_pago, cuota_total]
+      properties:
+        periodo: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+        rubro: { type: string }
+        clase_prorrateo_id: { type: integer, minimum: 1, nullable: true }
+        departamento_id: { type: integer, minimum: 1, nullable: true }
+        proveedor_id: { type: integer, minimum: 1 }
+        concepto: { type: string, minLength: 1, maxLength: 500 }
+        monto: { type: number, exclusiveMinimum: 0 }
+        forma_pago:
+          type: string
+          enum: [transferencia, debito_automatico, cheque, efectivo, otro]
+        fecha_pago: { type: string, format: date }
+        numero_factura: { type: string, maxLength: 50, nullable: true }
+        fecha_factura: { type: string, format: date, nullable: true }
+        cuota_total: { type: integer, minimum: 2 }
+
+    CargarHabitualesIn:
+      type: object
+      required: [periodo]
+      properties:
+        periodo: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+
+    GastoHabitualOut:
+      type: object
+      required: [id, nombre, rubro, clase_prorrateo_id, proveedor_id, concepto, monto, forma_pago, activa]
+      properties:
+        id: { type: integer }
+        nombre: { type: string }
+        rubro: { type: string }
+        clase_prorrateo_id: { type: integer }
+        proveedor_id: { type: integer }
+        concepto: { type: string }
+        monto: { type: number }
+        forma_pago:
+          type: string
+          enum: [transferencia, debito_automatico, cheque, efectivo, otro]
+        activa: { type: boolean }
+
+    GastoHabitualCrear:
+      type: object
+      required: [nombre, rubro, clase_prorrateo_id, proveedor_id, concepto, monto, forma_pago]
+      properties:
+        nombre: { type: string, minLength: 1, maxLength: 120 }
+        rubro: { type: string }
+        clase_prorrateo_id: { type: integer, minimum: 1 }
+        proveedor_id: { type: integer, minimum: 1 }
+        concepto: { type: string, minLength: 1, maxLength: 500 }
+        monto: { type: number, exclusiveMinimum: 0 }
+        forma_pago:
+          type: string
+          enum: [transferencia, debito_automatico, cheque, efectivo, otro]
+
+    GastoHabitualActualizar:
+      type: object
+      properties:
+        nombre: { type: string, minLength: 1, maxLength: 120, nullable: true }
+        rubro: { type: string, nullable: true }
+        clase_prorrateo_id: { type: integer, minimum: 1, nullable: true }
+        proveedor_id: { type: integer, minimum: 1, nullable: true }
+        concepto: { type: string, minLength: 1, maxLength: 500, nullable: true }
+        monto: { type: number, exclusiveMinimum: 0, nullable: true }
+        forma_pago:
+          type: string
+          enum: [transferencia, debito_automatico, cheque, efectivo, otro]
+          nullable: true
+        activa: { type: boolean, nullable: true }
