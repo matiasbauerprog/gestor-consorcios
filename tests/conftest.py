@@ -27,10 +27,13 @@ from datetime import date, datetime  # noqa: E402
 
 from backend.models import (  # noqa: E402
     Amenity,
+    CategoriaEmpleado,
     ClaseProrrateo,
     Comunicado,
+    ConceptoLiquidacion,
     ConfiguracionConsorcio,
     Departamento,
+    Empleado,
     EstadoExpensa,
     EstadoPeticion,
     EstadoReserva,
@@ -38,11 +41,17 @@ from backend.models import (  # noqa: E402
     FormaPago,
     Gasto,
     GastoHabitual,
+    Haber,
+    LiquidacionDetalle,
+    LiquidacionEmpleado,
+    LiquidacionHaber,
     Peticion,
     Proveedor,
     Reserva,
     Rol,
     Rubro,
+    TipoConcepto,
+    TipoHaber,
     Usuario,
 )
 
@@ -231,6 +240,54 @@ def _seed(db) -> None:
                 cuota_actual=None,
                 cuota_total=None,
                 gasto_habitual_id=None,
+            ),
+            # Fase 3: empleado de ejemplo (id=900)
+            Empleado(
+                id=900,
+                nombre_completo="Test Empleado",
+                cuil="20-30000000-3",
+                categoria=CategoriaEmpleado.encargado_permanente_sin_vivienda,
+                fecha_ingreso=date(2020, 1, 1),
+                fecha_egreso=None,
+                sueldo_basico=1000000.0,
+                proveedor_id=600,  # proveedor sembrado en Fase 1
+                activo=True,
+            ),
+            # Fase 3: dos haberes mínimos
+            Haber(
+                id=940,
+                nombre="Básico Test",
+                tipo=TipoHaber.porcentaje_sobre_basico,
+                valor_default=100.0,
+                orden=1,
+                activo=True,
+            ),
+            Haber(
+                id=941,
+                nombre="Antigüedad Test",
+                tipo=TipoHaber.porcentaje_sobre_basico,
+                valor_default=1.0,
+                orden=2,
+                activo=True,
+            ),
+            # Fase 3: dos conceptos mínimos
+            ConceptoLiquidacion(
+                id=950,
+                nombre="Jubilación Test",
+                tipo=TipoConcepto.descuento,
+                porcentaje=11.0,
+                proveedor_id=600,
+                orden=1,
+                activo=True,
+            ),
+            ConceptoLiquidacion(
+                id=951,
+                nombre="AFIP Test",
+                tipo=TipoConcepto.contribucion,
+                porcentaje=16.0,
+                proveedor_id=600,
+                orden=10,
+                activo=True,
             ),
         ]
     )
