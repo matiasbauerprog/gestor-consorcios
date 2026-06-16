@@ -800,3 +800,35 @@ img, svg, video {
 .lista-coeficientes li {
   font-size: 0.95rem;
 }
+
+/* Tabs reutilizables (mobile-first) */
+.tabs {
+  display: flex;
+  margin-block-end: 1rem;
+  border-bottom: 1px solid var(--color-text);
+}
+.tab {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  min-height: 44px;
+  text-align: center;
+  text-decoration: none;
+  color: var(--color-text);
+  border-bottom: 3px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tab.activo {
+  border-bottom-color: var(--color-primary);
+  font-weight: 600;
+}
+@media (min-width: 600px) {
+  .tabs {
+    justify-content: flex-start;
+  }
+  .tab {
+    flex: 0 0 auto;
+    min-width: 140px;
+  }
+}
