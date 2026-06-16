@@ -11,9 +11,13 @@ from .models import (
     ConfiguracionConsorcio,
     Departamento,
     EstadoPeticion,
+    FormaPago,
+    Gasto,
+    GastoHabitual,
     Peticion,
     Proveedor,
     Rol,
+    Rubro,
     Usuario,
 )
 from .security import hash_password
@@ -86,6 +90,7 @@ def seed_if_empty(db: Session) -> None:
         Proveedor(razon_social="Banco Río", nombre_fantasia="Banco", cuit="30-44444444-4"),
         Proveedor(razon_social="Admin Consorcios", nombre_fantasia="Admin", cuit="30-55555555-5"),
     ])
+    db.flush()
 
     # ----- Fase 1: configuración singleton -----
     db.add(ConfiguracionConsorcio(
@@ -108,6 +113,101 @@ def seed_if_empty(db: Session) -> None:
         banco_cbu="0000000000000000000000",
         banco_alias=None,
     ))
+
+    # ----- Fase 2: plantillas de gastos habituales -----
+    # Tomamos proveedores sembrados por id (orden de creación = orden alfabético del seed).
+    proveedores_seed = db.scalars(
+        select(Proveedor).order_by(Proveedor.id)
+    ).all()
+    prov_limpieza = proveedores_seed[0]
+    prov_ascensor = proveedores_seed[1]
+    prov_admin = proveedores_seed[4]
+
+    plantilla_sueldo = GastoHabitual(
+        nombre="Sueldo encargado",
+        rubro=Rubro.sueldos_y_cargas_sociales,
+        clase_prorrateo_id=clase_a.id,
+        proveedor_id=prov_admin.id,
+        concepto="Sueldo mensual del encargado",
+        monto=800000.0,
+        forma_pago=FormaPago.transferencia,
+        activa=True,
+    )
+    plantilla_limpieza = GastoHabitual(
+        nombre="Servicio de limpieza",
+        rubro=Rubro.abonos_y_servicios,
+        clase_prorrateo_id=clase_a.id,
+        proveedor_id=prov_limpieza.id,
+        concepto="Limpieza mensual de áreas comunes",
+        monto=200000.0,
+        forma_pago=FormaPago.transferencia,
+        activa=True,
+    )
+    plantilla_ascensor = GastoHabitual(
+        nombre="Mantenimiento ascensores",
+        rubro=Rubro.abonos_y_servicios,
+        clase_prorrateo_id=clase_a.id,
+        proveedor_id=prov_ascensor.id,
+        concepto="Mantenimiento mensual de ascensores",
+        monto=50000.0,
+        forma_pago=FormaPago.transferencia,
+        activa=True,
+    )
+    db.add_all([plantilla_sueldo, plantilla_limpieza, plantilla_ascensor])
+    db.flush()
+
+    # ----- Fase 2: gastos puntuales de ejemplo (período 2026-06) -----
+    from datetime import date as _date
+
+    db.add_all([
+        # Generado a partir de plantilla.
+        Gasto(
+            periodo="2026-06",
+            rubro=Rubro.sueldos_y_cargas_sociales,
+            clase_prorrateo_id=clase_a.id,
+            proveedor_id=prov_admin.id,
+            concepto="Sueldo mensual del encargado",
+            monto=800000.0,
+            forma_pago=FormaPago.transferencia,
+            fecha_pago=_date(2026, 6, 1),
+            gasto_habitual_id=plantilla_sueldo.id,
+        ),
+        # Prorrateable puntual.
+        Gasto(
+            periodo="2026-06",
+            rubro=Rubro.mantenimiento_partes_comunes,
+            clase_prorrateo_id=clase_a.id,
+            proveedor_id=prov_limpieza.id,
+            concepto="Reparación cañería común",
+            monto=120000.0,
+            forma_pago=FormaPago.transferencia,
+            fecha_pago=_date(2026, 6, 8),
+        ),
+        # Particular a un depto.
+        Gasto(
+            periodo="2026-06",
+            rubro=Rubro.trabajos_reparaciones_unidades,
+            departamento_id=depto_a.id,
+            proveedor_id=prov_limpieza.id,
+            concepto="Arreglo plomería - UF 1A",
+            monto=80000.0,
+            forma_pago=FormaPago.transferencia,
+            fecha_pago=_date(2026, 6, 12),
+        ),
+        # En cuotas (cuota 1/3 cargada manualmente).
+        Gasto(
+            periodo="2026-06",
+            rubro=Rubro.seguros,
+            clase_prorrateo_id=clase_a.id,
+            proveedor_id=prov_admin.id,
+            concepto="Seguro anual - Cuota 1/3",
+            monto=70000.0,
+            forma_pago=FormaPago.transferencia,
+            fecha_pago=_date(2026, 6, 5),
+            cuota_actual=1,
+            cuota_total=3,
+        ),
+    ])
 
     db.add_all(
         [
