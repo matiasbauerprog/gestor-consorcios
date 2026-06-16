@@ -16,24 +16,28 @@ export default function Departamentos() {
 
   async function recargar() {
     setCargando(true);
-    try {
-      const [deptos, clasesActivas] = await Promise.all([
-        listarDepartamentos(),
-        listarClasesProrrateo({ activa: true }),
-      ]);
-      setDepartamentos(deptos);
-      setClases(clasesActivas);
-
-      const coefs = {};
-      for (const d of deptos) {
-        coefs[d.id] = await listarCoeficientesDepartamento(d.id);
+    const [rDeptos, rClases] = await Promise.all([
+      listarDepartamentos(),
+      listarClasesProrrateo({ activa: true }),
+    ]);
+    if (rDeptos.status !== 200 || rClases.status !== 200) {
+      if (rDeptos.status !== 401 && rClases.status !== 401) {
+        setError("No se pudo cargar la información.");
       }
-      setCoeficientesPorDepto(coefs);
-    } catch (err) {
-      setError(err.message);
-    } finally {
       setCargando(false);
+      return;
     }
+    setDepartamentos(rDeptos.data);
+    setClases(rClases.data);
+
+    const coefs = {};
+    for (const d of rDeptos.data) {
+      const rc = await listarCoeficientesDepartamento(d.id);
+      coefs[d.id] = rc.status === 200 ? rc.data : [];
+    }
+    setCoeficientesPorDepto(coefs);
+    setError(null);
+    setCargando(false);
   }
 
   useEffect(() => {
@@ -90,9 +94,13 @@ export default function Departamentos() {
           clases={clases}
           onCerrar={() => setModal(null)}
           onGuardar={async (nuevos) => {
-            await reemplazarCoeficientesDepartamento(modal.departamento.id, nuevos);
-            setModal(null);
-            recargar();
+            const r = await reemplazarCoeficientesDepartamento(modal.departamento.id, nuevos);
+            if (r.status === 200) {
+              setModal(null);
+              recargar();
+              return null;
+            }
+            return r.data?.detail || "Error al guardar.";
           }}
         />
       )}
@@ -113,16 +121,15 @@ function ModalCoeficientes({ departamento, coeficientesActuales, clases, onCerra
     e.preventDefault();
     setGuardando(true);
     setError(null);
-    try {
-      const payload = Object.entries(valores)
-        .filter(([, v]) => v !== "" && v !== null && Number(v) > 0)
-        .map(([clase_prorrateo_id, porcentaje]) => ({
-          clase_prorrateo_id: Number(clase_prorrateo_id),
-          porcentaje: Number(porcentaje),
-        }));
-      await onGuardar(payload);
-    } catch (err) {
-      setError(err.message);
+    const payload = Object.entries(valores)
+      .filter(([, v]) => v !== "" && v !== null && Number(v) > 0)
+      .map(([clase_prorrateo_id, porcentaje]) => ({
+        clase_prorrateo_id: Number(clase_prorrateo_id),
+        porcentaje: Number(porcentaje),
+      }));
+    const err = await onGuardar(payload);
+    if (err) {
+      setError(err);
       setGuardando(false);
     }
   }

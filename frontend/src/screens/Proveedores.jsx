@@ -13,13 +13,17 @@ export default function Proveedores() {
   const [mostrarInactivos, setMostrarInactivos] = useState(false);
   const [modal, setModal] = useState(null);
 
-  function recargar() {
+  async function recargar() {
     setCargando(true);
     const filtro = mostrarInactivos ? { activo: false } : { activo: true };
-    listarProveedores(filtro)
-      .then(setProveedores)
-      .catch((err) => setError(err.message))
-      .finally(() => setCargando(false));
+    const r = await listarProveedores(filtro);
+    if (r.status === 200) {
+      setProveedores(r.data);
+      setError(null);
+    } else if (r.status !== 401) {
+      setError(r.data?.detail || "No se pudieron cargar los proveedores.");
+    }
+    setCargando(false);
   }
 
   useEffect(() => {
@@ -27,16 +31,11 @@ export default function Proveedores() {
   }, [mostrarInactivos]);
 
   async function toggleActivo(p) {
-    try {
-      if (p.activo) {
-        await eliminarProveedor(p.id);
-      } else {
-        await actualizarProveedor(p.id, { activo: true });
-      }
-      recargar();
-    } catch (err) {
-      setError(err.message);
-    }
+    const r = p.activo
+      ? await eliminarProveedor(p.id)
+      : await actualizarProveedor(p.id, { activo: true });
+    if (r.status === 200) recargar();
+    else if (r.status !== 401) setError(r.data?.detail || "Error al actualizar.");
   }
 
   if (cargando) return <main className="app-content"><p>Cargando…</p></main>;
@@ -106,9 +105,13 @@ export default function Proveedores() {
               nombre_fantasia: datos.nombre_fantasia || null,
               direccion: datos.direccion || null,
             };
-            await crearProveedor(payload);
-            setModal(null);
-            recargar();
+            const r = await crearProveedor(payload);
+            if (r.status === 201) {
+              setModal(null);
+              recargar();
+              return null;
+            }
+            return r.data?.detail || "Error al crear.";
           }}
         />
       )}
@@ -125,13 +128,17 @@ export default function Proveedores() {
           permiteEditarCuit={false}
           onCerrar={() => setModal(null)}
           onGuardar={async ({ razon_social, nombre_fantasia, direccion }) => {
-            await actualizarProveedor(modal.proveedor.id, {
+            const r = await actualizarProveedor(modal.proveedor.id, {
               razon_social,
               nombre_fantasia: nombre_fantasia || null,
               direccion: direccion || null,
             });
-            setModal(null);
-            recargar();
+            if (r.status === 200) {
+              setModal(null);
+              recargar();
+              return null;
+            }
+            return r.data?.detail || "Error al editar.";
           }}
         />
       )}
@@ -148,10 +155,9 @@ function ModalProveedor({ titulo, inicial, permiteEditarCuit, onCerrar, onGuarda
     e.preventDefault();
     setGuardando(true);
     setError(null);
-    try {
-      await onGuardar(form);
-    } catch (err) {
-      setError(err.message || "Error");
+    const err = await onGuardar(form);
+    if (err) {
+      setError(err);
       setGuardando(false);
     }
   }

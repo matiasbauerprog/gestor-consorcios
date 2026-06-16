@@ -29,16 +29,25 @@ export default function Configuracion() {
   const [mensaje, setMensaje] = useState(null);
 
   useEffect(() => {
-    obtenerConfiguracion()
-      .then((data) => {
+    let cancelado = false;
+    async function cargar() {
+      const r = await obtenerConfiguracion();
+      if (cancelado) return;
+      if (r.status === 200) {
         const limpio = { ...CAMPOS_VACIOS };
         for (const k of Object.keys(CAMPOS_VACIOS)) {
-          limpio[k] = data[k] ?? "";
+          limpio[k] = r.data[k] ?? "";
         }
         setForm(limpio);
-      })
-      .catch((err) => setError(err.message || "Error al cargar"))
-      .finally(() => setCargando(false));
+      } else if (r.status !== 401) {
+        setError(r.data?.detail || "No se pudo cargar la configuración.");
+      }
+      setCargando(false);
+    }
+    cargar();
+    return () => {
+      cancelado = true;
+    };
   }, []);
 
   function cambiar(campo) {
@@ -53,18 +62,17 @@ export default function Configuracion() {
     setGuardando(true);
     setError(null);
     setMensaje(null);
-    try {
-      const payload = { ...form };
-      for (const k of ["consorcio_convenio_suterh", "banco_sucursal", "banco_alias"]) {
-        if (payload[k] === "") payload[k] = null;
-      }
-      await actualizarConfiguracion(payload);
-      setMensaje("Configuración guardada.");
-    } catch (err) {
-      setError(err.message || "Error al guardar");
-    } finally {
-      setGuardando(false);
+    const payload = { ...form };
+    for (const k of ["consorcio_convenio_suterh", "banco_sucursal", "banco_alias"]) {
+      if (payload[k] === "") payload[k] = null;
     }
+    const r = await actualizarConfiguracion(payload);
+    if (r.status === 200) {
+      setMensaje("Configuración guardada.");
+    } else if (r.status !== 401) {
+      setError(r.data?.detail || "No se pudo guardar la configuración.");
+    }
+    setGuardando(false);
   }
 
   if (cargando) return <main className="app-content"><p>Cargando…</p></main>;

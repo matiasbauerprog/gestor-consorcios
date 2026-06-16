@@ -12,12 +12,16 @@ export default function ClasesProrrateo() {
   const [error, setError] = useState(null);
   const [modal, setModal] = useState(null);
 
-  function recargar() {
+  async function recargar() {
     setCargando(true);
-    listarClasesProrrateo()
-      .then(setClases)
-      .catch((err) => setError(err.message))
-      .finally(() => setCargando(false));
+    const r = await listarClasesProrrateo();
+    if (r.status === 200) {
+      setClases(r.data);
+      setError(null);
+    } else if (r.status !== 401) {
+      setError(r.data?.detail || "No se pudieron cargar las clases.");
+    }
+    setCargando(false);
   }
 
   useEffect(() => {
@@ -25,22 +29,16 @@ export default function ClasesProrrateo() {
   }, []);
 
   async function toggleActiva(clase) {
-    try {
-      await actualizarClaseProrrateo(clase.id, { activa: !clase.activa });
-      recargar();
-    } catch (err) {
-      setError(err.message);
-    }
+    const r = await actualizarClaseProrrateo(clase.id, { activa: !clase.activa });
+    if (r.status === 200) recargar();
+    else if (r.status !== 401) setError(r.data?.detail || "Error al actualizar.");
   }
 
   async function borrar(clase) {
     if (!confirm(`¿Eliminar la clase "${clase.codigo}"?`)) return;
-    try {
-      await eliminarClaseProrrateo(clase.id);
-      recargar();
-    } catch (err) {
-      setError(err.message);
-    }
+    const r = await eliminarClaseProrrateo(clase.id);
+    if (r.status === 200 || r.status === 204) recargar();
+    else if (r.status !== 401) setError(r.data?.detail || "Error al eliminar.");
   }
 
   if (cargando) return <main className="app-content"><p>Cargando…</p></main>;
@@ -92,9 +90,13 @@ export default function ClasesProrrateo() {
           permiteEditarCodigo
           onCerrar={() => setModal(null)}
           onGuardar={async (datos) => {
-            await crearClaseProrrateo(datos);
-            setModal(null);
-            recargar();
+            const r = await crearClaseProrrateo(datos);
+            if (r.status === 201) {
+              setModal(null);
+              recargar();
+              return null;
+            }
+            return r.data?.detail || "Error al crear.";
           }}
         />
       )}
@@ -110,12 +112,16 @@ export default function ClasesProrrateo() {
           permiteEditarCodigo={false}
           onCerrar={() => setModal(null)}
           onGuardar={async ({ nombre, descripcion }) => {
-            await actualizarClaseProrrateo(modal.clase.id, {
+            const r = await actualizarClaseProrrateo(modal.clase.id, {
               nombre,
               descripcion: descripcion || null,
             });
-            setModal(null);
-            recargar();
+            if (r.status === 200) {
+              setModal(null);
+              recargar();
+              return null;
+            }
+            return r.data?.detail || "Error al editar.";
           }}
         />
       )}
@@ -132,10 +138,9 @@ function ModalForm({ titulo, inicial, permiteEditarCodigo, onCerrar, onGuardar }
     e.preventDefault();
     setGuardando(true);
     setError(null);
-    try {
-      await onGuardar(form);
-    } catch (err) {
-      setError(err.message || "Error");
+    const err = await onGuardar(form);
+    if (err) {
+      setError(err);
       setGuardando(false);
     }
   }
