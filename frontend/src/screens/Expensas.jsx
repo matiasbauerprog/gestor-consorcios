@@ -138,16 +138,14 @@ export default function Expensas() {
   }
 
   useEffect(() => {
-    if (esAdmin && departamentoSeleccionado === null) {
-      setExpensas([]);
-      return;
-    }
-
     let cancelado = false;
     setCargando(true);
 
     async function cargar() {
-      const params = esAdmin ? { departamento_id: departamentoSeleccionado } : {};
+      const params = {};
+      if (esAdmin && departamentoSeleccionado !== null) {
+        params.departamento_id = departamentoSeleccionado;
+      }
       const r = await listarExpensas(params);
       if (cancelado) return;
       if (r.status === 200) {
@@ -174,7 +172,6 @@ export default function Expensas() {
             <SelectorDepartamento
               valor={departamentoSeleccionado}
               onChange={setDepartamentoSeleccionado}
-              permitirVacio={false}
             />
             <button
               type="button"
@@ -187,17 +184,12 @@ export default function Expensas() {
         )}
       </header>
 
-      {esAdmin && departamentoSeleccionado === null && (
-        <p>Elegí un departamento para ver sus expensas.</p>
-      )}
-
       {cargando && <p>Cargando…</p>}
       {errorCarga && <p role="alert" className="error-banner">{errorCarga}</p>}
       {errorAccion && <p role="alert" className="error-banner">{errorAccion}</p>}
-      {!cargando && !errorCarga && expensas.length === 0 &&
-        (!esAdmin || departamentoSeleccionado !== null) && (
-          <p>No hay expensas para mostrar.</p>
-        )}
+      {!cargando && !errorCarga && expensas.length === 0 && (
+        <p>No hay expensas para mostrar.</p>
+      )}
 
       <ul className="lista-expensas">
         {expensas.map((e) => (
