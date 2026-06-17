@@ -1,11 +1,29 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from datetime import date
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, require_roles
 from ..database import get_db
-from ..models import Comprobante, EstadoComprobante, EstadoExpensa, Expensa, Rol
+from ..models import (
+    Comprobante,
+    EstadoComprobante,
+    MovimientoCuenta,
+    Rol,
+    TipoMovimiento,
+)
 from ..schemas import ComprobanteActualizar, ComprobanteOut
+from ..storage import guardar_imagen_comprobante
 
 router = APIRouter(prefix="/comprobantes", tags=["Expensas"])
 
@@ -24,24 +42,58 @@ def listar_comprobantes(
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.administracion, Rol.departamento)),
 ) -> list[Comprobante]:
-    stmt = (
-        select(Comprobante)
-        .join(Expensa, Comprobante.expensa_id == Expensa.id)
-        .order_by(Comprobante.fecha_creacion.desc(), Comprobante.id.desc())
+    stmt = select(Comprobante).order_by(
+        Comprobante.fecha_creacion.desc(), Comprobante.id.desc()
     )
 
-    # Aislamiento por unidad para Departamentos. Su token define qué pueden ver;
-    # el query departamento_id es ignorado.
+    # Aislamiento por unidad: el Departamento solo ve sus comprobantes. Cualquier
+    # departamento_id en query es ignorado para deptos.
     if user.rol == Rol.departamento:
-        stmt = stmt.where(Expensa.departamento_id == user.departamento_id)
+        stmt = stmt.where(Comprobante.departamento_id == user.departamento_id)
     elif departamento_id is not None:
-        stmt = stmt.where(Expensa.departamento_id == departamento_id)
+        stmt = stmt.where(Comprobante.departamento_id == departamento_id)
 
     if estado is not None:
         stmt = stmt.where(Comprobante.estado == estado)
 
     stmt = stmt.offset(offset).limit(limit)
     return list(db.scalars(stmt).all())
+
+
+@router.post(
+    "",
+    response_model=ComprobanteOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Presentar comprobante de pago",
+)
+def presentar_comprobante(
+    fecha_pago: date = Form(...),
+    monto: float = Form(..., gt=0),
+    archivo: UploadFile | None = File(default=None),
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(Rol.departamento)),
+) -> Comprobante:
+    if fecha_pago > date.today():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La fecha de pago no puede ser futura.",
+        )
+
+    archivo_path = None
+    if archivo is not None and archivo.filename:
+        archivo_path = guardar_imagen_comprobante(archivo)
+
+    comprobante = Comprobante(
+        departamento_id=user.departamento_id,
+        fecha_pago=fecha_pago,
+        monto=monto,
+        archivo_path=archivo_path,
+        estado=EstadoComprobante.pendiente_verificacion,
+    )
+    db.add(comprobante)
+    db.commit()
+    db.refresh(comprobante)
+    return comprobante
 
 
 @router.patch(
@@ -63,8 +115,7 @@ def actualizar_comprobante(
             detail="El comprobante solicitado no existe.",
         )
 
-    # Solo se puede decidir sobre comprobantes pendientes. Estados terminales
-    # son inmutables — evita que se "des-apruebe" un pago ya conciliado.
+    # Estados terminales son inmutables — admin compensa errores con notas.
     if comprobante.estado != EstadoComprobante.pendiente_verificacion:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -73,9 +124,18 @@ def actualizar_comprobante(
 
     comprobante.estado = payload.estado
 
-    # Aprobar el comprobante cierra el ciclo contable: la expensa queda pagada.
+    # Aprobar genera el ingreso contable en la cuenta corriente del depto.
     if payload.estado == EstadoComprobante.aprobado:
-        comprobante.expensa.estado = EstadoExpensa.pagada
+        db.add(
+            MovimientoCuenta(
+                departamento_id=comprobante.departamento_id,
+                fecha=comprobante.fecha_pago,
+                tipo=TipoMovimiento.pago_recibido,
+                descripcion=f"Pago comprobante #{comprobante.id}",
+                monto=comprobante.monto,
+                comprobante_id=comprobante.id,
+            )
+        )
 
     db.commit()
     db.refresh(comprobante)
