@@ -16,31 +16,67 @@ Aplicación web para administrar un consorcio: expensas, cuenta corriente por de
 
 ---
 
-## Cómo correrlo
+## Cómo correrlo desde cero
 
-### Backend
+> **Pre-requisitos:** Python 3.11+ y Node.js 18+.
+
+### 1. Configurar variables de entorno
+
+Copiá el template y completalo:
+
+**Windows PowerShell**
+```powershell
+Copy-Item .env.example .env
+```
+
+**Linux / Mac**
+```bash
+cp .env.example .env
+```
+
+Editá el archivo `.env` y completá al menos estas dos variables:
+
+```env
+SECRET_KEY=<una cadena aleatoria de al menos 32 caracteres>
+SEED_DEFAULT_PASSWORD=<la password con la que querés loguearte como demo>
+```
+
+Para generar una `SECRET_KEY` aleatoria:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Si `SEED_DEFAULT_PASSWORD` queda vacío, el seed genera una password aleatoria al vuelo y la imprime en consola — útil pero menos cómodo para probar.
+
+### 2. Levantar el backend
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate            # Windows PowerShell
-# source .venv/bin/activate       # Linux/Mac
+
+# Activar el venv:
+# Windows PowerShell:
+.venv\Scripts\Activate.ps1
+# Linux / Mac:
+source .venv/bin/activate
+
 pip install -r requirements.txt
 uvicorn backend.main:app --reload
 ```
 
-API disponible en `http://localhost:8000` · Docs interactivas en `http://localhost:8000/docs`.
+API en `http://localhost:8000` · Swagger UI en `http://localhost:8000/docs`.
 
-Al levantar por primera vez, si la base está vacía, se siembra con usuarios demo:
+La primera vez, si la base está vacía, se siembra automáticamente con:
 
-| Email | Rol |
-|---|---|
-| `admin@consorcio.local` | Administración |
-| `depto-a@consorcio.local` | Departamento (UF-1A) |
-| `depto-b@consorcio.local` | Departamento (UF-2B) |
+| Email | Rol | Password |
+|---|---|---|
+| `admin@consorcio.local` | Administración | `SEED_DEFAULT_PASSWORD` del `.env` |
+| `depto-a@consorcio.local` | Departamento (UF-1A) | idem |
+| `depto-b@consorcio.local` | Departamento (UF-2B) | idem |
 
-La password se imprime en consola al sembrar (o se toma de `SEED_DEFAULT_PASSWORD` si está en `.env`).
+También se cargan expensas de muestra, movimientos de cuenta corriente y un par de notas crédito/débito para que se vea algo desde el primer login.
 
-### Frontend
+### 3. Levantar el frontend (en otra terminal)
 
 ```bash
 cd frontend
@@ -48,12 +84,25 @@ npm install
 npm run dev
 ```
 
-Disponible en `http://localhost:5173`.
+Frontend en `http://localhost:5173`. Ahí podés loguearte con cualquiera de los tres usuarios del seed.
 
-### Tests
+### 4. (Opcional) Correr los tests
 
 ```bash
 pytest -v
+```
+
+Debería pasar **453 tests**. Los tests usan SQLite en memoria, no tocan tu DB local.
+
+### Reset rápido de datos
+
+Si querés volver a sembrar desde cero:
+
+```powershell
+# Bajá el backend (Ctrl+C en la terminal de uvicorn)
+Remove-Item -Force consorcio.db    # Windows
+# rm -f consorcio.db               # Linux/Mac
+# Volvé a levantar uvicorn — vuelve a sembrar
 ```
 
 ---
