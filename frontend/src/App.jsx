@@ -16,6 +16,8 @@ import Empleados from "./screens/Empleados";
 import Haberes from "./screens/Haberes";
 import ConceptosLiquidacion from "./screens/ConceptosLiquidacion";
 import Liquidaciones from "./screens/Liquidaciones";
+import MiCuenta from "./screens/MiCuenta";
+import DepartamentoCuenta from "./screens/DepartamentoCuenta";
 import NotFound from "./screens/NotFound";
 
 export default function App() {
@@ -35,6 +37,8 @@ export default function App() {
             <Route index element={<Navigate to="/comunicados" replace />} />
             <Route path="comunicados" element={<Comunicados />} />
             <Route path="expensas" element={<Expensas />} />
+            <Route path="mi-cuenta" element={<MiCuenta />} />
+            <Route path="departamentos/:id/cuenta" element={<DepartamentoCuenta />} />
             <Route path="comprobantes" element={<Comprobantes />} />
             <Route path="gastos" element={<Gastos />} />
             <Route path="gastos/habituales" element={<GastosHabituales />} />

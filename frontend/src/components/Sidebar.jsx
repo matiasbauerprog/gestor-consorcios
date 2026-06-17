@@ -15,6 +15,11 @@ const SECCIONES = [
     titulo: "Expensas y pagos",
     modulos: [
       {
+        ruta: "/mi-cuenta",
+        nombre: "Mi cuenta",
+        rolesPermitidos: ["departamento"],
+      },
+      {
         ruta: "/expensas",
         nombre: "Expensas",
         rolesPermitidos: ["administracion", "departamento"],

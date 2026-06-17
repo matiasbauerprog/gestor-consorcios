@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { listarComprobantes, actualizarComprobante } from "../api/comprobantes";
 import { API_BASE } from "../api/client";
@@ -109,7 +109,12 @@ export default function Comprobantes() {
       {errorCarga && <p role="alert" className="error-banner">{errorCarga}</p>}
       {errorAccion && <p role="alert" className="error-banner">{errorAccion}</p>}
       {!cargando && !errorCarga && comprobantes.length === 0 && (
-        <p>No hay comprobantes con esos filtros.</p>
+        <p>
+          No hay comprobantes con esos filtros.
+          {!esAdmin && (
+            <>{" "}Para presentar un pago, andá a <Link to="/mi-cuenta">Mi cuenta</Link>.</>
+          )}
+        </p>
       )}
 
       <ul className="lista-comprobantes">
@@ -117,11 +122,11 @@ export default function Comprobantes() {
           <li key={c.id}>
             <Tarjeta>
               <h3>
-                {c.expensa?.periodo ?? "—"} · ${c.monto.toLocaleString("es-AR")}
+                ${c.monto.toLocaleString("es-AR")}
               </h3>
               <p className="meta">Pagado {c.fecha_pago}</p>
-              {c.expensa && (
-                <p className="meta">Departamento: {c.expensa.departamento_id}</p>
+              {c.departamento_id && (
+                <p className="meta">Departamento: {c.departamento_id}</p>
               )}
               <p><BadgeEstado estado={c.estado} /></p>
               {c.archivo_path && (
