@@ -15,16 +15,19 @@ from .models import (
     Departamento,
     Empleado,
     EstadoPeticion,
+    Expensa,
     FormaPago,
     Gasto,
     GastoHabitual,
     Haber,
+    MovimientoCuenta,
     Peticion,
     Proveedor,
     Rol,
     Rubro,
     TipoConcepto,
     TipoHaber,
+    TipoMovimiento,
     Usuario,
 )
 from .security import hash_password
@@ -284,6 +287,57 @@ def seed_if_empty(db: Session) -> None:
             ),
         ]
     )
+    db.flush()
+
+    # ----- Fase 3.5: expensas de muestra + cuenta corriente -----
+    expensa_a = Expensa(
+        departamento_id=depto_a.id,
+        periodo="2026-05",
+        monto=85000.00,
+        fecha_vencimiento=date(2026, 7, 10),
+    )
+    expensa_b = Expensa(
+        departamento_id=depto_b.id,
+        periodo="2026-05",
+        monto=92000.00,
+        fecha_vencimiento=date(2026, 7, 10),
+    )
+    db.add_all([expensa_a, expensa_b])
+    db.flush()
+
+    db.add_all([
+        MovimientoCuenta(
+            departamento_id=depto_a.id,
+            fecha=date(2026, 6, 10),
+            tipo=TipoMovimiento.expensa_emitida,
+            descripcion="Expensa 2026-05",
+            monto=85000.00,
+            expensa_id=expensa_a.id,
+        ),
+        MovimientoCuenta(
+            departamento_id=depto_b.id,
+            fecha=date(2026, 6, 10),
+            tipo=TipoMovimiento.expensa_emitida,
+            descripcion="Expensa 2026-05",
+            monto=92000.00,
+            expensa_id=expensa_b.id,
+        ),
+        # Variedad de ejemplo: una nota crédito para depto_a y una nota débito para depto_b.
+        MovimientoCuenta(
+            departamento_id=depto_a.id,
+            fecha=date(2026, 6, 15),
+            tipo=TipoMovimiento.nota_credito,
+            descripcion="Bonificación pago anticipado",
+            monto=2000.00,
+        ),
+        MovimientoCuenta(
+            departamento_id=depto_b.id,
+            fecha=date(2026, 6, 15),
+            tipo=TipoMovimiento.nota_debito,
+            descripcion="Ajuste por mantenimiento extraordinario",
+            monto=1500.00,
+        ),
+    ])
     db.commit()
 
     logger.warning(
