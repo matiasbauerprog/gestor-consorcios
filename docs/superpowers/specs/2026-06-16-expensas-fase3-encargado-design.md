@@ -252,9 +252,9 @@ Todos admin-only. Errores Pydantic → HTTP 400.
 |---|---|---|
 | GET | `/empleados?activo={bool}` | Listar. |
 | POST | `/empleados` | 409 si CUIL duplicado; 404 si `proveedor_id` no existe. |
-| GET | `/empleados/{id}` | Detalle. |
-| PATCH | `/empleados/{id}` | Editar (CUIL inmutable). |
-| DELETE | `/empleados/{id}` | Soft-delete si tiene liquidaciones; hard si no. |
+| GET | `/empleados/{empleado_id}` | Detalle. |
+| PATCH | `/empleados/{empleado_id}` | Editar (CUIL inmutable). |
+| DELETE | `/empleados/{empleado_id}` | Soft-delete si tiene liquidaciones; hard si no. |
 
 ### Haberes — `backend/routers/haberes.py`
 
@@ -262,9 +262,9 @@ Todos admin-only. Errores Pydantic → HTTP 400.
 |---|---|---|
 | GET | `/haberes?activo={bool}` | Listar ordenado por `orden`, `nombre`. |
 | POST | `/haberes` | 409 si nombre duplicado. |
-| GET | `/haberes/{id}` | Detalle. |
-| PATCH | `/haberes/{id}` | Editar todo. |
-| DELETE | `/haberes/{id}` | Soft-delete (set `activo=false`). |
+| GET | `/haberes/{haber_id}` | Detalle. |
+| PATCH | `/haberes/{haber_id}` | Editar todo. |
+| DELETE | `/haberes/{haber_id}` | Soft-delete (set `activo=false`). |
 
 ### Conceptos de liquidación — `backend/routers/conceptos_liquidacion.py`
 
@@ -272,9 +272,9 @@ Todos admin-only. Errores Pydantic → HTTP 400.
 |---|---|---|
 | GET | `/conceptos-liquidacion?activo={bool}` | Listar ordenado. |
 | POST | `/conceptos-liquidacion` | 409 si nombre duplicado; 404 si `proveedor_id` no existe. |
-| GET | `/conceptos-liquidacion/{id}` | Detalle. |
-| PATCH | `/conceptos-liquidacion/{id}` | Editar todo. |
-| DELETE | `/conceptos-liquidacion/{id}` | Soft-delete siempre. |
+| GET | `/conceptos-liquidacion/{concepto_id}` | Detalle. |
+| PATCH | `/conceptos-liquidacion/{concepto_id}` | Editar todo. |
+| DELETE | `/conceptos-liquidacion/{concepto_id}` | Soft-delete siempre. |
 
 ### Liquidaciones — `backend/routers/liquidaciones.py`
 
@@ -282,9 +282,9 @@ Todos admin-only. Errores Pydantic → HTTP 400.
 |---|---|---|
 | GET | `/liquidaciones?periodo=YYYY-MM&empleado_id=N` | Listar con detalle (eager-load de haberes y detalle). |
 | POST | `/liquidaciones` | Body: `{ empleado_id, periodo, haberes: [{haber_id, valor_override?, cantidad?}], haberes_ad_hoc: [{nombre, monto}] }`. Calcula bruto, aplica conceptos, genera Gastos. 409 si duplicado `(empleado, periodo)`. |
-| GET | `/liquidaciones/{id}` | Detalle completo. |
-| PATCH | `/liquidaciones/{id}` | Recalcula con nuevos haberes (mismo body). Borra haberes/detalle/gastos viejos y regenera. |
-| DELETE | `/liquidaciones/{id}` | Hard delete. Cascade borra haberes/detalle/gastos asociados. |
+| GET | `/liquidaciones/{liquidacion_id}` | Detalle completo. |
+| PATCH | `/liquidaciones/{liquidacion_id}` | Recalcula con nuevos haberes (mismo body). Borra haberes/detalle/gastos viejos y regenera. |
+| DELETE | `/liquidaciones/{liquidacion_id}` | Hard delete. Cascade borra haberes/detalle/gastos asociados. |
 
 ### Códigos de error
 

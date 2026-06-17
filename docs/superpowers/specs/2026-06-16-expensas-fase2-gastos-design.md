@@ -152,9 +152,9 @@ Todos requieren JWT y son **admin-only**. Errores de validación Pydantic → HT
 |---|---|---|
 | GET | `/gastos-habituales` | Listar. Filtro opcional `?activa={bool}`. |
 | POST | `/gastos-habituales` | Crear. |
-| GET | `/gastos-habituales/{id}` | Detalle. |
-| PATCH | `/gastos-habituales/{id}` | Editar (incluye toggle `activa`). |
-| DELETE | `/gastos-habituales/{id}` | Soft-delete si tiene gastos asociados (set `activa=false`); hard-delete si no. Mismo patrón que `clases_prorrateo`. |
+| GET | `/gastos-habituales/{gasto_habitual_id}` | Detalle. |
+| PATCH | `/gastos-habituales/{gasto_habitual_id}` | Editar (incluye toggle `activa`). |
+| DELETE | `/gastos-habituales/{gasto_habitual_id}` | Soft-delete si tiene gastos asociados (set `activa=false`); hard-delete si no. Mismo patrón que `clases_prorrateo`. |
 
 ### Códigos de error
 
