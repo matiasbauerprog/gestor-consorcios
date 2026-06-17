@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
 
 from .models import (
     CategoriaEmpleado,
@@ -16,6 +16,7 @@ from .models import (
     Rubro,
     TipoConcepto,
     TipoHaber,
+    TipoMovimiento,
 )
 
 
@@ -135,30 +136,26 @@ class ComprobanteActualizar(BaseModel):
     estado: Literal[EstadoComprobante.aprobado, EstadoComprobante.rechazado]
 
 
-class ExpensaResumen(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    departamento_id: int
-    periodo: str
-    monto: float
-
-
 class ComprobanteOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    expensa_id: int
+    departamento_id: int
     fecha_pago: date
     monto: float
     archivo_path: str | None
     estado: EstadoComprobante
-    expensa: ExpensaResumen | None = None
 
     @field_serializer("archivo_path")
     def _archivo_path_to_url(self, v: str | None) -> str | None:
         if v is None:
             return None
         return f"/uploads/{v}"
+
+
+class ComprobantePresentar(BaseModel):
+    fecha_pago: date
+    monto: float = Field(gt=0)
 
 
 class ExpensaOut(BaseModel):
@@ -168,9 +165,9 @@ class ExpensaOut(BaseModel):
     departamento_id: int
     periodo: str
     monto: float
-    estado: EstadoExpensa
     fecha_vencimiento: date
-    ultimo_comprobante: ComprobanteOut | None = None
+    estado_calculado: EstadoExpensa
+    monto_pendiente: float
 
 
 class ReservaCrear(BaseModel):
@@ -685,3 +682,38 @@ class LiquidacionEmpleadoOut(BaseModel):
     fecha_creacion: datetime
     haberes: list[LiquidacionHaberOut]
     detalle: list[LiquidacionDetalleOut]
+
+
+class MovimientoCuentaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    departamento_id: int
+    fecha: date
+    tipo: TipoMovimiento
+    descripcion: str
+    monto: float
+    expensa_id: int | None = None
+    comprobante_id: int | None = None
+    fecha_creacion: datetime
+
+
+class EstadoCuentaOut(BaseModel):
+    departamento_id: int
+    saldo_total: float
+    movimientos: list[MovimientoCuentaOut]
+
+
+class NotaCrear(BaseModel):
+    departamento_id: int
+    tipo: TipoMovimiento
+    monto: float = Field(gt=0)
+    descripcion: str = Field(min_length=1, max_length=500)
+    fecha: date | None = None
+
+    @field_validator("tipo")
+    @classmethod
+    def solo_nota(cls, v: TipoMovimiento) -> TipoMovimiento:
+        if v not in (TipoMovimiento.nota_credito, TipoMovimiento.nota_debito):
+            raise ValueError("tipo debe ser nota_credito o nota_debito")
+        return v
