@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { listarComprobantes, actualizarComprobante } from "../api/comprobantes";
+import {
+  listarComprobantes,
+  actualizarComprobante,
+  eliminarComprobante,
+} from "../api/comprobantes";
 import { API_BASE } from "../api/client";
 import BadgeEstado from "../components/BadgeEstado";
+import Modal from "../components/Modal";
 import SelectorDepartamento from "../components/SelectorDepartamento";
 import Tarjeta from "../components/Tarjeta";
 
@@ -29,6 +34,8 @@ export default function Comprobantes() {
   );
   const [accionandoId, setAccionandoId] = useState(null);
   const [errorAccion, setErrorAccion] = useState(null);
+  const [modalEliminar, setModalEliminar] = useState(null);
+  const [eliminando, setEliminando] = useState(false);
 
   async function handleDecision(id, estadoNuevo) {
     setAccionandoId(id);
@@ -55,6 +62,33 @@ export default function Comprobantes() {
     }
     if (r.status !== 401) {
       setErrorAccion("Ocurrió un error. Intentá de nuevo.");
+    }
+  }
+
+  async function handleEliminar() {
+    if (!modalEliminar) return;
+    setEliminando(true);
+    setErrorAccion(null);
+    const r = await eliminarComprobante(modalEliminar.id);
+    setEliminando(false);
+    if (r.status === 204) {
+      setComprobantes((prev) => prev.filter((c) => c.id !== modalEliminar.id));
+      setModalEliminar(null);
+      return;
+    }
+    if (r.status === 403) {
+      setErrorAccion("No tenés permisos para eliminar este comprobante.");
+      setModalEliminar(null);
+      return;
+    }
+    if (r.status === 404) {
+      setComprobantes((prev) => prev.filter((c) => c.id !== modalEliminar.id));
+      setModalEliminar(null);
+      return;
+    }
+    if (r.status !== 401) {
+      setErrorAccion("No se pudo eliminar el comprobante.");
+      setModalEliminar(null);
     }
   }
 
@@ -134,29 +168,66 @@ export default function Comprobantes() {
                   <img src={`${API_BASE}${c.archivo_path}`} alt="Comprobante" className="comprobante-img" />
                 </a>
               )}
-              {esAdmin && c.estado === "pendiente_verificacion" && (
-                <div className="tarjeta-acciones">
-                  <button
-                    type="button"
-                    onClick={() => handleDecision(c.id, "aprobado")}
-                    disabled={accionandoId === c.id}
-                  >
-                    {accionandoId === c.id ? "…" : "Aprobar"}
-                  </button>
-                  <button
-                    type="button"
-                    className="boton-borrar"
-                    onClick={() => handleDecision(c.id, "rechazado")}
-                    disabled={accionandoId === c.id}
-                  >
-                    {accionandoId === c.id ? "…" : "Rechazar"}
-                  </button>
-                </div>
-              )}
+              <div className="tarjeta-acciones">
+                {esAdmin && c.estado === "pendiente_verificacion" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleDecision(c.id, "aprobado")}
+                      disabled={accionandoId === c.id}
+                    >
+                      {accionandoId === c.id ? "…" : "Aprobar"}
+                    </button>
+                    <button
+                      type="button"
+                      className="boton-borrar"
+                      onClick={() => handleDecision(c.id, "rechazado")}
+                      disabled={accionandoId === c.id}
+                    >
+                      {accionandoId === c.id ? "…" : "Rechazar"}
+                    </button>
+                  </>
+                )}
+                <button
+                  type="button"
+                  className="boton-peligro"
+                  onClick={() => setModalEliminar(c)}
+                >
+                  Eliminar
+                </button>
+              </div>
             </Tarjeta>
           </li>
         ))}
       </ul>
+
+      {modalEliminar && (
+        <Modal titulo="Eliminar comprobante" onClose={() => setModalEliminar(null)}>
+          <p>¿Eliminar el comprobante del {modalEliminar.fecha_pago}?</p>
+          <p className="meta">
+            Esta acción lo oculta de la vista. Si ya estaba aprobado, el pago
+            sigue contabilizado en la cuenta corriente.
+          </p>
+          <div className="modal-acciones">
+            <button
+              type="button"
+              className="boton-secundario"
+              onClick={() => setModalEliminar(null)}
+              disabled={eliminando}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="boton-peligro"
+              onClick={handleEliminar}
+              disabled={eliminando}
+            >
+              {eliminando ? "Eliminando…" : "Eliminar"}
+            </button>
+          </div>
+        </Modal>
+      )}
     </section>
   );
 }

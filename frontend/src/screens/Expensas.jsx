@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { listarExpensas, crearExpensa, eliminarExpensa } from "../api/expensas";
+import { listarDepartamentos } from "../api/departamentos";
 import Modal from "../components/Modal";
 import SelectorDepartamento from "../components/SelectorDepartamento";
 import BadgeEstado from "../components/BadgeEstado";
@@ -15,12 +16,17 @@ function formatearMonto(v) {
   });
 }
 
-function TarjetaExpensa({ expensa, esAdmin, onEliminar }) {
+function TarjetaExpensa({ expensa, esAdmin, depto, onEliminar }) {
   return (
     <Tarjeta>
       <h3>
         {expensa.periodo} — {formatearMonto(expensa.monto)}
       </h3>
+      {esAdmin && (
+        <p className="meta">
+          {depto ? `${depto.codigo} — ${depto.descripcion}` : `Depto #${expensa.departamento_id}`}
+        </p>
+      )}
       <p className="meta">Vence {expensa.fecha_vencimiento}</p>
       <p>
         <BadgeEstado estado={expensa.estado_calculado} />
@@ -55,9 +61,22 @@ export default function Expensas() {
   const [modalEliminar, setModalEliminar] = useState(null);
   const [errorAccion, setErrorAccion] = useState(null);
   const [eliminando, setEliminando] = useState(false);
+  const [departamentos, setDepartamentos] = useState([]);
 
   const esAdmin = user.rol === "administracion";
   const esDepto = user.rol === "departamento";
+
+  useEffect(() => {
+    if (!esAdmin) return;
+    (async () => {
+      const r = await listarDepartamentos();
+      if (r.status === 200) {
+        setDepartamentos(r.data);
+      }
+    })();
+  }, [esAdmin]);
+
+  const deptoById = Object.fromEntries(departamentos.map((d) => [d.id, d]));
 
   async function cargar() {
     setCargando(true);
@@ -163,6 +182,7 @@ export default function Expensas() {
             <TarjetaExpensa
               expensa={e}
               esAdmin={esAdmin}
+              depto={deptoById[e.departamento_id]}
               onEliminar={setModalEliminar}
             />
           </li>

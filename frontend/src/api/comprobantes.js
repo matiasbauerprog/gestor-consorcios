@@ -25,3 +25,7 @@ export function actualizarComprobante(id, payload) {
     body: payload,
   });
 }
+
+export function eliminarComprobante(id) {
+  return apiFetch(`/comprobantes/${id}`, { method: "DELETE" });
+}

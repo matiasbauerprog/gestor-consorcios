@@ -31,6 +31,7 @@ export default function MiCuenta() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [successMsg, setSuccessMsg] = useState(null);
 
   async function cargar() {
     setError(null);
@@ -84,6 +85,22 @@ export default function MiCuenta() {
         </button>
       </header>
 
+      {successMsg && (
+        <p
+          role="status"
+          className="banner-exito"
+          style={{
+            background: "var(--color-success-bg, #d6f5d6)",
+            color: "var(--color-success, #1f8a3a)",
+            padding: "0.75rem 1rem",
+            borderRadius: "0.4rem",
+            margin: "0 0 1rem",
+          }}
+        >
+          ✓ {successMsg}
+        </p>
+      )}
+
       <Tarjeta>
         <p style={{ fontSize: "1.4rem", margin: 0, color: saldoColor }}>
           <strong>Saldo: {formatMoney(saldo)}</strong>
@@ -129,6 +146,9 @@ export default function MiCuenta() {
           onClose={() => setShowModal(false)}
           onDone={() => {
             setShowModal(false);
+            setSuccessMsg(
+              "Comprobante enviado. Va a quedar pendiente hasta que administración lo apruebe.",
+            );
             cargar();
           }}
         />
@@ -187,11 +207,12 @@ function ModalPresentarPago({ onClose, onDone }) {
           />
         </label>
         <label>
-          Comprobante (opcional)
+          Comprobante (imagen JPG/PNG/WebP o PDF)
           <input
             type="file"
-            accept="image/*,application/pdf"
+            accept="image/jpeg,image/png,image/webp,application/pdf"
             onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
+            required
           />
         </label>
         {error && <p role="alert">{error}</p>}
