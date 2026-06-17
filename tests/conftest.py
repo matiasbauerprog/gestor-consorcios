@@ -87,6 +87,26 @@ def db_session() -> Iterator:
     app.dependency_overrides.pop(get_db, None)
 
 
+@pytest.fixture()
+def db_empty() -> Iterator:
+    """Isolated in-memory DB session WITHOUT seed. Used by unit tests
+    that need to control all data themselves (e.g. cuenta_corriente FIFO tests)."""
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    TestingSession = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    session = TestingSession()
+    try:
+        yield session
+    finally:
+        session.close()
+        Base.metadata.drop_all(bind=engine)
+        engine.dispose()
+
+
 def _seed(db) -> None:
     depto_a = Departamento(id=1, codigo="UF-1A", descripcion="Depto A")
     depto_b = Departamento(id=2, codigo="UF-2B", descripcion="Depto B")
