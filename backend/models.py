@@ -44,6 +44,7 @@ class EstadoPresupuesto(str, enum.Enum):
 
 class EstadoExpensa(str, enum.Enum):
     pendiente = "pendiente"
+    parcial = "parcial"
     pagada = "pagada"
     vencida = "vencida"
 
@@ -52,6 +53,25 @@ class EstadoComprobante(str, enum.Enum):
     pendiente_verificacion = "pendiente_verificacion"
     aprobado = "aprobado"
     rechazado = "rechazado"
+
+
+class TipoMovimiento(str, enum.Enum):
+    expensa_emitida = "expensa_emitida"
+    pago_recibido = "pago_recibido"
+    interes_punitorio = "interes_punitorio"
+    nota_debito = "nota_debito"
+    nota_credito = "nota_credito"
+
+
+TIPOS_DEBITO = frozenset({
+    TipoMovimiento.expensa_emitida,
+    TipoMovimiento.interes_punitorio,
+    TipoMovimiento.nota_debito,
+})
+TIPOS_CREDITO = frozenset({
+    TipoMovimiento.pago_recibido,
+    TipoMovimiento.nota_credito,
+})
 
 
 class EstadoReserva(str, enum.Enum):
@@ -230,27 +250,17 @@ class Expensa(Base):
     )
     periodo: Mapped[str] = mapped_column(String(7), nullable=False)
     monto: Mapped[float] = mapped_column(Float, nullable=False)
-    estado: Mapped[EstadoExpensa] = mapped_column(
-        SqlEnum(EstadoExpensa, name="estado_expensa"),
-        nullable=False,
-        default=EstadoExpensa.pendiente,
-    )
     fecha_vencimiento: Mapped[date] = mapped_column(Date, nullable=False)
 
     departamento: Mapped["Departamento"] = relationship(back_populates="expensas")
-    comprobantes: Mapped[list["Comprobante"]] = relationship(
-        back_populates="expensa",
-        order_by="desc(Comprobante.fecha_creacion), desc(Comprobante.id)",
-        lazy="selectin",
-    )
 
 
 class Comprobante(Base):
     __tablename__ = "comprobantes"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    expensa_id: Mapped[int] = mapped_column(
-        ForeignKey("expensas.id", ondelete="RESTRICT"),
+    departamento_id: Mapped[int] = mapped_column(
+        ForeignKey("departamentos.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )
@@ -266,7 +276,7 @@ class Comprobante(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    expensa: Mapped["Expensa"] = relationship(back_populates="comprobantes")
+    departamento: Mapped["Departamento"] = relationship()
 
 
 class Amenity(Base):
@@ -573,3 +583,38 @@ class LiquidacionDetalle(Base):
     orden: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     liquidacion: Mapped["LiquidacionEmpleado"] = relationship(back_populates="detalle")
+
+
+class MovimientoCuenta(Base):
+    __tablename__ = "movimientos_cuenta"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    departamento_id: Mapped[int] = mapped_column(
+        ForeignKey("departamentos.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    fecha: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    tipo: Mapped[TipoMovimiento] = mapped_column(
+        SqlEnum(TipoMovimiento, name="tipo_movimiento"),
+        nullable=False,
+    )
+    descripcion: Mapped[str] = mapped_column(String(500), nullable=False)
+    monto: Mapped[float] = mapped_column(Float, nullable=False)
+
+    expensa_id: Mapped[int | None] = mapped_column(
+        ForeignKey("expensas.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    comprobante_id: Mapped[int | None] = mapped_column(
+        ForeignKey("comprobantes.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    fecha_creacion: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    departamento: Mapped["Departamento"] = relationship()
+    expensa: Mapped["Expensa | None"] = relationship()
+    comprobante: Mapped["Comprobante | None"] = relationship()
