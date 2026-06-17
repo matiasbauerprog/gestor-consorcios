@@ -166,14 +166,14 @@ def _seed(db) -> None:
                 departamento_id=depto_a.id,
                 periodo="2026-05",
                 monto=85000.00,
-                fecha_vencimiento=date(2026, 6, 10),
+                fecha_vencimiento=date(2026, 7, 10),
             ),
             Expensa(
                 id=101,
                 departamento_id=depto_b.id,
                 periodo="2026-05",
                 monto=92000.00,
-                fecha_vencimiento=date(2026, 6, 10),
+                fecha_vencimiento=date(2026, 7, 10),
             ),
             MovimientoCuenta(
                 id=1100,
