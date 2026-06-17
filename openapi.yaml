@@ -3,7 +3,8 @@ info:
   title: Sistema Integral de Gestión de Consorcios
   description: |
     API REST para la gestión integral de consorcios. Permite administrar expensas,
-    tareas y presupuestos, comunicación interna y reserva de amenities. El acceso a
+    gastos del consorcio, personal y liquidaciones, tareas y presupuestos,
+    comunicación interna, reserva de amenities y configuración global. El acceso a
     los recursos está restringido por roles fijos: Administración, Departamentos
     (Inquilinos/Propietarios) y Representantes.
   version: 1.0.0
@@ -27,6 +28,8 @@ tags:
     description: Alta y edición de departamentos, usuarios y amenities (solo Administración)
   - name: Gastos
     description: Gastos del consorcio y plantillas recurrentes
+  - name: Configuración
+    description: Datos del consorcio, clases de prorrateo, proveedores y coeficientes por departamento
   - name: Personal
     description: Empleados, haberes, conceptos de liquidación y liquidaciones mensuales
 
@@ -2873,6 +2876,7 @@ components:
         cuota_actual: { type: integer, nullable: true }
         cuota_total: { type: integer, nullable: true }
         gasto_habitual_id: { type: integer, nullable: true }
+        liquidacion_id: { type: integer, nullable: true }
 
     GastoCrear:
       type: object
