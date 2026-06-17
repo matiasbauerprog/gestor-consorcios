@@ -499,6 +499,7 @@ class GastoOut(BaseModel):
     cuota_actual: int | None
     cuota_total: int | None
     gasto_habitual_id: int | None
+    liquidacion_id: int | None = None
 
 
 class PlanCuotasCrear(BaseModel):
