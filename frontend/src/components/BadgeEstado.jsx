@@ -1,5 +1,6 @@
 const LABELS = {
   pendiente: "Pendiente",
+  parcial: "Parcial",
   pagada: "Confirmada",
   vencida: "Vencida",
   pendiente_verificacion: "Pendiente de verificación",
@@ -9,6 +10,7 @@ const LABELS = {
 
 const CLASES = {
   pendiente: "badge--neutro",
+  parcial: "badge--warning",
   pagada: "badge--ok",
   vencida: "badge--alerta",
   pendiente_verificacion: "badge--warning",

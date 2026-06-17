@@ -26,6 +26,7 @@ from .routers import (
     gastos_habituales,
     haberes,
     liquidaciones,
+    movimientos,
     peticiones,
     proveedores,
     reservas,
@@ -99,6 +100,7 @@ app.include_router(gastos.router)
 app.include_router(conceptos_liquidacion.router)
 app.include_router(haberes.router)
 app.include_router(liquidaciones.router)
+app.include_router(movimientos.router)
 
 _uploads_path = Path(get_settings().UPLOAD_DIR)
 _uploads_path.mkdir(parents=True, exist_ok=True)

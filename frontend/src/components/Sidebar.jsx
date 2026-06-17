@@ -15,6 +15,11 @@ const SECCIONES = [
     titulo: "Expensas y pagos",
     modulos: [
       {
+        ruta: "/mi-cuenta",
+        nombre: "Mi cuenta",
+        rolesPermitidos: ["departamento"],
+      },
+      {
         ruta: "/expensas",
         nombre: "Expensas",
         rolesPermitidos: ["administracion", "departamento"],
@@ -29,9 +34,24 @@ const SECCIONES = [
         nombre: "Gastos",
         rolesPermitidos: ["administracion"],
       },
+    ],
+  },
+  {
+    titulo: "Sueldos",
+    modulos: [
       {
         ruta: "/liquidaciones",
         nombre: "Liquidaciones",
+        rolesPermitidos: ["administracion"],
+      },
+      {
+        ruta: "/haberes",
+        nombre: "Haberes",
+        rolesPermitidos: ["administracion"],
+      },
+      {
+        ruta: "/conceptos-liquidacion",
+        nombre: "Conceptos de liquidación",
         rolesPermitidos: ["administracion"],
       },
     ],
@@ -62,16 +82,6 @@ const SECCIONES = [
       {
         ruta: "/empleados",
         nombre: "Empleados",
-        rolesPermitidos: ["administracion"],
-      },
-      {
-        ruta: "/haberes",
-        nombre: "Haberes",
-        rolesPermitidos: ["administracion"],
-      },
-      {
-        ruta: "/conceptos-liquidacion",
-        nombre: "Conceptos de liquidación",
         rolesPermitidos: ["administracion"],
       },
     ],

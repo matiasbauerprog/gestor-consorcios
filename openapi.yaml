@@ -7,6 +7,7 @@ info:
     comunicación interna, reserva de amenities y configuración global. El acceso a
     los recursos está restringido por roles fijos: Administración, Departamentos
     (Inquilinos/Propietarios) y Representantes.
+    Fase 3.5 (jun-2026): cuenta corriente por departamento — pagos se asignan FIFO desde movimientos.
   version: 1.0.0
 
 servers:
@@ -32,6 +33,8 @@ tags:
     description: Datos del consorcio, clases de prorrateo, proveedores y coeficientes por departamento
   - name: Personal
     description: Empleados, haberes, conceptos de liquidación y liquidaciones mensuales
+  - name: Movimientos
+    description: Cuenta corriente por departamento. Movimientos (débitos/créditos), notas y saldo.
 
 security:
   - bearerAuth: []
@@ -192,13 +195,6 @@ paths:
             type: integer
             format: int64
             minimum: 1
-        - name: estado
-          in: query
-          required: false
-          description: Filtrar por estado de la expensa.
-          schema:
-            type: string
-            enum: [pendiente, pagada, vencida]
         - name: limit
           in: query
           required: false
@@ -304,60 +300,32 @@ paths:
         '404':
           $ref: '#/components/responses/NoEncontrado'
 
-  /expensas/{expensa_id}/comprobantes:
-    post:
+    delete:
       tags: [Expensas]
-      summary: Presentar comprobante de pago de una expensa
-      description: |
-        Permite a un Departamento adjuntar el comprobante de pago de la expensa
-        indicada. Solo Departamentos asociados a la unidad de la expensa pueden
-        utilizar este endpoint.
-      operationId: presentarComprobante
+      summary: Eliminar una expensa (admin, sin pagos aplicados)
+      security:
+        - BearerAuth: []
       parameters:
-        - name: expensa_id
-          in: path
+        - in: path
+          name: expensa_id
           required: true
-          description: Identificador único de la expensa.
           schema:
             type: integer
-            format: int64
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              required: [fecha_pago, monto]
-              properties:
-                fecha_pago:
-                  type: string
-                  format: date
-                monto:
-                  type: number
-                  format: double
-                  minimum: 0
-                  exclusiveMinimum: true
-                archivo:
-                  type: string
-                  format: binary
-                  description: Imagen del comprobante (JPG/PNG/WebP, máx 5 MB).
+            minimum: 1
       responses:
-        '201':
-          description: Comprobante registrado exitosamente.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Comprobante'
-        '400':
-          $ref: '#/components/responses/PedidoInvalido'
+        '204':
+          description: Expensa eliminada.
         '401':
           $ref: '#/components/responses/NoAutenticado'
         '403':
           $ref: '#/components/responses/AccesoDenegado'
         '404':
           $ref: '#/components/responses/NoEncontrado'
-        '413':
-          $ref: '#/components/responses/PayloadGrande'
+        '409':
+          description: Conflicto. La expensa tiene pago FIFO aplicado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /comprobantes:
     get:
@@ -416,6 +384,40 @@ paths:
           $ref: '#/components/responses/NoAutenticado'
         '403':
           $ref: '#/components/responses/AccesoDenegado'
+
+    post:
+      tags: [Expensas]
+      summary: Presentar comprobante de pago (depto)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [fecha_pago, monto]
+              properties:
+                fecha_pago: { type: string, format: date }
+                monto: { type: number, format: float, exclusiveMinimum: 0 }
+                archivo:
+                  type: string
+                  format: binary
+                  description: Imagen JPG/PNG/WebP o PDF, máx 5 MB.
+      responses:
+        '201':
+          description: Comprobante creado en estado `pendiente_verificacion`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Comprobante' }
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '413':
+          $ref: '#/components/responses/PayloadGrande'
 
   /comprobantes/{comprobante_id}:
     patch:
@@ -1526,6 +1528,36 @@ paths:
         '403': { $ref: '#/components/responses/AccesoDenegado' }
         '404': { $ref: '#/components/responses/NoEncontrado' }
 
+  /departamentos/{departamento_id}/cuenta:
+    get:
+      tags: [Movimientos]
+      summary: Cuenta corriente de un departamento (admin)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: departamento_id
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: desde
+          schema: { type: string, format: date }
+        - in: query
+          name: hasta
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EstadoCuentaOut' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
   # =========================================================================
   # GASTOS
   # =========================================================================
@@ -2168,6 +2200,60 @@ paths:
         '403': { $ref: '#/components/responses/AccesoDenegado' }
         '404': { $ref: '#/components/responses/NoEncontrado' }
 
+  # =========================================================================
+  # MOVIMIENTOS / CUENTA CORRIENTE
+  # =========================================================================
+
+  /movimientos/mi-cuenta:
+    get:
+      tags: [Movimientos]
+      summary: Cuenta corriente del depto autenticado
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: desde
+          schema: { type: string, format: date }
+        - in: query
+          name: hasta
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EstadoCuentaOut' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+
+  /movimientos/nota:
+    post:
+      tags: [Movimientos]
+      summary: Crear nota de crédito o débito (admin)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NotaCrear' }
+      responses:
+        '201':
+          description: Movimiento creado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MovimientoCuentaOut' }
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
 # ===========================================================================
 # COMPONENTS
 # ===========================================================================
@@ -2302,7 +2388,7 @@ components:
 
     Expensa:
       type: object
-      required: [id, departamento_id, periodo, monto, estado]
+      required: [id, departamento_id, periodo, monto, estado_calculado, monto_pendiente]
       properties:
         id:
           type: integer
@@ -2319,17 +2405,17 @@ components:
           type: number
           format: double
           examples: [85230.50]
-        estado:
+        estado_calculado:
           type: string
-          enum: [pendiente, pagada, vencida]
+          enum: [pendiente, parcial, pagada, vencida]
+          description: Estado derivado de los movimientos FIFO de la cuenta corriente.
+        monto_pendiente:
+          type: number
+          format: float
+          description: Monto aún sin cubrir por pagos FIFO aplicados.
         fecha_vencimiento:
           type: string
           format: date
-        ultimo_comprobante:
-          description: Comprobante más reciente asociado, o null si no hay.
-          oneOf:
-            - $ref: '#/components/schemas/Comprobante'
-            - type: 'null'
 
     ExpensaCrear:
       type: object
@@ -2351,34 +2437,17 @@ components:
           type: string
           format: date
 
-    ExpensaResumen:
-      type: object
-      description: Resumen mínimo de una expensa para embeber en comprobantes.
-      properties:
-        departamento_id:
-          type: integer
-          format: int64
-        periodo:
-          type: string
-          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
-        monto:
-          type: number
-          format: double
-      required:
-        - departamento_id
-        - periodo
-        - monto
-
     Comprobante:
       type: object
-      required: [id, expensa_id, fecha_pago, monto, estado]
+      required: [id, departamento_id, fecha_pago, monto, estado]
       properties:
         id:
           type: integer
           format: int64
-        expensa_id:
+        departamento_id:
           type: integer
           format: int64
+          description: Departamento al que pertenece el comprobante.
         fecha_pago:
           type: string
           format: date
@@ -2392,11 +2461,6 @@ components:
         estado:
           type: string
           enum: [pendiente_verificacion, aprobado, rechazado]
-        expensa:
-          description: Resumen de la expensa asociada (departamento, período, monto).
-          oneOf:
-            - $ref: '#/components/schemas/ExpensaResumen'
-            - type: 'null'
 
     ComprobanteActualizar:
       type: object
@@ -3180,3 +3244,61 @@ components:
         detalle:
           type: array
           items: { $ref: '#/components/schemas/LiquidacionDetalleOut' }
+
+    # ---------------------------- Movimientos / Cuenta corriente -----------
+
+    TipoMovimiento:
+      type: string
+      enum: [expensa_emitida, pago_recibido, interes_punitorio, nota_debito, nota_credito]
+
+    MovimientoCuentaOut:
+      type: object
+      required:
+        - id
+        - departamento_id
+        - fecha
+        - tipo
+        - descripcion
+        - monto
+        - fecha_creacion
+      properties:
+        id: { type: integer }
+        departamento_id: { type: integer }
+        fecha: { type: string, format: date }
+        tipo: { $ref: '#/components/schemas/TipoMovimiento' }
+        descripcion: { type: string }
+        monto:
+          type: number
+          format: float
+          description: Siempre positivo. El tipo indica si es débito o crédito.
+        expensa_id: { type: integer, nullable: true }
+        comprobante_id: { type: integer, nullable: true }
+        fecha_creacion: { type: string, format: date-time }
+
+    EstadoCuentaOut:
+      type: object
+      required: [departamento_id, saldo_total, movimientos]
+      properties:
+        departamento_id: { type: integer }
+        saldo_total:
+          type: number
+          format: float
+          description: "Positivo = el depto debe; negativo = saldo a favor; cero = al día."
+        movimientos:
+          type: array
+          items: { $ref: '#/components/schemas/MovimientoCuentaOut' }
+
+    NotaCrear:
+      type: object
+      required: [departamento_id, tipo, monto, descripcion]
+      properties:
+        departamento_id: { type: integer }
+        tipo:
+          type: string
+          enum: [nota_credito, nota_debito]
+        monto: { type: number, format: float, exclusiveMinimum: 0 }
+        descripcion: { type: string, minLength: 1, maxLength: 500 }
+        fecha:
+          type: string
+          format: date
+          nullable: true

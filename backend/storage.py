@@ -6,27 +6,28 @@ from fastapi import HTTPException, UploadFile, status
 from .config import get_settings
 
 
-_ALLOWED_IMAGE_TYPES: dict[str, str] = {
+_ALLOWED_RECIBO_TYPES: dict[str, str] = {
     "image/jpeg": ".jpg",
     "image/png": ".png",
     "image/webp": ".webp",
+    "application/pdf": ".pdf",
 }
 
 
 def guardar_imagen_comprobante(archivo: UploadFile) -> str:
-    """Persiste una imagen de comprobante en `UPLOAD_DIR/comprobantes/`.
+    """Persiste un comprobante (imagen o PDF) en `UPLOAD_DIR/comprobantes/`.
 
     Devuelve el path relativo al `UPLOAD_DIR` (p. ej. `comprobantes/abc123.jpg`).
 
     Eleva `HTTPException`:
-      - 400 si el `content_type` no es una imagen soportada.
+      - 400 si el `content_type` no es imagen JPG/PNG/WebP ni PDF.
       - 413 si el archivo supera `MAX_UPLOAD_SIZE_BYTES`.
     """
-    ext = _ALLOWED_IMAGE_TYPES.get(archivo.content_type or "")
+    ext = _ALLOWED_RECIBO_TYPES.get(archivo.content_type or "")
     if ext is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El archivo debe ser una imagen JPG, PNG o WebP.",
+            detail="El archivo debe ser una imagen JPG/PNG/WebP o un PDF.",
         )
 
     settings = get_settings()
