@@ -17,11 +17,15 @@ from .routers import (
     clases_prorrateo,
     comprobantes,
     comunicados,
+    conceptos_liquidacion,
     configuracion,
     departamentos,
+    empleados,
     expensas,
     gastos,
     gastos_habituales,
+    haberes,
+    liquidaciones,
     peticiones,
     proveedores,
     reservas,
@@ -77,6 +81,7 @@ async def validation_exception_handler(_: Request, exc: RequestValidationError) 
 
 
 app.include_router(auth.router)
+app.include_router(empleados.router)
 app.include_router(peticiones.router)
 app.include_router(trabajos.router)
 app.include_router(expensas.router)
@@ -91,6 +96,9 @@ app.include_router(proveedores.router)
 app.include_router(configuracion.router)
 app.include_router(gastos_habituales.router)
 app.include_router(gastos.router)
+app.include_router(conceptos_liquidacion.router)
+app.include_router(haberes.router)
+app.include_router(liquidaciones.router)
 
 _uploads_path = Path(get_settings().UPLOAD_DIR)
 _uploads_path.mkdir(parents=True, exist_ok=True)

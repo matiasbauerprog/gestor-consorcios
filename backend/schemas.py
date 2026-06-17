@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
 
 from .models import (
+    CategoriaEmpleado,
     EstadoComprobante,
     EstadoExpensa,
     EstadoPeticion,
@@ -13,6 +14,8 @@ from .models import (
     FormaPago,
     Rol,
     Rubro,
+    TipoConcepto,
+    TipoHaber,
 )
 
 
@@ -496,6 +499,7 @@ class GastoOut(BaseModel):
     cuota_actual: int | None
     cuota_total: int | None
     gasto_habitual_id: int | None
+    liquidacion_id: int | None = None
 
 
 class PlanCuotasCrear(BaseModel):
@@ -526,3 +530,158 @@ class PlanCuotasCrear(BaseModel):
 
 class CargarHabitualesIn(BaseModel):
     periodo: str = Field(..., pattern=_PERIODO_PATTERN_GASTO)
+
+
+# El CUIL/CUIT comparte el mismo formato XX-XXXXXXXX-X. Reutilizamos el pattern.
+_CUIL_PATTERN = _CUIT_PATTERN
+
+
+class EmpleadoCrear(BaseModel):
+    nombre_completo: str = Field(..., min_length=1, max_length=255)
+    cuil: str = Field(..., pattern=_CUIL_PATTERN)
+    categoria: CategoriaEmpleado
+    fecha_ingreso: date
+    fecha_egreso: date | None = None
+    sueldo_basico: float = Field(..., gt=0)
+    proveedor_id: int = Field(..., gt=0)
+
+
+class EmpleadoActualizar(BaseModel):
+    # cuil inmutable
+    nombre_completo: str | None = Field(default=None, min_length=1, max_length=255)
+    categoria: CategoriaEmpleado | None = None
+    fecha_ingreso: date | None = None
+    fecha_egreso: date | None = None
+    sueldo_basico: float | None = Field(default=None, gt=0)
+    proveedor_id: int | None = Field(default=None, gt=0)
+    activo: bool | None = None
+
+
+class EmpleadoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nombre_completo: str
+    cuil: str
+    categoria: CategoriaEmpleado
+    fecha_ingreso: date
+    fecha_egreso: date | None
+    sueldo_basico: float
+    proveedor_id: int
+    activo: bool
+
+
+class HaberCrear(BaseModel):
+    nombre: str = Field(..., min_length=1, max_length=120)
+    tipo: TipoHaber
+    valor_default: float = Field(default=0, ge=0)
+    orden: int = Field(default=0, ge=0)
+
+
+class HaberActualizar(BaseModel):
+    nombre: str | None = Field(default=None, min_length=1, max_length=120)
+    tipo: TipoHaber | None = None
+    valor_default: float | None = Field(default=None, ge=0)
+    orden: int | None = Field(default=None, ge=0)
+    activo: bool | None = None
+
+
+class HaberOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nombre: str
+    tipo: TipoHaber
+    valor_default: float
+    orden: int
+    activo: bool
+
+
+class ConceptoLiquidacionCrear(BaseModel):
+    nombre: str = Field(..., min_length=1, max_length=120)
+    tipo: TipoConcepto
+    porcentaje: float = Field(..., ge=0, le=100)
+    proveedor_id: int | None = Field(default=None, gt=0)
+    orden: int = Field(default=0, ge=0)
+
+
+class ConceptoLiquidacionActualizar(BaseModel):
+    nombre: str | None = Field(default=None, min_length=1, max_length=120)
+    tipo: TipoConcepto | None = None
+    porcentaje: float | None = Field(default=None, ge=0, le=100)
+    proveedor_id: int | None = Field(default=None, gt=0)
+    orden: int | None = Field(default=None, ge=0)
+    activo: bool | None = None
+
+
+class ConceptoLiquidacionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nombre: str
+    tipo: TipoConcepto
+    porcentaje: float
+    proveedor_id: int | None
+    orden: int
+    activo: bool
+
+
+class LiquidacionHaberItem(BaseModel):
+    """Item de haber del catálogo a aplicar en la liquidación."""
+    haber_id: int = Field(..., gt=0)
+    valor_override: float | None = Field(default=None, ge=0)
+    cantidad: float | None = Field(default=None, ge=0)
+
+
+class LiquidacionHaberAdHoc(BaseModel):
+    """Haber suelto sin catálogo (ej. SAC)."""
+    nombre: str = Field(..., min_length=1, max_length=120)
+    monto: float = Field(..., gt=0)
+
+
+class LiquidacionEmpleadoCrear(BaseModel):
+    empleado_id: int = Field(..., gt=0)
+    periodo: str = Field(..., pattern=_PERIODO_PATTERN_GASTO)
+    haberes: list[LiquidacionHaberItem] = Field(default_factory=list)
+    haberes_ad_hoc: list[LiquidacionHaberAdHoc] = Field(default_factory=list)
+
+
+class LiquidacionEmpleadoActualizar(BaseModel):
+    haberes: list[LiquidacionHaberItem] = Field(default_factory=list)
+    haberes_ad_hoc: list[LiquidacionHaberAdHoc] = Field(default_factory=list)
+
+
+class LiquidacionHaberOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nombre: str
+    tipo: TipoHaber | None
+    valor: float | None
+    cantidad: float | None
+    monto: float
+    orden: int
+
+
+class LiquidacionDetalleOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    concepto_nombre: str
+    concepto_tipo: TipoConcepto
+    porcentaje_aplicado: float
+    monto: float
+    proveedor_id: int | None
+    orden: int
+
+
+class LiquidacionEmpleadoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    empleado_id: int
+    periodo: str
+    sueldo_bruto: float
+    fecha_creacion: datetime
+    haberes: list[LiquidacionHaberOut]
+    detalle: list[LiquidacionDetalleOut]

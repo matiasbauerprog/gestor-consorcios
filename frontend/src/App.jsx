@@ -12,6 +12,10 @@ import Configuracion from "./screens/Configuracion";
 import ClasesProrrateo from "./screens/ClasesProrrateo";
 import Proveedores from "./screens/Proveedores";
 import Departamentos from "./screens/Departamentos";
+import Empleados from "./screens/Empleados";
+import Haberes from "./screens/Haberes";
+import ConceptosLiquidacion from "./screens/ConceptosLiquidacion";
+import Liquidaciones from "./screens/Liquidaciones";
 import NotFound from "./screens/NotFound";
 
 export default function App() {
@@ -38,6 +42,11 @@ export default function App() {
             <Route path="clases-prorrateo" element={<ClasesProrrateo />} />
             <Route path="proveedores" element={<Proveedores />} />
             <Route path="departamentos" element={<Departamentos />} />
+            <Route path="empleados" element={<Empleados />} />
+            <Route path="haberes" element={<Haberes />} />
+            <Route path="conceptos-liquidacion" element={<ConceptosLiquidacion />} />
+            <Route path="liquidaciones" element={<Liquidaciones />} />
+            <Route path="liquidaciones/historial" element={<Liquidaciones vistaHistorial />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

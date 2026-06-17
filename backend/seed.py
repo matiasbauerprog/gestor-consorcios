@@ -1,23 +1,30 @@
 import logging
 import secrets
+from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .config import get_settings
 from .models import (
+    CategoriaEmpleado,
     ClaseProrrateo,
     CoeficienteDepartamento,
+    ConceptoLiquidacion,
     ConfiguracionConsorcio,
     Departamento,
+    Empleado,
     EstadoPeticion,
     FormaPago,
     Gasto,
     GastoHabitual,
+    Haber,
     Peticion,
     Proveedor,
     Rol,
     Rubro,
+    TipoConcepto,
+    TipoHaber,
     Usuario,
 )
 from .security import hash_password
@@ -157,8 +164,6 @@ def seed_if_empty(db: Session) -> None:
     db.flush()
 
     # ----- Fase 2: gastos puntuales de ejemplo (período 2026-06) -----
-    from datetime import date as _date
-
     db.add_all([
         # Generado a partir de plantilla.
         Gasto(
@@ -169,7 +174,7 @@ def seed_if_empty(db: Session) -> None:
             concepto="Sueldo mensual del encargado",
             monto=800000.0,
             forma_pago=FormaPago.transferencia,
-            fecha_pago=_date(2026, 6, 1),
+            fecha_pago=date(2026, 6, 1),
             gasto_habitual_id=plantilla_sueldo.id,
         ),
         # Prorrateable puntual.
@@ -181,7 +186,7 @@ def seed_if_empty(db: Session) -> None:
             concepto="Reparación cañería común",
             monto=120000.0,
             forma_pago=FormaPago.transferencia,
-            fecha_pago=_date(2026, 6, 8),
+            fecha_pago=date(2026, 6, 8),
         ),
         # Particular a un depto.
         Gasto(
@@ -192,7 +197,7 @@ def seed_if_empty(db: Session) -> None:
             concepto="Arreglo plomería - UF 1A",
             monto=80000.0,
             forma_pago=FormaPago.transferencia,
-            fecha_pago=_date(2026, 6, 12),
+            fecha_pago=date(2026, 6, 12),
         ),
         # En cuotas (cuota 1/3 cargada manualmente).
         Gasto(
@@ -203,10 +208,64 @@ def seed_if_empty(db: Session) -> None:
             concepto="Seguro anual - Cuota 1/3",
             monto=70000.0,
             forma_pago=FormaPago.transferencia,
-            fecha_pago=_date(2026, 6, 5),
+            fecha_pago=date(2026, 6, 5),
             cuota_actual=1,
             cuota_total=3,
         ),
+    ])
+
+    # ----- Fase 3: 4 proveedores institucionales -----
+    afip = Proveedor(razon_social="AFIP", nombre_fantasia="AFIP", cuit="30-00000001-7")
+    arca = Proveedor(razon_social="ARCA", nombre_fantasia="ARCA", cuit="30-00000002-5")
+    fateryh = Proveedor(razon_social="FATERYH", nombre_fantasia="FATERYH", cuit="30-00000003-3")
+    suterh_prov = Proveedor(razon_social="SUTERH", nombre_fantasia="SUTERH", cuit="30-00000004-1")
+    db.add_all([afip, arca, fateryh, suterh_prov])
+    db.flush()
+
+    # ----- Fase 3: proveedor + empleado de ejemplo -----
+    prov_empleado = Proveedor(razon_social="Pérez, Juan", nombre_fantasia="Pérez Juan", cuit="20-12345678-9")
+    db.add(prov_empleado)
+    db.flush()
+
+    empleado_ej = Empleado(
+        nombre_completo="Juan Pérez",
+        cuil="20-12345678-9",
+        categoria=CategoriaEmpleado.encargado_permanente_sin_vivienda,
+        fecha_ingreso=date(2020, 1, 1),
+        fecha_egreso=None,
+        sueldo_basico=1000000.0,
+        proveedor_id=prov_empleado.id,
+        activo=True,
+    )
+    db.add(empleado_ej)
+    db.flush()
+
+    # ----- Fase 3: 6 haberes SUTERH -----
+    db.add_all([
+        Haber(nombre="Básico", tipo=TipoHaber.porcentaje_sobre_basico, valor_default=100.0, orden=1, activo=True),
+        Haber(nombre="Antigüedad", tipo=TipoHaber.porcentaje_sobre_basico, valor_default=1.0, orden=2, activo=True),
+        Haber(nombre="Presentismo", tipo=TipoHaber.porcentaje_sobre_basico, valor_default=8.33, orden=3, activo=True),
+        Haber(nombre="Adicional vivienda", tipo=TipoHaber.monto_fijo, valor_default=0.0, orden=4, activo=True),
+        Haber(nombre="Horas extra 50%", tipo=TipoHaber.cantidad_x_valor, valor_default=0.0, orden=5, activo=True),
+        Haber(nombre="Horas extra 100%", tipo=TipoHaber.cantidad_x_valor, valor_default=0.0, orden=6, activo=True),
+    ])
+
+    # ----- Fase 3: 12 conceptos SUTERH (paritarias 2026 referencia) -----
+    db.add_all([
+        # Descuentos (salen del bruto)
+        ConceptoLiquidacion(nombre="Jubilación", tipo=TipoConcepto.descuento, porcentaje=11.0, proveedor_id=afip.id, orden=1, activo=True),
+        ConceptoLiquidacion(nombre="ISSPJ Ley 19032", tipo=TipoConcepto.descuento, porcentaje=3.0, proveedor_id=afip.id, orden=2, activo=True),
+        ConceptoLiquidacion(nombre="OSPERyHA", tipo=TipoConcepto.descuento, porcentaje=2.55, proveedor_id=afip.id, orden=3, activo=True),
+        ConceptoLiquidacion(nombre="ANSSAL", tipo=TipoConcepto.descuento, porcentaje=0.45, proveedor_id=afip.id, orden=4, activo=True),
+        ConceptoLiquidacion(nombre="Caja Protección Familia", tipo=TipoConcepto.descuento, porcentaje=1.0, proveedor_id=fateryh.id, orden=5, activo=True),
+        ConceptoLiquidacion(nombre="Cuota Sindical SUTERH", tipo=TipoConcepto.descuento, porcentaje=2.0, proveedor_id=suterh_prov.id, orden=6, activo=True),
+        ConceptoLiquidacion(nombre="FMVDD art. 27 CCT", tipo=TipoConcepto.descuento, porcentaje=1.75, proveedor_id=fateryh.id, orden=7, activo=True),
+        # Contribuciones (paga el consorcio aparte)
+        ConceptoLiquidacion(nombre="AFIP F931", tipo=TipoConcepto.contribucion, porcentaje=16.0, proveedor_id=afip.id, orden=10, activo=True),
+        ConceptoLiquidacion(nombre="ARCA VEP", tipo=TipoConcepto.contribucion, porcentaje=10.78, proveedor_id=arca.id, orden=11, activo=True),
+        ConceptoLiquidacion(nombre="FATERYH", tipo=TipoConcepto.contribucion, porcentaje=8.535, proveedor_id=fateryh.id, orden=12, activo=True),
+        ConceptoLiquidacion(nombre="FATERYH-SERACARH", tipo=TipoConcepto.contribucion, porcentaje=0.5, proveedor_id=fateryh.id, orden=13, activo=True),
+        ConceptoLiquidacion(nombre="SUTERH patronal", tipo=TipoConcepto.contribucion, porcentaje=4.51, proveedor_id=suterh_prov.id, orden=14, activo=True),
     ])
 
     db.add_all(
