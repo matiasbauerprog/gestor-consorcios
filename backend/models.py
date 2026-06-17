@@ -127,6 +127,8 @@ class Departamento(Base):
     usuarios: Mapped[list["Usuario"]] = relationship(back_populates="departamento")
     peticiones: Mapped[list["Peticion"]] = relationship(back_populates="departamento")
     expensas: Mapped[list["Expensa"]] = relationship(back_populates="departamento")
+    comprobantes: Mapped[list["Comprobante"]] = relationship(back_populates="departamento")
+    movimientos_cuenta: Mapped[list["MovimientoCuenta"]] = relationship(back_populates="departamento")
     coeficientes: Mapped[list["CoeficienteDepartamento"]] = relationship(
         back_populates="departamento", cascade="all, delete-orphan"
     )
@@ -276,7 +278,7 @@ class Comprobante(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    departamento: Mapped["Departamento"] = relationship()
+    departamento: Mapped["Departamento"] = relationship(back_populates="comprobantes")
 
 
 class Amenity(Base):
@@ -604,17 +606,17 @@ class MovimientoCuenta(Base):
 
     expensa_id: Mapped[int | None] = mapped_column(
         ForeignKey("expensas.id", ondelete="SET NULL"),
-        nullable=True,
+        index=True,
     )
     comprobante_id: Mapped[int | None] = mapped_column(
         ForeignKey("comprobantes.id", ondelete="SET NULL"),
-        nullable=True,
+        index=True,
     )
 
     fecha_creacion: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    departamento: Mapped["Departamento"] = relationship()
+    departamento: Mapped["Departamento"] = relationship(back_populates="movimientos_cuenta")
     expensa: Mapped["Expensa | None"] = relationship()
     comprobante: Mapped["Comprobante | None"] = relationship()
