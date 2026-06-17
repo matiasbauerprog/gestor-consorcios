@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
 from fastapi import (
     APIRouter,
@@ -42,8 +42,10 @@ def listar_comprobantes(
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.administracion, Rol.departamento)),
 ) -> list[Comprobante]:
-    stmt = select(Comprobante).order_by(
-        Comprobante.fecha_creacion.desc(), Comprobante.id.desc()
+    stmt = (
+        select(Comprobante)
+        .where(Comprobante.eliminado_at.is_(None))
+        .order_by(Comprobante.fecha_creacion.desc(), Comprobante.id.desc())
     )
 
     # Aislamiento por unidad: el Departamento solo ve sus comprobantes. Cualquier
@@ -69,7 +71,7 @@ def listar_comprobantes(
 def presentar_comprobante(
     fecha_pago: date = Form(...),
     monto: float = Form(..., gt=0),
-    archivo: UploadFile | None = File(default=None),
+    archivo: UploadFile = File(...),
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.departamento)),
 ) -> Comprobante:
@@ -79,9 +81,13 @@ def presentar_comprobante(
             detail="La fecha de pago no puede ser futura.",
         )
 
-    archivo_path = None
-    if archivo is not None and archivo.filename:
-        archivo_path = guardar_imagen_comprobante(archivo)
+    if not archivo.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El archivo del comprobante es obligatorio.",
+        )
+
+    archivo_path = guardar_imagen_comprobante(archivo)
 
     comprobante = Comprobante(
         departamento_id=user.departamento_id,
@@ -109,7 +115,7 @@ def actualizar_comprobante(
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
 ) -> Comprobante:
     comprobante = db.get(Comprobante, comprobante_id)
-    if comprobante is None:
+    if comprobante is None or comprobante.eliminado_at is not None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El comprobante solicitado no existe.",
@@ -140,3 +146,33 @@ def actualizar_comprobante(
     db.commit()
     db.refresh(comprobante)
     return comprobante
+
+
+@router.delete(
+    "/{comprobante_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Soft-delete de un comprobante (oculta de la vista)",
+)
+def eliminar_comprobante(
+    comprobante_id: int,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(Rol.administracion, Rol.departamento)),
+) -> None:
+    comprobante = db.get(Comprobante, comprobante_id)
+    if comprobante is None or comprobante.eliminado_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="El comprobante solicitado no existe.",
+        )
+
+    if (
+        user.rol == Rol.departamento
+        and comprobante.departamento_id != user.departamento_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tiene permisos para acceder a este recurso.",
+        )
+
+    comprobante.eliminado_at = datetime.now(timezone.utc)
+    db.commit()

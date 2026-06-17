@@ -277,6 +277,9 @@ class Comprobante(Base):
     fecha_creacion: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+    eliminado_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
 
     departamento: Mapped["Departamento"] = relationship(back_populates="comprobantes")
 

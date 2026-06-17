@@ -352,14 +352,13 @@ def test_presentar_comprobante_como_departamento_dueno_201(client, headers_depto
     assert body["estado"] == "pendiente_verificacion"
 
 
-def test_presentar_comprobante_sin_archivo_201(client, headers_depto_a):
+def test_presentar_comprobante_sin_archivo_400(client, headers_depto_a):
     r = client.post(
         "/comprobantes",
         data=_DATA_OK,
         headers=headers_depto_a,
     )
-    assert r.status_code == 201
-    assert r.json()["archivo_path"] is None
+    assert r.status_code == 400
 
 
 def test_presentar_comprobante_como_admin_devuelve_403(client, headers_admin):
@@ -403,6 +402,7 @@ def test_presentar_comprobante_fecha_futura_devuelve_400(client, headers_depto_a
     r = client.post(
         "/comprobantes",
         data={"fecha_pago": futura, "monto": "85000.00"},
+        files=_files_con_imagen(),
         headers=headers_depto_a,
     )
     assert r.status_code == 400
@@ -414,6 +414,7 @@ def test_presentar_comprobante_fecha_hoy_201(client, headers_depto_a):
     r = client.post(
         "/comprobantes",
         data={"fecha_pago": hoy, "monto": "85000.00"},
+        files=_files_con_imagen(),
         headers=headers_depto_a,
     )
     assert r.status_code == 201
@@ -424,6 +425,7 @@ def test_presentar_comprobante_genera_pendiente_verificacion(client, headers_dep
     r = client.post(
         "/comprobantes",
         data={"fecha_pago": "2026-06-05", "monto": "85000.00"},
+        files=_files_con_imagen(),
         headers=headers_depto_a,
     )
     assert r.status_code == 201
@@ -531,3 +533,94 @@ def test_rechazar_comprobante_no_genera_movimiento(client, headers_admin, header
         if m["tipo"] == "pago_recibido" and m["comprobante_id"] == comp_id
     ]
     assert pagos == []
+
+
+# ---------------------------------------------------------------------------
+# Soft-delete de comprobantes (DELETE)
+# ---------------------------------------------------------------------------
+
+
+def _crear_comprobante_depto_a(client, headers_depto_a) -> int:
+    r = client.post(
+        "/comprobantes",
+        data={"fecha_pago": "2026-06-05", "monto": "1000"},
+        files=_files_con_imagen(),
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 201
+    return r.json()["id"]
+
+
+def test_eliminar_comprobante_sin_token_401(client, headers_depto_a):
+    comp_id = _crear_comprobante_depto_a(client, headers_depto_a)
+    r = client.delete(f"/comprobantes/{comp_id}")
+    assert r.status_code == 401
+
+
+def test_eliminar_comprobante_depto_dueno_204(client, headers_depto_a):
+    comp_id = _crear_comprobante_depto_a(client, headers_depto_a)
+
+    r = client.delete(f"/comprobantes/{comp_id}", headers=headers_depto_a)
+    assert r.status_code == 204
+
+    # Tras soft-delete, ya no aparece en el listado.
+    r = client.get("/comprobantes", headers=headers_depto_a)
+    assert r.status_code == 200
+    assert all(c["id"] != comp_id for c in r.json())
+
+
+def test_eliminar_comprobante_admin_204(client, headers_admin, headers_depto_a):
+    comp_id = _crear_comprobante_depto_a(client, headers_depto_a)
+
+    r = client.delete(f"/comprobantes/{comp_id}", headers=headers_admin)
+    assert r.status_code == 204
+
+
+def test_eliminar_comprobante_depto_ajeno_403(client, headers_depto_a, headers_depto_b):
+    comp_id = _crear_comprobante_depto_a(client, headers_depto_a)
+
+    r = client.delete(f"/comprobantes/{comp_id}", headers=headers_depto_b)
+    assert r.status_code == 403
+
+
+def test_eliminar_comprobante_inexistente_404(client, headers_admin):
+    r = client.delete("/comprobantes/9999", headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_eliminar_comprobante_ya_eliminado_404(client, headers_admin, headers_depto_a):
+    comp_id = _crear_comprobante_depto_a(client, headers_depto_a)
+
+    r = client.delete(f"/comprobantes/{comp_id}", headers=headers_admin)
+    assert r.status_code == 204
+
+    # Segundo DELETE sobre el mismo ID ya eliminado → 404 (idempotente desde la vista).
+    r = client.delete(f"/comprobantes/{comp_id}", headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_get_comprobantes_excluye_eliminados(client, headers_admin, headers_depto_a):
+    comp_id = _crear_comprobante_depto_a(client, headers_depto_a)
+
+    r = client.delete(f"/comprobantes/{comp_id}", headers=headers_depto_a)
+    assert r.status_code == 204
+
+    # Ni depto ni admin lo ven más.
+    for headers in (headers_depto_a, headers_admin):
+        r = client.get("/comprobantes", headers=headers)
+        assert all(c["id"] != comp_id for c in r.json())
+
+
+def test_patch_comprobante_eliminado_404(client, headers_admin, headers_depto_a):
+    comp_id = _crear_comprobante_depto_a(client, headers_depto_a)
+
+    r = client.delete(f"/comprobantes/{comp_id}", headers=headers_admin)
+    assert r.status_code == 204
+
+    # No se puede aprobar un comprobante soft-eliminado.
+    r = client.patch(
+        f"/comprobantes/{comp_id}",
+        json={"estado": "aprobado"},
+        headers=headers_admin,
+    )
+    assert r.status_code == 404
