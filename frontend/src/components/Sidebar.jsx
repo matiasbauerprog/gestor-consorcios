@@ -29,6 +29,11 @@ const SECCIONES = [
         nombre: "Gastos",
         rolesPermitidos: ["administracion"],
       },
+      {
+        ruta: "/liquidaciones",
+        nombre: "Liquidaciones",
+        rolesPermitidos: ["administracion"],
+      },
     ],
   },
   {
@@ -52,6 +57,21 @@ const SECCIONES = [
       {
         ruta: "/departamentos",
         nombre: "Departamentos",
+        rolesPermitidos: ["administracion"],
+      },
+      {
+        ruta: "/empleados",
+        nombre: "Empleados",
+        rolesPermitidos: ["administracion"],
+      },
+      {
+        ruta: "/haberes",
+        nombre: "Haberes",
+        rolesPermitidos: ["administracion"],
+      },
+      {
+        ruta: "/conceptos-liquidacion",
+        nombre: "Conceptos de liquidación",
         rolesPermitidos: ["administracion"],
       },
     ],
