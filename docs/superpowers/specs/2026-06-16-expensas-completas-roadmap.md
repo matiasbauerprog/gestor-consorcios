@@ -16,7 +16,7 @@ El proyecto es educativo, pero con un fin comercial a largo plazo. Por eso se el
 | 1 | Modelo de datos central | Rubros, clases de prorrateo, coeficientes múltiples por depto, proveedores, configuración del consorcio. |
 | 2 | Gastos del consorcio | Carga/edición de gastos con metadata completa (rubro, clase, proveedor, factura, pago, cuota). Gastos particulares a depto. |
 | 3 | Encargado y cargas sociales | Empleado, sueldo básico, aportes/contribuciones automáticas (AFIP F931, FATERYH, SUTERH, etc.). Alimenta Rubro 1. |
-| **3.5** | **Cuenta corriente por departamento** | **Rewrite del módulo de pagos. Cada depto tiene cuenta con movimientos (débitos/créditos). Comprobantes aprobados generan movimientos en lugar de cambiar el estado binario de la expensa. Soporta sobre-pagos, devoluciones, notas de crédito/débito, asignación de pagos a múltiples expensas. Prerrequisito de Fase 4.** |
+| **3.5** ✅ | **Cuenta corriente por departamento** (completada 2026-06-17) | Rewrite del módulo de pagos. Cada depto tiene cuenta con movimientos (débitos/créditos). Comprobantes aprobados generan movimientos en lugar de cambiar el estado binario de la expensa. Soporta sobre-pagos, devoluciones, notas de crédito/débito, asignación de pagos a múltiples expensas. Prerrequisito de Fase 4. |
 | 4 | Cierre de período y liquidación | Botón "Cerrar período" → genera expensas con desglose por rubro y clase. Saldo anterior (= saldo de cuenta), créditos/débitos, 1°/2° vencimiento, intereses punitorios. |
 | 5 | Caja, fondo de reparación, estado financiero | Cuentas bancarias, fondo de reparación separado, conciliación, saldos. |
 | 6 | Reportes Ley 941 + PDF de liquidación | Estado financiero, patrimonial, lista de proveedores, evolución de cobranzas, lista de morosos, PDF con formato real. |
@@ -46,7 +46,8 @@ Cada fase: 1–3 semanas. Total: 10–17 semanas (incluyendo Fase 3.5). Estimaci
 
 - 2026-06-16: roadmap inicial con 6 fases.
 - 2026-06-17: se introduce **Fase 3.5 (Cuenta corriente)** después de descubrir durante el brainstorming de Fase 4 que el modelo binario `Expensa.estado=pagada|pendiente` no permite modelar pagos parciales, sobre-pagos, notas de crédito ni intereses correctamente. Decisión: rediseñar el módulo de pagos antes de afrontar el cierre.
+- 2026-06-17: **Fase 3.5 completada** (453 tests, mergeada a master). Incluye además soft-delete de comprobantes y archivo obligatorio en el POST.
 
 ## Próximo paso
 
-Brainstorming de Fase 3.5 (Cuenta corriente por departamento).
+Brainstorming de Fase 4 (Cierre de período y liquidación) — ahora con la cuenta corriente como base.
