@@ -34,7 +34,6 @@ from backend.models import (  # noqa: E402
     ConfiguracionConsorcio,
     Departamento,
     Empleado,
-    EstadoExpensa,
     EstadoPeticion,
     EstadoReserva,
     Expensa,
@@ -45,6 +44,7 @@ from backend.models import (  # noqa: E402
     LiquidacionDetalle,
     LiquidacionEmpleado,
     LiquidacionHaber,
+    MovimientoCuenta,
     Peticion,
     Proveedor,
     Reserva,
@@ -52,6 +52,7 @@ from backend.models import (  # noqa: E402
     Rubro,
     TipoConcepto,
     TipoHaber,
+    TipoMovimiento,
     Usuario,
 )
 
@@ -165,7 +166,6 @@ def _seed(db) -> None:
                 departamento_id=depto_a.id,
                 periodo="2026-05",
                 monto=85000.00,
-                estado=EstadoExpensa.pendiente,
                 fecha_vencimiento=date(2026, 6, 10),
             ),
             Expensa(
@@ -173,8 +173,25 @@ def _seed(db) -> None:
                 departamento_id=depto_b.id,
                 periodo="2026-05",
                 monto=92000.00,
-                estado=EstadoExpensa.pendiente,
                 fecha_vencimiento=date(2026, 6, 10),
+            ),
+            MovimientoCuenta(
+                id=1100,
+                departamento_id=depto_a.id,
+                fecha=date(2026, 5, 1),
+                tipo=TipoMovimiento.expensa_emitida,
+                descripcion="Expensa 2026-05",
+                monto=85000.00,
+                expensa_id=100,
+            ),
+            MovimientoCuenta(
+                id=1101,
+                departamento_id=depto_b.id,
+                fecha=date(2026, 5, 1),
+                tipo=TipoMovimiento.expensa_emitida,
+                descripcion="Expensa 2026-05",
+                monto=92000.00,
+                expensa_id=101,
             ),
             Comunicado(
                 id=200,
