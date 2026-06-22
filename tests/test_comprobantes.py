@@ -180,8 +180,10 @@ def test_listar_expensas_limit_fuera_de_rango_devuelve_400(client, headers_admin
 _EXPENSA_NUEVA = {
     "departamento_id": 1,
     "periodo": "2026-06",
-    "monto": 87000.00,
-    "fecha_vencimiento": "2026-07-10",
+    "monto_primer_vencimiento": 87000.00,
+    "fecha_primer_vencimiento": "2026-07-10",
+    "monto_segundo_vencimiento": 93090.00,
+    "fecha_segundo_vencimiento": "2026-07-20",
 }
 
 
@@ -206,8 +208,10 @@ def test_crear_expensa_como_admin_devuelve_201(client, headers_admin):
     body = r.json()
     assert body["departamento_id"] == 1
     assert body["periodo"] == "2026-06"
-    assert body["monto"] == 87000.00
-    assert body["fecha_vencimiento"] == "2026-07-10"
+    assert body["monto_primer_vencimiento"] == 87000.00
+    assert body["fecha_primer_vencimiento"] == "2026-07-10"
+    assert body["monto_segundo_vencimiento"] == 93090.00
+    assert body["fecha_segundo_vencimiento"] == "2026-07-20"
     # Sin pagos todavía, FIFO calcula "pendiente".
     assert body["estado_calculado"] == "pendiente"
     assert body["monto_pendiente"] == 87000.00
@@ -245,14 +249,14 @@ def test_crear_expensa_periodo_invalido_devuelve_400(client, headers_admin):
 def test_crear_expensa_monto_no_positivo_devuelve_400(client, headers_admin):
     r = client.post(
         "/expensas",
-        json={**_EXPENSA_NUEVA, "monto": 0},
+        json={**_EXPENSA_NUEVA, "monto_primer_vencimiento": 0},
         headers=headers_admin,
     )
     assert r.status_code == 400
 
     r = client.post(
         "/expensas",
-        json={**_EXPENSA_NUEVA, "monto": -1},
+        json={**_EXPENSA_NUEVA, "monto_primer_vencimiento": -1},
         headers=headers_admin,
     )
     assert r.status_code == 400

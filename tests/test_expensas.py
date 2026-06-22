@@ -62,8 +62,10 @@ def test_crear_expensa_genera_movimiento(client, headers_admin, headers_depto_a)
         json={
             "departamento_id": 1,
             "periodo": "2026-08",
-            "monto": 100000,
-            "fecha_vencimiento": "2026-09-10",
+            "monto_primer_vencimiento": 100000,
+            "fecha_primer_vencimiento": "2026-09-10",
+            "monto_segundo_vencimiento": 107000,
+            "fecha_segundo_vencimiento": "2026-09-20",
         },
         headers=headers_admin,
     )
@@ -89,8 +91,10 @@ def test_delete_expensa_sin_pagos_204(client, headers_admin):
         json={
             "departamento_id": 1,
             "periodo": "2026-07",
-            "monto": 50000,
-            "fecha_vencimiento": "2026-08-10",
+            "monto_primer_vencimiento": 50000,
+            "fecha_primer_vencimiento": "2026-08-10",
+            "monto_segundo_vencimiento": 53500,
+            "fecha_segundo_vencimiento": "2026-08-20",
         },
         headers=headers_admin,
     )

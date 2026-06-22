@@ -167,8 +167,10 @@ def test_crear_depto_y_usar_para_expensa_y_usuario(client, headers_admin):
         json={
             "departamento_id": creado["id"],
             "periodo": "2026-07",
-            "monto": 50000.0,
-            "fecha_vencimiento": "2026-08-10",
+            "monto_primer_vencimiento": 50000.0,
+            "fecha_primer_vencimiento": "2026-08-10",
+            "monto_segundo_vencimiento": 53500.0,
+            "fecha_segundo_vencimiento": "2026-08-20",
         },
         headers=headers_admin,
     )
