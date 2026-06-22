@@ -94,13 +94,12 @@ def test_cerrar_periodo_idempotente_segundo_call_409(client, headers_admin, db_l
     assert r2.status_code == 409
 
 
-@pytest.mark.skip(reason="bloqueo /gastos se implementa en Task 8")
 def test_post_gasto_periodo_cerrado_409(client, headers_admin, db_lista_para_cierre):
     client.post("/periodos/2026-07/cerrar", json={}, headers=headers_admin)
     r = client.post("/gastos", json={
-        "periodo": "2026-07", "rubro": "servicios", "concepto": "Tarde",
-        "monto": 100, "proveedor_id": 1,
-        "clase_prorrateo_id": 1, "departamento_id": None,
+        "periodo": "2026-07", "rubro": "servicios_publicos", "concepto": "Tarde",
+        "monto": 100, "proveedor_id": 600,
+        "clase_prorrateo_id": 500, "departamento_id": None,
         "forma_pago": "efectivo", "fecha_pago": "2026-07-30",
     }, headers=headers_admin)
     assert r.status_code == 409
@@ -131,3 +130,37 @@ def test_comprobante_periodo_cerrado_sigue_funcionando_201(
         files=files, headers=headers_depto_a,
     )
     assert r.status_code == 201
+
+
+def test_patch_gasto_periodo_cerrado_409(client, headers_admin, db_lista_para_cierre):
+    """Editar un gasto de un período cerrado devuelve 409."""
+    # Cerrar el período 2026-07
+    client.post("/periodos/2026-07/cerrar", json={}, headers=headers_admin)
+
+    # Obtener un gasto del período (fixture genera gastos con id 29 y 30 aprox)
+    gastos = client.get("/gastos?periodo=2026-07", headers=headers_admin).json()
+    assert len(gastos) >= 1
+    gasto_id = gastos[0]["id"]
+
+    # Intentar PATCH → 409
+    r = client.patch(
+        f"/gastos/{gasto_id}",
+        json={"monto": 999},
+        headers=headers_admin
+    )
+    assert r.status_code == 409
+
+
+def test_delete_gasto_periodo_cerrado_409(client, headers_admin, db_lista_para_cierre):
+    """Eliminar un gasto de un período cerrado devuelve 409."""
+    # Cerrar el período 2026-07
+    client.post("/periodos/2026-07/cerrar", json={}, headers=headers_admin)
+
+    # Obtener un gasto del período
+    gastos = client.get("/gastos?periodo=2026-07", headers=headers_admin).json()
+    assert len(gastos) >= 1
+    gasto_id = gastos[0]["id"]
+
+    # Intentar DELETE → 409
+    r = client.delete(f"/gastos/{gasto_id}", headers=headers_admin)
+    assert r.status_code == 409
