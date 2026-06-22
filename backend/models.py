@@ -286,6 +286,8 @@ class ExpensaDetalle(Base):
     concepto: Mapped[str] = mapped_column(String(500), nullable=False)
     monto: Mapped[float] = mapped_column(Float, nullable=False)
 
+    clase_prorrateo: Mapped["ClaseProrrateo | None"] = relationship()
+    departamento_origen: Mapped["Departamento | None"] = relationship()
     expensa: Mapped["Expensa"] = relationship(back_populates="detalle")
 
 
@@ -302,6 +304,8 @@ class PeriodoCerrado(Base):
     total_expensado: Mapped[float] = mapped_column(Float, nullable=False)
     total_intereses: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     cantidad_expensas: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    cerrado_por_usuario: Mapped["Usuario"] = relationship()
 
 
 class Comprobante(Base):
