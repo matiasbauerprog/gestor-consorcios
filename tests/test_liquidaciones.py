@@ -253,16 +253,3 @@ def test_post_liquidacion_periodo_cerrado_409(client, headers_admin):
     assert "cerrado" in r.json()["detail"].lower()
 
 
-def test_patch_liquidacion_periodo_cerrado_409(client, headers_admin):
-    """PATCH /liquidaciones/{id} con período cerrado devuelve 409."""
-    # Nota: El cierre de período requiere que no haya liquidaciones pendientes.
-    # Los tests interfieren entre sí porque cierran períodos.
-    # La cobertura se logra en test_periodos.py donde se cierran períodos controladamente.
-    # Este test simple verifica que la validación existe a nivel router.
-    pass
-
-
-def test_delete_liquidacion_periodo_cerrado_409(client, headers_admin):
-    """DELETE /liquidaciones/{id} con período cerrado devuelve 409."""
-    # Idem: cobertura en test_periodos.py
-    pass
