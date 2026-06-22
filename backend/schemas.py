@@ -127,8 +127,10 @@ _PERIODO_PATTERN = r"^\d{4}-(0[1-9]|1[0-2])$"
 class ExpensaCrear(BaseModel):
     departamento_id: int = Field(..., gt=0)
     periodo: str = Field(..., pattern=_PERIODO_PATTERN)
-    monto: float = Field(..., gt=0)
-    fecha_vencimiento: date
+    monto_primer_vencimiento: float = Field(..., gt=0)
+    fecha_primer_vencimiento: date
+    monto_segundo_vencimiento: float = Field(..., gt=0)
+    fecha_segundo_vencimiento: date
 
 
 
@@ -158,16 +160,30 @@ class ComprobantePresentar(BaseModel):
     monto: float = Field(gt=0)
 
 
+class LineaDetalleExpensaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    rubro: Rubro
+    clase_prorrateo_id: int | None
+    departamento_origen_id: int | None
+    concepto: str
+    monto: float
+
+
 class ExpensaOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     departamento_id: int
     periodo: str
-    monto: float
-    fecha_vencimiento: date
+    monto_primer_vencimiento: float
+    fecha_primer_vencimiento: date
+    monto_segundo_vencimiento: float
+    fecha_segundo_vencimiento: date
+    saldo_anterior: float
     estado_calculado: EstadoExpensa
     monto_pendiente: float
+    detalle: list[LineaDetalleExpensaOut]
 
 
 class ReservaCrear(BaseModel):
@@ -338,6 +354,12 @@ class ConfiguracionConsorcioActualizar(BaseModel):
     banco_cbu: str = Field(..., min_length=22, max_length=22)
     banco_alias: str | None = Field(default=None, max_length=50)
 
+    # vencimientos e intereses (Fase 4)
+    dia_primer_vencimiento: int = Field(..., ge=1, le=28)
+    dias_entre_vencimientos: int = Field(..., ge=1)
+    recargo_segundo_vencimiento_pct: float = Field(..., ge=0)
+    tasa_interes_mensual_pct: float = Field(..., ge=0)
+
 
 class ConfiguracionConsorcioOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -360,6 +382,10 @@ class ConfiguracionConsorcioOut(BaseModel):
     banco_numero_cuenta: str
     banco_cbu: str
     banco_alias: str | None
+    dia_primer_vencimiento: int
+    dias_entre_vencimientos: int
+    recargo_segundo_vencimiento_pct: float
+    tasa_interes_mensual_pct: float
 
 
 class CoeficienteItem(BaseModel):
@@ -717,3 +743,62 @@ class NotaCrear(BaseModel):
         if v not in (TipoMovimiento.nota_credito, TipoMovimiento.nota_debito):
             raise ValueError("tipo debe ser nota_credito o nota_debito")
         return v
+
+
+# ─── Fase 4: Cierre de período ────────────────────────────────────────────
+
+class ValidacionOut(BaseModel):
+    tipo: Literal["bloqueante", "warning"]
+    codigo: str
+    mensaje: str
+
+
+class InteresACrearOut(BaseModel):
+    departamento_id: int
+    monto: float
+    descripcion: str
+
+
+class ExpensaACrearOut(BaseModel):
+    departamento_id: int
+    saldo_anterior: float
+    monto_primer_vencimiento: float
+    monto_segundo_vencimiento: float
+    detalle: list[LineaDetalleExpensaOut]
+
+
+class PreviewCierreOut(BaseModel):
+    periodo: str
+    cerrado: bool
+    fecha_primer_vencimiento: date
+    fecha_segundo_vencimiento: date
+    validaciones: list[ValidacionOut]
+    puede_cerrar: bool
+    expensas: list[ExpensaACrearOut]
+    intereses: list[InteresACrearOut]
+    total_expensado: float
+    total_intereses: float
+
+
+class EstadoCierreOut(BaseModel):
+    """Subset de PreviewCierreOut: solo validaciones, sin números."""
+    periodo: str
+    cerrado: bool
+    validaciones: list[ValidacionOut]
+    puede_cerrar: bool
+
+
+class CerrarPeriodoIn(BaseModel):
+    fecha_primer_vencimiento: date | None = None
+    fecha_segundo_vencimiento: date | None = None
+
+
+class PeriodoCerradoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    periodo: str
+    fecha_cierre: datetime
+    cerrado_por_usuario_id: int
+    total_expensado: float
+    total_intereses: float
+    cantidad_expensas: int
