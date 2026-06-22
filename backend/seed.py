@@ -1,6 +1,6 @@
 import logging
 import secrets
-from datetime import date
+from datetime import date, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -16,6 +16,7 @@ from .models import (
     Empleado,
     EstadoPeticion,
     Expensa,
+    ExpensaDetalle,
     FormaPago,
     Gasto,
     GastoHabitual,
@@ -122,6 +123,10 @@ def seed_if_empty(db: Session) -> None:
         banco_numero_cuenta="PENDIENTE",
         banco_cbu="0000000000000000000000",
         banco_alias=None,
+        dia_primer_vencimiento=10,
+        dias_entre_vencimientos=10,
+        recargo_segundo_vencimiento_pct=7.0,
+        tasa_interes_mensual_pct=3.0,
     ))
 
     # ----- Fase 2: plantillas de gastos habituales -----
@@ -290,19 +295,47 @@ def seed_if_empty(db: Session) -> None:
     db.flush()
 
     # ----- Fase 3.5: expensas de muestra + cuenta corriente -----
+    fecha_1_demo = date(2026, 7, 10)
+    fecha_2_demo = fecha_1_demo + timedelta(days=10)
     expensa_a = Expensa(
         departamento_id=depto_a.id,
         periodo="2026-05",
-        monto=85000.00,
-        fecha_vencimiento=date(2026, 7, 10),
+        monto_primer_vencimiento=85000.00,
+        fecha_primer_vencimiento=fecha_1_demo,
+        monto_segundo_vencimiento=round(85000.00 * 1.07, 2),
+        fecha_segundo_vencimiento=fecha_2_demo,
+        saldo_anterior=0.0,
     )
     expensa_b = Expensa(
         departamento_id=depto_b.id,
         periodo="2026-05",
-        monto=92000.00,
-        fecha_vencimiento=date(2026, 7, 10),
+        monto_primer_vencimiento=92000.00,
+        fecha_primer_vencimiento=fecha_1_demo,
+        monto_segundo_vencimiento=round(92000.00 * 1.07, 2),
+        fecha_segundo_vencimiento=fecha_2_demo,
+        saldo_anterior=0.0,
     )
     db.add_all([expensa_a, expensa_b])
+    db.flush()
+
+    db.add_all([
+        ExpensaDetalle(
+            expensa_id=expensa_a.id,
+            rubro=Rubro.abonos_y_servicios,
+            clase_prorrateo_id=clase_a.id,
+            departamento_origen_id=None,
+            concepto="Demo Fase 3.5: prorrateo clase A",
+            monto=85000.00,
+        ),
+        ExpensaDetalle(
+            expensa_id=expensa_b.id,
+            rubro=Rubro.abonos_y_servicios,
+            clase_prorrateo_id=clase_a.id,
+            departamento_origen_id=None,
+            concepto="Demo Fase 3.5: prorrateo clase A",
+            monto=92000.00,
+        ),
+    ])
     db.flush()
 
     db.add_all([
