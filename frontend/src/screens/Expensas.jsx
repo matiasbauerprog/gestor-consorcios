@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import { listarExpensas, crearExpensa, eliminarExpensa } from "../api/expensas";
 import { listarDepartamentos } from "../api/departamentos";
 import Modal from "../components/Modal";
+import ModalDesgloseExpensa from "../components/ModalDesgloseExpensa";
 import SelectorDepartamento from "../components/SelectorDepartamento";
 import BadgeEstado from "../components/BadgeEstado";
 import Tarjeta from "../components/Tarjeta";
@@ -16,18 +17,26 @@ function formatearMonto(v) {
   });
 }
 
-function TarjetaExpensa({ expensa, esAdmin, depto, onEliminar }) {
+function TarjetaExpensa({ expensa, esAdmin, depto, onEliminar, onVerDesglose }) {
   return (
     <Tarjeta>
       <h3>
-        {expensa.periodo} — {formatearMonto(expensa.monto)}
+        {expensa.periodo} — {formatearMonto(expensa.monto_primer_vencimiento)}
       </h3>
       {esAdmin && (
         <p className="meta">
           {depto ? `${depto.codigo} — ${depto.descripcion}` : `Depto #${expensa.departamento_id}`}
         </p>
       )}
-      <p className="meta">Vence {expensa.fecha_vencimiento}</p>
+      <p className="meta">
+        1° venc {expensa.fecha_primer_vencimiento}: {formatearMonto(expensa.monto_primer_vencimiento)}
+      </p>
+      <p className="meta">
+        2° venc {expensa.fecha_segundo_vencimiento}: {formatearMonto(expensa.monto_segundo_vencimiento)} (+recargo)
+      </p>
+      {expensa.saldo_anterior > 0 && (
+        <p className="meta">Saldo anterior: {formatearMonto(expensa.saldo_anterior)}</p>
+      )}
       <p>
         <BadgeEstado estado={expensa.estado_calculado} />
         {expensa.monto_pendiente > 0 && (
@@ -36,15 +45,26 @@ function TarjetaExpensa({ expensa, esAdmin, depto, onEliminar }) {
           </span>
         )}
       </p>
-      {esAdmin && (
+      {(expensa.detalle?.length > 0 || esAdmin) && (
         <div className="tarjeta-acciones">
-          <button
-            type="button"
-            className="boton-peligro"
-            onClick={() => onEliminar(expensa)}
-          >
-            Eliminar
-          </button>
+          {expensa.detalle?.length > 0 && (
+            <button
+              type="button"
+              className="boton-secundario"
+              onClick={() => onVerDesglose(expensa)}
+            >
+              Ver desglose
+            </button>
+          )}
+          {esAdmin && (
+            <button
+              type="button"
+              className="boton-peligro"
+              onClick={() => onEliminar(expensa)}
+            >
+              Eliminar
+            </button>
+          )}
         </div>
       )}
     </Tarjeta>
@@ -59,6 +79,7 @@ export default function Expensas() {
   const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState(null);
   const [modalCrearAbierto, setModalCrearAbierto] = useState(false);
   const [modalEliminar, setModalEliminar] = useState(null);
+  const [modalDesglose, setModalDesglose] = useState(null);
   const [errorAccion, setErrorAccion] = useState(null);
   const [eliminando, setEliminando] = useState(false);
   const [departamentos, setDepartamentos] = useState([]);
@@ -184,6 +205,7 @@ export default function Expensas() {
               esAdmin={esAdmin}
               depto={deptoById[e.departamento_id]}
               onEliminar={setModalEliminar}
+              onVerDesglose={setModalDesglose}
             />
           </li>
         ))}
@@ -234,6 +256,13 @@ export default function Expensas() {
             </button>
           </div>
         </Modal>
+      )}
+
+      {modalDesglose && (
+        <ModalDesgloseExpensa
+          expensa={modalDesglose}
+          onClose={() => setModalDesglose(null)}
+        />
       )}
     </main>
   );
