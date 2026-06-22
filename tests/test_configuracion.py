@@ -16,6 +16,10 @@ _PAYLOAD_VALIDO = {
     "banco_numero_cuenta": "111-2222222/3",
     "banco_cbu": "1111111111111111111111",
     "banco_alias": "CONSORCIO.NUEVO",
+    "dia_primer_vencimiento": 15,
+    "dias_entre_vencimientos": 10,
+    "recargo_segundo_vencimiento_pct": 7.0,
+    "tasa_interes_mensual_pct": 3.0,
 }
 
 
@@ -97,5 +101,34 @@ def test_put_configuracion_cbu_largo_invalido_devuelve_400(client, headers_admin
 def test_put_configuracion_email_corto_devuelve_400(client, headers_admin):
     payload = dict(_PAYLOAD_VALIDO)
     payload["admin_email"] = "x"
+    r = client.put("/configuracion", json=payload, headers=headers_admin)
+    assert r.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# Nuevos campos Fase 4 (vencimientos + intereses)
+# ---------------------------------------------------------------------------
+
+
+def test_get_configuracion_incluye_4_nuevos_campos(client, headers_admin):
+    r = client.get("/configuracion", headers=headers_admin)
+    assert r.status_code == 200
+    body = r.json()
+    assert "dia_primer_vencimiento" in body
+    assert "dias_entre_vencimientos" in body
+    assert "recargo_segundo_vencimiento_pct" in body
+    assert "tasa_interes_mensual_pct" in body
+
+
+def test_put_configuracion_dia_invalido_devuelve_400(client, headers_admin):
+    payload = dict(_PAYLOAD_VALIDO)
+    payload["dia_primer_vencimiento"] = 30  # fuera de rango (>28)
+    r = client.put("/configuracion", json=payload, headers=headers_admin)
+    assert r.status_code == 400
+
+
+def test_put_configuracion_recargo_negativo_devuelve_400(client, headers_admin):
+    payload = dict(_PAYLOAD_VALIDO)
+    payload["recargo_segundo_vencimiento_pct"] = -1.0
     r = client.put("/configuracion", json=payload, headers=headers_admin)
     assert r.status_code == 400
