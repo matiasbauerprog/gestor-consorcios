@@ -23,7 +23,7 @@ from backend.security import hash_password  # noqa: E402
 # y reusamos el mismo hash en todos los usuarios sembrados.
 TEST_PASSWORD = "test-pass-1234"
 _PASSWORD_HASH = hash_password(TEST_PASSWORD)
-from datetime import date, datetime  # noqa: E402
+from datetime import date, datetime, timedelta  # noqa: E402
 
 from backend.models import (  # noqa: E402
     Amenity,
@@ -165,15 +165,21 @@ def _seed(db) -> None:
                 id=100,
                 departamento_id=depto_a.id,
                 periodo="2026-05",
-                monto=85000.00,
-                fecha_vencimiento=date(2026, 7, 10),
+                monto_primer_vencimiento=85000.00,
+                fecha_primer_vencimiento=date(2026, 7, 10),
+                monto_segundo_vencimiento=round(85000.00 * 1.07, 2),
+                fecha_segundo_vencimiento=date(2026, 7, 10) + timedelta(days=10),
+                saldo_anterior=0.0,
             ),
             Expensa(
                 id=101,
                 departamento_id=depto_b.id,
                 periodo="2026-05",
-                monto=92000.00,
-                fecha_vencimiento=date(2026, 7, 10),
+                monto_primer_vencimiento=92000.00,
+                fecha_primer_vencimiento=date(2026, 7, 10),
+                monto_segundo_vencimiento=round(92000.00 * 1.07, 2),
+                fecha_segundo_vencimiento=date(2026, 7, 10) + timedelta(days=10),
+                saldo_anterior=0.0,
             ),
             MovimientoCuenta(
                 id=1100,
