@@ -251,10 +251,57 @@ class Expensa(Base):
         index=True,
     )
     periodo: Mapped[str] = mapped_column(String(7), nullable=False)
-    monto: Mapped[float] = mapped_column(Float, nullable=False)
-    fecha_vencimiento: Mapped[date] = mapped_column(Date, nullable=False)
+
+    # renombrados desde el shape Fase 3.5:
+    monto_primer_vencimiento: Mapped[float] = mapped_column(Float, nullable=False)
+    fecha_primer_vencimiento: Mapped[date] = mapped_column(Date, nullable=False)
+
+    # nuevos en Fase 4:
+    monto_segundo_vencimiento: Mapped[float] = mapped_column(Float, nullable=False)
+    fecha_segundo_vencimiento: Mapped[date] = mapped_column(Date, nullable=False)
+    saldo_anterior: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
 
     departamento: Mapped["Departamento"] = relationship(back_populates="expensas")
+    detalle: Mapped[list["ExpensaDetalle"]] = relationship(
+        back_populates="expensa", cascade="all, delete-orphan"
+    )
+
+
+class ExpensaDetalle(Base):
+    __tablename__ = "expensa_detalle"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    expensa_id: Mapped[int] = mapped_column(
+        ForeignKey("expensas.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    rubro: Mapped[Rubro] = mapped_column(SqlEnum(Rubro, name="rubro"), nullable=False)
+    clase_prorrateo_id: Mapped[int | None] = mapped_column(
+        ForeignKey("clases_prorrateo.id", ondelete="RESTRICT"), nullable=True
+    )
+    departamento_origen_id: Mapped[int | None] = mapped_column(
+        ForeignKey("departamentos.id", ondelete="RESTRICT"), nullable=True
+    )
+    concepto: Mapped[str] = mapped_column(String(500), nullable=False)
+    monto: Mapped[float] = mapped_column(Float, nullable=False)
+
+    expensa: Mapped["Expensa"] = relationship(back_populates="detalle")
+
+
+class PeriodoCerrado(Base):
+    __tablename__ = "periodos_cerrados"
+
+    periodo: Mapped[str] = mapped_column(String(7), primary_key=True)
+    fecha_cierre: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    cerrado_por_usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="RESTRICT"), nullable=False
+    )
+    total_expensado: Mapped[float] = mapped_column(Float, nullable=False)
+    total_intereses: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    cantidad_expensas: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
 class Comprobante(Base):
@@ -405,6 +452,12 @@ class ConfiguracionConsorcio(Base):
     banco_numero_cuenta: Mapped[str] = mapped_column(String(50), nullable=False)
     banco_cbu: Mapped[str] = mapped_column(String(22), nullable=False)
     banco_alias: Mapped[str | None] = mapped_column(String(50))
+
+    # vencimientos e intereses (Fase 4)
+    dia_primer_vencimiento: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
+    dias_entre_vencimientos: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
+    recargo_segundo_vencimiento_pct: Mapped[float] = mapped_column(Float, nullable=False, default=7.0)
+    tasa_interes_mensual_pct: Mapped[float] = mapped_column(Float, nullable=False, default=3.0)
 
 
 class GastoHabitual(Base):
