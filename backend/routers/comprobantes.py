@@ -16,11 +16,15 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, require_roles
 from ..database import get_db
 from ..models import (
+    Caja,
     Comprobante,
+    ConfiguracionConsorcio,
     EstadoComprobante,
+    MovimientoCaja,
     MovimientoCuenta,
     Rol,
     TipoMovimiento,
+    TipoMovimientoCaja,
 )
 from ..schemas import ComprobanteActualizar, ComprobanteOut
 from ..storage import guardar_imagen_comprobante
@@ -132,6 +136,27 @@ def actualizar_comprobante(
 
     # Aprobar genera el ingreso contable en la cuenta corriente del depto.
     if payload.estado == EstadoComprobante.aprobado:
+        # Resolver caja destino
+        caja_destino_id = payload.caja_destino_id
+        if caja_destino_id is None:
+            cfg = db.get(ConfiguracionConsorcio, 1)
+            caja_destino_id = cfg.caja_default_pagos_id if cfg else None
+        if caja_destino_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Debe indicar caja_destino_id (no hay default configurada)."
+            )
+        caja_dst = db.get(Caja, caja_destino_id)
+        if caja_dst is None or not caja_dst.activa:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Caja destino inválida o inactiva."
+            )
+
+        # Persistir en el comprobante
+        comprobante.caja_destino_id = caja_destino_id
+
+        # Generar MovimientoCuenta ingreso
         db.add(
             MovimientoCuenta(
                 departamento_id=comprobante.departamento_id,
@@ -139,6 +164,18 @@ def actualizar_comprobante(
                 tipo=TipoMovimiento.pago_recibido,
                 descripcion=f"Pago comprobante #{comprobante.id}",
                 monto=comprobante.monto,
+                comprobante_id=comprobante.id,
+            )
+        )
+
+        # Generar MovimientoCaja ingreso
+        db.add(
+            MovimientoCaja(
+                caja_id=caja_destino_id,
+                fecha=comprobante.fecha_pago,
+                tipo=TipoMovimientoCaja.ingreso,
+                monto=comprobante.monto,
+                descripcion=f"Pago comprobante #{comprobante.id}",
                 comprobante_id=comprobante.id,
             )
         )
