@@ -3,6 +3,7 @@ import { listarMisMovimientos } from "../api/movimientos";
 import { listarExpensas } from "../api/expensas";
 import { presentarComprobante } from "../api/comprobantes";
 import Modal from "../components/Modal";
+import ModalPresentarPago from "../components/ModalPresentarPago";
 import Tarjeta from "../components/Tarjeta";
 
 const TIPO_LABEL = {
@@ -38,7 +39,7 @@ export default function MiCuenta() {
   const [data, setData] = useState(null);
   const [expensas, setExpensas] = useState([]);
   const [error, setError] = useState(null);
-  const [showModal, setShowModal] = useState(false);
+  const [modalPago, setModalPago] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
 
   async function cargar() {
@@ -96,7 +97,7 @@ export default function MiCuenta() {
     <main className="pantalla">
       <header className="pantalla-encabezado">
         <h1>Mi cuenta</h1>
-        <button type="button" onClick={() => setShowModal(true)}>
+        <button type="button" onClick={() => setModalPago("sin-expensa")}>
           + Presentar pago
         </button>
       </header>
@@ -150,6 +151,13 @@ export default function MiCuenta() {
               Después del {proximaExpensa.fecha_segundo_vencimiento}: se acumulan
               intereses mensuales.
             </p>
+            <button
+              type="button"
+              onClick={() => setModalPago(proximaExpensa)}
+              style={{ marginTop: "1rem" }}
+            >
+              Presentar pago
+            </button>
           </Tarjeta>
         ) : null;
       })()}
@@ -185,23 +193,36 @@ export default function MiCuenta() {
         )}
       </section>
 
-      {showModal && (
+      {modalPago && typeof modalPago === "object" ? (
         <ModalPresentarPago
-          onClose={() => setShowModal(false)}
+          expensa={modalPago}
+          onClose={() => setModalPago(null)}
           onDone={() => {
-            setShowModal(false);
+            setModalPago(null);
+            setSuccessMsg(
+              "Comprobante enviado. Va a quedar pendiente hasta que administración lo apruebe.",
+            );
+            cargar();
+            cargarExpensas();
+          }}
+        />
+      ) : modalPago === "sin-expensa" ? (
+        <ModalPresentarPagoGenerico
+          onClose={() => setModalPago(null)}
+          onDone={() => {
+            setModalPago(null);
             setSuccessMsg(
               "Comprobante enviado. Va a quedar pendiente hasta que administración lo apruebe.",
             );
             cargar();
           }}
         />
-      )}
+      ) : null}
     </main>
   );
 }
 
-function ModalPresentarPago({ onClose, onDone }) {
+function ModalPresentarPagoGenerico({ onClose, onDone }) {
   const [fechaPago, setFechaPago] = useState(
     new Date().toISOString().slice(0, 10),
   );

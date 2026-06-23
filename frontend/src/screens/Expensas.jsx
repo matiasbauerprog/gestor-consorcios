@@ -5,6 +5,7 @@ import { listarExpensas, crearExpensa, eliminarExpensa } from "../api/expensas";
 import { listarDepartamentos } from "../api/departamentos";
 import Modal from "../components/Modal";
 import ModalDesgloseExpensa from "../components/ModalDesgloseExpensa";
+import ModalComprobantesExpensa from "../components/ModalComprobantesExpensa";
 import SelectorDepartamento from "../components/SelectorDepartamento";
 import BadgeEstado from "../components/BadgeEstado";
 import Tarjeta from "../components/Tarjeta";
@@ -17,7 +18,7 @@ function formatearMonto(v) {
   });
 }
 
-function TarjetaExpensa({ expensa, esAdmin, depto, onEliminar, onVerDesglose }) {
+function TarjetaExpensa({ expensa, esAdmin, depto, onEliminar, onVerDesglose, onVerComprobantes }) {
   return (
     <Tarjeta>
       <h3>
@@ -56,6 +57,13 @@ function TarjetaExpensa({ expensa, esAdmin, depto, onEliminar, onVerDesglose }) 
               Ver desglose
             </button>
           )}
+          <button
+            type="button"
+            className="boton-secundario"
+            onClick={() => onVerComprobantes(expensa)}
+          >
+            Ver comprobantes
+          </button>
           {esAdmin && (
             <button
               type="button"
@@ -80,6 +88,7 @@ export default function Expensas() {
   const [modalCrearAbierto, setModalCrearAbierto] = useState(false);
   const [modalEliminar, setModalEliminar] = useState(null);
   const [modalDesglose, setModalDesglose] = useState(null);
+  const [modalComprobantes, setModalComprobantes] = useState(null);
   const [errorAccion, setErrorAccion] = useState(null);
   const [eliminando, setEliminando] = useState(false);
   const [departamentos, setDepartamentos] = useState([]);
@@ -206,6 +215,7 @@ export default function Expensas() {
               depto={deptoById[e.departamento_id]}
               onEliminar={setModalEliminar}
               onVerDesglose={setModalDesglose}
+              onVerComprobantes={setModalComprobantes}
             />
           </li>
         ))}
@@ -262,6 +272,13 @@ export default function Expensas() {
         <ModalDesgloseExpensa
           expensa={modalDesglose}
           onClose={() => setModalDesglose(null)}
+        />
+      )}
+
+      {modalComprobantes && (
+        <ModalComprobantesExpensa
+          expensa={modalComprobantes}
+          onClose={() => setModalComprobantes(null)}
         />
       )}
     </main>
