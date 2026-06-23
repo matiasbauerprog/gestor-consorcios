@@ -14,9 +14,11 @@ from .models import (
     FormaPago,
     Rol,
     Rubro,
+    TipoCaja,
     TipoConcepto,
     TipoHaber,
     TipoMovimiento,
+    TipoMovimientoCaja,
 )
 
 
@@ -136,6 +138,7 @@ class ExpensaCrear(BaseModel):
 
 class ComprobanteActualizar(BaseModel):
     estado: Literal[EstadoComprobante.aprobado, EstadoComprobante.rechazado]
+    caja_destino_id: int | None = None
 
 
 class ComprobanteOut(BaseModel):
@@ -360,6 +363,9 @@ class ConfiguracionConsorcioActualizar(BaseModel):
     recargo_segundo_vencimiento_pct: float = Field(..., ge=0)
     tasa_interes_mensual_pct: float = Field(..., ge=0)
 
+    # cajas (Fase 5)
+    caja_default_pagos_id: int | None = None
+
 
 class ConfiguracionConsorcioOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -386,6 +392,7 @@ class ConfiguracionConsorcioOut(BaseModel):
     dias_entre_vencimientos: int
     recargo_segundo_vencimiento_pct: float
     tasa_interes_mensual_pct: float
+    caja_default_pagos_id: int | None
 
 
 class CoeficienteItem(BaseModel):
@@ -419,6 +426,7 @@ class GastoHabitualCrear(BaseModel):
     concepto: str = Field(..., min_length=1, max_length=500)
     monto: float = Field(..., gt=0)
     forma_pago: FormaPago
+    caja_id: int
 
 
 class GastoHabitualActualizar(BaseModel):
@@ -429,6 +437,7 @@ class GastoHabitualActualizar(BaseModel):
     concepto: str | None = Field(default=None, min_length=1, max_length=500)
     monto: float | None = Field(default=None, gt=0)
     forma_pago: FormaPago | None = None
+    caja_id: int | None = None
     activa: bool | None = None
 
 
@@ -458,6 +467,7 @@ class GastoCrear(BaseModel):
     concepto: str = Field(..., min_length=1, max_length=500)
     monto: float = Field(..., gt=0)
     forma_pago: FormaPago
+    caja_id: int
     fecha_pago: date
     numero_factura: str | None = Field(default=None, max_length=50)
     fecha_factura: date | None = None
@@ -497,6 +507,7 @@ class GastoActualizar(BaseModel):
     concepto: str | None = Field(default=None, min_length=1, max_length=500)
     monto: float | None = Field(default=None, gt=0)
     forma_pago: FormaPago | None = None
+    caja_id: int | None = None
     fecha_pago: date | None = None
     numero_factura: str | None = Field(default=None, max_length=50)
     fecha_factura: date | None = None
@@ -536,6 +547,7 @@ class PlanCuotasCrear(BaseModel):
     concepto: str = Field(..., min_length=1, max_length=500)
     monto: float = Field(..., gt=0)
     forma_pago: FormaPago
+    caja_id: int
     fecha_pago: date
     numero_factura: str | None = Field(default=None, max_length=50)
     fecha_factura: date | None = None
@@ -665,11 +677,13 @@ class LiquidacionHaberAdHoc(BaseModel):
 class LiquidacionEmpleadoCrear(BaseModel):
     empleado_id: int = Field(..., gt=0)
     periodo: str = Field(..., pattern=_PERIODO_PATTERN_GASTO)
+    caja_id: int
     haberes: list[LiquidacionHaberItem] = Field(default_factory=list)
     haberes_ad_hoc: list[LiquidacionHaberAdHoc] = Field(default_factory=list)
 
 
 class LiquidacionEmpleadoActualizar(BaseModel):
+    caja_id: int | None = None
     haberes: list[LiquidacionHaberItem] = Field(default_factory=list)
     haberes_ad_hoc: list[LiquidacionHaberAdHoc] = Field(default_factory=list)
 
@@ -802,3 +816,76 @@ class PeriodoCerradoOut(BaseModel):
     total_expensado: float
     total_intereses: float
     cantidad_expensas: int
+
+
+# === Cajas (Fase 5) ===
+
+class CajaCrear(BaseModel):
+    nombre: str = Field(..., min_length=1, max_length=100)
+    tipo: TipoCaja
+    descripcion: str | None = Field(None, max_length=500)
+    saldo_inicial: float = Field(default=0.0)
+    activa: bool = Field(default=True)
+
+
+class CajaActualizar(BaseModel):
+    nombre: str | None = Field(None, min_length=1, max_length=100)
+    descripcion: str | None = Field(None, max_length=500)
+    activa: bool | None = None
+
+
+class CajaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nombre: str
+    tipo: TipoCaja
+    descripcion: str | None
+    saldo_inicial: float
+    saldo_actual: float  # calculado en el router
+    activa: bool
+
+
+class AjusteCrear(BaseModel):
+    fecha: date
+    monto: float = Field(..., description="Positivo o negativo. Suma/resta al saldo.")
+    descripcion: str = Field(..., min_length=5, max_length=500)
+
+
+class MovimientoCajaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    caja_id: int
+    fecha: date
+    tipo: TipoMovimientoCaja
+    monto: float
+    descripcion: str
+    gasto_id: int | None
+    comprobante_id: int | None
+    transferencia_id: int | None
+
+
+class TransferenciaCajaCrear(BaseModel):
+    caja_origen_id: int
+    caja_destino_id: int
+    monto: float = Field(..., gt=0)
+    fecha: date
+    descripcion: str = Field(..., min_length=1, max_length=500)
+
+
+class TransferenciaCajaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    caja_origen_id: int
+    caja_destino_id: int
+    monto: float
+    fecha: date
+    descripcion: str
+
+
+class EstadoFinancieroOut(BaseModel):
+    cajas: list[CajaOut]
+    total: float
+    ultimos_movimientos: list[MovimientoCajaOut]

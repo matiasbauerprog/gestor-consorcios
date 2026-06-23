@@ -9,6 +9,7 @@ from backend.cierre import (
     calcular_preview_cierre,
 )
 from backend.models import (
+    Caja,
     ClaseProrrateo,
     CoeficienteDepartamento,
     ConfiguracionConsorcio,
@@ -19,6 +20,7 @@ from backend.models import (
     MovimientoCuenta,
     Proveedor,
     Rubro,
+    TipoCaja,
     TipoMovimiento,
 )
 
@@ -34,6 +36,14 @@ def db(db_empty: Session) -> Session:
     """DB limpia con deptos 1 y 2 y ConfiguracionConsorcio mínima."""
     db_empty.add(Departamento(id=1, codigo="UF-1A", descripcion="Depto A"))
     db_empty.add(Departamento(id=2, codigo="UF-2B", descripcion="Depto B"))
+    # Fase 5: Caja default para tests
+    db_empty.add(Caja(
+        id=900,
+        nombre="Banco Test",
+        tipo=TipoCaja.banco,
+        saldo_inicial=0.0,
+        activa=True,
+    ))
     db_empty.add(ConfiguracionConsorcio(
         id=1,
         consorcio_nombre="Consorcio Test",
@@ -55,6 +65,7 @@ def db(db_empty: Session) -> Session:
         dias_entre_vencimientos=10,
         recargo_segundo_vencimiento_pct=7.0,
         tasa_interes_mensual_pct=3.0,
+        caja_default_pagos_id=900,  # Fase 5: caja default
     ))
     db_empty.commit()
     return db_empty
@@ -83,7 +94,8 @@ def _gasto(periodo, monto, proveedor_id, *, clase_id=None, depto_id=None, rubro=
         periodo=periodo, monto=monto, rubro=rubro,
         clase_prorrateo_id=clase_id, departamento_id=depto_id,
         proveedor_id=proveedor_id, concepto=concepto,
-        forma_pago=FormaPago.efectivo, fecha_pago=date(2026, 5, 15),
+        forma_pago=FormaPago.efectivo, caja_id=900,  # Fase 5: caja default
+        fecha_pago=date(2026, 5, 15),
     )
 
 

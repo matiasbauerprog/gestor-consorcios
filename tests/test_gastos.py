@@ -10,6 +10,7 @@ _GASTO_VALIDO = {
     "concepto": "Agua AYSA",
     "monto": 30000,
     "forma_pago": "transferencia",
+    "caja_id": 900,  # Fase 5: caja default
     "fecha_pago": "2026-06-15",
 }
 
@@ -212,6 +213,7 @@ _PLAN_VALIDO = {
     "concepto": "Seguro anual",
     "monto": 50000,
     "forma_pago": "transferencia",
+    "caja_id": 900,  # Fase 5: caja default
     "fecha_pago": "2026-06-10",
     "cuota_total": 3,
 }
@@ -402,3 +404,49 @@ def test_cargar_habituales_periodo_cerrado_409(client, headers_admin):
     )
     assert r.status_code == 409
     assert "cerrado" in r.json()["detail"].lower()
+
+
+# ---------------------------------------------------------------------------
+# Integración Cajas — Task 8
+# ---------------------------------------------------------------------------
+
+
+def test_crear_gasto_caja_inexistente_404(client, headers_admin):
+    """POST /gastos con caja_id inexistente devuelve 404."""
+    payload = dict(_GASTO_VALIDO, caja_id=99999)
+    r = client.post("/gastos", json=payload, headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_crear_gasto_genera_movimiento_caja(client, headers_admin, db_session):
+    """POST /gastos crea un MovimientoCaja egreso asociado."""
+    from backend.models import MovimientoCaja
+    r = client.post("/gastos", json=_GASTO_VALIDO, headers=headers_admin)
+    assert r.status_code == 201
+    gasto_id = r.json()["id"]
+    movs = db_session.query(MovimientoCaja).filter_by(gasto_id=gasto_id).all()
+    assert len(movs) == 1
+    assert movs[0].tipo.value == "egreso"
+    assert movs[0].monto == r.json()["monto"]
+
+
+def test_patch_gasto_recrea_movimiento(client, headers_admin, db_session):
+    """PATCH /gastos/{id} recrea el MovimientoCaja con valores actualizados."""
+    from backend.models import MovimientoCaja
+    r = client.post("/gastos", json=_GASTO_VALIDO, headers=headers_admin).json()
+    gasto_id = r["id"]
+    nuevo_monto = r["monto"] + 100
+    client.patch(f"/gastos/{gasto_id}", json={"monto": nuevo_monto}, headers=headers_admin)
+    movs = db_session.query(MovimientoCaja).filter_by(gasto_id=gasto_id).all()
+    assert len(movs) == 1
+    assert movs[0].monto == nuevo_monto
+
+
+def test_delete_gasto_borra_movimiento(client, headers_admin, db_session):
+    """DELETE /gastos/{id} elimina el MovimientoCaja asociado."""
+    from backend.models import MovimientoCaja
+    r = client.post("/gastos", json=_GASTO_VALIDO, headers=headers_admin).json()
+    gasto_id = r["id"]
+    client.delete(f"/gastos/{gasto_id}", headers=headers_admin)
+    movs = db_session.query(MovimientoCaja).filter_by(gasto_id=gasto_id).all()
+    assert len(movs) == 0

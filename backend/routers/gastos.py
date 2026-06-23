@@ -7,14 +7,17 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, require_roles
 from ..database import get_db
 from ..models import (
+    Caja,
     ClaseProrrateo,
     Departamento,
     Gasto,
     GastoHabitual,
+    MovimientoCaja,
     PeriodoCerrado,
     Proveedor,
     Rol,
     Rubro,
+    TipoMovimientoCaja,
 )
 from ..schemas import (
     CargarHabitualesIn,
@@ -86,6 +89,37 @@ def _bloquear_si_periodo_cerrado(db: Session, periodo: str) -> None:
         )
 
 
+def _validar_caja_activa(db: Session, caja_id: int) -> Caja:
+    """Valida que la caja exista y esté activa."""
+    caja = db.get(Caja, caja_id)
+    if caja is None:
+        raise HTTPException(404, f"Caja {caja_id} no encontrada.")
+    if not caja.activa:
+        raise HTTPException(400, f"La caja '{caja.nombre}' está inactiva.")
+    return caja
+
+
+def _crear_movimiento_para_gasto(db: Session, gasto: Gasto) -> None:
+    """Crea el MovimientoCaja egreso asociado a un Gasto."""
+    db.add(MovimientoCaja(
+        caja_id=gasto.caja_id,
+        fecha=gasto.fecha_pago,
+        tipo=TipoMovimientoCaja.egreso,
+        monto=gasto.monto,
+        descripcion=gasto.concepto or f"Gasto {gasto.id}",
+        gasto_id=gasto.id,
+    ))
+
+
+def _borrar_movimiento_de_gasto(db: Session, gasto_id: int) -> None:
+    """Borra el/los MovimientoCaja asociados a un Gasto (si existen)."""
+    movs = db.scalars(
+        select(MovimientoCaja).where(MovimientoCaja.gasto_id == gasto_id)
+    ).all()
+    for m in movs:
+        db.delete(m)
+
+
 @router.get(
     "",
     response_model=list[GastoOut],
@@ -133,6 +167,7 @@ def crear_gasto(
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
 ) -> Gasto:
     _bloquear_si_periodo_cerrado(db, payload.periodo)
+    _validar_caja_activa(db, payload.caja_id)
     _validar_referencias(
         db,
         payload.clase_prorrateo_id,
@@ -149,6 +184,7 @@ def crear_gasto(
         concepto=payload.concepto,
         monto=payload.monto,
         forma_pago=payload.forma_pago,
+        caja_id=payload.caja_id,
         fecha_pago=payload.fecha_pago,
         numero_factura=payload.numero_factura,
         fecha_factura=payload.fecha_factura,
@@ -156,6 +192,8 @@ def crear_gasto(
         cuota_total=payload.cuota_total,
     )
     db.add(gasto)
+    db.flush()
+    _crear_movimiento_para_gasto(db, gasto)
     db.commit()
     db.refresh(gasto)
     return gasto
@@ -208,6 +246,10 @@ def actualizar_gasto(
     if "periodo" in cambios:
         _bloquear_si_periodo_cerrado(db, cambios["periodo"])
 
+    # Validar caja si cambia
+    if payload.caja_id is not None:
+        _validar_caja_activa(db, payload.caja_id)
+
     # Validar excluyencia clase/depto si alguno cambia.
     nueva_clase = cambios.get("clase_prorrateo_id", gasto.clase_prorrateo_id)
     nuevo_depto = cambios.get("departamento_id", gasto.departamento_id)
@@ -242,6 +284,9 @@ def actualizar_gasto(
     for campo, valor in cambios.items():
         setattr(gasto, campo, valor)
 
+    _borrar_movimiento_de_gasto(db, gasto.id)
+    _crear_movimiento_para_gasto(db, gasto)
+
     db.commit()
     db.refresh(gasto)
     return gasto
@@ -264,6 +309,7 @@ def eliminar_gasto(
             detail="El gasto solicitado no existe.",
         )
     _bloquear_si_periodo_cerrado(db, gasto.periodo)
+    _borrar_movimiento_de_gasto(db, gasto_id)
     db.delete(gasto)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -282,6 +328,9 @@ def crear_plan_cuotas(
 ) -> list[Gasto]:
     # Bloquear si el período inicial está cerrado
     _bloquear_si_periodo_cerrado(db, payload.periodo)
+
+    # Validar caja una sola vez
+    _validar_caja_activa(db, payload.caja_id)
 
     _validar_referencias(
         db,
@@ -304,6 +353,7 @@ def crear_plan_cuotas(
             concepto=payload.concepto,
             monto=payload.monto,
             forma_pago=payload.forma_pago,
+            caja_id=payload.caja_id,
             fecha_pago=fecha_actual,
             numero_factura=payload.numero_factura,
             fecha_factura=payload.fecha_factura,
@@ -313,6 +363,8 @@ def crear_plan_cuotas(
         # Bloquear si alguno de los períodos consecutivos está cerrado
         _bloquear_si_periodo_cerrado(db, periodo_actual)
         db.add(gasto)
+        db.flush()
+        _crear_movimiento_para_gasto(db, gasto)
         gastos.append(gasto)
 
         periodo_actual = _sumar_un_mes(periodo_actual)
@@ -368,10 +420,13 @@ def cargar_habituales(
             concepto=plantilla.concepto,
             monto=plantilla.monto,
             forma_pago=plantilla.forma_pago,
+            caja_id=plantilla.caja_id,
             fecha_pago=fecha_pago_default,
             gasto_habitual_id=plantilla.id,
         )
         db.add(gasto)
+        db.flush()
+        _crear_movimiento_para_gasto(db, gasto)
         nuevos.append(gasto)
 
     db.commit()

@@ -27,6 +27,7 @@ from datetime import date, datetime, timedelta  # noqa: E402
 
 from backend.models import (  # noqa: E402
     Amenity,
+    Caja,
     CategoriaEmpleado,
     ClaseProrrateo,
     Comunicado,
@@ -50,6 +51,7 @@ from backend.models import (  # noqa: E402
     Reserva,
     Rol,
     Rubro,
+    TipoCaja,
     TipoConcepto,
     TipoHaber,
     TipoMovimiento,
@@ -112,6 +114,17 @@ def _seed(db) -> None:
     depto_a = Departamento(id=1, codigo="UF-1A", descripcion="Depto A")
     depto_b = Departamento(id=2, codigo="UF-2B", descripcion="Depto B")
     db.add_all([depto_a, depto_b])
+    db.flush()
+
+    # Fase 5: caja default para tests (id=900)
+    caja_seed = Caja(
+        id=900,
+        nombre="Banco Test",
+        tipo=TipoCaja.banco,
+        saldo_inicial=0.0,
+        activa=True,
+    )
+    db.add(caja_seed)
     db.flush()
 
     admin = Usuario(
@@ -253,6 +266,7 @@ def _seed(db) -> None:
                 banco_numero_cuenta="000-1234567/8",
                 banco_cbu="0000000000000000000000",
                 banco_alias=None,
+                caja_default_pagos_id=900,  # Fase 5: caja default
             ),
             # Fase 2: plantilla habitual de ejemplo (id=700)
             GastoHabitual(
@@ -264,6 +278,7 @@ def _seed(db) -> None:
                 concepto="Servicio mensual de prueba",
                 monto=10000.0,
                 forma_pago=FormaPago.transferencia,
+                caja_id=900,  # Fase 5: caja default
                 activa=True,
             ),
             # Fase 2: gasto puntual de ejemplo (id=800), prorrateable por clase A
@@ -277,6 +292,7 @@ def _seed(db) -> None:
                 concepto="Luz pasillos",
                 monto=15000.0,
                 forma_pago=FormaPago.transferencia,
+                caja_id=900,  # Fase 5: caja default
                 fecha_pago=date(2026, 6, 10),
                 numero_factura=None,
                 fecha_factura=None,
@@ -302,6 +318,7 @@ def _seed(db) -> None:
                 empleado_id=900,
                 periodo="2025-01",
                 sueldo_bruto=1000000.0,
+                caja_id=900,  # Fase 5: caja default
             ),
             # Fase 3: dos haberes mínimos
             Haber(

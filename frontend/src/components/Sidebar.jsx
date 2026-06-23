@@ -42,6 +42,26 @@ const SECCIONES = [
     ],
   },
   {
+    titulo: "Tesorería",
+    modulos: [
+      {
+        ruta: "/estado-financiero",
+        nombre: "Estado financiero",
+        rolesPermitidos: ["administracion"],
+      },
+      {
+        ruta: "/cajas",
+        nombre: "Cajas",
+        rolesPermitidos: ["administracion"],
+      },
+      {
+        ruta: "/transferencias",
+        nombre: "Transferencias",
+        rolesPermitidos: ["administracion"],
+      },
+    ],
+  },
+  {
     titulo: "Sueldos",
     modulos: [
       {

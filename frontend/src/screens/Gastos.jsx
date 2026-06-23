@@ -14,6 +14,7 @@ import { listarClasesProrrateo } from "../api/clasesProrrateo";
 import { listarProveedores } from "../api/proveedores";
 import { listarDepartamentos } from "../api/departamentos";
 import { listarPeriodos } from "../api/periodos";
+import { listarCajas } from "../api/cajas";
 
 const RUBROS = [
   { value: "sueldos_y_cargas_sociales", label: "Sueldos y cargas sociales" },
@@ -50,6 +51,7 @@ export default function Gastos() {
   const [clases, setClases] = useState([]);
   const [proveedores, setProveedores] = useState([]);
   const [departamentos, setDepartamentos] = useState([]);
+  const [cajas, setCajas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
   const [modal, setModal] = useState(null);
@@ -64,14 +66,16 @@ export default function Gastos() {
   });
 
   async function cargarCatalogos() {
-    const [rClases, rProv, rDeptos] = await Promise.all([
+    const [rClases, rProv, rDeptos, rCajas] = await Promise.all([
       listarClasesProrrateo({ activa: true }),
       listarProveedores({ activo: true }),
       listarDepartamentos(),
+      listarCajas(),
     ]);
     if (rClases.status === 200) setClases(rClases.data);
     if (rProv.status === 200) setProveedores(rProv.data);
     if (rDeptos.status === 200) setDepartamentos(rDeptos.data);
+    if (rCajas.status === 200) setCajas(rCajas.data);
   }
 
   async function recargar() {
@@ -146,6 +150,10 @@ export default function Gastos() {
   function deptoPorId(id) {
     const d = departamentos.find((x) => x.id === id);
     return d ? d.codigo : "—";
+  }
+
+  function cajaPorId(id) {
+    return cajas.find((c) => c.id === id)?.nombre || "—";
   }
 
   return (
@@ -233,6 +241,7 @@ export default function Gastos() {
                 {g.cuota_actual && <> · Cuota {g.cuota_actual}/{g.cuota_total}</>}
                 {g.gasto_habitual_id && <> · Recurrente</>}
               </p>
+              <p className="meta">Caja: {cajaPorId(g.caja_id)}</p>
               <div className="tarjeta-acciones">
                 {cerrados.has(g.periodo) ? (
                   <span title="Período cerrado — no editable">🔒</span>
@@ -259,6 +268,7 @@ export default function Gastos() {
           clases={clases}
           proveedores={proveedores}
           departamentos={departamentos}
+          cajas={cajas}
           onCerrar={() => setModal(null)}
           onGuardado={() => {
             setModal(null);
@@ -270,7 +280,7 @@ export default function Gastos() {
   );
 }
 
-function ModalGasto({ tipo, gastoInicial, clases, proveedores, departamentos, onCerrar, onGuardado }) {
+function ModalGasto({ tipo, gastoInicial, clases, proveedores, departamentos, cajas, onCerrar, onGuardado }) {
   const esEditar = tipo === "editar";
   const inicial = gastoInicial
     ? {
@@ -290,6 +300,7 @@ function ModalGasto({ tipo, gastoInicial, clases, proveedores, departamentos, on
         cuota_total: gastoInicial.cuota_total ?? "",
         es_plan: false,
         cuota_total_plan: "",
+        caja_id: gastoInicial.caja_id || "",
       }
     : {
         periodo: "",
@@ -308,6 +319,7 @@ function ModalGasto({ tipo, gastoInicial, clases, proveedores, departamentos, on
         cuota_total: "",
         es_plan: false,
         cuota_total_plan: "",
+        caja_id: cajas[0]?.id ?? "",
       };
 
   const [form, setForm] = useState(inicial);
@@ -335,6 +347,7 @@ function ModalGasto({ tipo, gastoInicial, clases, proveedores, departamentos, on
       fecha_pago: form.fecha_pago,
       numero_factura: form.numero_factura || null,
       fecha_factura: form.fecha_factura || null,
+      caja_id: Number(form.caja_id),
     };
 
     let r;
@@ -426,6 +439,12 @@ function ModalGasto({ tipo, gastoInicial, clases, proveedores, departamentos, on
 
           <label>Monto <input type="number" min="0.01" step="0.01"
             value={form.monto} onChange={(e) => set("monto", e.target.value)} required /></label>
+
+          <label>Caja origen <select value={form.caja_id}
+            onChange={(e) => set("caja_id", e.target.value ? Number(e.target.value) : "")} required>
+            <option value="">— Elegí una —</option>
+            {cajas.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+          </select></label>
 
           <label>Forma de pago <select value={form.forma_pago}
             onChange={(e) => set("forma_pago", e.target.value)} required>

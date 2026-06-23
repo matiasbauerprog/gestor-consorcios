@@ -91,6 +91,19 @@ class Rubro(str, enum.Enum):
     gastos_generales = "gastos_generales"
 
 
+class TipoCaja(str, enum.Enum):
+    efectivo = "efectivo"
+    banco = "banco"
+    fondo_reparacion = "fondo_reparacion"
+    otro = "otro"
+
+
+class TipoMovimientoCaja(str, enum.Enum):
+    ingreso = "ingreso"
+    egreso = "egreso"
+    ajuste = "ajuste"
+
+
 class FormaPago(str, enum.Enum):
     transferencia = "transferencia"
     debito_automatico = "debito_automatico"
@@ -331,6 +344,7 @@ class Comprobante(Base):
     eliminado_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=None
     )
+    caja_destino_id: Mapped[int | None] = mapped_column(ForeignKey("cajas.id"))
 
     departamento: Mapped["Departamento"] = relationship(back_populates="comprobantes")
 
@@ -462,6 +476,7 @@ class ConfiguracionConsorcio(Base):
     dias_entre_vencimientos: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
     recargo_segundo_vencimiento_pct: Mapped[float] = mapped_column(Float, nullable=False, default=7.0)
     tasa_interes_mensual_pct: Mapped[float] = mapped_column(Float, nullable=False, default=3.0)
+    caja_default_pagos_id: Mapped[int | None] = mapped_column(ForeignKey("cajas.id"))
 
 
 class GastoHabitual(Base):
@@ -480,6 +495,9 @@ class GastoHabitual(Base):
     monto: Mapped[float] = mapped_column(Float, nullable=False)
     forma_pago: Mapped[FormaPago] = mapped_column(
         SqlEnum(FormaPago, name="forma_pago"), nullable=False
+    )
+    caja_id: Mapped[int] = mapped_column(
+        ForeignKey("cajas.id"), nullable=False
     )
     activa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     fecha_creacion: Mapped[datetime] = mapped_column(
@@ -511,6 +529,9 @@ class Gasto(Base):
 
     forma_pago: Mapped[FormaPago] = mapped_column(
         SqlEnum(FormaPago, name="forma_pago"), nullable=False
+    )
+    caja_id: Mapped[int] = mapped_column(
+        ForeignKey("cajas.id"), nullable=False
     )
     fecha_pago: Mapped[date] = mapped_column(Date, nullable=False)
 
@@ -591,6 +612,9 @@ class LiquidacionEmpleado(Base):
     )
     periodo: Mapped[str] = mapped_column(String(7), nullable=False, index=True)
     sueldo_bruto: Mapped[float] = mapped_column(Float, nullable=False)
+    caja_id: Mapped[int] = mapped_column(
+        ForeignKey("cajas.id"), nullable=False
+    )
     fecha_creacion: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -680,3 +704,66 @@ class MovimientoCuenta(Base):
     departamento: Mapped["Departamento"] = relationship(back_populates="movimientos_cuenta")
     expensa: Mapped["Expensa | None"] = relationship()
     comprobante: Mapped["Comprobante | None"] = relationship()
+
+
+class Caja(Base):
+    __tablename__ = "cajas"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nombre: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    tipo: Mapped[TipoCaja] = mapped_column(
+        SqlEnum(TipoCaja, name="tipo_caja"), nullable=False
+    )
+    descripcion: Mapped[str | None] = mapped_column(String(500))
+    saldo_inicial: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    activa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    movimientos: Mapped[list["MovimientoCaja"]] = relationship(back_populates="caja")
+
+
+class MovimientoCaja(Base):
+    __tablename__ = "movimientos_caja"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    caja_id: Mapped[int] = mapped_column(
+        ForeignKey("cajas.id", ondelete="RESTRICT"), nullable=False
+    )
+    fecha: Mapped[date] = mapped_column(Date, nullable=False)
+    tipo: Mapped[TipoMovimientoCaja] = mapped_column(
+        SqlEnum(TipoMovimientoCaja, name="tipo_movimiento_caja"), nullable=False
+    )
+    monto: Mapped[float] = mapped_column(Float, nullable=False)
+    descripcion: Mapped[str] = mapped_column(String(500), nullable=False)
+
+    gasto_id: Mapped[int | None] = mapped_column(ForeignKey("gastos.id"))
+    comprobante_id: Mapped[int | None] = mapped_column(ForeignKey("comprobantes.id"))
+    transferencia_id: Mapped[int | None] = mapped_column(
+        ForeignKey("transferencias_caja.id")
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    caja: Mapped["Caja"] = relationship(back_populates="movimientos")
+
+
+class TransferenciaCaja(Base):
+    __tablename__ = "transferencias_caja"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    caja_origen_id: Mapped[int] = mapped_column(
+        ForeignKey("cajas.id"), nullable=False
+    )
+    caja_destino_id: Mapped[int] = mapped_column(
+        ForeignKey("cajas.id"), nullable=False
+    )
+    monto: Mapped[float] = mapped_column(Float, nullable=False)
+    fecha: Mapped[date] = mapped_column(Date, nullable=False)
+    descripcion: Mapped[str] = mapped_column(String(500), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )

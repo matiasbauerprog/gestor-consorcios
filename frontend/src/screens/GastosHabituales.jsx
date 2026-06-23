@@ -9,6 +9,7 @@ import {
 } from "../api/gastosHabituales";
 import { listarClasesProrrateo } from "../api/clasesProrrateo";
 import { listarProveedores } from "../api/proveedores";
+import { listarCajas } from "../api/cajas";
 
 const RUBROS = [
   { value: "sueldos_y_cargas_sociales", label: "Sueldos y cargas sociales" },
@@ -43,18 +44,21 @@ export default function GastosHabituales() {
   const [habituales, setHabituales] = useState([]);
   const [clases, setClases] = useState([]);
   const [proveedores, setProveedores] = useState([]);
+  const [cajas, setCajas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
   const [mostrarInactivas, setMostrarInactivas] = useState(false);
   const [modal, setModal] = useState(null);
 
   async function cargarCatalogos() {
-    const [rClases, rProv] = await Promise.all([
+    const [rClases, rProv, rCajas] = await Promise.all([
       listarClasesProrrateo({ activa: true }),
       listarProveedores({ activo: true }),
+      listarCajas(),
     ]);
     if (rClases.status === 200) setClases(rClases.data);
     if (rProv.status === 200) setProveedores(rProv.data);
+    if (rCajas.status === 200) setCajas(rCajas.data);
   }
 
   async function recargar() {
@@ -99,6 +103,10 @@ export default function GastosHabituales() {
     return clases.find((c) => c.id === id)?.codigo || "—";
   }
 
+  function cajaPorId(id) {
+    return cajas.find((c) => c.id === id)?.nombre || "—";
+  }
+
   return (
     <main className="app-content">
       <header className="cabecera-pantalla">
@@ -132,6 +140,7 @@ export default function GastosHabituales() {
               <p className="meta">Rubro: {labelRubro(h.rubro)}</p>
               <p className="meta">Clase: {clasePorId(h.clase_prorrateo_id)}</p>
               <p className="meta">Proveedor: {proveedorPorId(h.proveedor_id)}</p>
+              <p className="meta">Caja: {cajaPorId(h.caja_id)}</p>
               <p className="meta">Estado: {h.activa ? "Activa" : "Inactiva"}</p>
               <div className="tarjeta-acciones">
                 <button type="button" onClick={() => setModal({ tipo: "editar", habitual: h })}>
@@ -155,6 +164,7 @@ export default function GastosHabituales() {
           inicial={modal.habitual}
           clases={clases}
           proveedores={proveedores}
+          cajas={cajas}
           onCerrar={() => setModal(null)}
           onGuardado={() => {
             setModal(null);
@@ -166,7 +176,7 @@ export default function GastosHabituales() {
   );
 }
 
-function ModalHabitual({ tipo, inicial, clases, proveedores, onCerrar, onGuardado }) {
+function ModalHabitual({ tipo, inicial, clases, proveedores, cajas, onCerrar, onGuardado }) {
   const esEditar = tipo === "editar";
   const valorInicial = inicial
     ? {
@@ -177,6 +187,7 @@ function ModalHabitual({ tipo, inicial, clases, proveedores, onCerrar, onGuardad
         concepto: inicial.concepto,
         monto: String(inicial.monto),
         forma_pago: inicial.forma_pago,
+        caja_id: inicial.caja_id || "",
       }
     : {
         nombre: "",
@@ -186,6 +197,7 @@ function ModalHabitual({ tipo, inicial, clases, proveedores, onCerrar, onGuardad
         concepto: "",
         monto: "",
         forma_pago: "transferencia",
+        caja_id: cajas[0]?.id ?? "",
       };
 
   const [form, setForm] = useState(valorInicial);
@@ -209,6 +221,7 @@ function ModalHabitual({ tipo, inicial, clases, proveedores, onCerrar, onGuardad
       concepto: form.concepto,
       monto: Number(form.monto),
       forma_pago: form.forma_pago,
+      caja_id: Number(form.caja_id),
     };
 
     const r = esEditar
@@ -251,6 +264,12 @@ function ModalHabitual({ tipo, inicial, clases, proveedores, onCerrar, onGuardad
 
           <label>Monto <input type="number" min="0.01" step="0.01"
             value={form.monto} onChange={(e) => set("monto", e.target.value)} required /></label>
+
+          <label>Caja origen <select value={form.caja_id}
+            onChange={(e) => set("caja_id", e.target.value ? Number(e.target.value) : "")} required>
+            <option value="">— Elegí una —</option>
+            {cajas.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+          </select></label>
 
           <label>Forma de pago <select value={form.forma_pago}
             onChange={(e) => set("forma_pago", e.target.value)} required>

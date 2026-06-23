@@ -30,13 +30,15 @@ def db_lista_para_cierre(db_session):
         periodo="2026-07", monto=1000, rubro=Rubro.servicios_publicos,
         clase_prorrateo_id=clase_id, departamento_id=None,
         proveedor_id=proveedor_id, concepto="Luz",
-        forma_pago=FormaPago.efectivo, fecha_pago=date(2026, 7, 10),
+        forma_pago=FormaPago.efectivo, caja_id=900,  # Fase 5: caja default
+        fecha_pago=date(2026, 7, 10),
     ))
     db_session.add(Gasto(
         periodo="2026-07", monto=500, rubro=Rubro.servicios_publicos,
         clase_prorrateo_id=None, departamento_id=1,
         proveedor_id=proveedor_id, concepto="Reparación 1A",
-        forma_pago=FormaPago.efectivo, fecha_pago=date(2026, 7, 15),
+        forma_pago=FormaPago.efectivo, caja_id=900,  # Fase 5: caja default
+        fecha_pago=date(2026, 7, 15),
     ))
     db_session.commit()
     return db_session
@@ -100,7 +102,8 @@ def test_post_gasto_periodo_cerrado_409(client, headers_admin, db_lista_para_cie
         "periodo": "2026-07", "rubro": "servicios_publicos", "concepto": "Tarde",
         "monto": 100, "proveedor_id": 600,
         "clase_prorrateo_id": 500, "departamento_id": None,
-        "forma_pago": "efectivo", "fecha_pago": "2026-07-30",
+        "forma_pago": "efectivo", "caja_id": 900,  # Fase 5: caja default
+        "fecha_pago": "2026-07-30",
     }, headers=headers_admin)
     assert r.status_code == 409
 

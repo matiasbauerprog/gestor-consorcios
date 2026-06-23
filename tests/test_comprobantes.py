@@ -498,7 +498,7 @@ def test_aprobar_comprobante_genera_movimiento_pago(client, headers_admin, heade
 
     r = client.patch(
         f"/comprobantes/{comp_id}",
-        json={"estado": "aprobado"},
+        json={"estado": "aprobado", "caja_destino_id": 900},  # Fase 5: caja default
         headers=headers_admin,
     )
     assert r.status_code == 200
@@ -537,6 +537,36 @@ def test_rechazar_comprobante_no_genera_movimiento(client, headers_admin, header
         if m["tipo"] == "pago_recibido" and m["comprobante_id"] == comp_id
     ]
     assert pagos == []
+
+
+def test_aprobar_comprobante_genera_movimiento_caja(client, headers_admin, headers_depto_a, db_session):
+    """Al aprobar, además del MovimientoCuenta también se genera un MovimientoCaja ingreso."""
+    from backend.models import MovimientoCaja
+
+    files = {"archivo": ("r.pdf", b"%PDF-1.4", "application/pdf")}
+    r = client.post(
+        "/comprobantes",
+        data={"fecha_pago": "2026-06-05", "monto": "25000"},
+        files=files,
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 201
+    comp_id = r.json()["id"]
+
+    r = client.patch(
+        f"/comprobantes/{comp_id}",
+        json={"estado": "aprobado", "caja_destino_id": 900},
+        headers=headers_admin,
+    )
+    assert r.status_code == 200
+
+    # Verificar que se creó MovimientoCaja
+    mov_caja = db_session.query(MovimientoCaja).filter_by(comprobante_id=comp_id).first()
+    assert mov_caja is not None
+    assert mov_caja.caja_id == 900
+    assert mov_caja.tipo == "ingreso"
+    assert mov_caja.monto == 25000
+    assert mov_caja.fecha == date(2026, 6, 5)
 
 
 # ---------------------------------------------------------------------------
@@ -624,7 +654,7 @@ def test_patch_comprobante_eliminado_404(client, headers_admin, headers_depto_a)
     # No se puede aprobar un comprobante soft-eliminado.
     r = client.patch(
         f"/comprobantes/{comp_id}",
-        json={"estado": "aprobado"},
+        json={"estado": "aprobado", "caja_destino_id": 900},  # Fase 5: caja default
         headers=headers_admin,
     )
     assert r.status_code == 404
