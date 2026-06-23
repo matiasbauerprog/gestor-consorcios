@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Tarjeta from "../components/Tarjeta";
 import Tabs from "../components/Tabs";
 import {
@@ -44,6 +45,7 @@ function labelRubro(value) {
 }
 
 export default function Gastos() {
+  const navigate = useNavigate();
   const [gastos, setGastos] = useState([]);
   const [clases, setClases] = useState([]);
   const [proveedores, setProveedores] = useState([]);
@@ -190,6 +192,19 @@ export default function Gastos() {
       </section>
 
       <div className="cabecera-acciones">
+        {filtros.periodo && !cerrados.has(filtros.periodo) && (
+          <button
+            type="button"
+            onClick={() => navigate(`/cierre-de-periodo?periodo=${filtros.periodo}`)}
+          >
+            🔒 Cerrar período {filtros.periodo}
+          </button>
+        )}
+        {filtros.periodo && cerrados.has(filtros.periodo) && (
+          <span className="badge-periodo-cerrado" title="Este período ya fue cerrado">
+            ⚠ Período {filtros.periodo} cerrado
+          </span>
+        )}
         <button type="button" onClick={handleCargarHabituales} disabled={!filtros.periodo}>
           Cargar gastos recurrentes del mes
         </button>
