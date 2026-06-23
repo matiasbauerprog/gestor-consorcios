@@ -37,6 +37,12 @@ tags:
     description: Cuenta corriente por departamento. Movimientos (débitos/créditos), notas y saldo.
   - name: Periodos
     description: Cierre de período y liquidación
+  - name: Cajas
+    description: Cuentas financieras del consorcio
+  - name: TransferenciasCaja
+    description: Transferencias entre cajas
+  - name: EstadoFinanciero
+    description: Dashboard de tesorería
 
 security:
   - bearerAuth: []
@@ -2347,6 +2353,176 @@ paths:
                 $ref: '#/components/schemas/PeriodoCerradoOut'
         '409': { description: Bloqueado (ya cerrado o validaciones bloqueantes) }
 
+  # =========================================================================
+  # 12. CAJAS
+  # =========================================================================
+
+  /cajas:
+    get:
+      tags: [Cajas]
+      summary: Listar cajas con saldo (admin)
+      operationId: listarCajas
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CajaOut' }
+        '401': { description: Token ausente }
+        '403': { description: Rol sin permisos }
+    post:
+      tags: [Cajas]
+      summary: Crear caja (admin)
+      operationId: crearCaja
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CajaCrear' }
+      responses:
+        '201':
+          description: Creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CajaOut' }
+        '400': { description: Nombre duplicado o payload inválido }
+
+  /cajas/{caja_id}:
+    patch:
+      tags: [Cajas]
+      summary: Editar caja (admin)
+      operationId: actualizarCaja
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: caja_id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CajaActualizar' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/CajaOut' }}}}
+        '404': { description: No encontrada }
+    delete:
+      tags: [Cajas]
+      summary: Eliminar caja (admin, solo sin movimientos)
+      operationId: eliminarCaja
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: caja_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '204': { description: Borrada }
+        '404': { description: No encontrada }
+        '409': { description: Tiene movimientos, no se puede borrar }
+
+  /cajas/{caja_id}/movimientos:
+    get:
+      tags: [Cajas]
+      summary: Listar movimientos de una caja (admin)
+      operationId: listarMovimientosCaja
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: caja_id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 100 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/MovimientoCajaOut' }
+    post:
+      tags: [Cajas]
+      summary: Cargar ajuste manual (admin)
+      operationId: crearAjusteCaja
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: caja_id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AjusteCrear' }
+      responses:
+        '201': { description: Ajuste creado, content: { application/json: { schema: { $ref: '#/components/schemas/MovimientoCajaOut' }}}}
+        '400': { description: Caja inactiva o descripción muy corta }
+        '404': { description: Caja no encontrada }
+        '409': { description: Período cerrado }
+
+  /transferencias-caja:
+    get:
+      tags: [TransferenciasCaja]
+      summary: Listar transferencias (admin)
+      operationId: listarTransferencias
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TransferenciaCajaOut' }
+    post:
+      tags: [TransferenciasCaja]
+      summary: Crear transferencia (admin)
+      operationId: crearTransferencia
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TransferenciaCajaCrear' }
+      responses:
+        '201':
+          description: Creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TransferenciaCajaOut' }
+        '400': { description: Origen=destino, monto<=0, caja inactiva }
+        '409': { description: Período cerrado }
+
+  /estado-financiero:
+    get:
+      tags: [EstadoFinanciero]
+      summary: Dashboard de tesorería (admin)
+      operationId: obtenerEstadoFinanciero
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: ultimos
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EstadoFinancieroOut' }
+
 # ===========================================================================
 # COMPONENTS
 # ===========================================================================
@@ -2553,6 +2729,7 @@ components:
           type: string
           enum: [aprobado, rechazado]
           description: Decisión final sobre el comprobante.
+        caja_destino_id: { type: integer, nullable: true }
 
     # ---------------------------- Tareas ----------------------------------
 
@@ -3062,6 +3239,7 @@ components:
         dias_entre_vencimientos: { type: integer, minimum: 1 }
         recargo_segundo_vencimiento_pct: { type: number, minimum: 0 }
         tasa_interes_mensual_pct: { type: number, minimum: 0 }
+        caja_default_pagos_id: { type: integer, nullable: true }
 
     ConfiguracionConsorcioActualizar:
       type: object
@@ -3092,6 +3270,7 @@ components:
         dias_entre_vencimientos: { type: integer, minimum: 1 }
         recargo_segundo_vencimiento_pct: { type: number, minimum: 0 }
         tasa_interes_mensual_pct: { type: number, minimum: 0 }
+        caja_default_pagos_id: { type: integer, nullable: true }
 
     CoeficienteItem:
       type: object
@@ -3142,7 +3321,7 @@ components:
 
     GastoCrear:
       type: object
-      required: [periodo, rubro, proveedor_id, concepto, monto, forma_pago, fecha_pago]
+      required: [periodo, rubro, proveedor_id, concepto, monto, forma_pago, fecha_pago, caja_id]
       properties:
         periodo: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
         rubro: { type: string }
@@ -3155,6 +3334,7 @@ components:
           type: string
           enum: [transferencia, debito_automatico, cheque, efectivo, otro]
         fecha_pago: { type: string, format: date }
+        caja_id: { type: integer }
         numero_factura: { type: string, maxLength: 50, nullable: true }
         fecha_factura: { type: string, format: date, nullable: true }
         cuota_actual: { type: integer, minimum: 1, nullable: true }
@@ -3175,6 +3355,7 @@ components:
           enum: [transferencia, debito_automatico, cheque, efectivo, otro]
           nullable: true
         fecha_pago: { type: string, format: date, nullable: true }
+        caja_id: { type: integer, nullable: true }
         numero_factura: { type: string, maxLength: 50, nullable: true }
         fecha_factura: { type: string, format: date, nullable: true }
         cuota_actual: { type: integer, minimum: 1, nullable: true }
@@ -3182,7 +3363,7 @@ components:
 
     PlanCuotasCrear:
       type: object
-      required: [periodo, rubro, proveedor_id, concepto, monto, forma_pago, fecha_pago, cuota_total]
+      required: [periodo, rubro, proveedor_id, concepto, monto, forma_pago, fecha_pago, cuota_total, caja_id]
       properties:
         periodo: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
         rubro: { type: string }
@@ -3195,6 +3376,7 @@ components:
           type: string
           enum: [transferencia, debito_automatico, cheque, efectivo, otro]
         fecha_pago: { type: string, format: date }
+        caja_id: { type: integer }
         numero_factura: { type: string, maxLength: 50, nullable: true }
         fecha_factura: { type: string, format: date, nullable: true }
         cuota_total: { type: integer, minimum: 2 }
@@ -3223,7 +3405,7 @@ components:
 
     GastoHabitualCrear:
       type: object
-      required: [nombre, rubro, clase_prorrateo_id, proveedor_id, concepto, monto, forma_pago]
+      required: [nombre, rubro, clase_prorrateo_id, proveedor_id, concepto, monto, forma_pago, caja_id]
       properties:
         nombre: { type: string, minLength: 1, maxLength: 120 }
         rubro: { type: string }
@@ -3234,6 +3416,7 @@ components:
         forma_pago:
           type: string
           enum: [transferencia, debito_automatico, cheque, efectivo, otro]
+        caja_id: { type: integer }
 
     GastoHabitualActualizar:
       type: object
@@ -3248,6 +3431,7 @@ components:
           type: string
           enum: [transferencia, debito_automatico, cheque, efectivo, otro]
           nullable: true
+        caja_id: { type: integer, nullable: true }
         activa: { type: boolean, nullable: true }
 
     EmpleadoOut:
@@ -3375,10 +3559,11 @@ components:
 
     LiquidacionEmpleadoCrear:
       type: object
-      required: [empleado_id, periodo]
+      required: [empleado_id, periodo, caja_id]
       properties:
         empleado_id: { type: integer, minimum: 1 }
         periodo: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+        caja_id: { type: integer }
         haberes:
           type: array
           items: { $ref: '#/components/schemas/LiquidacionHaberItem' }
@@ -3391,6 +3576,7 @@ components:
     LiquidacionEmpleadoActualizar:
       type: object
       properties:
+        caja_id: { type: integer, nullable: true }
         haberes:
           type: array
           items: { $ref: '#/components/schemas/LiquidacionHaberItem' }
@@ -3500,3 +3686,85 @@ components:
           type: string
           format: date
           nullable: true
+
+    # ---------------------------- Cajas y Movimientos de caja ---------------
+
+    CajaCrear:
+      type: object
+      required: [nombre, tipo]
+      properties:
+        nombre: { type: string, minLength: 1, maxLength: 100 }
+        tipo: { type: string, enum: [efectivo, banco, fondo_reparacion, otro] }
+        descripcion: { type: string, maxLength: 500 }
+        saldo_inicial: { type: number, default: 0 }
+        activa: { type: boolean, default: true }
+
+    CajaActualizar:
+      type: object
+      properties:
+        nombre: { type: string, minLength: 1, maxLength: 100 }
+        descripcion: { type: string }
+        activa: { type: boolean }
+
+    CajaOut:
+      type: object
+      properties:
+        id: { type: integer }
+        nombre: { type: string }
+        tipo: { type: string }
+        descripcion: { type: string, nullable: true }
+        saldo_inicial: { type: number }
+        saldo_actual: { type: number }
+        activa: { type: boolean }
+
+    AjusteCrear:
+      type: object
+      required: [fecha, monto, descripcion]
+      properties:
+        fecha: { type: string, format: date }
+        monto: { type: number, description: "Positivo o negativo" }
+        descripcion: { type: string, minLength: 5, maxLength: 500 }
+
+    MovimientoCajaOut:
+      type: object
+      properties:
+        id: { type: integer }
+        caja_id: { type: integer }
+        fecha: { type: string, format: date }
+        tipo: { type: string, enum: [ingreso, egreso, ajuste] }
+        monto: { type: number }
+        descripcion: { type: string }
+        gasto_id: { type: integer, nullable: true }
+        comprobante_id: { type: integer, nullable: true }
+        transferencia_id: { type: integer, nullable: true }
+
+    TransferenciaCajaCrear:
+      type: object
+      required: [caja_origen_id, caja_destino_id, monto, fecha, descripcion]
+      properties:
+        caja_origen_id: { type: integer }
+        caja_destino_id: { type: integer }
+        monto: { type: number, exclusiveMinimum: 0 }
+        fecha: { type: string, format: date }
+        descripcion: { type: string, minLength: 1, maxLength: 500 }
+
+    TransferenciaCajaOut:
+      type: object
+      properties:
+        id: { type: integer }
+        caja_origen_id: { type: integer }
+        caja_destino_id: { type: integer }
+        monto: { type: number }
+        fecha: { type: string, format: date }
+        descripcion: { type: string }
+
+    EstadoFinancieroOut:
+      type: object
+      properties:
+        cajas:
+          type: array
+          items: { $ref: '#/components/schemas/CajaOut' }
+        total: { type: number }
+        ultimos_movimientos:
+          type: array
+          items: { $ref: '#/components/schemas/MovimientoCajaOut' }
