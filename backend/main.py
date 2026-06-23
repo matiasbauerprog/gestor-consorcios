@@ -22,6 +22,7 @@ from .routers import (
     configuracion,
     departamentos,
     empleados,
+    estado_financiero,
     expensas,
     gastos,
     gastos_habituales,
@@ -107,6 +108,7 @@ app.include_router(movimientos.router)
 app.include_router(periodos.router)
 app.include_router(cajas.router)
 app.include_router(transferencias_caja.router)
+app.include_router(estado_financiero.router)
 
 _uploads_path = Path(get_settings().UPLOAD_DIR)
 _uploads_path.mkdir(parents=True, exist_ok=True)
