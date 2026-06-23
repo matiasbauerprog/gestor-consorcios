@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   estadoPeriodo,
   previewPeriodo,
@@ -20,7 +20,9 @@ function formatMoney(n) {
 
 export default function CierreDePeriodo() {
   const navigate = useNavigate();
-  const [periodo, setPeriodo] = useState(periodoActual());
+  const [searchParams] = useSearchParams();
+  const periodoInicial = searchParams.get("periodo") || periodoActual();
+  const [periodo, setPeriodo] = useState(periodoInicial);
   const [estado, setEstado] = useState(null);
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState(null);
