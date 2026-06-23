@@ -52,8 +52,11 @@ def test_pago_exacto_cubre_una_expensa(db_empty, depto):
         id=1,
         departamento_id=depto.id,
         periodo="2026-05",
-        monto=1000.0,
-        fecha_vencimiento=date(2026, 6, 10),
+        monto_primer_vencimiento=1000.0,
+        fecha_primer_vencimiento=date(2026, 6, 10),
+        monto_segundo_vencimiento=1070.0,
+        fecha_segundo_vencimiento=date(2026, 6, 20),
+        saldo_anterior=0.0,
     )
     db_empty.add(e)
     _mov_expensa(db_empty, depto.id, e.id, 1000.0, date(2026, 5, 10))
@@ -69,8 +72,9 @@ def test_pago_exacto_cubre_una_expensa(db_empty, depto):
 
 
 def test_pago_parcial(db_empty, depto):
-    e = Expensa(id=1, departamento_id=depto.id, periodo="2026-05", monto=1000.0,
-                fecha_vencimiento=date(2026, 6, 10))
+    e = Expensa(id=1, departamento_id=depto.id, periodo="2026-05", monto_primer_vencimiento=1000.0,
+                fecha_primer_vencimiento=date(2026, 6, 10), monto_segundo_vencimiento=1070.0,
+                fecha_segundo_vencimiento=date(2026, 6, 20), saldo_anterior=0.0)
     db_empty.add(e)
     _mov_expensa(db_empty, depto.id, e.id, 1000.0, date(2026, 5, 10))
     _mov_pago(db_empty, depto.id, 600.0, date(2026, 6, 1))
@@ -84,8 +88,9 @@ def test_pago_parcial(db_empty, depto):
 
 
 def test_sobre_pago_genera_credito(db_empty, depto):
-    e = Expensa(id=1, departamento_id=depto.id, periodo="2026-05", monto=1000.0,
-                fecha_vencimiento=date(2026, 6, 10))
+    e = Expensa(id=1, departamento_id=depto.id, periodo="2026-05", monto_primer_vencimiento=1000.0,
+                fecha_primer_vencimiento=date(2026, 6, 10), monto_segundo_vencimiento=1070.0,
+                fecha_segundo_vencimiento=date(2026, 6, 20), saldo_anterior=0.0)
     db_empty.add(e)
     _mov_expensa(db_empty, depto.id, e.id, 1000.0, date(2026, 5, 10))
     _mov_pago(db_empty, depto.id, 1500.0, date(2026, 6, 1))
@@ -97,10 +102,12 @@ def test_sobre_pago_genera_credito(db_empty, depto):
 
 
 def test_un_pago_cubre_dos_expensas_fifo(db_empty, depto):
-    e1 = Expensa(id=1, departamento_id=depto.id, periodo="2026-04", monto=1000.0,
-                 fecha_vencimiento=date(2026, 5, 10))
-    e2 = Expensa(id=2, departamento_id=depto.id, periodo="2026-05", monto=1000.0,
-                 fecha_vencimiento=date(2026, 6, 10))
+    e1 = Expensa(id=1, departamento_id=depto.id, periodo="2026-04", monto_primer_vencimiento=1000.0,
+                 fecha_primer_vencimiento=date(2026, 5, 10), monto_segundo_vencimiento=1070.0,
+                 fecha_segundo_vencimiento=date(2026, 5, 20), saldo_anterior=0.0)
+    e2 = Expensa(id=2, departamento_id=depto.id, periodo="2026-05", monto_primer_vencimiento=1000.0,
+                 fecha_primer_vencimiento=date(2026, 6, 10), monto_segundo_vencimiento=1070.0,
+                 fecha_segundo_vencimiento=date(2026, 6, 20), saldo_anterior=0.0)
     db_empty.add_all([e1, e2])
     _mov_expensa(db_empty, depto.id, e1.id, 1000.0, date(2026, 4, 10))
     _mov_expensa(db_empty, depto.id, e2.id, 1000.0, date(2026, 5, 10))
@@ -115,8 +122,9 @@ def test_un_pago_cubre_dos_expensas_fifo(db_empty, depto):
 
 
 def test_nota_credito_y_debito(db_empty, depto):
-    e = Expensa(id=1, departamento_id=depto.id, periodo="2026-05", monto=1000.0,
-                fecha_vencimiento=date(2026, 6, 10))
+    e = Expensa(id=1, departamento_id=depto.id, periodo="2026-05", monto_primer_vencimiento=1000.0,
+                fecha_primer_vencimiento=date(2026, 6, 10), monto_segundo_vencimiento=1070.0,
+                fecha_segundo_vencimiento=date(2026, 6, 20), saldo_anterior=0.0)
     db_empty.add(e)
     _mov_expensa(db_empty, depto.id, e.id, 1000.0, date(2026, 5, 10))
     db_empty.add(MovimientoCuenta(
@@ -136,8 +144,9 @@ def test_nota_credito_y_debito(db_empty, depto):
 
 
 def test_expensa_vencida_sin_pago(db_empty, depto):
-    e = Expensa(id=1, departamento_id=depto.id, periodo="2026-04", monto=1000.0,
-                fecha_vencimiento=date(2026, 5, 10))
+    e = Expensa(id=1, departamento_id=depto.id, periodo="2026-04", monto_primer_vencimiento=1000.0,
+                fecha_primer_vencimiento=date(2026, 5, 10), monto_segundo_vencimiento=1070.0,
+                fecha_segundo_vencimiento=date(2026, 5, 20), saldo_anterior=0.0)
     db_empty.add(e)
     _mov_expensa(db_empty, depto.id, e.id, 1000.0, date(2026, 4, 10))
     db_empty.commit()

@@ -27,6 +27,7 @@ from .routers import (
     haberes,
     liquidaciones,
     movimientos,
+    periodos,
     peticiones,
     proveedores,
     reservas,
@@ -101,6 +102,7 @@ app.include_router(conceptos_liquidacion.router)
 app.include_router(haberes.router)
 app.include_router(liquidaciones.router)
 app.include_router(movimientos.router)
+app.include_router(periodos.router)
 
 _uploads_path = Path(get_settings().UPLOAD_DIR)
 _uploads_path.mkdir(parents=True, exist_ok=True)

@@ -10,11 +10,13 @@ from ..database import get_db
 from ..models import (
     Departamento,
     Expensa,
+    ExpensaDetalle,
     MovimientoCuenta,
+    PeriodoCerrado,
     Rol,
     TipoMovimiento,
 )
-from ..schemas import ExpensaCrear, ExpensaOut
+from ..schemas import ExpensaCrear, ExpensaOut, LineaDetalleExpensaOut
 
 router = APIRouter(prefix="/expensas", tags=["Expensas"])
 
@@ -26,10 +28,14 @@ def _expensa_to_out(expensa: Expensa, calc) -> ExpensaOut:
         id=expensa.id,
         departamento_id=expensa.departamento_id,
         periodo=expensa.periodo,
-        monto=expensa.monto,
-        fecha_vencimiento=expensa.fecha_vencimiento,
+        monto_primer_vencimiento=expensa.monto_primer_vencimiento,
+        fecha_primer_vencimiento=expensa.fecha_primer_vencimiento,
+        monto_segundo_vencimiento=expensa.monto_segundo_vencimiento,
+        fecha_segundo_vencimiento=expensa.fecha_segundo_vencimiento,
+        saldo_anterior=expensa.saldo_anterior,
         estado_calculado=calc.estado,
         monto_pendiente=calc.monto_pendiente,
+        detalle=[LineaDetalleExpensaOut.model_validate(d) for d in expensa.detalle],
     )
 
 
@@ -53,7 +59,7 @@ def listar_expensas(
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.administracion, Rol.departamento)),
 ) -> list[ExpensaOut]:
-    stmt = select(Expensa).order_by(Expensa.fecha_vencimiento.desc(), Expensa.id.desc())
+    stmt = select(Expensa).order_by(Expensa.fecha_primer_vencimiento.desc(), Expensa.id.desc())
 
     # Aislamiento por unidad: el Departamento solo ve sus propias expensas.
     # El departamento_id se toma del token, nunca del query param.
@@ -102,6 +108,12 @@ def crear_expensa(
             detail="El departamento indicado no existe.",
         )
 
+    if db.get(PeriodoCerrado, payload.periodo) is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"El período {payload.periodo} está cerrado y no admite cambios.",
+        )
+
     duplicado = db.scalar(
         select(Expensa.id).where(
             Expensa.departamento_id == payload.departamento_id,
@@ -117,8 +129,11 @@ def crear_expensa(
     expensa = Expensa(
         departamento_id=payload.departamento_id,
         periodo=payload.periodo,
-        monto=payload.monto,
-        fecha_vencimiento=payload.fecha_vencimiento,
+        monto_primer_vencimiento=payload.monto_primer_vencimiento,
+        fecha_primer_vencimiento=payload.fecha_primer_vencimiento,
+        monto_segundo_vencimiento=payload.monto_segundo_vencimiento,
+        fecha_segundo_vencimiento=payload.fecha_segundo_vencimiento,
+        saldo_anterior=0.0,
     )
     db.add(expensa)
     db.flush()
@@ -129,7 +144,7 @@ def crear_expensa(
             fecha=date.today(),
             tipo=TipoMovimiento.expensa_emitida,
             descripcion=f"Expensa {expensa.periodo}",
-            monto=expensa.monto,
+            monto=expensa.monto_primer_vencimiento,
             expensa_id=expensa.id,
         )
     )
@@ -188,6 +203,12 @@ def eliminar_expensa(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La expensa solicitada no existe.",
+        )
+
+    if db.get(PeriodoCerrado, expensa.periodo) is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"El período {expensa.periodo} está cerrado y no admite cambios.",
         )
 
     calc = calcular_estado_cuenta(db, expensa.departamento_id).por_expensa.get(expensa.id)

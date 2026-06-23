@@ -105,7 +105,11 @@
       "Bash(python -c \"from backend.storage import guardar_imagen_comprobante; print\\('ok'\\)\")",
       "Bash(pwsh -Command \".\\\\.venv\\\\Scripts\\\\Activate.ps1; python -c 'from backend.storage import guardar_imagen_comprobante; print\\(\\\\\"ok\\\\\"\\)'\")",
       "Bash(F:\\\\backup\\\\Command Soluciones\\\\capacitaciones\\\\IISAIA-main\\\\proyecto\\\\PROYECTO FINAL\\\\.venv\\\\Scripts\\\\python.exe *)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8000/uploads/comprobantes/)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8000/uploads/comprobantes/)",
+      "Bash(git pull *)",
+      "Bash(powershell.exe -Command '.\\\\.venv\\\\Scripts\\\\python.exe -c \"from backend import models; print\\(\\\\\"OK\\\\\"\\)\"')",
+      "Bash(python test_smoke.py)",
+      "Bash(./.venv/Scripts/python test_smoke.py)"
     ]
   }
 }

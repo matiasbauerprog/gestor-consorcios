@@ -44,7 +44,7 @@ def calcular_estado_cuenta(
         db.scalars(
             select(Expensa)
             .where(Expensa.departamento_id == departamento_id)
-            .order_by(Expensa.fecha_vencimiento.asc(), Expensa.id.asc())
+            .order_by(Expensa.fecha_primer_vencimiento.asc(), Expensa.id.asc())
         ).all()
     )
 
@@ -56,7 +56,7 @@ def calcular_estado_cuenta(
         ).all()
     )
 
-    pendientes: dict[int, float] = {e.id: e.monto for e in expensas}
+    pendientes: dict[int, float] = {e.id: e.monto_primer_vencimiento for e in expensas}
     pagado_por_expensa: dict[int, float] = {e.id: 0.0 for e in expensas}
 
     saldo_total = 0.0
@@ -86,13 +86,13 @@ def calcular_estado_cuenta(
             estado = EstadoExpensa.pagada
         elif pagado > 0:
             estado = EstadoExpensa.parcial
-        elif e.fecha_vencimiento < hoy:
+        elif e.fecha_primer_vencimiento < hoy:
             estado = EstadoExpensa.vencida
         else:
             estado = EstadoExpensa.pendiente
         por_expensa[e.id] = EstadoExpensaCalculado(
             expensa_id=e.id,
-            monto_total=e.monto,
+            monto_total=e.monto_primer_vencimiento,
             monto_pagado=pagado,
             monto_pendiente=pendiente,
             estado=estado,

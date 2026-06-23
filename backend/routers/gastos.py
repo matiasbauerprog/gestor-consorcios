@@ -11,6 +11,7 @@ from ..models import (
     Departamento,
     Gasto,
     GastoHabitual,
+    PeriodoCerrado,
     Proveedor,
     Rol,
     Rubro,
@@ -76,6 +77,15 @@ def _validar_referencias(
 _PERIODO_PATTERN_GASTO = r"^\d{4}-(0[1-9]|1[0-2])$"
 
 
+def _bloquear_si_periodo_cerrado(db: Session, periodo: str) -> None:
+    """Si el período está cerrado, levanta 409."""
+    if db.get(PeriodoCerrado, periodo) is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"El período {periodo} está cerrado y no admite cambios.",
+        )
+
+
 @router.get(
     "",
     response_model=list[GastoOut],
@@ -122,6 +132,7 @@ def crear_gasto(
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
 ) -> Gasto:
+    _bloquear_si_periodo_cerrado(db, payload.periodo)
     _validar_referencias(
         db,
         payload.clase_prorrateo_id,
@@ -189,7 +200,13 @@ def actualizar_gasto(
             detail="El gasto solicitado no existe.",
         )
 
+    # Bloquear si el período actual está cerrado
+    _bloquear_si_periodo_cerrado(db, gasto.periodo)
+
+    # Si se intenta cambiar el período, también bloquear si el nuevo período está cerrado
     cambios = payload.model_dump(exclude_unset=True)
+    if "periodo" in cambios:
+        _bloquear_si_periodo_cerrado(db, cambios["periodo"])
 
     # Validar excluyencia clase/depto si alguno cambia.
     nueva_clase = cambios.get("clase_prorrateo_id", gasto.clase_prorrateo_id)
@@ -246,6 +263,7 @@ def eliminar_gasto(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El gasto solicitado no existe.",
         )
+    _bloquear_si_periodo_cerrado(db, gasto.periodo)
     db.delete(gasto)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -262,6 +280,9 @@ def crear_plan_cuotas(
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
 ) -> list[Gasto]:
+    # Bloquear si el período inicial está cerrado
+    _bloquear_si_periodo_cerrado(db, payload.periodo)
+
     _validar_referencias(
         db,
         payload.clase_prorrateo_id,
@@ -289,6 +310,8 @@ def crear_plan_cuotas(
             cuota_actual=i + 1,
             cuota_total=payload.cuota_total,
         )
+        # Bloquear si alguno de los períodos consecutivos está cerrado
+        _bloquear_si_periodo_cerrado(db, periodo_actual)
         db.add(gasto)
         gastos.append(gasto)
 
@@ -312,6 +335,9 @@ def cargar_habituales(
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
 ) -> list[Gasto]:
+    # Bloquear si el período está cerrado
+    _bloquear_si_periodo_cerrado(db, payload.periodo)
+
     anio, mes = map(int, payload.periodo.split("-"))
     fecha_pago_default = date(anio, mes, 1)
 

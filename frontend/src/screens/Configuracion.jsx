@@ -19,6 +19,10 @@ const CAMPOS_VACIOS = {
   banco_numero_cuenta: "",
   banco_cbu: "",
   banco_alias: "",
+  dia_primer_vencimiento: 10,
+  dias_entre_vencimientos: 10,
+  recargo_segundo_vencimiento_pct: 7.0,
+  tasa_interes_mensual_pct: 3.0,
 };
 
 export default function Configuracion() {
@@ -36,7 +40,10 @@ export default function Configuracion() {
       if (r.status === 200) {
         const limpio = { ...CAMPOS_VACIOS };
         for (const k of Object.keys(CAMPOS_VACIOS)) {
-          limpio[k] = r.data[k] ?? "";
+          const def = CAMPOS_VACIOS[k];
+          const val = r.data[k];
+          // Mantener tipo del default: números se cargan como números, strings como strings
+          limpio[k] = val !== undefined && val !== null ? val : def;
         }
         setForm(limpio);
       } else if (r.status !== 401) {
@@ -111,6 +118,14 @@ export default function Configuracion() {
           <label>N° cuenta <input value={form.banco_numero_cuenta} onChange={cambiar("banco_numero_cuenta")} required /></label>
           <label>CBU <input value={form.banco_cbu} onChange={cambiar("banco_cbu")} minLength={22} maxLength={22} required /></label>
           <label>Alias <input value={form.banco_alias} onChange={cambiar("banco_alias")} /></label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Vencimientos e intereses</legend>
+          <label>Día del 1° vencimiento <input type="number" min="1" max="28" value={form.dia_primer_vencimiento} onChange={(e) => setForm({ ...form, dia_primer_vencimiento: Number(e.target.value) })} required /></label>
+          <label>Días entre 1° y 2° vencimiento <input type="number" min="1" value={form.dias_entre_vencimientos} onChange={(e) => setForm({ ...form, dias_entre_vencimientos: Number(e.target.value) })} required /></label>
+          <label>% recargo del 2° vencimiento <input type="number" step="0.5" min="0" value={form.recargo_segundo_vencimiento_pct} onChange={(e) => setForm({ ...form, recargo_segundo_vencimiento_pct: Number(e.target.value) })} required /></label>
+          <label>% interés mensual punitorio <input type="number" step="0.5" min="0" value={form.tasa_interes_mensual_pct} onChange={(e) => setForm({ ...form, tasa_interes_mensual_pct: Number(e.target.value) })} required /></label>
         </fieldset>
 
         {error && <p className="error">{error}</p>}

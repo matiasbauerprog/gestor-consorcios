@@ -12,6 +12,7 @@ import {
 import { listarClasesProrrateo } from "../api/clasesProrrateo";
 import { listarProveedores } from "../api/proveedores";
 import { listarDepartamentos } from "../api/departamentos";
+import { listarPeriodos } from "../api/periodos";
 
 const RUBROS = [
   { value: "sueldos_y_cargas_sociales", label: "Sueldos y cargas sociales" },
@@ -50,6 +51,7 @@ export default function Gastos() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
   const [modal, setModal] = useState(null);
+  const [cerrados, setCerrados] = useState(new Set());
 
   const [filtros, setFiltros] = useState({
     periodo: "",
@@ -84,6 +86,15 @@ export default function Gastos() {
 
   useEffect(() => {
     cargarCatalogos();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const r = await listarPeriodos();
+      if (r.status === 200) {
+        setCerrados(new Set(r.data.map((p) => p.periodo)));
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -208,12 +219,18 @@ export default function Gastos() {
                 {g.gasto_habitual_id && <> · Recurrente</>}
               </p>
               <div className="tarjeta-acciones">
-                <button type="button" onClick={() => setModal({ tipo: "editar", gasto: g })}>
-                  Editar
-                </button>
-                <button type="button" className="boton-borrar" onClick={() => handleBorrar(g)}>
-                  Eliminar
-                </button>
+                {cerrados.has(g.periodo) ? (
+                  <span title="Período cerrado — no editable">🔒</span>
+                ) : (
+                  <>
+                    <button type="button" onClick={() => setModal({ tipo: "editar", gasto: g })}>
+                      Editar
+                    </button>
+                    <button type="button" className="boton-borrar" onClick={() => handleBorrar(g)}>
+                      Eliminar
+                    </button>
+                  </>
+                )}
               </div>
             </Tarjeta>
           </li>

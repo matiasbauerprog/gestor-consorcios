@@ -35,6 +35,8 @@ tags:
     description: Empleados, haberes, conceptos de liquidación y liquidaciones mensuales
   - name: Movimientos
     description: Cuenta corriente por departamento. Movimientos (débitos/créditos), notas y saldo.
+  - name: Periodos
+    description: Cierre de período y liquidación
 
 security:
   - bearerAuth: []
@@ -2254,6 +2256,97 @@ paths:
         '404':
           $ref: '#/components/responses/NoEncontrado'
 
+  # =========================================================================
+  # PERIODOS / CIERRE
+  # =========================================================================
+
+  /periodos:
+    get:
+      tags: [Periodos]
+      summary: Listar períodos cerrados (admin)
+      operationId: listarPeriodos
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PeriodoCerradoOut'
+        '401': { description: Token ausente o inválido }
+        '403': { description: Rol sin permisos }
+
+  /periodos/{periodo}/estado:
+    get:
+      tags: [Periodos]
+      summary: Diagnóstico del período (admin) — solo validaciones
+      operationId: estadoPeriodo
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/periodoParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EstadoCierreOut'
+        '400': { description: Período inválido }
+        '401': { description: Token ausente o inválido }
+        '403': { description: Rol sin permisos }
+
+  /periodos/{periodo}/preview:
+    get:
+      tags: [Periodos]
+      summary: Preview completo del cierre (admin)
+      operationId: previewPeriodo
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/periodoParam'
+        - name: fecha_1
+          in: query
+          schema: { type: string, format: date }
+        - name: fecha_2
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviewCierreOut'
+        '409': { description: Período ya cerrado }
+
+  /periodos/{periodo}/cerrar:
+    post:
+      tags: [Periodos]
+      summary: Cerrar período (admin)
+      operationId: cerrarPeriodo
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/periodoParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CerrarPeriodoIn'
+      responses:
+        '201':
+          description: Período cerrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeriodoCerradoOut'
+        '409': { description: Bloqueado (ya cerrado o validaciones bloqueantes) }
+
 # ===========================================================================
 # COMPONENTS
 # ===========================================================================
@@ -2266,6 +2359,16 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Autenticación mediante token JWT en el header Authorization.
+
+  parameters:
+    periodoParam:
+      name: periodo
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+        example: "2026-05"
 
   responses:
 
@@ -2386,56 +2489,36 @@ components:
 
     # ---------------------------- Expensas --------------------------------
 
-    Expensa:
+    ExpensaOut:
       type: object
-      required: [id, departamento_id, periodo, monto, estado_calculado, monto_pendiente]
       properties:
-        id:
-          type: integer
-          format: int64
-        departamento_id:
-          type: integer
-          format: int64
-          description: Unidad funcional a la que se asocia la expensa.
-        periodo:
-          type: string
-          description: Período de la expensa (YYYY-MM).
-          examples: ["2026-05"]
-        monto:
-          type: number
-          format: double
-          examples: [85230.50]
-        estado_calculado:
-          type: string
-          enum: [pendiente, parcial, pagada, vencida]
-          description: Estado derivado de los movimientos FIFO de la cuenta corriente.
-        monto_pendiente:
-          type: number
-          format: float
-          description: Monto aún sin cubrir por pagos FIFO aplicados.
-        fecha_vencimiento:
-          type: string
-          format: date
+        id: { type: integer }
+        departamento_id: { type: integer }
+        periodo: { type: string }
+        monto_primer_vencimiento: { type: number }
+        fecha_primer_vencimiento: { type: string, format: date }
+        monto_segundo_vencimiento: { type: number }
+        fecha_segundo_vencimiento: { type: string, format: date }
+        saldo_anterior: { type: number }
+        estado_calculado: { type: string }
+        monto_pendiente: { type: number }
+        detalle:
+          type: array
+          items: { $ref: '#/components/schemas/LineaDetalleExpensaOut' }
+
+    Expensa:
+      $ref: '#/components/schemas/ExpensaOut'
 
     ExpensaCrear:
       type: object
-      required: [departamento_id, periodo, monto, fecha_vencimiento]
+      required: [departamento_id, periodo, monto_primer_vencimiento, fecha_primer_vencimiento, monto_segundo_vencimiento, fecha_segundo_vencimiento]
       properties:
-        departamento_id:
-          type: integer
-          format: int64
-          minimum: 1
-        periodo:
-          type: string
-          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
-          examples: ["2026-05"]
-        monto:
-          type: number
-          format: double
-          exclusiveMinimum: 0
-        fecha_vencimiento:
-          type: string
-          format: date
+        departamento_id: { type: integer }
+        periodo: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+        monto_primer_vencimiento: { type: number, exclusiveMinimum: 0 }
+        fecha_primer_vencimiento: { type: string, format: date }
+        monto_segundo_vencimiento: { type: number, exclusiveMinimum: 0 }
+        fecha_segundo_vencimiento: { type: string, format: date }
 
     Comprobante:
       type: object
@@ -2853,6 +2936,87 @@ components:
         direccion: { type: string, nullable: true }
         activo: { type: boolean }
 
+    ValidacionOut:
+      type: object
+      properties:
+        tipo: { type: string, enum: [bloqueante, warning] }
+        codigo: { type: string }
+        mensaje: { type: string }
+      required: [tipo, codigo, mensaje]
+
+    LineaDetalleExpensaOut:
+      type: object
+      properties:
+        rubro: { type: string }
+        clase_prorrateo_id: { type: integer, nullable: true }
+        departamento_origen_id: { type: integer, nullable: true }
+        concepto: { type: string }
+        monto: { type: number }
+
+    ExpensaACrearOut:
+      type: object
+      properties:
+        departamento_id: { type: integer }
+        saldo_anterior: { type: number }
+        monto_primer_vencimiento: { type: number }
+        monto_segundo_vencimiento: { type: number }
+        detalle:
+          type: array
+          items: { $ref: '#/components/schemas/LineaDetalleExpensaOut' }
+
+    InteresACrearOut:
+      type: object
+      properties:
+        departamento_id: { type: integer }
+        monto: { type: number }
+        descripcion: { type: string }
+
+    PreviewCierreOut:
+      type: object
+      properties:
+        periodo: { type: string }
+        cerrado: { type: boolean }
+        fecha_primer_vencimiento: { type: string, format: date }
+        fecha_segundo_vencimiento: { type: string, format: date }
+        validaciones:
+          type: array
+          items: { $ref: '#/components/schemas/ValidacionOut' }
+        puede_cerrar: { type: boolean }
+        expensas:
+          type: array
+          items: { $ref: '#/components/schemas/ExpensaACrearOut' }
+        intereses:
+          type: array
+          items: { $ref: '#/components/schemas/InteresACrearOut' }
+        total_expensado: { type: number }
+        total_intereses: { type: number }
+
+    EstadoCierreOut:
+      type: object
+      properties:
+        periodo: { type: string }
+        cerrado: { type: boolean }
+        validaciones:
+          type: array
+          items: { $ref: '#/components/schemas/ValidacionOut' }
+        puede_cerrar: { type: boolean }
+
+    CerrarPeriodoIn:
+      type: object
+      properties:
+        fecha_primer_vencimiento: { type: string, format: date, nullable: true }
+        fecha_segundo_vencimiento: { type: string, format: date, nullable: true }
+
+    PeriodoCerradoOut:
+      type: object
+      properties:
+        periodo: { type: string }
+        fecha_cierre: { type: string, format: date-time }
+        cerrado_por_usuario_id: { type: integer }
+        total_expensado: { type: number }
+        total_intereses: { type: number }
+        cantidad_expensas: { type: integer }
+
     ConfiguracionConsorcioOut:
       type: object
       required:
@@ -2871,6 +3035,10 @@ components:
         - banco_nombre
         - banco_numero_cuenta
         - banco_cbu
+        - dia_primer_vencimiento
+        - dias_entre_vencimientos
+        - recargo_segundo_vencimiento_pct
+        - tasa_interes_mensual_pct
       properties:
         id: { type: integer }
         consorcio_nombre: { type: string }
@@ -2890,10 +3058,40 @@ components:
         banco_numero_cuenta: { type: string }
         banco_cbu: { type: string, minLength: 22, maxLength: 22 }
         banco_alias: { type: string, nullable: true }
+        dia_primer_vencimiento: { type: integer, minimum: 1, maximum: 28 }
+        dias_entre_vencimientos: { type: integer, minimum: 1 }
+        recargo_segundo_vencimiento_pct: { type: number, minimum: 0 }
+        tasa_interes_mensual_pct: { type: number, minimum: 0 }
 
     ConfiguracionConsorcioActualizar:
-      allOf:
-        - $ref: '#/components/schemas/ConfiguracionConsorcioOut'
+      type: object
+      required:
+        - dia_primer_vencimiento
+        - dias_entre_vencimientos
+        - recargo_segundo_vencimiento_pct
+        - tasa_interes_mensual_pct
+      properties:
+        consorcio_nombre: { type: string, nullable: true }
+        consorcio_domicilio: { type: string, nullable: true }
+        consorcio_cuit: { type: string, nullable: true }
+        consorcio_convenio_suterh: { type: string, nullable: true }
+        admin_nombre: { type: string, nullable: true }
+        admin_domicilio: { type: string, nullable: true }
+        admin_email: { type: string, nullable: true }
+        admin_telefono: { type: string, nullable: true }
+        admin_cuit: { type: string, nullable: true }
+        admin_rpa: { type: string, nullable: true }
+        admin_situacion_fiscal: { type: string, nullable: true }
+        banco_titular: { type: string, nullable: true }
+        banco_nombre: { type: string, nullable: true }
+        banco_sucursal: { type: string, nullable: true }
+        banco_numero_cuenta: { type: string, nullable: true }
+        banco_cbu: { type: string, minLength: 22, maxLength: 22, nullable: true }
+        banco_alias: { type: string, nullable: true }
+        dia_primer_vencimiento: { type: integer, minimum: 1, maximum: 28 }
+        dias_entre_vencimientos: { type: integer, minimum: 1 }
+        recargo_segundo_vencimiento_pct: { type: number, minimum: 0 }
+        tasa_interes_mensual_pct: { type: number, minimum: 0 }
 
     CoeficienteItem:
       type: object

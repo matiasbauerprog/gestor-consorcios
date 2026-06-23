@@ -17,6 +17,7 @@ from ..models import (
     LiquidacionDetalle,
     LiquidacionEmpleado,
     LiquidacionHaber,
+    PeriodoCerrado,
     Rol,
     Rubro,
     TipoConcepto,
@@ -29,6 +30,15 @@ from ..schemas import (
 )
 
 router = APIRouter(prefix="/liquidaciones", tags=["Personal"])
+
+
+def _bloquear_si_periodo_cerrado(db: Session, periodo: str) -> None:
+    """Si el período está cerrado, levanta 409."""
+    if db.get(PeriodoCerrado, periodo) is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"El período {periodo} está cerrado y no admite cambios.",
+        )
 
 
 def _clase_default(db: Session) -> int:
@@ -241,6 +251,9 @@ def crear_liquidacion(
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
 ) -> LiquidacionEmpleado:
+    # Bloquear si el período está cerrado
+    _bloquear_si_periodo_cerrado(db, payload.periodo)
+
     empleado = db.get(Empleado, payload.empleado_id)
     if empleado is None:
         raise HTTPException(
@@ -318,6 +331,9 @@ def actualizar_liquidacion(
             detail="La liquidación solicitada no existe.",
         )
 
+    # Bloquear si el período de la liquidación está cerrado
+    _bloquear_si_periodo_cerrado(db, liq.periodo)
+
     empleado = db.get(Empleado, liq.empleado_id)
     clase_id = _clase_default(db)
 
@@ -349,6 +365,9 @@ def eliminar_liquidacion(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La liquidación solicitada no existe.",
         )
+
+    # Bloquear si el período de la liquidación está cerrado
+    _bloquear_si_periodo_cerrado(db, liq.periodo)
 
     # Borrar gastos asociados manualmente (FK SET NULL no los elimina).
     db.query(Gasto).filter(Gasto.liquidacion_id == liq.id).delete(synchronize_session=False)

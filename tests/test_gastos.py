@@ -360,3 +360,45 @@ def test_cargar_habituales_usa_fecha_primer_dia_del_periodo(client, headers_admi
     )
     generado = r.json()[0]
     assert generado["fecha_pago"] == "2026-07-01"
+
+
+# ---------------------------------------------------------------------------
+# Bloqueos con período cerrado (Task 8)
+# ---------------------------------------------------------------------------
+
+
+def test_plan_cuotas_periodo_cerrado_409(client, headers_admin):
+    """POST /gastos/plan-cuotas con período cerrado devuelve 409."""
+    # Cerrar el período inicial 2026-11
+    r_cierre = client.post(
+        "/periodos/2026-11/cerrar",
+        json={},
+        headers=headers_admin
+    )
+    assert r_cierre.status_code == 201
+
+    # Intentar POST /plan-cuotas con período cerrado → 409
+    payload = dict(_PLAN_VALIDO, periodo="2026-11")
+    r = client.post("/gastos/plan-cuotas", json=payload, headers=headers_admin)
+    assert r.status_code == 409
+    assert "cerrado" in r.json()["detail"].lower()
+
+
+def test_cargar_habituales_periodo_cerrado_409(client, headers_admin):
+    """POST /gastos/cargar-habituales con período cerrado devuelve 409."""
+    # Cerrar el período 2026-07
+    r_cierre = client.post(
+        "/periodos/2026-07/cerrar",
+        json={},
+        headers=headers_admin
+    )
+    assert r_cierre.status_code == 201
+
+    # Intentar POST /cargar-habituales → 409
+    r = client.post(
+        "/gastos/cargar-habituales",
+        json={"periodo": "2026-07"},
+        headers=headers_admin,
+    )
+    assert r.status_code == 409
+    assert "cerrado" in r.json()["detail"].lower()

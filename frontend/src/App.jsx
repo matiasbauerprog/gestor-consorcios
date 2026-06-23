@@ -18,6 +18,8 @@ import ConceptosLiquidacion from "./screens/ConceptosLiquidacion";
 import Liquidaciones from "./screens/Liquidaciones";
 import MiCuenta from "./screens/MiCuenta";
 import DepartamentoCuenta from "./screens/DepartamentoCuenta";
+import CierreDePeriodo from "./screens/CierreDePeriodo";
+import Periodos from "./screens/Periodos";
 import NotFound from "./screens/NotFound";
 
 export default function App() {
@@ -40,6 +42,8 @@ export default function App() {
             <Route path="mi-cuenta" element={<MiCuenta />} />
             <Route path="departamentos/:id/cuenta" element={<DepartamentoCuenta />} />
             <Route path="comprobantes" element={<Comprobantes />} />
+            <Route path="cierre-de-periodo" element={<CierreDePeriodo />} />
+            <Route path="periodos" element={<Periodos />} />
             <Route path="gastos" element={<Gastos />} />
             <Route path="gastos/habituales" element={<GastosHabituales />} />
             <Route path="configuracion" element={<Configuracion />} />

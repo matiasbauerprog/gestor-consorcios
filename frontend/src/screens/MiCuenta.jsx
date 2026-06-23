@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { listarMisMovimientos } from "../api/movimientos";
+import { listarExpensas } from "../api/expensas";
 import { presentarComprobante } from "../api/comprobantes";
 import Modal from "../components/Modal";
 import Tarjeta from "../components/Tarjeta";
@@ -27,8 +28,15 @@ function formatMoney(n) {
   });
 }
 
+function sumarDias(yyyymmdd, n) {
+  const d = new Date(yyyymmdd);
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
 export default function MiCuenta() {
   const [data, setData] = useState(null);
+  const [expensas, setExpensas] = useState([]);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [successMsg, setSuccessMsg] = useState(null);
@@ -43,8 +51,16 @@ export default function MiCuenta() {
     setData(res.data);
   }
 
+  async function cargarExpensas() {
+    const res = await listarExpensas();
+    if (res.status === 200) {
+      setExpensas(res.data);
+    }
+  }
+
   useEffect(() => {
     cargar();
+    cargarExpensas();
   }, []);
 
   if (error) {
@@ -109,6 +125,34 @@ export default function MiCuenta() {
           {saldoTexto}
         </p>
       </Tarjeta>
+
+      {(() => {
+        const hoy = new Date().toISOString().slice(0, 10);
+        const proximaExpensa = expensas
+          .filter((e) => e.fecha_primer_vencimiento >= hoy)
+          .sort((a, b) =>
+            a.fecha_primer_vencimiento.localeCompare(b.fecha_primer_vencimiento),
+          )[0];
+        return proximaExpensa ? (
+          <Tarjeta>
+            <h3>Próximo vencimiento</h3>
+            <p>
+              Si pagás hasta el {proximaExpensa.fecha_primer_vencimiento}:{" "}
+              <strong>{formatMoney(proximaExpensa.monto_primer_vencimiento)}</strong>
+            </p>
+            <p>
+              Del {sumarDias(proximaExpensa.fecha_primer_vencimiento, 1)} al{" "}
+              {proximaExpensa.fecha_segundo_vencimiento}:{" "}
+              <strong>{formatMoney(proximaExpensa.monto_segundo_vencimiento)}</strong>{" "}
+              (+recargo)
+            </p>
+            <p className="meta">
+              Después del {proximaExpensa.fecha_segundo_vencimiento}: se acumulan
+              intereses mensuales.
+            </p>
+          </Tarjeta>
+        ) : null;
+      })()}
 
       <section>
         <h2>Movimientos</h2>
@@ -185,7 +229,7 @@ function ModalPresentarPago({ onClose, onDone }) {
 
   return (
     <Modal titulo="Presentar pago" onClose={onClose}>
-      <form onSubmit={submit}>
+      <form onSubmit={submit} noValidate>
         <label>
           Fecha del pago
           <input
