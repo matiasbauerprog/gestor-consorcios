@@ -132,3 +132,24 @@ def test_put_configuracion_recargo_negativo_devuelve_400(client, headers_admin):
     payload["recargo_segundo_vencimiento_pct"] = -1.0
     r = client.put("/configuracion", json=payload, headers=headers_admin)
     assert r.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# Nuevos campos Fase 5 (tesorería)
+# ---------------------------------------------------------------------------
+
+
+def test_get_configuracion_incluye_caja_default(client, headers_admin):
+    """El GET incluye el campo caja_default_pagos_id (puede ser null si no fue seteado)."""
+    r = client.get("/configuracion", headers=headers_admin)
+    assert r.status_code == 200
+    assert "caja_default_pagos_id" in r.json()
+
+
+def test_put_configuracion_setear_caja_default(client, headers_admin):
+    """PUT con caja_default_pagos_id válido lo persiste."""
+    payload = dict(_PAYLOAD_VALIDO)
+    payload["caja_default_pagos_id"] = 900  # caja sembrada en conftest
+    r = client.put("/configuracion", json=payload, headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json()["caja_default_pagos_id"] == 900
