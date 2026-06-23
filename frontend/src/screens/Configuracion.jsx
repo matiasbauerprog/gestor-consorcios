@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { obtenerConfiguracion, actualizarConfiguracion } from "../api/configuracion";
+import { listarCajas } from "../api/cajas";
 
 const CAMPOS_VACIOS = {
   consorcio_nombre: "",
@@ -23,6 +24,7 @@ const CAMPOS_VACIOS = {
   dias_entre_vencimientos: 10,
   recargo_segundo_vencimiento_pct: 7.0,
   tasa_interes_mensual_pct: 3.0,
+  caja_default_pagos_id: null,
 };
 
 export default function Configuracion() {
@@ -31,23 +33,30 @@ export default function Configuracion() {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState(null);
   const [mensaje, setMensaje] = useState(null);
+  const [cajas, setCajas] = useState([]);
 
   useEffect(() => {
     let cancelado = false;
     async function cargar() {
-      const r = await obtenerConfiguracion();
+      const [configRes, cajasRes] = await Promise.all([
+        obtenerConfiguracion(),
+        listarCajas(),
+      ]);
       if (cancelado) return;
-      if (r.status === 200) {
+      if (configRes.status === 200) {
         const limpio = { ...CAMPOS_VACIOS };
         for (const k of Object.keys(CAMPOS_VACIOS)) {
           const def = CAMPOS_VACIOS[k];
-          const val = r.data[k];
+          const val = configRes.data[k];
           // Mantener tipo del default: números se cargan como números, strings como strings
           limpio[k] = val !== undefined && val !== null ? val : def;
         }
         setForm(limpio);
-      } else if (r.status !== 401) {
-        setError(r.data?.detail || "No se pudo cargar la configuración.");
+      } else if (configRes.status !== 401) {
+        setError(configRes.data?.detail || "No se pudo cargar la configuración.");
+      }
+      if (cajasRes.status === 200) {
+        setCajas(cajasRes.data || []);
       }
       setCargando(false);
     }
@@ -126,6 +135,19 @@ export default function Configuracion() {
           <label>Días entre 1° y 2° vencimiento <input type="number" min="1" value={form.dias_entre_vencimientos} onChange={(e) => setForm({ ...form, dias_entre_vencimientos: Number(e.target.value) })} required /></label>
           <label>% recargo del 2° vencimiento <input type="number" step="0.5" min="0" value={form.recargo_segundo_vencimiento_pct} onChange={(e) => setForm({ ...form, recargo_segundo_vencimiento_pct: Number(e.target.value) })} required /></label>
           <label>% interés mensual punitorio <input type="number" step="0.5" min="0" value={form.tasa_interes_mensual_pct} onChange={(e) => setForm({ ...form, tasa_interes_mensual_pct: Number(e.target.value) })} required /></label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Tesorería</legend>
+          <label>Caja default para pagos recibidos
+            <select
+              value={form.caja_default_pagos_id || ""}
+              onChange={(e) => setForm({ ...form, caja_default_pagos_id: e.target.value ? Number(e.target.value) : null })}
+            >
+              <option value="">— Ninguna —</option>
+              {cajas.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+            </select>
+          </label>
         </fieldset>
 
         {error && <p className="error">{error}</p>}
