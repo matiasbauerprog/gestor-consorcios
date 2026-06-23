@@ -6,6 +6,7 @@ def _payload_basico():
     return {
         "empleado_id": 900,
         "periodo": "2026-07",
+        "caja_id": 900,  # Fase 5: caja default
         "haberes": [
             {"haber_id": 940, "valor_override": None, "cantidad": None},  # Básico 100% → $1.000.000
             {"haber_id": 941, "valor_override": 12.0, "cantidad": None},  # Antigüedad 12% → $120.000

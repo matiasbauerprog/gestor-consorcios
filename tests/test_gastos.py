@@ -10,6 +10,7 @@ _GASTO_VALIDO = {
     "concepto": "Agua AYSA",
     "monto": 30000,
     "forma_pago": "transferencia",
+    "caja_id": 900,  # Fase 5: caja default
     "fecha_pago": "2026-06-15",
 }
 
@@ -212,6 +213,7 @@ _PLAN_VALIDO = {
     "concepto": "Seguro anual",
     "monto": 50000,
     "forma_pago": "transferencia",
+    "caja_id": 900,  # Fase 5: caja default
     "fecha_pago": "2026-06-10",
     "cuota_total": 3,
 }

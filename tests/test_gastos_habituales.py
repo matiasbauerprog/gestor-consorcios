@@ -34,6 +34,7 @@ def test_listar_habituales_filtra_por_activa(client, headers_admin):
             "concepto": "x",
             "monto": 1000,
             "forma_pago": "transferencia",
+            "caja_id": 900,  # Fase 5: caja default
         },
         headers=headers_admin,
     ).json()
@@ -59,6 +60,7 @@ _NUEVA = {
     "concepto": "Sueldo mensual",
     "monto": 800000,
     "forma_pago": "transferencia",
+    "caja_id": 900,  # Fase 5: caja default
 }
 
 

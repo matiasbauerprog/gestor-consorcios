@@ -498,7 +498,7 @@ def test_aprobar_comprobante_genera_movimiento_pago(client, headers_admin, heade
 
     r = client.patch(
         f"/comprobantes/{comp_id}",
-        json={"estado": "aprobado"},
+        json={"estado": "aprobado", "caja_destino_id": 900},  # Fase 5: caja default
         headers=headers_admin,
     )
     assert r.status_code == 200
@@ -624,7 +624,7 @@ def test_patch_comprobante_eliminado_404(client, headers_admin, headers_depto_a)
     # No se puede aprobar un comprobante soft-eliminado.
     r = client.patch(
         f"/comprobantes/{comp_id}",
-        json={"estado": "aprobado"},
+        json={"estado": "aprobado", "caja_destino_id": 900},  # Fase 5: caja default
         headers=headers_admin,
     )
     assert r.status_code == 404
