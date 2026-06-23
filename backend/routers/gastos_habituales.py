@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, require_roles
 from ..database import get_db
-from ..models import ClaseProrrateo, Gasto, GastoHabitual, Proveedor, Rol
+from ..models import Caja, ClaseProrrateo, Gasto, GastoHabitual, Proveedor, Rol
 from ..schemas import (
     GastoHabitualActualizar,
     GastoHabitualCrear,
@@ -12,6 +12,22 @@ from ..schemas import (
 )
 
 router = APIRouter(prefix="/gastos-habituales", tags=["Gastos"])
+
+
+def _validar_caja_activa(db: Session, caja_id: int) -> Caja:
+    """Validar que la caja existe y está activa."""
+    caja = db.get(Caja, caja_id)
+    if caja is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"La caja con ID {caja_id} no existe.",
+        )
+    if not caja.activa:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"La caja '{caja.nombre}' está inactiva.",
+        )
+    return caja
 
 
 def _validar_referencias(db: Session, clase_id: int, proveedor_id: int) -> None:
@@ -56,6 +72,7 @@ def crear_habitual(
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
 ) -> GastoHabitual:
     _validar_referencias(db, payload.clase_prorrateo_id, payload.proveedor_id)
+    _validar_caja_activa(db, payload.caja_id)
 
     plantilla = GastoHabitual(
         nombre=payload.nombre,
@@ -65,6 +82,7 @@ def crear_habitual(
         concepto=payload.concepto,
         monto=payload.monto,
         forma_pago=payload.forma_pago,
+        caja_id=payload.caja_id,
         activa=True,
     )
     db.add(plantilla)
@@ -119,6 +137,10 @@ def actualizar_habitual(
     nuevo_prov = cambios.get("proveedor_id", plantilla.proveedor_id)
     if "clase_prorrateo_id" in cambios or "proveedor_id" in cambios:
         _validar_referencias(db, nueva_clase, nuevo_prov)
+
+    # Validar caja_id si cambia.
+    if "caja_id" in cambios:
+        _validar_caja_activa(db, cambios["caja_id"])
 
     for campo, valor in cambios.items():
         setattr(plantilla, campo, valor)

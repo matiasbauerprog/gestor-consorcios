@@ -159,6 +159,7 @@ def test_delete_habitual_con_gastos_es_soft_delete(client, headers_admin, db_ses
             concepto="generado",
             monto=1000,
             forma_pago=FP.transferencia,
+            caja_id=900,
             fecha_pago=d(2026, 6, 1),
             gasto_habitual_id=700,
         )
@@ -176,3 +177,29 @@ def test_delete_habitual_con_gastos_es_soft_delete(client, headers_admin, db_ses
 def test_delete_habitual_inexistente_devuelve_404(client, headers_admin):
     r = client.delete("/gastos-habituales/9999", headers=headers_admin)
     assert r.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Validación de caja_id (Fase 5)
+# ---------------------------------------------------------------------------
+
+
+def test_crear_habitual_caja_inexistente_404(client, headers_admin):
+    payload = dict(_NUEVA, caja_id=99999)
+    r = client.post("/gastos-habituales", json=payload, headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_crear_habitual_caja_inactiva_400(client, headers_admin):
+    # Crear una caja y desactivarla
+    caja = client.post(
+        "/cajas",
+        json={"nombre": "Inactiva T9", "tipo": "banco"},
+        headers=headers_admin,
+    ).json()
+    client.patch(
+        f"/cajas/{caja['id']}", json={"activa": False}, headers=headers_admin
+    )
+    payload = dict(_NUEVA, caja_id=caja["id"])
+    r = client.post("/gastos-habituales", json=payload, headers=headers_admin)
+    assert r.status_code == 400
