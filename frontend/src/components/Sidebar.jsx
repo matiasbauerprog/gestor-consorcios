@@ -30,11 +30,6 @@ const SECCIONES = [
         rolesPermitidos: ["administracion", "departamento"],
       },
       {
-        ruta: "/cierre-de-periodo",
-        nombre: "Cierre de período",
-        rolesPermitidos: ["administracion"],
-      },
-      {
         ruta: "/periodos",
         nombre: "Historial de cierres",
         rolesPermitidos: ["administracion"],
