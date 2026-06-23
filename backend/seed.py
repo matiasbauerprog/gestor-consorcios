@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from .config import get_settings
 from .models import (
+    Caja,
     CategoriaEmpleado,
     ClaseProrrateo,
     CoeficienteDepartamento,
@@ -21,14 +22,17 @@ from .models import (
     Gasto,
     GastoHabitual,
     Haber,
+    MovimientoCaja,
     MovimientoCuenta,
     Peticion,
     Proveedor,
     Rol,
     Rubro,
+    TipoCaja,
     TipoConcepto,
     TipoHaber,
     TipoMovimiento,
+    TipoMovimientoCaja,
     Usuario,
 )
 from .security import hash_password
@@ -103,6 +107,22 @@ def seed_if_empty(db: Session) -> None:
     ])
     db.flush()
 
+    # ----- Fase 5: cajas default -----
+    caja_banco = Caja(
+        id=1, nombre="Banco Provincia", tipo=TipoCaja.banco,
+        saldo_inicial=0.0, activa=True,
+    )
+    caja_chica = Caja(
+        id=2, nombre="Caja chica", tipo=TipoCaja.efectivo,
+        saldo_inicial=0.0, activa=True,
+    )
+    caja_fondo = Caja(
+        id=3, nombre="Fondo de reparación", tipo=TipoCaja.fondo_reparacion,
+        saldo_inicial=0.0, activa=True,
+    )
+    db.add_all([caja_banco, caja_chica, caja_fondo])
+    db.flush()
+
     # ----- Fase 1: configuración singleton -----
     db.add(ConfiguracionConsorcio(
         id=1,
@@ -127,6 +147,7 @@ def seed_if_empty(db: Session) -> None:
         dias_entre_vencimientos=10,
         recargo_segundo_vencimiento_pct=7.0,
         tasa_interes_mensual_pct=3.0,
+        caja_default_pagos_id=caja_banco.id,
     ))
 
     # ----- Fase 2: plantillas de gastos habituales -----
@@ -146,6 +167,7 @@ def seed_if_empty(db: Session) -> None:
         concepto="Sueldo mensual del encargado",
         monto=800000.0,
         forma_pago=FormaPago.transferencia,
+        caja_id=caja_banco.id,
         activa=True,
     )
     plantilla_limpieza = GastoHabitual(
@@ -156,6 +178,7 @@ def seed_if_empty(db: Session) -> None:
         concepto="Limpieza mensual de áreas comunes",
         monto=200000.0,
         forma_pago=FormaPago.transferencia,
+        caja_id=caja_banco.id,
         activa=True,
     )
     plantilla_ascensor = GastoHabitual(
@@ -166,61 +189,99 @@ def seed_if_empty(db: Session) -> None:
         concepto="Mantenimiento mensual de ascensores",
         monto=50000.0,
         forma_pago=FormaPago.transferencia,
+        caja_id=caja_banco.id,
         activa=True,
     )
     db.add_all([plantilla_sueldo, plantilla_limpieza, plantilla_ascensor])
     db.flush()
 
     # ----- Fase 2: gastos puntuales de ejemplo (período 2026-06) -----
-    db.add_all([
-        # Generado a partir de plantilla.
-        Gasto(
-            periodo="2026-06",
-            rubro=Rubro.sueldos_y_cargas_sociales,
-            clase_prorrateo_id=clase_a.id,
-            proveedor_id=prov_admin.id,
-            concepto="Sueldo mensual del encargado",
-            monto=800000.0,
-            forma_pago=FormaPago.transferencia,
-            fecha_pago=date(2026, 6, 1),
-            gasto_habitual_id=plantilla_sueldo.id,
-        ),
-        # Prorrateable puntual.
-        Gasto(
-            periodo="2026-06",
-            rubro=Rubro.mantenimiento_partes_comunes,
-            clase_prorrateo_id=clase_a.id,
-            proveedor_id=prov_limpieza.id,
-            concepto="Reparación cañería común",
-            monto=120000.0,
-            forma_pago=FormaPago.transferencia,
-            fecha_pago=date(2026, 6, 8),
-        ),
-        # Particular a un depto.
-        Gasto(
-            periodo="2026-06",
-            rubro=Rubro.trabajos_reparaciones_unidades,
-            departamento_id=depto_a.id,
-            proveedor_id=prov_limpieza.id,
-            concepto="Arreglo plomería - UF 1A",
-            monto=80000.0,
-            forma_pago=FormaPago.transferencia,
-            fecha_pago=date(2026, 6, 12),
-        ),
-        # En cuotas (cuota 1/3 cargada manualmente).
-        Gasto(
-            periodo="2026-06",
-            rubro=Rubro.seguros,
-            clase_prorrateo_id=clase_a.id,
-            proveedor_id=prov_admin.id,
-            concepto="Seguro anual - Cuota 1/3",
-            monto=70000.0,
-            forma_pago=FormaPago.transferencia,
-            fecha_pago=date(2026, 6, 5),
-            cuota_actual=1,
-            cuota_total=3,
-        ),
-    ])
+    # Generado a partir de plantilla.
+    gasto_1 = Gasto(
+        periodo="2026-06",
+        rubro=Rubro.sueldos_y_cargas_sociales,
+        clase_prorrateo_id=clase_a.id,
+        proveedor_id=prov_admin.id,
+        concepto="Sueldo mensual del encargado",
+        monto=800000.0,
+        forma_pago=FormaPago.transferencia,
+        fecha_pago=date(2026, 6, 1),
+        gasto_habitual_id=plantilla_sueldo.id,
+        caja_id=caja_banco.id,
+    )
+    db.add(gasto_1)
+    db.flush()
+    db.add(MovimientoCaja(
+        caja_id=caja_banco.id, fecha=gasto_1.fecha_pago,
+        tipo=TipoMovimientoCaja.egreso, monto=gasto_1.monto,
+        descripcion=gasto_1.concepto or f"Gasto {gasto_1.id}",
+        gasto_id=gasto_1.id,
+    ))
+
+    # Prorrateable puntual.
+    gasto_2 = Gasto(
+        periodo="2026-06",
+        rubro=Rubro.mantenimiento_partes_comunes,
+        clase_prorrateo_id=clase_a.id,
+        proveedor_id=prov_limpieza.id,
+        concepto="Reparación cañería común",
+        monto=120000.0,
+        forma_pago=FormaPago.transferencia,
+        fecha_pago=date(2026, 6, 8),
+        caja_id=caja_banco.id,
+    )
+    db.add(gasto_2)
+    db.flush()
+    db.add(MovimientoCaja(
+        caja_id=caja_banco.id, fecha=gasto_2.fecha_pago,
+        tipo=TipoMovimientoCaja.egreso, monto=gasto_2.monto,
+        descripcion=gasto_2.concepto or f"Gasto {gasto_2.id}",
+        gasto_id=gasto_2.id,
+    ))
+
+    # Particular a un depto.
+    gasto_3 = Gasto(
+        periodo="2026-06",
+        rubro=Rubro.trabajos_reparaciones_unidades,
+        departamento_id=depto_a.id,
+        proveedor_id=prov_limpieza.id,
+        concepto="Arreglo plomería - UF 1A",
+        monto=80000.0,
+        forma_pago=FormaPago.transferencia,
+        fecha_pago=date(2026, 6, 12),
+        caja_id=caja_banco.id,
+    )
+    db.add(gasto_3)
+    db.flush()
+    db.add(MovimientoCaja(
+        caja_id=caja_banco.id, fecha=gasto_3.fecha_pago,
+        tipo=TipoMovimientoCaja.egreso, monto=gasto_3.monto,
+        descripcion=gasto_3.concepto or f"Gasto {gasto_3.id}",
+        gasto_id=gasto_3.id,
+    ))
+
+    # En cuotas (cuota 1/3 cargada manualmente).
+    gasto_4 = Gasto(
+        periodo="2026-06",
+        rubro=Rubro.seguros,
+        clase_prorrateo_id=clase_a.id,
+        proveedor_id=prov_admin.id,
+        concepto="Seguro anual - Cuota 1/3",
+        monto=70000.0,
+        forma_pago=FormaPago.transferencia,
+        fecha_pago=date(2026, 6, 5),
+        cuota_actual=1,
+        cuota_total=3,
+        caja_id=caja_banco.id,
+    )
+    db.add(gasto_4)
+    db.flush()
+    db.add(MovimientoCaja(
+        caja_id=caja_banco.id, fecha=gasto_4.fecha_pago,
+        tipo=TipoMovimientoCaja.egreso, monto=gasto_4.monto,
+        descripcion=gasto_4.concepto or f"Gasto {gasto_4.id}",
+        gasto_id=gasto_4.id,
+    ))
 
     # ----- Fase 3: 4 proveedores institucionales -----
     afip = Proveedor(razon_social="AFIP", nombre_fantasia="AFIP", cuit="30-00000001-7")
