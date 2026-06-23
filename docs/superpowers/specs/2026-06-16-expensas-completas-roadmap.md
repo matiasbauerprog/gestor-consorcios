@@ -48,7 +48,8 @@ Cada fase: 1–3 semanas. Total: 10–17 semanas (incluyendo Fase 3.5). Estimaci
 - 2026-06-17: se introduce **Fase 3.5 (Cuenta corriente)** después de descubrir durante el brainstorming de Fase 4 que el modelo binario `Expensa.estado=pagada|pendiente` no permite modelar pagos parciales, sobre-pagos, notas de crédito ni intereses correctamente. Decisión: rediseñar el módulo de pagos antes de afrontar el cierre.
 - 2026-06-17: **Fase 3.5 completada** (453 tests, mergeada a master). Incluye además soft-delete de comprobantes y archivo obligatorio en el POST.
 - 2026-06-22: **Fase 4 completada** (481 tests, mergeada a master). Cierre formal con tabla `PeriodoCerrado`; genera N expensas con desglose por rubro/clase (`ExpensaDetalle`), 1°/2° vencimiento con recargo configurable, saldo anterior heredado e intereses automáticos sobre morosos. Bloqueo 409 cross-recurso en `/gastos`, `/expensas` y `/liquidaciones` cuando el período está cerrado.
+- 2026-06-22: **Fase 4.5 completada** (mergeada a master). Refactor UX sin backend: botón "Cerrar período" inline en `/gastos`, modal de comprobantes accesible desde cada expensa, botón "Presentar pago" pre-seleccionado en `/mi-cuenta`. Sidebar -1 item.
 
 ## Próximo paso
 
-Fase 4.5 (refactor UX): inline contextual de acciones, reducción del sidebar. Después, brainstorming de Fase 5 (Caja, fondo de reparación, estado financiero).
+Brainstorming de Fase 5 (Caja, fondo de reparación, estado financiero).
