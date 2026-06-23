@@ -612,6 +612,9 @@ class LiquidacionEmpleado(Base):
     )
     periodo: Mapped[str] = mapped_column(String(7), nullable=False, index=True)
     sueldo_bruto: Mapped[float] = mapped_column(Float, nullable=False)
+    caja_id: Mapped[int] = mapped_column(
+        ForeignKey("cajas.id"), nullable=False
+    )
     fecha_creacion: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

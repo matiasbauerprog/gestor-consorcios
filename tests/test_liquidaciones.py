@@ -93,6 +93,7 @@ def test_crear_liquidacion_haber_cantidad_x_valor(client, headers_admin):
     payload = {
         "empleado_id": 900,
         "periodo": "2026-07",
+        "caja_id": 900,  # Fase 5: caja default
         "haberes": [
             {"haber_id": 940, "valor_override": None, "cantidad": None},  # Básico
             {"haber_id": nuevo_haber["id"], "valor_override": None, "cantidad": 10},  # 10 × 5000
@@ -252,5 +253,32 @@ def test_post_liquidacion_periodo_cerrado_409(client, headers_admin):
     r = client.post("/liquidaciones", json=_payload_basico(), headers=headers_admin)
     assert r.status_code == 409
     assert "cerrado" in r.json()["detail"].lower()
+
+
+# ---------------------------------------------------------------------------
+# Fase 5: Integración de cajas en liquidaciones
+# ---------------------------------------------------------------------------
+
+
+def test_liquidacion_genera_movimientos_caja_para_cada_gasto(client, headers_admin, db_session):
+    """POST liquidación → cada Gasto generado tiene su MovimientoCaja egreso."""
+    from backend.models import MovimientoCaja, Gasto
+
+    r = client.post("/liquidaciones", json=_payload_basico(), headers=headers_admin)
+    assert r.status_code == 201
+    liq_id = r.json()["id"]
+
+    # Verificar que se crearon gastos asociados a la liquidación
+    gastos = db_session.query(Gasto).filter_by(liquidacion_id=liq_id).all()
+    assert len(gastos) > 0, "Debe haber al menos 1 gasto generado por la liquidación"
+
+    # Verificar que cada gasto tiene su MovimientoCaja egreso
+    for g in gastos:
+        movs = db_session.query(MovimientoCaja).filter_by(gasto_id=g.id).all()
+        assert len(movs) == 1, f"Gasto {g.id} debería tener exactamente 1 movimiento caja"
+        mov = movs[0]
+        assert mov.caja_id == 900, f"MovimientoCaja debería estar asociado a caja_id=900"
+        assert mov.tipo.value == "egreso", f"MovimientoCaja debería ser de tipo egreso"
+        assert mov.monto == g.monto, f"Monto del movimiento debería coincidir con el gasto"
 
 

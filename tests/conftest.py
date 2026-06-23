@@ -318,6 +318,7 @@ def _seed(db) -> None:
                 empleado_id=900,
                 periodo="2025-01",
                 sueldo_bruto=1000000.0,
+                caja_id=900,  # Fase 5: caja default
             ),
             # Fase 3: dos haberes mínimos
             Haber(

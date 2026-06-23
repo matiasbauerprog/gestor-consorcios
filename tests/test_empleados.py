@@ -147,7 +147,7 @@ def test_delete_empleado_sin_liquidaciones_es_hard_delete(client, headers_admin)
 
 def test_delete_empleado_con_liquidaciones_es_soft_delete(client, headers_admin, db_session):
     from backend.models import LiquidacionEmpleado as Liq
-    db_session.add(Liq(empleado_id=900, periodo="2026-06", sueldo_bruto=1000000))
+    db_session.add(Liq(empleado_id=900, periodo="2026-06", sueldo_bruto=1000000, caja_id=900))
     db_session.commit()
 
     r = client.delete("/empleados/900", headers=headers_admin)

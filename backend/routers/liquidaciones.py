@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, require_roles
 from ..database import get_db
 from ..models import (
+    Caja,
     ClaseProrrateo,
     ConceptoLiquidacion,
     Empleado,
@@ -17,11 +18,13 @@ from ..models import (
     LiquidacionDetalle,
     LiquidacionEmpleado,
     LiquidacionHaber,
+    MovimientoCaja,
     PeriodoCerrado,
     Rol,
     Rubro,
     TipoConcepto,
     TipoHaber,
+    TipoMovimientoCaja,
 )
 from ..schemas import (
     LiquidacionEmpleadoActualizar,
@@ -54,6 +57,47 @@ def _clase_default(db: Session) -> int:
             detail="No hay clases de prorrateo activas. Cargá al menos una antes de liquidar.",
         )
     return cid
+
+
+def _validar_caja_activa(db: Session, caja_id: int) -> Caja:
+    """Valida que la caja exista y esté activa."""
+    caja = db.get(Caja, caja_id)
+    if caja is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Caja {caja_id} no encontrada.",
+        )
+    if not caja.activa:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"La caja '{caja.nombre}' está inactiva.",
+        )
+    return caja
+
+
+def _crear_movimiento_para_gasto(db: Session, gasto: Gasto) -> None:
+    """Crea un MovimientoCaja egreso asociado al gasto."""
+    db.add(
+        MovimientoCaja(
+            caja_id=gasto.caja_id,
+            fecha=gasto.fecha_pago,
+            tipo=TipoMovimientoCaja.egreso,
+            monto=gasto.monto,
+            descripcion=gasto.concepto or f"Gasto {gasto.id}",
+            gasto_id=gasto.id,
+        )
+    )
+
+
+def _borrar_movimientos_de_gastos(db: Session, gasto_ids: list[int]) -> None:
+    """Borra MovimientoCaja asociados a una lista de gastos."""
+    if not gasto_ids:
+        return
+    movs = db.scalars(
+        select(MovimientoCaja).where(MovimientoCaja.gasto_id.in_(gasto_ids))
+    ).all()
+    for m in movs:
+        db.delete(m)
 
 
 def _resolver_haberes(
@@ -151,8 +195,10 @@ def _generar_gastos(
     liquidacion: LiquidacionEmpleado,
     empleado: Empleado,
     clase_id: int,
+    caja_id: int,
 ) -> None:
-    """Crea N Gastos: uno al empleado por el sueldo neto, uno por proveedor único."""
+    """Crea N Gastos: uno al empleado por el sueldo neto, uno por proveedor único.
+    Cada gasto genera su MovimientoCaja egreso asociado."""
     anio, mes = map(int, liquidacion.periodo.split("-"))
     fecha_pago = date(anio, mes, 1)
 
@@ -162,19 +208,21 @@ def _generar_gastos(
     sueldo_neto = liquidacion.sueldo_bruto - descuentos_total
 
     # 1) Sueldo neto al empleado
-    db.add(
-        Gasto(
-            periodo=liquidacion.periodo,
-            rubro=Rubro.sueldos_y_cargas_sociales,
-            clase_prorrateo_id=clase_id,
-            proveedor_id=empleado.proveedor_id,
-            concepto=f"Sueldo neto - {empleado.nombre_completo}",
-            monto=sueldo_neto,
-            forma_pago=FormaPago.transferencia,
-            fecha_pago=fecha_pago,
-            liquidacion_id=liquidacion.id,
-        )
+    gasto_sueldo = Gasto(
+        periodo=liquidacion.periodo,
+        rubro=Rubro.sueldos_y_cargas_sociales,
+        clase_prorrateo_id=clase_id,
+        proveedor_id=empleado.proveedor_id,
+        concepto=f"Sueldo neto - {empleado.nombre_completo}",
+        monto=sueldo_neto,
+        forma_pago=FormaPago.transferencia,
+        fecha_pago=fecha_pago,
+        liquidacion_id=liquidacion.id,
+        caja_id=caja_id,
     )
+    db.add(gasto_sueldo)
+    db.flush()
+    _crear_movimiento_para_gasto(db, gasto_sueldo)
 
     # 2) Un gasto por proveedor (agrupa los detalles)
     por_proveedor: dict[int, list[LiquidacionDetalle]] = defaultdict(list)
@@ -185,19 +233,21 @@ def _generar_gastos(
     for proveedor_id, items in por_proveedor.items():
         nombres = ", ".join(d.concepto_nombre for d in items)
         total = sum(d.monto for d in items)
-        db.add(
-            Gasto(
-                periodo=liquidacion.periodo,
-                rubro=Rubro.sueldos_y_cargas_sociales,
-                clase_prorrateo_id=clase_id,
-                proveedor_id=proveedor_id,
-                concepto=nombres,
-                monto=total,
-                forma_pago=FormaPago.transferencia,
-                fecha_pago=fecha_pago,
-                liquidacion_id=liquidacion.id,
-            )
+        gasto_proveedor = Gasto(
+            periodo=liquidacion.periodo,
+            rubro=Rubro.sueldos_y_cargas_sociales,
+            clase_prorrateo_id=clase_id,
+            proveedor_id=proveedor_id,
+            concepto=nombres,
+            monto=total,
+            forma_pago=FormaPago.transferencia,
+            fecha_pago=fecha_pago,
+            liquidacion_id=liquidacion.id,
+            caja_id=caja_id,
         )
+        db.add(gasto_proveedor)
+        db.flush()
+        _crear_movimiento_para_gasto(db, gasto_proveedor)
 
 
 def _calcular_y_guardar(
@@ -254,6 +304,9 @@ def crear_liquidacion(
     # Bloquear si el período está cerrado
     _bloquear_si_periodo_cerrado(db, payload.periodo)
 
+    # Validar caja
+    _validar_caja_activa(db, payload.caja_id)
+
     empleado = db.get(Empleado, payload.empleado_id)
     if empleado is None:
         raise HTTPException(
@@ -279,13 +332,14 @@ def crear_liquidacion(
         empleado_id=empleado.id,
         periodo=payload.periodo,
         sueldo_bruto=0,
+        caja_id=payload.caja_id,
     )
     db.add(liquidacion)
     db.flush()
 
     _calcular_y_guardar(db, liquidacion, empleado, payload)
     db.flush()
-    _generar_gastos(db, liquidacion, empleado, clase_id)
+    _generar_gastos(db, liquidacion, empleado, clase_id, payload.caja_id)
 
     db.commit()
     db.refresh(liquidacion)
@@ -337,12 +391,29 @@ def actualizar_liquidacion(
     empleado = db.get(Empleado, liq.empleado_id)
     clase_id = _clase_default(db)
 
-    # Borrar gastos viejos asociados.
+    # Usar caja_id del payload si viene, sino usar la de la liquidación actual
+    caja_id = payload.caja_id if payload.caja_id is not None else liq.caja_id
+    _validar_caja_activa(db, caja_id)
+
+    # Actualizar caja_id si cambió
+    if payload.caja_id is not None:
+        liq.caja_id = payload.caja_id
+
+    # Recolectar IDs de gastos viejos antes de borrarlos
+    gastos_viejos = db.scalars(
+        select(Gasto.id).where(Gasto.liquidacion_id == liq.id)
+    ).all()
+    gasto_ids_viejos = list(gastos_viejos)
+
+    # Borrar movimientos viejos
+    _borrar_movimientos_de_gastos(db, gasto_ids_viejos)
+
+    # Borrar gastos viejos asociados
     db.query(Gasto).filter(Gasto.liquidacion_id == liq.id).delete(synchronize_session=False)
 
     _calcular_y_guardar(db, liq, empleado, payload)
     db.flush()
-    _generar_gastos(db, liq, empleado, clase_id)
+    _generar_gastos(db, liq, empleado, clase_id, caja_id)
 
     db.commit()
     db.refresh(liq)
@@ -368,6 +439,15 @@ def eliminar_liquidacion(
 
     # Bloquear si el período de la liquidación está cerrado
     _bloquear_si_periodo_cerrado(db, liq.periodo)
+
+    # Recolectar IDs de gastos asociados
+    gastos_ids = db.scalars(
+        select(Gasto.id).where(Gasto.liquidacion_id == liq.id)
+    ).all()
+    gasto_ids_list = list(gastos_ids)
+
+    # Borrar movimientos de caja asociados a los gastos
+    _borrar_movimientos_de_gastos(db, gasto_ids_list)
 
     # Borrar gastos asociados manualmente (FK SET NULL no los elimina).
     db.query(Gasto).filter(Gasto.liquidacion_id == liq.id).delete(synchronize_session=False)
