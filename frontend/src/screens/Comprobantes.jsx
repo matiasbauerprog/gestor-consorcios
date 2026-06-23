@@ -6,6 +6,8 @@ import {
   actualizarComprobante,
   eliminarComprobante,
 } from "../api/comprobantes";
+import { listarCajas } from "../api/cajas";
+import { obtenerConfiguracion } from "../api/configuracion";
 import { API_BASE } from "../api/client";
 import BadgeEstado from "../components/BadgeEstado";
 import Modal from "../components/Modal";
@@ -26,7 +28,10 @@ export default function Comprobantes() {
   const deptoInicial = searchParams.get("departamento_id");
 
   const [comprobantes, setComprobantes] = useState([]);
+  const [cajas, setCajas] = useState([]);
+  const [cajaDefault, setCajaDefault] = useState(null);
   const [cargando, setCargando] = useState(true);
+  const [cargandoCajas, setCargandoCajas] = useState(false);
   const [errorCarga, setErrorCarga] = useState(null);
   const [filtroEstado, setFiltroEstado] = useState("");
   const [filtroDepto, setFiltroDepto] = useState(
@@ -36,10 +41,16 @@ export default function Comprobantes() {
   const [errorAccion, setErrorAccion] = useState(null);
   const [modalEliminar, setModalEliminar] = useState(null);
   const [eliminando, setEliminando] = useState(false);
+  const [modalAprobar, setModalAprobar] = useState(null); // { comprobante, cajaSeleccionada }
+  const [aprobando, setAprobando] = useState(false);
 
-  async function handleDecision(id, estadoNuevo) {
+  async function handleDecision(id, estadoNuevo, cajaDestinoId = null) {
     setAccionandoId(id);
-    const r = await actualizarComprobante(id, { estado: estadoNuevo });
+    const body = { estado: estadoNuevo };
+    if (cajaDestinoId !== null) {
+      body.caja_destino_id = cajaDestinoId;
+    }
+    const r = await actualizarComprobante(id, body);
     setAccionandoId(null);
 
     if (r.status === 200) {
@@ -63,6 +74,28 @@ export default function Comprobantes() {
     if (r.status !== 401) {
       setErrorAccion("Ocurrió un error. Intentá de nuevo.");
     }
+  }
+
+  async function handleAprobarClick(comprobante) {
+    // Abrir modal para seleccionar caja destino
+    setModalAprobar({
+      comprobante,
+      cajaSeleccionada: cajaDefault,
+    });
+  }
+
+  async function handleConfirmarAprobacion() {
+    if (!modalAprobar) return;
+    setAprobando(true);
+    const cajaId = modalAprobar.cajaSeleccionada || cajaDefault;
+    if (!cajaId) {
+      setErrorAccion("Debes seleccionar una caja.");
+      setAprobando(false);
+      return;
+    }
+    setModalAprobar(null);
+    await handleDecision(modalAprobar.comprobante.id, "aprobado", cajaId);
+    setAprobando(false);
   }
 
   async function handleEliminar() {
@@ -91,6 +124,30 @@ export default function Comprobantes() {
       setModalEliminar(null);
     }
   }
+
+  useEffect(() => {
+    let cancelado = false;
+
+    // Cargar cajas y configuración al montar
+    async function cargarCajasyConfig() {
+      setCargandoCajas(true);
+      const rCajas = await listarCajas();
+      const rConfig = await obtenerConfiguracion();
+      if (!cancelado) {
+        if (rCajas.status === 200) {
+          setCajas(rCajas.data);
+        }
+        if (rConfig.status === 200 && rConfig.data.caja_default_pagos_id) {
+          setCajaDefault(rConfig.data.caja_default_pagos_id);
+        }
+        setCargandoCajas(false);
+      }
+    }
+    cargarCajasyConfig();
+    return () => {
+      cancelado = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelado = false;
@@ -173,8 +230,8 @@ export default function Comprobantes() {
                   <>
                     <button
                       type="button"
-                      onClick={() => handleDecision(c.id, "aprobado")}
-                      disabled={accionandoId === c.id}
+                      onClick={() => handleAprobarClick(c)}
+                      disabled={accionandoId === c.id || cargandoCajas}
                     >
                       {accionandoId === c.id ? "…" : "Aprobar"}
                     </button>
@@ -200,6 +257,52 @@ export default function Comprobantes() {
           </li>
         ))}
       </ul>
+
+      {modalAprobar && (
+        <Modal titulo="Aprobar comprobante" onClose={() => setModalAprobar(null)}>
+          <p>
+            Comprobante del <strong>{modalAprobar.comprobante.fecha_pago}</strong> por{" "}
+            <strong>${modalAprobar.comprobante.monto.toLocaleString("es-AR")}</strong>
+          </p>
+          <label>
+            Caja destino
+            <select
+              value={modalAprobar.cajaSeleccionada || ""}
+              onChange={(e) =>
+                setModalAprobar({
+                  ...modalAprobar,
+                  cajaSeleccionada: Number(e.target.value),
+                })
+              }
+              disabled={aprobando}
+            >
+              <option value="">— Seleccioná una caja —</option>
+              {cajas.map((caja) => (
+                <option key={caja.id} value={caja.id}>
+                  {caja.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="modal-acciones">
+            <button
+              type="button"
+              className="boton-secundario"
+              onClick={() => setModalAprobar(null)}
+              disabled={aprobando}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmarAprobacion}
+              disabled={aprobando || !modalAprobar.cajaSeleccionada}
+            >
+              {aprobando ? "Aprobando…" : "Aprobar"}
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {modalEliminar && (
         <Modal titulo="Eliminar comprobante" onClose={() => setModalEliminar(null)}>

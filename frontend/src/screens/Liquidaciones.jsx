@@ -10,6 +10,7 @@ import {
 } from "../api/liquidaciones";
 import { listarEmpleados } from "../api/empleados";
 import { listarHaberes } from "../api/haberes";
+import { listarCajas } from "../api/cajas";
 
 // ─── constantes ────────────────────────────────────────────────────────────
 
@@ -359,6 +360,10 @@ function ModalLiquidacion({
   const [catalogoHaberes, setCatalogoHaberes] = useState([]);
   const [cargandoCatalogo, setCargandoCatalogo] = useState(true);
 
+  // cajas para el formulario
+  const [cajas, setCajas] = useState([]);
+  const [cargandoCajas, setCargandoCajas] = useState(true);
+
   useEffect(() => {
     async function cargar() {
       const r = await listarHaberes({ activo: true });
@@ -368,11 +373,23 @@ function ModalLiquidacion({
     cargar();
   }, []);
 
+  useEffect(() => {
+    async function cargarCajas() {
+      const r = await listarCajas();
+      if (r.status === 200) setCajas(r.data);
+      setCargandoCajas(false);
+    }
+    cargarCajas();
+  }, []);
+
   // ── estado del formulario ──
   const [empleadoId, setEmpleadoId] = useState(
     inicial ? String(inicial.empleado_id) : (empleados[0]?.id ? String(empleados[0].id) : "")
   );
   const [periodo, setPeriodo] = useState(periodoInicial || periodoActual());
+  const [cajaId, setCajaId] = useState(
+    inicial ? String(inicial.caja_id || "") : (cajas[0]?.id ? String(cajas[0].id) : "")
+  );
 
   // Haberes del catálogo: array de { haber_id, valor_override, cantidad, _info }
   // Se pre-populate desde la liquidación existente o desde el catálogo vacío
@@ -415,6 +432,17 @@ function ModalLiquidacion({
       setHaberesForm(nuevos);
     }
   }, [cargandoCatalogo]);
+
+  // Actualizar cajaId cuando cajas se carga (en edición)
+  useEffect(() => {
+    if (!cargandoCajas && inicial && cajas.length > 0) {
+      if (inicial.caja_id) {
+        setCajaId(String(inicial.caja_id));
+      } else if (cajas[0]) {
+        setCajaId(String(cajas[0].id));
+      }
+    }
+  }, [cargandoCajas]);
 
   // Haberes ad-hoc: array de { nombre, monto }
   const [adHocForm, setAdHocForm] = useState(() => {
@@ -520,6 +548,7 @@ function ModalLiquidacion({
     const payload = {
       empleado_id: Number(empleadoId),
       periodo,
+      caja_id: Number(cajaId),
       haberes,
       haberes_ad_hoc,
     };
@@ -539,8 +568,8 @@ function ModalLiquidacion({
 
   return (
     <Modal titulo={titulo} onClose={onCerrar}>
-      {cargandoCatalogo ? (
-        <p>Cargando catálogo de haberes…</p>
+      {cargandoCatalogo || cargandoCajas ? (
+        <p>Cargando…</p>
       ) : (
         <form onSubmit={onSubmit} noValidate>
           {/* empleado y período — solo en creación */}
@@ -572,6 +601,23 @@ function ModalLiquidacion({
               </label>
             </>
           )}
+
+          {/* caja origen — siempre visible */}
+          <label>
+            Caja origen
+            <select
+              value={cajaId}
+              onChange={(e) => setCajaId(e.target.value)}
+              required
+            >
+              <option value="">— Seleccioná una caja —</option>
+              {cajas.map((caja) => (
+                <option key={caja.id} value={caja.id}>
+                  {caja.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
 
           {/* haberes del catálogo */}
           <fieldset className="liquidacion-fieldset">
