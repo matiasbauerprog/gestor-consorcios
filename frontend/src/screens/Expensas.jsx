@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { listarExpensas, crearExpensa, eliminarExpensa } from "../api/expensas";
 import { listarDepartamentos } from "../api/departamentos";
+import { abrirPdfExpensa } from "../api/pdf";
 import Modal from "../components/Modal";
 import ModalDesgloseExpensa from "../components/ModalDesgloseExpensa";
 import ModalComprobantesExpensa from "../components/ModalComprobantesExpensa";
@@ -18,7 +19,15 @@ function formatearMonto(v) {
   });
 }
 
-function TarjetaExpensa({ expensa, esAdmin, depto, onEliminar, onVerDesglose, onVerComprobantes }) {
+function TarjetaExpensa({ expensa, esAdmin, depto, token, onEliminar, onVerDesglose, onVerComprobantes }) {
+  async function handleAbrirPdf() {
+    try {
+      await abrirPdfExpensa(expensa.id, token);
+    } catch (e) {
+      alert(`No se pudo abrir el PDF: ${e.message}`);
+    }
+  }
+
   return (
     <Tarjeta>
       <h3>
@@ -64,6 +73,13 @@ function TarjetaExpensa({ expensa, esAdmin, depto, onEliminar, onVerDesglose, on
           >
             Ver comprobantes
           </button>
+          <button
+            type="button"
+            className="boton-secundario"
+            onClick={handleAbrirPdf}
+          >
+            📄 Ver PDF
+          </button>
           {esAdmin && (
             <button
               type="button"
@@ -80,7 +96,7 @@ function TarjetaExpensa({ expensa, esAdmin, depto, onEliminar, onVerDesglose, on
 }
 
 export default function Expensas() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [expensas, setExpensas] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [errorCarga, setErrorCarga] = useState(null);
@@ -213,6 +229,7 @@ export default function Expensas() {
               expensa={e}
               esAdmin={esAdmin}
               depto={deptoById[e.departamento_id]}
+              token={token}
               onEliminar={setModalEliminar}
               onVerDesglose={setModalDesglose}
               onVerComprobantes={setModalComprobantes}
