@@ -66,6 +66,23 @@ uvicorn backend.main:app --reload
 
 API en `http://localhost:8000` · Swagger UI en `http://localhost:8000/docs`.
 
+#### Email saliente (SMTP) — Fase 6a
+
+Para enviar PDFs de boleta por email a los departamentos, configurar en `.env`:
+
+```env
+SMTP_HOST=smtp.gmail.com   # o tu servidor SMTP
+SMTP_PORT=587
+SMTP_USER=tu_email@gmail.com
+SMTP_PASSWORD=tu_app_password
+SMTP_FROM_EMAIL=consorcio@tu-dominio.com
+SMTP_FROM_NAME=Administración Consorcio
+```
+
+Si `SMTP_HOST` queda vacío, los emails NO se envían — se loggean al stdout de
+uvicorn (útil para dev y CI). En modo console, el endpoint
+`POST /periodos/{X}/enviar-pdfs` igual devuelve éxito con resumen.
+
 La primera vez, si la base está vacía, se siembra automáticamente con:
 
 | Email | Rol | Password |
