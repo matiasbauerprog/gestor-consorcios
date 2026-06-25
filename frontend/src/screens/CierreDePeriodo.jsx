@@ -6,6 +6,7 @@ import {
   cerrarPeriodo,
 } from "../api/periodos";
 import Tarjeta from "../components/Tarjeta";
+import ModalEnvioPdfs from "../components/ModalEnvioPdfs";
 
 function periodoActual() {
   const d = new Date();
@@ -28,6 +29,7 @@ export default function CierreDePeriodo() {
   const [error, setError] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
+  const [modalEnvio, setModalEnvio] = useState(null);
 
   useEffect(() => {
     setPreview(null);
@@ -56,7 +58,12 @@ export default function CierreDePeriodo() {
     });
     setConfirmando(false);
     if (r.status === 201) {
-      navigate("/periodos");
+      // Cierre OK → ofrecer envío de PDFs por email. Al cerrar el modal navegamos a /periodos.
+      setModalEnvio({
+        periodo,
+        cantidadExpensas: preview.expensas.length,
+        periodoCerrado: true,
+      });
     } else {
       setError(r.data?.detail || "No se pudo cerrar el período.");
     }
@@ -98,7 +105,19 @@ export default function CierreDePeriodo() {
         </Tarjeta>
       )}
 
-      {preview && (
+      {modalEnvio && (
+        <ModalEnvioPdfs
+          periodo={modalEnvio.periodo}
+          periodoCerrado={modalEnvio.periodoCerrado}
+          cantidadExpensas={modalEnvio.cantidadExpensas}
+          onClose={() => {
+            setModalEnvio(null);
+            navigate("/periodos");
+          }}
+        />
+      )}
+
+      {preview && !modalEnvio && (
         <Tarjeta>
           <h3>Vista previa de cierre — {periodo}</h3>
           <div>
