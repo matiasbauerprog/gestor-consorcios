@@ -1,6 +1,7 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -16,6 +17,7 @@ from ..models import (
     Rol,
     TipoMovimiento,
 )
+from ..pdf import generar_pdf_boleta
 from ..schemas import ExpensaCrear, ExpensaOut, LineaDetalleExpensaOut
 
 router = APIRouter(prefix="/expensas", tags=["Expensas"])
@@ -225,3 +227,37 @@ def eliminar_expensa(
     )
     db.delete(expensa)
     db.commit()
+
+
+@router.get(
+    "/{expensa_id}/pdf",
+    summary="Generar PDF de la boleta de expensa",
+    responses={
+        200: {"content": {"application/pdf": {}}, "description": "PDF de la boleta"},
+        403: {"description": "Depto no autorizado a ver expensa ajena"},
+        404: {"description": "Expensa no encontrada"},
+    },
+)
+def descargar_pdf_expensa(
+    expensa_id: int,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+) -> Response:
+    expensa = db.get(Expensa, expensa_id)
+    if expensa is None:
+        raise HTTPException(404, "Expensa no encontrada.")
+
+    # Autorización: depto solo ve las propias; admin/representante cualquiera
+    if user.rol == Rol.departamento:
+        if user.departamento_id != expensa.departamento_id:
+            raise HTTPException(403, "No autorizado para ver esta expensa.")
+
+    pdf_bytes = generar_pdf_boleta(expensa, db)
+    filename = f"expensa-{expensa.periodo}-depto-{expensa.departamento_id}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="{filename}"',
+        },
+    )
