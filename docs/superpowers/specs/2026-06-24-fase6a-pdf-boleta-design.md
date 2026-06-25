@@ -151,8 +151,9 @@ Decisión: **(b)** para no exponer el token en URLs. El cliente fetcha con `apiF
 - Nueva columna o botón en cada fila: **"✉ Enviar PDFs"**. Click → modal de confirmación → llamada al endpoint → muestra resumen.
 
 ### Componente nuevo `ModalEnvioPdfs.jsx`
-- Recibe `{ periodo, cantidadExpensas, onClose, onCompletado }`.
-- Confirma: "¿Enviar boletas a los {N} departamentos del período {periodo}?"
+- Recibe `{ periodo, periodoCerrado, cantidadExpensas, onClose, onCompletado }`.
+- **Si el período NO está cerrado**: muestra banner amarillo "⚠ Este período no fue cerrado..." + checkbox "Sí, entiendo y quiero enviar igual" que habilita el botón. Al confirmar manda `confirmar_sin_cerrar=true` al endpoint.
+- **Si está cerrado**: confirmación normal "¿Enviar boletas a los {N} departamentos del período {periodo}?".
 - Confirmar → loading spinner → llamada al endpoint.
 - Al recibir respuesta, mostrar resumen con tabla de errores si hay.
 - Botón "Cerrar" cuando termina (o "Cancelar" antes de empezar).
@@ -162,10 +163,11 @@ Decisión: **(b)** para no exponer el token en URLs. El cliente fetcha con `apiF
 
 ## Reglas operativas
 
-- **Período no cerrado**: el endpoint POST `/periodos/{periodo}/enviar-pdfs` permite enviar incluso si el período no fue cerrado oficialmente (caso "preview emails"). No 409.
+- **Período no cerrado — envío**: el endpoint POST `/periodos/{periodo}/enviar-pdfs` acepta un body `{ "confirmar_sin_cerrar": bool }` opcional. Si el período NO está cerrado y `confirmar_sin_cerrar` es `false` (o falta), el endpoint devuelve **409** con detail `"El período {periodo} no está cerrado. Para enviar igual, reenviá con confirmar_sin_cerrar=true."`. Esto es la red de seguridad para evitar envíos por error de boletas no finalizadas.
+- **Período no cerrado — frontend**: el `ModalEnvioPdfs` detecta si el período está cerrado (consulta cacheada de `listarPeriodos()`). Si no lo está, muestra **un banner amarillo bien visible**: `"⚠ Este período no fue cerrado. Las boletas pueden cambiar si después aprobás comprobantes, agregás gastos o cerrás el período. ¿Querés enviar igual?"`, con un checkbox `"Sí, entiendo y quiero enviar igual"` que habilita el botón "Enviar". Esto traduce el 409 a una decisión consciente del admin.
 - **Período inexistente**: si no hay ninguna expensa con ese período → 404.
 - **Email sin destinatarios**: si un depto no tiene usuarios con rol=departamento (caso raro), se cuenta como error con motivo "sin destinatarios".
-- **PDF de período no cerrado**: igual se puede generar y ver. Útil para preview antes del cierre formal.
+- **PDF de período no cerrado — visualización**: el GET `/expensas/{id}/pdf` siempre funciona, esté el período cerrado o no. Útil para preview antes del cierre y para reimpresión después.
 - **Acceso**: depto solo ve PDFs de SUS expensas. Admin y representante ven cualquiera.
 
 ## Tests
