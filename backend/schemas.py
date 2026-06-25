@@ -889,3 +889,21 @@ class EstadoFinancieroOut(BaseModel):
     cajas: list[CajaOut]
     total: float
     ultimos_movimientos: list[MovimientoCajaOut]
+
+
+# === Fase 6a — envío masivo PDFs ===
+
+class EnviarPdfsIn(BaseModel):
+    confirmar_sin_cerrar: bool = False
+
+
+class ErrorEnvioOut(BaseModel):
+    depto_id: int
+    email: str | None
+    motivo: str
+
+
+class EnviarPdfsOut(BaseModel):
+    enviados: int
+    fallaron: int
+    errores: list[ErrorEnvioOut]
