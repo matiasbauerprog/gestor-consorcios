@@ -19,7 +19,8 @@ El proyecto es educativo, pero con un fin comercial a largo plazo. Por eso se el
 | **3.5** ✅ | **Cuenta corriente por departamento** (completada 2026-06-17) | Rewrite del módulo de pagos. Cada depto tiene cuenta con movimientos (débitos/créditos). Comprobantes aprobados generan movimientos en lugar de cambiar el estado binario de la expensa. Soporta sobre-pagos, devoluciones, notas de crédito/débito, asignación de pagos a múltiples expensas. Prerrequisito de Fase 4. |
 | **4** ✅ | **Cierre de período y liquidación** (completada 2026-06-22) | Botón "Cerrar período" → genera expensas con desglose por rubro y clase. Saldo anterior (= saldo de cuenta), créditos/débitos, 1°/2° vencimiento, intereses punitorios. |
 | **5** ✅ | **Tesorería: caja, fondo de reparación, estado financiero** (completada 2026-06-23) | Cajas configurables (banco/efectivo/fondo/otro), transferencias entre cajas, ajustes manuales como red de seguridad, dashboard "Estado financiero" con saldos por caja + total + últimos movimientos. |
-| 6 | Reportes Ley 941 + PDF de liquidación | Estado financiero, patrimonial, lista de proveedores, evolución de cobranzas, lista de morosos, PDF con formato real. |
+| **6a** ✅ | **PDF boleta + envío masivo** (completada 2026-06-25) | ReportLab para generación de PDFs on-demand; GET /expensas/{id}/pdf (admin/depto con auth por ownership); POST /periodos/{periodo}/enviar-pdfs (admin, sync + soft-warning 409 si período no cerrado); frontend con filtro+banner en /expensas, modal con warning + checkbox, integración tras cierre exitoso; modo console SMTP para dev; cleanup de "Ver desglose" redundante. |
+| 6b | Reportes Ley 941 | Estado patrimonial, lista de proveedores, evolución de cobranzas, lista de morosos. |
 
 ## Orden y dependencias
 
@@ -50,7 +51,8 @@ Cada fase: 1–3 semanas. Total: 10–17 semanas (incluyendo Fase 3.5). Estimaci
 - 2026-06-22: **Fase 4 completada** (481 tests, mergeada a master). Cierre formal con tabla `PeriodoCerrado`; genera N expensas con desglose por rubro/clase (`ExpensaDetalle`), 1°/2° vencimiento con recargo configurable, saldo anterior heredado e intereses automáticos sobre morosos. Bloqueo 409 cross-recurso en `/gastos`, `/expensas` y `/liquidaciones` cuando el período está cerrado.
 - 2026-06-22: **Fase 4.5 completada** (mergeada a master). Refactor UX sin backend: botón "Cerrar período" inline en `/gastos`, modal de comprobantes accesible desde cada expensa, botón "Presentar pago" pre-seleccionado en `/mi-cuenta`. Sidebar -1 item.
 - 2026-06-23: **Fase 5 completada** (525 tests, mergeada a master). Multi-caja sin conciliación: modelos `Caja`/`MovimientoCaja`/`TransferenciaCaja`, integración con gastos/comprobantes/liquidaciones (caja_id required + cascade automático de MovimientoCaja), ajustes manuales como red de seguridad, dashboard /estado-financiero. Frontend con 3 pantallas nuevas + sección Tesorería en sidebar. Bloqueo cross-recurso ampliado a transferencias y ajustes.
+- 2026-06-25: **Fase 6a completada** (542 tests, mergeada a master). PDF de boleta con ReportLab (Python puro, sin GTK runtime) generado on-demand. Endpoint admin para envío masivo síncrono por email a deptos del período con soft-warning si no cerrado (409 + flag `confirmar_sin_cerrar`). Frontend: filtro por período + banner contextual en `/expensas`, modal de envío con warning + checkbox, integración tras cierre exitoso (ofrece envío inmediato), nota informativa sobre aplicación FIFO en presentación de pago. Cleanup: removido `ModalDesgloseExpensa` (redundante con PDF). Modo console SMTP para dev. Reportes Ley 941 quedan para Fase 6b.
 
 ## Próximo paso
 
-Brainstorming de Fase 6 (Reportes Ley 941 + PDF de liquidación).
+Brainstorming de Fase 6b (Reportes Ley 941: estado patrimonial, lista de proveedores, evolución de cobranzas, lista de morosos).
