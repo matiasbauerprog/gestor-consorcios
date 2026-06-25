@@ -8,7 +8,7 @@ import { abrirPdfExpensa } from "../api/pdf";
 import Modal from "../components/Modal";
 import ModalDesgloseExpensa from "../components/ModalDesgloseExpensa";
 import ModalComprobantesExpensa from "../components/ModalComprobantesExpensa";
-// import ModalEnvioPdfs from "../components/ModalEnvioPdfs"; // TODO Task 9: descomentar
+import ModalEnvioPdfs from "../components/ModalEnvioPdfs";
 import SelectorDepartamento from "../components/SelectorDepartamento";
 import BadgeEstado from "../components/BadgeEstado";
 import Tarjeta from "../components/Tarjeta";
@@ -361,14 +361,14 @@ export default function Expensas() {
         />
       )}
 
-      {/* {modalEnvio && (
+      {modalEnvio && (
         <ModalEnvioPdfs
           periodo={modalEnvio.periodo}
           periodoCerrado={modalEnvio.periodoCerrado}
           cantidadExpensas={modalEnvio.cantidadExpensas}
           onClose={() => setModalEnvio(null)}
         />
-      )} */}
+      )}
     </main>
   );
 }
