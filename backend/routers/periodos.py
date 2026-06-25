@@ -8,16 +8,23 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, require_roles
 from ..cierre import calcular_preview_cierre
 from ..database import get_db
+from ..email import enviar_email
 from ..models import (
+    Departamento,
     Expensa,
     ExpensaDetalle,
     MovimientoCuenta,
     PeriodoCerrado,
     Rol,
     TipoMovimiento,
+    Usuario,
 )
+from ..pdf import generar_pdf_boleta
 from ..schemas import (
     CerrarPeriodoIn,
+    EnviarPdfsIn,
+    EnviarPdfsOut,
+    ErrorEnvioOut,
     EstadoCierreOut,
     ExpensaACrearOut,
     InteresACrearOut,
@@ -180,3 +187,87 @@ def cerrar_periodo(
     db.commit()
     db.refresh(cerrado)
     return cerrado
+
+
+@router.post(
+    "/{periodo}/enviar-pdfs",
+    response_model=EnviarPdfsOut,
+    status_code=200,
+    summary="Enviar boletas PDF por email a los deptos del período",
+)
+def enviar_pdfs_periodo(
+    periodo: str,
+    payload: EnviarPdfsIn,
+    db: Session = Depends(get_db),
+    _u: CurrentUser = Depends(require_roles(Rol.administracion)),
+) -> EnviarPdfsOut:
+    # 1. Buscar expensas del período
+    expensas = list(db.scalars(
+        select(Expensa).where(Expensa.periodo == periodo)
+    ).all())
+    if not expensas:
+        raise HTTPException(404, f"No hay expensas para el período {periodo}.")
+
+    # 2. Si NO está cerrado y NO confirmó, 409
+    cerrado = db.get(PeriodoCerrado, periodo) is not None
+    if not cerrado and not payload.confirmar_sin_cerrar:
+        raise HTTPException(
+            status_code=409,
+            detail=f"El período {periodo} no está cerrado. Para enviar igual, reenviá con confirmar_sin_cerrar=true.",
+        )
+
+    # 3. Iterar expensas y enviar
+    enviados = 0
+    errores: list[ErrorEnvioOut] = []
+    for exp in expensas:
+        # Resolver emails del depto: usuarios con rol=departamento de ese depto
+        usuarios = list(db.scalars(
+            select(Usuario).where(
+                Usuario.departamento_id == exp.departamento_id,
+                Usuario.rol == Rol.departamento,
+            )
+        ).all())
+        emails = [u.email for u in usuarios if u.email]
+        if not emails:
+            errores.append(ErrorEnvioOut(
+                depto_id=exp.departamento_id,
+                email=None,
+                motivo="Sin destinatarios (depto sin usuarios)",
+            ))
+            continue
+
+        try:
+            pdf = generar_pdf_boleta(exp, db)
+        except Exception as e:
+            errores.append(ErrorEnvioOut(
+                depto_id=exp.departamento_id,
+                email=", ".join(emails),
+                motivo=f"Error generando PDF: {e}",
+            ))
+            continue
+
+        subject = f"Boleta de expensa — {periodo}"
+        body = (
+            f"Estimado/a vecino/a,\n\n"
+            f"Adjuntamos la boleta de expensas correspondiente al período {periodo}.\n\n"
+            f"Saludos cordiales,\nLa administración."
+        )
+        attachment = (f"expensa-{periodo}-depto-{exp.departamento_id}.pdf", pdf, "application/pdf")
+
+        # Enviar a cada email del depto (un mail por destinatario)
+        for em in emails:
+            ok = enviar_email(to=em, subject=subject, body=body, attachments=[attachment])
+            if ok:
+                enviados += 1
+            else:
+                errores.append(ErrorEnvioOut(
+                    depto_id=exp.departamento_id,
+                    email=em,
+                    motivo="Error de envío SMTP (ver logs)",
+                ))
+
+    return EnviarPdfsOut(
+        enviados=enviados,
+        fallaron=len(errores),
+        errores=errores,
+    )

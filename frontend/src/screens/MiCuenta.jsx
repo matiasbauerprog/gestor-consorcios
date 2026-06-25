@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "../auth/AuthContext";
 import { listarMisMovimientos } from "../api/movimientos";
 import { listarExpensas } from "../api/expensas";
 import { presentarComprobante } from "../api/comprobantes";
+import { abrirPdfExpensa } from "../api/pdf";
 import Modal from "../components/Modal";
 import ModalPresentarPago from "../components/ModalPresentarPago";
 import Tarjeta from "../components/Tarjeta";
@@ -36,6 +38,7 @@ function sumarDias(yyyymmdd, n) {
 }
 
 export default function MiCuenta() {
+  const { token } = useAuth();
   const [data, setData] = useState(null);
   const [expensas, setExpensas] = useState([]);
   const [error, setError] = useState(null);
@@ -134,7 +137,17 @@ export default function MiCuenta() {
           .sort((a, b) =>
             a.fecha_primer_vencimiento.localeCompare(b.fecha_primer_vencimiento),
           )[0];
-        return proximaExpensa ? (
+        if (!proximaExpensa) return null;
+
+        async function handleAbrirPdf() {
+          try {
+            await abrirPdfExpensa(proximaExpensa.id, token);
+          } catch (e) {
+            alert(`No se pudo abrir el PDF: ${e.message}`);
+          }
+        }
+
+        return (
           <Tarjeta>
             <h3>Próximo vencimiento</h3>
             <p>
@@ -151,16 +164,60 @@ export default function MiCuenta() {
               Después del {proximaExpensa.fecha_segundo_vencimiento}: se acumulan
               intereses mensuales.
             </p>
-            <button
-              type="button"
-              onClick={() => setModalPago(proximaExpensa)}
-              style={{ marginTop: "1rem" }}
-            >
-              Presentar pago
-            </button>
+            <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
+              <button
+                type="button"
+                onClick={() => setModalPago(proximaExpensa)}
+              >
+                Presentar pago
+              </button>
+              <button
+                type="button"
+                className="boton-secundario"
+                onClick={handleAbrirPdf}
+              >
+                📄 Ver PDF
+              </button>
+            </div>
           </Tarjeta>
-        ) : null;
+        );
       })()}
+
+      <section>
+        <h2>Expensas</h2>
+        {expensas.length === 0 ? (
+          <p>No hay expensas.</p>
+        ) : (
+          <ul style={{ listStyle: "none", padding: 0 }}>
+            {expensas.map((e) => (
+              <li key={e.id} style={{ marginBottom: "1rem" }}>
+                <Tarjeta>
+                  <h4 style={{ margin: "0 0 0.5rem" }}>
+                    {e.periodo} — {formatMoney(e.monto_primer_vencimiento)}
+                  </h4>
+                  <p className="meta" style={{ margin: "0.25rem 0" }}>
+                    Vencimiento: {e.fecha_primer_vencimiento}
+                  </p>
+                  <button
+                    type="button"
+                    className="boton-secundario"
+                    style={{ marginTop: "0.5rem" }}
+                    onClick={async () => {
+                      try {
+                        await abrirPdfExpensa(e.id, token);
+                      } catch (err) {
+                        alert(`No se pudo abrir el PDF: ${err.message}`);
+                      }
+                    }}
+                  >
+                    📄 Ver PDF
+                  </button>
+                </Tarjeta>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section>
         <h2>Movimientos</h2>

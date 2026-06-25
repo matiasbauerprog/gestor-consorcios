@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     SEED_DEFAULT_PASSWORD: str = ""
     UPLOAD_DIR: str = "backend/uploads"
     MAX_UPLOAD_SIZE_BYTES: int = 5 * 1024 * 1024
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "consorcio@local"
+    SMTP_FROM_NAME: str = "Consorcio"
 
     @field_validator("SECRET_KEY")
     @classmethod

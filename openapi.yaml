@@ -335,6 +335,35 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
 
+  /expensas/{expensa_id}/pdf:
+    get:
+      tags: [Expensas]
+      summary: Descargar PDF de la boleta
+      operationId: descargarPdfExpensa
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: expensa_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: PDF de la boleta
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
   /comprobantes:
     get:
       tags: [Expensas]
@@ -2353,6 +2382,43 @@ paths:
                 $ref: '#/components/schemas/PeriodoCerradoOut'
         '409': { description: Bloqueado (ya cerrado o validaciones bloqueantes) }
 
+  /periodos/{periodo}/enviar-pdfs:
+    post:
+      tags: [Periodos]
+      summary: Enviar boletas por email a deptos del período (admin)
+      operationId: enviarPdfsPeriodo
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/periodoParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnviarPdfsIn'
+      responses:
+        '200':
+          description: Resumen del envío
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnviarPdfsOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          description: Período sin expensas
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: Período no cerrado y no se confirmó
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
   # =========================================================================
   # 12. CAJAS
   # =========================================================================
@@ -3768,3 +3834,40 @@ components:
         ultimos_movimientos:
           type: array
           items: { $ref: '#/components/schemas/MovimientoCajaOut' }
+
+    EnviarPdfsIn:
+      type: object
+      properties:
+        confirmar_sin_cerrar:
+          type: boolean
+          default: false
+          description: Si es true, confirma el envío aunque el período no esté cerrado.
+
+    ErrorEnvioOut:
+      type: object
+      properties:
+        depto_id:
+          type: integer
+          description: Identificador del departamento.
+        email:
+          type: string
+          nullable: true
+          description: Email del departamento, puede ser nulo.
+        motivo:
+          type: string
+          description: Razón del error de envío.
+
+    EnviarPdfsOut:
+      type: object
+      properties:
+        enviados:
+          type: integer
+          description: Cantidad de PDFs enviados exitosamente.
+        fallaron:
+          type: integer
+          description: Cantidad de envíos que fallaron.
+        errores:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorEnvioOut'
+          description: Detalles de los errores de envío.

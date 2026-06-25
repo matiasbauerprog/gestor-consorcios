@@ -35,39 +35,34 @@ git checkout -b feature/expensas-fase6a-pdf
 
 Expected: `525 passed` (baseline post-Fase 5).
 
-- [ ] **Step 3: Instalar WeasyPrint + Jinja2 en el venv**
+- [ ] **Step 3: Instalar ReportLab en el venv**
 
 ```bash
-.venv/Scripts/pip install weasyprint jinja2
+.venv/Scripts/python.exe -m pip install reportlab
 ```
 
-En Windows, WeasyPrint requiere GTK3 runtime. Si la instalación falla con "cairo not found":
-1. Descargar e instalar GTK3 runtime: https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases
-2. Reintentar `pip install weasyprint`.
+ReportLab es Python puro — sin deps de SO en Windows/Linux/Mac.
 
 - [ ] **Step 4: Smoke import**
 
 ```bash
-.venv/Scripts/python.exe -c "from weasyprint import HTML; from jinja2 import Environment; print('OK')"
+.venv/Scripts/python.exe -c "from reportlab.pdfgen import canvas; from reportlab.lib.pagesizes import A4; print('OK')"
 ```
 
-Expected: `OK`. Si falla, **paralo** y reportá BLOCKED — necesitamos resolver el setup de GTK antes de seguir.
+Expected: `OK`.
 
-- [ ] **Step 5: Sumar dependencias a requirements.txt**
+- [ ] **Step 5: Sumar dependencia a requirements.txt**
 
 Agregar al final de `requirements.txt`:
 ```
-weasyprint==62.3
-jinja2==3.1.4
+reportlab>=4.0
 ```
-
-(Verificar las versiones reales con `pip show weasyprint jinja2` y usar esas.)
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add requirements.txt
-git commit -m "chore(deps): weasyprint + jinja2 para Fase 6a"
+git commit -m "chore(deps): reportlab para Fase 6a (PDF generator)"
 ```
 
 ---
@@ -253,157 +248,33 @@ git commit -m "feat(email): módulo enviar_email con modo console + SMTP + tests
 
 ---
 
-## Task 2: Templates HTML/CSS + módulo `backend/pdf.py` + tests
+## Task 2: Módulo `backend/pdf.py` con ReportLab + tests
 
 **Files:**
-- Create: `backend/templates/boleta.html`
-- Create: `backend/templates/boleta.css`
 - Create: `backend/pdf.py`
 - Create: `tests/test_pdf_boleta.py`
 
-- [ ] **Step 1: Crear directorio + template HTML `backend/templates/boleta.html`**
+**Nota**: el plan original usaba WeasyPrint con templates HTML/CSS. Cambiamos a ReportLab (Python puro, sin GTK runtime en Windows) — decidido tras BLOCKED en Task 0. El PDF se arma programáticamente con primitivas `Paragraph`, `Table`, `Spacer`. Sin archivos HTML/CSS.
 
-```html
-<!DOCTYPE html>
-<html lang="es-AR">
-<head>
-  <meta charset="utf-8">
-  <title>Boleta {{ expensa.periodo }} — Depto {{ departamento.codigo }}</title>
-</head>
-<body>
-  <header class="boleta-header">
-    <div class="consorcio">
-      <h1>{{ config.consorcio_nombre }}</h1>
-      <p>{{ config.consorcio_domicilio }} · CUIT {{ config.consorcio_cuit }}</p>
-      <p class="admin">Admin: {{ config.admin_nombre }} (RPA {{ config.admin_rpa }}) · {{ config.admin_email }} · {{ config.admin_telefono }}</p>
-    </div>
-    <div class="meta">
-      <p><strong>Boleta Nº</strong> {{ expensa.id }}</p>
-      <p><strong>Período</strong> {{ expensa.periodo }}</p>
-      <p><strong>Emitida</strong> {{ fecha_emision }}</p>
-    </div>
-  </header>
-
-  <section class="depto">
-    <h2>Departamento {{ departamento.codigo }}</h2>
-    {% if coeficiente %}<p>Coeficiente: {{ "%.2f"|format(coeficiente) }}%</p>{% endif %}
-  </section>
-
-  <section class="liquidacion">
-    <h3>Su liquidación</h3>
-    <table>
-      <tr><td>Saldo anterior</td><td class="num">{{ money(expensa.saldo_anterior) }}</td></tr>
-      {% for mov in pagos_del_mes %}
-        <tr><td>{{ mov.fecha }} · {{ mov.descripcion }}</td><td class="num">({{ money(mov.monto) }})</td></tr>
-      {% endfor %}
-      {% for mov in intereses %}
-        <tr><td>Intereses por mora · {{ mov.descripcion }}</td><td class="num">{{ money(mov.monto) }}</td></tr>
-      {% endfor %}
-      {% for mov in notas %}
-        <tr><td>{{ mov.tipo }} · {{ mov.descripcion }}</td><td class="num">{{ money(mov.monto) }}</td></tr>
-      {% endfor %}
-    </table>
-  </section>
-
-  <section class="gastos">
-    <h3>Gastos del período (su prorrateo)</h3>
-    {% for rubro, items in gastos_por_rubro.items() %}
-      <h4>{{ rubro_label(rubro) }} — {{ money(items|sum(attribute='monto')) }}</h4>
-      <table class="detalle">
-        {% for it in items %}
-          <tr>
-            <td>{{ it.concepto }}</td>
-            <td class="num">{{ money(it.monto) }}</td>
-          </tr>
-        {% endfor %}
-      </table>
-    {% endfor %}
-  </section>
-
-  <section class="totales">
-    <h3>Total a pagar</h3>
-    <table>
-      <tr><td>1° vencimiento {{ expensa.fecha_primer_vencimiento }}</td><td class="num"><strong>{{ money(expensa.monto_primer_vencimiento) }}</strong></td></tr>
-      <tr><td>2° vencimiento {{ expensa.fecha_segundo_vencimiento }} (+recargo)</td><td class="num">{{ money(expensa.monto_segundo_vencimiento) }}</td></tr>
-    </table>
-  </section>
-
-  <footer class="datos-pago">
-    <h3>Para pagar</h3>
-    <p>{{ config.banco_nombre }} · CBU {{ config.banco_cbu }}</p>
-    {% if config.banco_alias %}<p>Alias: {{ config.banco_alias }}</p>{% endif %}
-    <p>Titular: {{ config.banco_titular }}</p>
-  </footer>
-</body>
-</html>
-```
-
-- [ ] **Step 2: Crear `backend/templates/boleta.css`**
-
-```css
-@page {
-  size: A4;
-  margin: 1.5cm;
-}
-
-body {
-  font-family: Arial, sans-serif;
-  font-size: 10pt;
-  color: #222;
-}
-
-h1 { font-size: 16pt; margin: 0; }
-h2 { font-size: 13pt; margin: 0.5em 0; }
-h3 { font-size: 11pt; margin: 1em 0 0.3em; color: #444; border-bottom: 1px solid #ccc; padding-bottom: 0.2em; }
-h4 { font-size: 10pt; margin: 0.6em 0 0.2em; color: #666; }
-
-.boleta-header {
-  display: flex;
-  justify-content: space-between;
-  border-bottom: 2px solid #333;
-  padding-bottom: 0.5em;
-  margin-bottom: 1em;
-}
-.boleta-header .meta { text-align: right; font-size: 9pt; }
-.boleta-header .admin { font-size: 9pt; color: #666; }
-
-.depto { margin-bottom: 1em; }
-
-table { width: 100%; border-collapse: collapse; margin-bottom: 0.5em; }
-table td { padding: 0.2em 0.4em; }
-.num { text-align: right; font-variant-numeric: tabular-nums; }
-
-.detalle td { font-size: 9pt; padding-left: 1em; color: #555; }
-
-.totales table tr { border-top: 1px solid #ccc; }
-.totales td { padding: 0.3em 0.4em; font-size: 11pt; }
-
-.datos-pago {
-  margin-top: 1.5em;
-  padding-top: 0.5em;
-  border-top: 2px solid #333;
-  font-size: 9pt;
-}
-
-section { page-break-inside: avoid; }
-```
-
-- [ ] **Step 3: Crear `backend/pdf.py`**
+- [ ] **Step 1: Crear `backend/pdf.py` con ReportLab**
 
 ```python
 """Generación del PDF de boleta de liquidación (Fase 6a).
 
-Función pura: lee de la DB lo necesario, renderiza HTML con Jinja2,
-convierte a PDF con WeasyPrint. No persiste nada.
+Función pura: lee de la DB lo necesario, arma el PDF con ReportLab.
+No persiste nada. ReportLab es Python puro — sin deps del SO.
 """
 from collections import defaultdict
 from datetime import date
-from pathlib import Path
+from io import BytesIO
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from weasyprint import HTML, CSS
 
 from .models import (
     ConfiguracionConsorcio,
@@ -411,17 +282,8 @@ from .models import (
     Expensa,
     ExpensaDetalle,
     MovimientoCuenta,
-    Rubro,
     TipoMovimiento,
 )
-
-_TEMPLATES_DIR = Path(__file__).parent / "templates"
-
-_env = Environment(
-    loader=FileSystemLoader(str(_TEMPLATES_DIR)),
-    autoescape=select_autoescape(["html"]),
-)
-
 
 _RUBRO_LABELS = {
     "sueldos_y_cargas_sociales": "Sueldos y cargas sociales",
@@ -445,40 +307,24 @@ def _rubro_label(rubro_value: str) -> str:
 
 
 def generar_pdf_boleta(expensa: Expensa, db: Session) -> bytes:
-    """Genera el PDF de la boleta de una expensa. Devuelve bytes."""
-    # 1. Cargar config (singleton id=1)
+    """Genera el PDF de la boleta. Devuelve bytes."""
     config = db.get(ConfiguracionConsorcio, 1)
-
-    # 2. Departamento
     departamento = db.get(Departamento, expensa.departamento_id)
 
-    # 3. Movimientos del mes del depto: pagos, intereses, notas
-    pagos_del_mes = list(db.scalars(
-        select(MovimientoCuenta)
-        .where(
+    pagos = list(db.scalars(
+        select(MovimientoCuenta).where(
             MovimientoCuenta.departamento_id == expensa.departamento_id,
             MovimientoCuenta.tipo == TipoMovimiento.pago_recibido,
-        )
-        .order_by(MovimientoCuenta.fecha)
+        ).order_by(MovimientoCuenta.fecha)
     ).all())
 
     intereses = list(db.scalars(
-        select(MovimientoCuenta)
-        .where(
+        select(MovimientoCuenta).where(
             MovimientoCuenta.departamento_id == expensa.departamento_id,
             MovimientoCuenta.tipo == TipoMovimiento.interes_punitorio,
         )
     ).all())
 
-    notas = list(db.scalars(
-        select(MovimientoCuenta)
-        .where(
-            MovimientoCuenta.departamento_id == expensa.departamento_id,
-            MovimientoCuenta.tipo.in_([TipoMovimiento.nota_credito, TipoMovimiento.nota_debito]),
-        )
-    ).all())
-
-    # 4. Detalle de gastos agrupado por rubro
     detalles = list(db.scalars(
         select(ExpensaDetalle).where(ExpensaDetalle.expensa_id == expensa.id)
     ).all())
@@ -487,31 +333,113 @@ def generar_pdf_boleta(expensa: Expensa, db: Session) -> bytes:
     for d in detalles:
         gastos_por_rubro[d.rubro.value].append(d)
 
-    # 5. Renderizar HTML
-    template = _env.get_template("boleta.html")
-    html_content = template.render(
-        expensa=expensa,
-        departamento=departamento,
-        config=config,
-        coeficiente=None,  # opcional, simplificado en MVP
-        pagos_del_mes=pagos_del_mes,
-        intereses=intereses,
-        notas=notas,
-        gastos_por_rubro=dict(gastos_por_rubro),
-        fecha_emision=date.today().isoformat(),
-        money=_money,
-        rubro_label=_rubro_label,
+    buf = BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
+        leftMargin=1.5 * cm, rightMargin=1.5 * cm,
+        topMargin=1.5 * cm, bottomMargin=1.5 * cm,
+        title=f"Boleta {expensa.periodo} - Depto {departamento.codigo}",
     )
 
-    # 6. Convertir HTML → PDF con CSS asociado
-    css_path = _TEMPLATES_DIR / "boleta.css"
-    pdf_bytes = HTML(string=html_content, base_url=str(_TEMPLATES_DIR)).write_pdf(
-        stylesheets=[CSS(filename=str(css_path))]
-    )
-    return pdf_bytes
+    styles = getSampleStyleSheet()
+    h1 = styles["Heading1"]
+    h2 = styles["Heading2"]
+    h3 = styles["Heading3"]
+    normal = styles["Normal"]
+    small = ParagraphStyle("small", parent=normal, fontSize=8, textColor=colors.grey)
+
+    story = []
+
+    # Header
+    story.append(Paragraph(config.consorcio_nombre, h1))
+    story.append(Paragraph(
+        f"{config.consorcio_domicilio} · CUIT {config.consorcio_cuit}", normal
+    ))
+    story.append(Paragraph(
+        f"Admin: {config.admin_nombre} (RPA {config.admin_rpa}) · "
+        f"{config.admin_email} · {config.admin_telefono}", small
+    ))
+    story.append(Spacer(1, 0.3 * cm))
+    story.append(Paragraph(
+        f"<b>Boleta Nº</b> {expensa.id} · "
+        f"<b>Período</b> {expensa.periodo} · "
+        f"<b>Emitida</b> {date.today().isoformat()}", normal
+    ))
+    story.append(Spacer(1, 0.5 * cm))
+
+    # Depto
+    story.append(Paragraph(f"Departamento {departamento.codigo}", h2))
+    story.append(Spacer(1, 0.3 * cm))
+
+    # Liquidación
+    story.append(Paragraph("Su liquidación", h3))
+    liq_data = [["Concepto", "Importe"]]
+    liq_data.append(["Saldo anterior", _money(expensa.saldo_anterior)])
+    for mov in pagos:
+        liq_data.append([f"{mov.fecha} · {mov.descripcion}", f"({_money(mov.monto)})"])
+    for mov in intereses:
+        liq_data.append([f"Intereses · {mov.descripcion}", _money(mov.monto)])
+    liq_tbl = Table(liq_data, colWidths=[12 * cm, 4 * cm])
+    liq_tbl.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.append(liq_tbl)
+    story.append(Spacer(1, 0.4 * cm))
+
+    # Gastos por rubro
+    story.append(Paragraph("Gastos del período (su prorrateo)", h3))
+    for rubro, items in gastos_por_rubro.items():
+        sub_total = sum(it.monto for it in items)
+        story.append(Paragraph(
+            f"<b>{_rubro_label(rubro)}</b> — {_money(sub_total)}", normal
+        ))
+        gas_data = [[it.concepto, _money(it.monto)] for it in items]
+        gas_tbl = Table(gas_data, colWidths=[12 * cm, 4 * cm])
+        gas_tbl.setStyle(TableStyle([
+            ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("LEFTPADDING", (0, 0), (0, -1), 16),
+            ("TEXTCOLOR", (0, 0), (-1, -1), colors.grey),
+        ]))
+        story.append(gas_tbl)
+    story.append(Spacer(1, 0.4 * cm))
+
+    # Totales
+    story.append(Paragraph("Total a pagar", h3))
+    tot_data = [
+        [f"1° vencimiento {expensa.fecha_primer_vencimiento}",
+         _money(expensa.monto_primer_vencimiento)],
+        [f"2° vencimiento {expensa.fecha_segundo_vencimiento} (+recargo)",
+         _money(expensa.monto_segundo_vencimiento)],
+    ]
+    tot_tbl = Table(tot_data, colWidths=[12 * cm, 4 * cm])
+    tot_tbl.setStyle(TableStyle([
+        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+        ("FONTNAME", (1, 0), (1, 0), "Helvetica-Bold"),
+        ("LINEABOVE", (0, 0), (-1, 0), 0.5, colors.grey),
+        ("LINEABOVE", (0, 1), (-1, 1), 0.5, colors.grey),
+    ]))
+    story.append(tot_tbl)
+    story.append(Spacer(1, 0.6 * cm))
+
+    # Datos para pagar
+    story.append(Paragraph("Para pagar", h3))
+    story.append(Paragraph(
+        f"{config.banco_nombre} · CBU {config.banco_cbu}", normal
+    ))
+    if config.banco_alias:
+        story.append(Paragraph(f"Alias: {config.banco_alias}", normal))
+    story.append(Paragraph(f"Titular: {config.banco_titular}", normal))
+
+    doc.build(story)
+    return buf.getvalue()
 ```
 
-- [ ] **Step 4: Crear `tests/test_pdf_boleta.py`**
+- [ ] **Step 2: Crear `tests/test_pdf_boleta.py`**
 
 ```python
 """Tests de generación de PDF de boleta."""
@@ -561,7 +489,7 @@ def test_genera_pdf_con_detalle_multi_rubro(db):
     assert len(pdf) > 1000
 ```
 
-- [ ] **Step 5: Run tests**
+- [ ] **Step 3: Run tests**
 
 ```bash
 .venv/Scripts/python.exe -m pytest tests/test_pdf_boleta.py -v
@@ -569,11 +497,11 @@ def test_genera_pdf_con_detalle_multi_rubro(db):
 
 Expected: 3 passed.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add backend/templates/ backend/pdf.py tests/test_pdf_boleta.py
-git commit -m "feat(pdf): generador de boleta con WeasyPrint + tests"
+git add backend/pdf.py tests/test_pdf_boleta.py
+git commit -m "feat(pdf): generador de boleta con ReportLab + tests"
 ```
 
 ---
@@ -960,22 +888,11 @@ SMTP_FROM_EMAIL=consorcio@local
 SMTP_FROM_NAME=Consorcio
 ```
 
-- [ ] **Step 2: Sumar sección "Setup de WeasyPrint" al README**
+- [ ] **Step 2: Sumar sección "Email saliente (SMTP)" al README**
 
 Buscar la sección de setup del backend y sumar al final:
 
 ```markdown
-### Setup de WeasyPrint (PDFs)
-
-Para generar PDFs de boletas (Fase 6a), el backend usa WeasyPrint, que requiere
-runtime de GTK3 en Windows:
-
-1. Descargar e instalar GTK3 runtime: https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases
-2. Reiniciar la terminal.
-3. Verificar: `python -c "from weasyprint import HTML; print('OK')"`.
-
-En Linux/Mac no hace falta nada extra (las libs ya vienen con el sistema o se instalan con el pip).
-
 ### Email saliente (SMTP)
 
 Para enviar PDFs por email, configurar en `.env`:

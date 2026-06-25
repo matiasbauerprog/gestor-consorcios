@@ -3,9 +3,11 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { listarExpensas, crearExpensa, eliminarExpensa } from "../api/expensas";
 import { listarDepartamentos } from "../api/departamentos";
+import { listarPeriodos } from "../api/periodos";
+import { abrirPdfExpensa } from "../api/pdf";
 import Modal from "../components/Modal";
-import ModalDesgloseExpensa from "../components/ModalDesgloseExpensa";
 import ModalComprobantesExpensa from "../components/ModalComprobantesExpensa";
+import ModalEnvioPdfs from "../components/ModalEnvioPdfs";
 import SelectorDepartamento from "../components/SelectorDepartamento";
 import BadgeEstado from "../components/BadgeEstado";
 import Tarjeta from "../components/Tarjeta";
@@ -18,7 +20,15 @@ function formatearMonto(v) {
   });
 }
 
-function TarjetaExpensa({ expensa, esAdmin, depto, onEliminar, onVerDesglose, onVerComprobantes }) {
+function TarjetaExpensa({ expensa, esAdmin, depto, token, onEliminar, onVerComprobantes }) {
+  async function handleAbrirPdf() {
+    try {
+      await abrirPdfExpensa(expensa.id, token);
+    } catch (e) {
+      alert(`No se pudo abrir el PDF: ${e.message}`);
+    }
+  }
+
   return (
     <Tarjeta>
       <h3>
@@ -48,21 +58,19 @@ function TarjetaExpensa({ expensa, esAdmin, depto, onEliminar, onVerDesglose, on
       </p>
       {(expensa.detalle?.length > 0 || esAdmin) && (
         <div className="tarjeta-acciones">
-          {expensa.detalle?.length > 0 && (
-            <button
-              type="button"
-              className="boton-secundario"
-              onClick={() => onVerDesglose(expensa)}
-            >
-              Ver desglose
-            </button>
-          )}
           <button
             type="button"
             className="boton-secundario"
             onClick={() => onVerComprobantes(expensa)}
           >
             Ver comprobantes
+          </button>
+          <button
+            type="button"
+            className="boton-secundario"
+            onClick={handleAbrirPdf}
+          >
+            📄 Ver PDF
           </button>
           {esAdmin && (
             <button
@@ -80,18 +88,20 @@ function TarjetaExpensa({ expensa, esAdmin, depto, onEliminar, onVerDesglose, on
 }
 
 export default function Expensas() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [expensas, setExpensas] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [errorCarga, setErrorCarga] = useState(null);
   const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState(null);
   const [modalCrearAbierto, setModalCrearAbierto] = useState(false);
   const [modalEliminar, setModalEliminar] = useState(null);
-  const [modalDesglose, setModalDesglose] = useState(null);
   const [modalComprobantes, setModalComprobantes] = useState(null);
   const [errorAccion, setErrorAccion] = useState(null);
   const [eliminando, setEliminando] = useState(false);
   const [departamentos, setDepartamentos] = useState([]);
+  const [filtroPeriodo, setFiltroPeriodo] = useState("");
+  const [periodosCerradosSet, setPeriodosCerradosSet] = useState(new Set());
+  const [modalEnvio, setModalEnvio] = useState(null);
 
   const esAdmin = user.rol === "administracion";
   const esDepto = user.rol === "departamento";
@@ -106,7 +116,20 @@ export default function Expensas() {
     })();
   }, [esAdmin]);
 
+  useEffect(() => {
+    (async () => {
+      const r = await listarPeriodos();
+      if (r.status === 200) {
+        setPeriodosCerradosSet(new Set(r.data.map(p => p.periodo)));
+      }
+    })();
+  }, []);
+
   const deptoById = Object.fromEntries(departamentos.map((d) => [d.id, d]));
+
+  const expensasFiltradas = filtroPeriodo
+    ? expensas.filter(e => e.periodo === filtroPeriodo)
+    : expensas;
 
   async function cargar() {
     setCargando(true);
@@ -174,6 +197,19 @@ export default function Expensas() {
               valor={departamentoSeleccionado}
               onChange={setDepartamentoSeleccionado}
             />
+            <label>
+              Período:{" "}
+              <input
+                type="month"
+                value={filtroPeriodo}
+                onChange={(e) => setFiltroPeriodo(e.target.value)}
+              />
+              {filtroPeriodo && (
+                <button type="button" onClick={() => setFiltroPeriodo("")} style={{ marginLeft: "0.5em" }}>
+                  Limpiar
+                </button>
+              )}
+            </label>
             <button
               type="button"
               disabled={departamentoSeleccionado === null}
@@ -206,15 +242,46 @@ export default function Expensas() {
         <p>No hay expensas para mostrar.</p>
       )}
 
+      {filtroPeriodo && (
+        <div
+          style={{
+            background: periodosCerradosSet.has(filtroPeriodo) ? "#e8f4f8" : "#fff3cd",
+            border: `1px solid ${periodosCerradosSet.has(filtroPeriodo) ? "#0d6efd" : "#ffc107"}`,
+            padding: "0.8em 1em",
+            marginBottom: "1em",
+            borderRadius: "4px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span>
+            📅 Período <strong>{filtroPeriodo}</strong>
+            {periodosCerradosSet.has(filtroPeriodo) ? " (cerrado)" : " (sin cerrar)"}
+            {" · "}<strong>{expensasFiltradas.length}</strong> expensas
+          </span>
+          <button
+            type="button"
+            onClick={() => setModalEnvio({
+              periodo: filtroPeriodo,
+              cantidadExpensas: expensasFiltradas.length,
+              periodoCerrado: periodosCerradosSet.has(filtroPeriodo),
+            })}
+          >
+            ✉ Enviar PDFs por email
+          </button>
+        </div>
+      )}
+
       <ul className="lista-expensas">
-        {expensas.map((e) => (
+        {expensasFiltradas.map((e) => (
           <li key={e.id}>
             <TarjetaExpensa
               expensa={e}
               esAdmin={esAdmin}
               depto={deptoById[e.departamento_id]}
+              token={token}
               onEliminar={setModalEliminar}
-              onVerDesglose={setModalDesglose}
               onVerComprobantes={setModalComprobantes}
             />
           </li>
@@ -268,17 +335,19 @@ export default function Expensas() {
         </Modal>
       )}
 
-      {modalDesglose && (
-        <ModalDesgloseExpensa
-          expensa={modalDesglose}
-          onClose={() => setModalDesglose(null)}
-        />
-      )}
-
       {modalComprobantes && (
         <ModalComprobantesExpensa
           expensa={modalComprobantes}
           onClose={() => setModalComprobantes(null)}
+        />
+      )}
+
+      {modalEnvio && (
+        <ModalEnvioPdfs
+          periodo={modalEnvio.periodo}
+          periodoCerrado={modalEnvio.periodoCerrado}
+          cantidadExpensas={modalEnvio.cantidadExpensas}
+          onClose={() => setModalEnvio(null)}
         />
       )}
     </main>

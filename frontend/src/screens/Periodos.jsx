@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listarPeriodos } from "../api/periodos";
+import ModalEnvioPdfs from "../components/ModalEnvioPdfs";
 
 function formatMoney(n) {
   return Number(n).toLocaleString("es-AR", {
@@ -11,6 +12,7 @@ function formatMoney(n) {
 export default function Periodos() {
   const [periodos, setPeriodos] = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [modalEnvio, setModalEnvio] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -36,7 +38,7 @@ export default function Periodos() {
               <th>Boletas</th>
               <th>Total expensado</th>
               <th>Intereses</th>
-              <th></th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -47,11 +49,33 @@ export default function Periodos() {
                 <td>{p.cantidad_expensas}</td>
                 <td>{formatMoney(p.total_expensado)}</td>
                 <td>{formatMoney(p.total_intereses)}</td>
-                <td><Link to={`/expensas?periodo=${p.periodo}`}>Ver expensas</Link></td>
+                <td>
+                  <div style={{ display: "flex", gap: "0.5em", flexWrap: "wrap" }}>
+                    <Link to={`/expensas?periodo=${p.periodo}`}>Ver expensas</Link>
+                    <button
+                      type="button"
+                      onClick={() => setModalEnvio({
+                        periodo: p.periodo,
+                        cantidadExpensas: p.cantidad_expensas,
+                        periodoCerrado: true,
+                      })}
+                    >
+                      ✉ Enviar PDFs
+                    </button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+      )}
+      {modalEnvio && (
+        <ModalEnvioPdfs
+          periodo={modalEnvio.periodo}
+          periodoCerrado={modalEnvio.periodoCerrado}
+          cantidadExpensas={modalEnvio.cantidadExpensas}
+          onClose={() => setModalEnvio(null)}
+        />
       )}
     </section>
   );

@@ -20,7 +20,7 @@ Esta fase cubre **PDF de boleta + envío de boletas**. Los reportes Ley 941 (est
 ## Decisiones (cerradas en brainstorming)
 
 1. **Split**: 6a (PDF boleta) y 6b (reportes Ley 941) separados.
-2. **Engine de PDF**: WeasyPrint server-side (HTML+CSS → PDF).
+2. **Engine de PDF**: ReportLab server-side (Python puro, sin deps del SO). ~~WeasyPrint~~ se descartó tras detectar en Task 0 que requiere GTK3 runtime en Windows (friccion de setup recurrente).
 3. **Contenido**: estándar (header consorcio, datos del depto, desglose por rubro, vencimientos, datos bancarios).
 4. **Generación**: on-demand. Cada GET regenera el PDF con datos actuales. Sin storage en disco.
 5. **Envío masivo**: síncrono. El endpoint procesa los N emails y devuelve un resumen `{enviados, fallaron, errores}`. Sin tracking persistido.
@@ -31,28 +31,29 @@ Esta fase cubre **PDF de boleta + envío de boletas**. Los reportes Ley 941 (est
 ## Arquitectura — Backend
 
 ### Librerías nuevas
-- **`weasyprint`** (HTML+CSS → PDF). Requiere libs del sistema (GTK runtime en Windows; se documenta en README).
-- **`jinja2`** (ya viene con FastAPI normalmente — verificar; sino sumar).
+- **`reportlab`** (Python puro, sin deps del SO — funciona en Windows/Linux/Mac out of the box).
 
-### Templates nuevos
-- `backend/templates/boleta.html` — Estructura de la boleta con bloques: header, depto, liquidación, gastos por rubro, totales, datos bancarios.
-- `backend/templates/boleta.css` — Estilos para A4, paleta del consorcio. CSS print-friendly (page-break-inside: avoid en bloques importantes).
+### Sin templates HTML
+ReportLab no usa HTML/CSS — el layout se dibuja programáticamente con primitivas (`Paragraph`, `Table`, `Spacer`) sobre un `SimpleDocTemplate`. Toda la estructura de la boleta vive en `backend/pdf.py`.
 
 ### Módulo nuevo `backend/pdf.py`
 ```python
-from jinja2 import Environment, FileSystemLoader
-from weasyprint import HTML, CSS
+from io import BytesIO
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
 def generar_pdf_boleta(expensa: Expensa, db: Session) -> bytes:
     """Genera el PDF de una expensa. Función pura: no persiste nada.
 
     Carga:
     - ConfiguracionConsorcio
-    - Departamento + coeficiente principal
-    - MovimientoCuenta del depto en el mes (pagos, intereses, notas)
+    - Departamento
+    - MovimientoCuenta del depto (pagos, intereses, notas)
     - ExpensaDetalle agrupado por rubro
 
-    Renderiza boleta.html con esos datos y devuelve los bytes del PDF.
+    Devuelve los bytes del PDF generado con ReportLab (SimpleDocTemplate sobre BytesIO).
     """
 ```
 
