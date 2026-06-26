@@ -25,6 +25,7 @@ const CAMPOS_VACIOS = {
   recargo_segundo_vencimiento_pct: 7.0,
   tasa_interes_mensual_pct: 3.0,
   caja_default_pagos_id: null,
+  reportes_visibles_a_depto: false,
 };
 
 export default function Configuracion() {
@@ -148,6 +149,21 @@ export default function Configuracion() {
               {cajas.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
             </select>
           </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Visibilidad de reportes para departamentos</legend>
+          <label>
+            <input
+              type="checkbox"
+              checked={!!form.reportes_visibles_a_depto}
+              onChange={(e) => setForm({ ...form, reportes_visibles_a_depto: e.target.checked })}
+            />
+            {" "}Permitir que los departamentos vean los reportes (morosos, estado financiero, gastos, proveedores)
+          </label>
+          <p style={{ fontSize: "0.85rem", color: "var(--color-text-muted, #666)", marginTop: "0.5rem" }}>
+            Por default los reportes son solo para administración. Activá esta opción para transparencia total con los copropietarios.
+          </p>
         </fieldset>
 
         {error && <p className="error">{error}</p>}

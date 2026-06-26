@@ -20,7 +20,7 @@ El proyecto es educativo, pero con un fin comercial a largo plazo. Por eso se el
 | **4** ✅ | **Cierre de período y liquidación** (completada 2026-06-22) | Botón "Cerrar período" → genera expensas con desglose por rubro y clase. Saldo anterior (= saldo de cuenta), créditos/débitos, 1°/2° vencimiento, intereses punitorios. |
 | **5** ✅ | **Tesorería: caja, fondo de reparación, estado financiero** (completada 2026-06-23) | Cajas configurables (banco/efectivo/fondo/otro), transferencias entre cajas, ajustes manuales como red de seguridad, dashboard "Estado financiero" con saldos por caja + total + últimos movimientos. |
 | **6a** ✅ | **PDF boleta + envío masivo** (completada 2026-06-25) | ReportLab para generación de PDFs on-demand; GET /expensas/{id}/pdf (admin/depto con auth por ownership); POST /periodos/{periodo}/enviar-pdfs (admin, sync + soft-warning 409 si período no cerrado); frontend con filtro+banner en /expensas, modal con warning + checkbox, integración tras cierre exitoso; modo console SMTP para dev; cleanup de "Ver desglose" redundante. |
-| 6b | Reportes Ley 941 | Estado patrimonial, lista de proveedores, evolución de cobranzas, lista de morosos. |
+| **6b** ✅ | **Reportes (PBA-friendly)** (completada 2026-06-26) | 4 reportes consultables y exportables a PDF: morosos, estado financiero, detalle de gastos del período, lista de proveedores. Toggle opt-in en config para visibilidad por depto (default off — admin habilita). Sin formato Ley 941 oficial CABA (queda para Fase 6c si entra cliente CABA). |
 
 ## Orden y dependencias
 
@@ -52,7 +52,12 @@ Cada fase: 1–3 semanas. Total: 10–17 semanas (incluyendo Fase 3.5). Estimaci
 - 2026-06-22: **Fase 4.5 completada** (mergeada a master). Refactor UX sin backend: botón "Cerrar período" inline en `/gastos`, modal de comprobantes accesible desde cada expensa, botón "Presentar pago" pre-seleccionado en `/mi-cuenta`. Sidebar -1 item.
 - 2026-06-23: **Fase 5 completada** (525 tests, mergeada a master). Multi-caja sin conciliación: modelos `Caja`/`MovimientoCaja`/`TransferenciaCaja`, integración con gastos/comprobantes/liquidaciones (caja_id required + cascade automático de MovimientoCaja), ajustes manuales como red de seguridad, dashboard /estado-financiero. Frontend con 3 pantallas nuevas + sección Tesorería en sidebar. Bloqueo cross-recurso ampliado a transferencias y ajustes.
 - 2026-06-25: **Fase 6a completada** (542 tests, mergeada a master). PDF de boleta con ReportLab (Python puro, sin GTK runtime) generado on-demand. Endpoint admin para envío masivo síncrono por email a deptos del período con soft-warning si no cerrado (409 + flag `confirmar_sin_cerrar`). Frontend: filtro por período + banner contextual en `/expensas`, modal de envío con warning + checkbox, integración tras cierre exitoso (ofrece envío inmediato), nota informativa sobre aplicación FIFO en presentación de pago. Cleanup: removido `ModalDesgloseExpensa` (redundante con PDF). Modo console SMTP para dev. Reportes Ley 941 quedan para Fase 6b.
+- 2026-06-26: **Fase 6b completada** (570 tests, mergeada a master). 4 reportes (morosos, estado financiero, gastos del período, lista de proveedores) consultables y exportables a PDF reusando ReportLab. Acceso para admin/representante siempre; para depto opt-in vía toggle `reportes_visibles_a_depto` en configuración (default false — admin habilita explícitamente). Refactor `_dibujar_header_consorcio` para reuso entre boleta + 4 reportes. Cierra el roadmap original de 6 fases.
 
 ## Próximo paso
 
-Brainstorming de Fase 6b (Reportes Ley 941: estado patrimonial, lista de proveedores, evolución de cobranzas, lista de morosos).
+**Roadmap original completado.** Próximas fases (opcionales, para comercialización):
+- Fase 6c: modo Ley 941 oficial CABA (formato específico) — cuando aparezca primer cliente CABA.
+- Fase 7: multi-consorcio (multi-tenancy) — para escalar a estudios de administración.
+- Fase 8: audit log + backups automáticos — confianza profesional.
+- Fase 9: integraciones AFIP/SUTERH — diferenciador comercial.

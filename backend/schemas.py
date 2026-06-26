@@ -366,6 +366,9 @@ class ConfiguracionConsorcioActualizar(BaseModel):
     # cajas (Fase 5)
     caja_default_pagos_id: int | None = None
 
+    # visibilidad de reportes para departamentos (Fase 6b)
+    reportes_visibles_a_depto: bool = False
+
 
 class ConfiguracionConsorcioOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -393,6 +396,7 @@ class ConfiguracionConsorcioOut(BaseModel):
     recargo_segundo_vencimiento_pct: float
     tasa_interes_mensual_pct: float
     caja_default_pagos_id: int | None
+    reportes_visibles_a_depto: bool
 
 
 class CoeficienteItem(BaseModel):
@@ -907,3 +911,72 @@ class EnviarPdfsOut(BaseModel):
     enviados: int
     fallaron: int
     errores: list[ErrorEnvioOut]
+
+
+# === Fase 6b — Reportes ===
+
+class ItemMorosoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    departamento_id: int
+    departamento_codigo: str
+    saldo: float
+    periodos_vencidos_impagos: int
+    primer_vencimiento_impago: date | None
+
+
+class ItemActivoCajaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    caja_id: int
+    nombre: str
+    saldo: float
+
+
+class ItemPasivoGastoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    gasto_id: int
+    proveedor: str
+    concepto: str
+    monto: float
+    fecha_registrada: date
+
+
+class EstadoFinancieroReporteOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    fecha_corte: date
+    cajas: list[ItemActivoCajaOut]
+    deudores_total: float
+    pasivos: list[ItemPasivoGastoOut]
+    activo_total: float
+    pasivo_total: float
+    patrimonio_neto: float
+
+
+class ItemGastoDetalleOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    fecha: date
+    concepto: str
+    rubro: str
+    proveedor: str
+    forma_pago: str
+    caja: str
+    monto: float
+    es_particular: bool
+
+
+class GastosDelPeriodoReporteOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    periodo: str
+    por_rubro: dict[str, list[ItemGastoDetalleOut]]
+    particulares: list[ItemGastoDetalleOut]
+    subtotales_por_rubro: dict[str, float]
+    total_general: float
+
+
+class ItemProveedorOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    proveedor_id: int
+    razon_social: str
+    cuit: str
+    cantidad_gastos: int
+    total_facturado: float
+    ultimo_gasto: date | None

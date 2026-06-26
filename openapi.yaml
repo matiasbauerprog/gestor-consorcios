@@ -43,6 +43,8 @@ tags:
     description: Transferencias entre cajas
   - name: EstadoFinanciero
     description: Dashboard de tesorería
+  - name: Reportes
+    description: Reportes consultables (morosos, estado financiero, gastos, proveedores)
 
 security:
   - bearerAuth: []
@@ -2589,6 +2591,171 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/EstadoFinancieroOut' }
 
+  # =========================================================================
+  # REPORTES
+  # =========================================================================
+
+  /reportes/morosos:
+    get:
+      tags: [Reportes]
+      summary: Lista de morosos
+      operationId: listarMorosos
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: solo_deudores
+          in: query
+          schema: { type: boolean, default: true }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ItemMorosoOut' }
+        '401': { description: Token ausente }
+
+  /reportes/morosos/pdf:
+    get:
+      tags: [Reportes]
+      summary: PDF de lista de morosos
+      operationId: pdfMorosos
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: solo_deudores
+          in: query
+          schema: { type: boolean, default: true }
+      responses:
+        '200':
+          description: PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+
+  /reportes/estado-financiero:
+    get:
+      tags: [Reportes]
+      summary: Estado financiero a una fecha
+      operationId: obtenerEstadoFinancieroReporte
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: fecha_corte
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EstadoFinancieroReporteOut' }
+
+  /reportes/estado-financiero/pdf:
+    get:
+      tags: [Reportes]
+      summary: PDF del estado financiero
+      operationId: pdfEstadoFinanciero
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: fecha_corte
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+
+  /reportes/gastos/{periodo}:
+    get:
+      tags: [Reportes]
+      summary: Detalle de gastos del período
+      operationId: obtenerGastosDelPeriodoReporte
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: periodo
+          in: path
+          required: true
+          schema: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+        - name: rubro
+          in: query
+          schema: { type: string }
+        - name: proveedor_id
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GastosDelPeriodoReporteOut' }
+
+  /reportes/gastos/{periodo}/pdf:
+    get:
+      tags: [Reportes]
+      summary: PDF del detalle de gastos del período
+      operationId: pdfGastosPeriodo
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: periodo
+          in: path
+          required: true
+          schema: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+        - name: rubro
+          in: query
+          schema: { type: string }
+        - name: proveedor_id
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          description: PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+
+  /reportes/proveedores:
+    get:
+      tags: [Reportes]
+      summary: Lista de proveedores con totales facturados
+      operationId: listarProveedoresReporte
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: anio
+          in: query
+          schema: { type: integer }
+        - name: periodo
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ItemProveedorOut' }
+
+  /reportes/proveedores/pdf:
+    get:
+      tags: [Reportes]
+      summary: PDF de la lista de proveedores
+      operationId: pdfProveedores
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: anio
+          in: query
+          schema: { type: integer }
+        - name: periodo
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+
 # ===========================================================================
 # COMPONENTS
 # ===========================================================================
@@ -3871,3 +4038,84 @@ components:
           items:
             $ref: '#/components/schemas/ErrorEnvioOut'
           description: Detalles de los errores de envío.
+
+    # ---------------------- Reportes ----------------------
+
+    ItemMorosoOut:
+      type: object
+      properties:
+        departamento_id: { type: integer }
+        departamento_codigo: { type: string }
+        saldo: { type: number }
+        periodos_vencidos_impagos: { type: integer }
+        primer_vencimiento_impago: { type: string, format: date, nullable: true }
+
+    ItemActivoCajaOut:
+      type: object
+      properties:
+        caja_id: { type: integer }
+        nombre: { type: string }
+        saldo: { type: number }
+
+    ItemPasivoGastoOut:
+      type: object
+      properties:
+        gasto_id: { type: integer }
+        proveedor: { type: string }
+        concepto: { type: string }
+        monto: { type: number }
+        fecha_registrada: { type: string, format: date }
+
+    EstadoFinancieroReporteOut:
+      type: object
+      properties:
+        fecha_corte: { type: string, format: date }
+        cajas:
+          type: array
+          items: { $ref: '#/components/schemas/ItemActivoCajaOut' }
+        deudores_total: { type: number }
+        pasivos:
+          type: array
+          items: { $ref: '#/components/schemas/ItemPasivoGastoOut' }
+        activo_total: { type: number }
+        pasivo_total: { type: number }
+        patrimonio_neto: { type: number }
+
+    ItemGastoDetalleOut:
+      type: object
+      properties:
+        fecha: { type: string, format: date }
+        concepto: { type: string }
+        rubro: { type: string }
+        proveedor: { type: string }
+        forma_pago: { type: string }
+        caja: { type: string }
+        monto: { type: number }
+        es_particular: { type: boolean }
+
+    GastosDelPeriodoReporteOut:
+      type: object
+      properties:
+        periodo: { type: string }
+        por_rubro:
+          type: object
+          additionalProperties:
+            type: array
+            items: { $ref: '#/components/schemas/ItemGastoDetalleOut' }
+        particulares:
+          type: array
+          items: { $ref: '#/components/schemas/ItemGastoDetalleOut' }
+        subtotales_por_rubro:
+          type: object
+          additionalProperties: { type: number }
+        total_general: { type: number }
+
+    ItemProveedorOut:
+      type: object
+      properties:
+        proveedor_id: { type: integer }
+        razon_social: { type: string }
+        cuit: { type: string }
+        cantidad_gastos: { type: integer }
+        total_facturado: { type: number }
+        ultimo_gasto: { type: string, format: date, nullable: true }

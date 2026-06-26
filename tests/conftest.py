@@ -411,3 +411,9 @@ def headers_depto_b() -> dict[str, str]:
 def headers_representante() -> dict[str, str]:
     token = create_access_token(user_id=4, rol=Rol.representante, departamento_id=None)
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture()
+def db(db_session) -> Iterator:
+    """Alias for db_session (short name for unit tests)."""
+    yield db_session

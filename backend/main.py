@@ -32,6 +32,7 @@ from .routers import (
     periodos,
     peticiones,
     proveedores,
+    reportes,
     reservas,
     trabajos,
     transferencias_caja,
@@ -113,6 +114,7 @@ app.include_router(periodos.router)
 app.include_router(cajas.router)
 app.include_router(transferencias_caja.router)
 app.include_router(estado_financiero.router)
+app.include_router(reportes.router)
 
 _uploads_path = Path(get_settings().UPLOAD_DIR)
 _uploads_path.mkdir(parents=True, exist_ok=True)

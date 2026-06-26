@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
+import { obtenerConfiguracion } from "../api/configuracion";
 
 const SECCIONES = [
   {
@@ -62,6 +64,31 @@ const SECCIONES = [
     ],
   },
   {
+    titulo: "Reportes",
+    modulos: [
+      {
+        ruta: "/reportes/morosos",
+        nombre: "Lista de morosos",
+        rolesPermitidos: ["administracion", "representante", "departamento"],
+      },
+      {
+        ruta: "/reportes/estado-financiero",
+        nombre: "Estado financiero",
+        rolesPermitidos: ["administracion", "representante", "departamento"],
+      },
+      {
+        ruta: "/reportes/gastos",
+        nombre: "Detalle de gastos",
+        rolesPermitidos: ["administracion", "representante", "departamento"],
+      },
+      {
+        ruta: "/reportes/proveedores",
+        nombre: "Lista de proveedores",
+        rolesPermitidos: ["administracion", "representante", "departamento"],
+      },
+    ],
+  },
+  {
     titulo: "Sueldos",
     modulos: [
       {
@@ -114,9 +141,30 @@ const SECCIONES = [
 ];
 
 export default function Sidebar({ rol, abierto, onCerrar }) {
+  // Para depto: el admin debe habilitar la visibilidad de reportes.
+  // Otros roles los ven siempre (admin/representante).
+  const [reportesVisiblesDepto, setReportesVisiblesDepto] = useState(false);
+
+  useEffect(() => {
+    if (rol !== "departamento") return;
+    (async () => {
+      const r = await obtenerConfiguracion();
+      if (r.status === 200) {
+        setReportesVisiblesDepto(!!r.data?.reportes_visibles_a_depto);
+      }
+    })();
+  }, [rol]);
+
   const seccionesVisibles = SECCIONES.map((s) => ({
     ...s,
-    modulos: s.modulos.filter((m) => m.rolesPermitidos.includes(rol)),
+    modulos: s.modulos.filter((m) => {
+      if (!m.rolesPermitidos.includes(rol)) return false;
+      // Ocultar reportes a depto si el admin no los habilitó
+      if (rol === "departamento" && m.ruta.startsWith("/reportes/") && !reportesVisiblesDepto) {
+        return false;
+      }
+      return true;
+    }),
   })).filter((s) => s.modulos.length > 0);
 
   return (
