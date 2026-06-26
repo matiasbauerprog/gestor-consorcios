@@ -20,7 +20,7 @@ El proyecto es educativo, pero con un fin comercial a largo plazo. Por eso se el
 | **4** ✅ | **Cierre de período y liquidación** (completada 2026-06-22) | Botón "Cerrar período" → genera expensas con desglose por rubro y clase. Saldo anterior (= saldo de cuenta), créditos/débitos, 1°/2° vencimiento, intereses punitorios. |
 | **5** ✅ | **Tesorería: caja, fondo de reparación, estado financiero** (completada 2026-06-23) | Cajas configurables (banco/efectivo/fondo/otro), transferencias entre cajas, ajustes manuales como red de seguridad, dashboard "Estado financiero" con saldos por caja + total + últimos movimientos. |
 | **6a** ✅ | **PDF boleta + envío masivo** (completada 2026-06-25) | ReportLab para generación de PDFs on-demand; GET /expensas/{id}/pdf (admin/depto con auth por ownership); POST /periodos/{periodo}/enviar-pdfs (admin, sync + soft-warning 409 si período no cerrado); frontend con filtro+banner en /expensas, modal con warning + checkbox, integración tras cierre exitoso; modo console SMTP para dev; cleanup de "Ver desglose" redundante. |
-| 6b | Reportes Ley 941 | Estado patrimonial, lista de proveedores, evolución de cobranzas, lista de morosos. |
+| **6b** ✅ | **Reportes (PBA-friendly)** (completada 2026-06-26) | 4 reportes consultables y exportables a PDF: morosos, estado financiero, detalle de gastos del período, lista de proveedores. Toggle opt-in en config para visibilidad por depto (default off — admin habilita). Sin formato Ley 941 oficial CABA (queda para Fase 6c si entra cliente CABA). |
 
 ## Orden y dependencias
 
@@ -55,4 +55,8 @@ Cada fase: 1–3 semanas. Total: 10–17 semanas (incluyendo Fase 3.5). Estimaci
 
 ## Próximo paso
 
-Brainstorming de Fase 6b (Reportes Ley 941: estado patrimonial, lista de proveedores, evolución de cobranzas, lista de morosos).
+**Roadmap original completado.** Próximas fases (opcionales, para comercialización):
+- Fase 6c: modo Ley 941 oficial CABA (formato específico) — cuando aparezca primer cliente CABA.
+- Fase 7: multi-consorcio (multi-tenancy) — para escalar a estudios de administración.
+- Fase 8: audit log + backups automáticos — confianza profesional.
+- Fase 9: integraciones AFIP/SUTERH — diferenciador comercial.
