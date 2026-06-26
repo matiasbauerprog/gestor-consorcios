@@ -62,6 +62,31 @@ const SECCIONES = [
     ],
   },
   {
+    titulo: "Reportes",
+    modulos: [
+      {
+        ruta: "/reportes/morosos",
+        nombre: "Lista de morosos",
+        rolesPermitidos: ["administracion", "representante", "departamento"],
+      },
+      {
+        ruta: "/reportes/estado-financiero",
+        nombre: "Estado financiero",
+        rolesPermitidos: ["administracion", "representante", "departamento"],
+      },
+      {
+        ruta: "/reportes/gastos",
+        nombre: "Detalle de gastos",
+        rolesPermitidos: ["administracion", "representante", "departamento"],
+      },
+      {
+        ruta: "/reportes/proveedores",
+        nombre: "Lista de proveedores",
+        rolesPermitidos: ["administracion", "representante", "departamento"],
+      },
+    ],
+  },
+  {
     titulo: "Sueldos",
     modulos: [
       {

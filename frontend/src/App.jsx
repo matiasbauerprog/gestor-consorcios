@@ -23,6 +23,10 @@ import Periodos from "./screens/Periodos";
 import EstadoFinanciero from "./screens/EstadoFinanciero";
 import Cajas from "./screens/Cajas";
 import Transferencias from "./screens/Transferencias";
+import ReporteMorosos from "./screens/ReporteMorosos";
+import ReporteEstadoFinanciero from "./screens/ReporteEstadoFinanciero";
+import ReporteGastosPeriodo from "./screens/ReporteGastosPeriodo";
+import ReporteProveedores from "./screens/ReporteProveedores";
 import NotFound from "./screens/NotFound";
 
 export default function App() {
@@ -61,6 +65,10 @@ export default function App() {
             <Route path="estado-financiero" element={<EstadoFinanciero />} />
             <Route path="cajas" element={<Cajas />} />
             <Route path="transferencias" element={<Transferencias />} />
+            <Route path="reportes/morosos" element={<ReporteMorosos />} />
+            <Route path="reportes/estado-financiero" element={<ReporteEstadoFinanciero />} />
+            <Route path="reportes/gastos" element={<ReporteGastosPeriodo />} />
+            <Route path="reportes/proveedores" element={<ReporteProveedores />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
