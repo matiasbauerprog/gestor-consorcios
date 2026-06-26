@@ -366,6 +366,9 @@ class ConfiguracionConsorcioActualizar(BaseModel):
     # cajas (Fase 5)
     caja_default_pagos_id: int | None = None
 
+    # visibilidad de reportes para departamentos (Fase 6b)
+    reportes_visibles_a_depto: bool = False
+
 
 class ConfiguracionConsorcioOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -393,6 +396,7 @@ class ConfiguracionConsorcioOut(BaseModel):
     recargo_segundo_vencimiento_pct: float
     tasa_interes_mensual_pct: float
     caja_default_pagos_id: int | None
+    reportes_visibles_a_depto: bool
 
 
 class CoeficienteItem(BaseModel):

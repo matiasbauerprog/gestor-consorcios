@@ -1,15 +1,16 @@
 """Router de reportes (lectura) — Fase 6b.
 
-Acceso: admin + representante + departamento. Solo GET.
+Acceso: admin + representante siempre. Departamento solo si el admin habilitó
+el flag `reportes_visibles_a_depto` en configuración (default: False).
 """
 from datetime import date
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, get_current_user
 from ..database import get_db
-from ..models import ConfiguracionConsorcio
+from ..models import ConfiguracionConsorcio, Rol
 from ..pdf import (
     generar_pdf_estado_financiero,
     generar_pdf_gastos_periodo,
@@ -32,6 +33,18 @@ from ..schemas import (
 router = APIRouter(prefix="/reportes", tags=["Reportes"])
 
 
+def _validar_acceso_reportes(db: Session, user: CurrentUser) -> None:
+    """403 si el usuario es departamento y la admin no habilitó la visibilidad."""
+    if user.rol != Rol.departamento:
+        return
+    config = db.get(ConfiguracionConsorcio, 1)
+    if config is None or not config.reportes_visibles_a_depto:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Los reportes no están habilitados para departamentos en este consorcio.",
+        )
+
+
 # === Morosos ===
 
 @router.get("/morosos", response_model=list[ItemMorosoOut])
@@ -40,6 +53,7 @@ def listar_morosos(
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(get_current_user),
 ):
+    _validar_acceso_reportes(db, _u)
     return calcular_morosos(db, solo_deudores=solo_deudores)
 
 
@@ -49,6 +63,7 @@ def pdf_morosos(
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(get_current_user),
 ) -> Response:
+    _validar_acceso_reportes(db, _u)
     items = calcular_morosos(db, solo_deudores=solo_deudores)
     config = db.get(ConfiguracionConsorcio, 1)
     pdf = generar_pdf_morosos(items, date.today(), config)
@@ -67,6 +82,7 @@ def obtener_estado_financiero(
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(get_current_user),
 ):
+    _validar_acceso_reportes(db, _u)
     return calcular_estado_financiero(db, fecha_corte or date.today())
 
 
@@ -76,6 +92,7 @@ def pdf_estado_financiero(
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(get_current_user),
 ) -> Response:
+    _validar_acceso_reportes(db, _u)
     rep = calcular_estado_financiero(db, fecha_corte or date.today())
     config = db.get(ConfiguracionConsorcio, 1)
     pdf = generar_pdf_estado_financiero(rep, config)
@@ -96,6 +113,7 @@ def obtener_gastos_del_periodo(
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(get_current_user),
 ):
+    _validar_acceso_reportes(db, _u)
     return calcular_gastos_del_periodo(db, periodo, rubro=rubro, proveedor_id=proveedor_id)
 
 
@@ -107,6 +125,7 @@ def pdf_gastos_periodo(
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(get_current_user),
 ) -> Response:
+    _validar_acceso_reportes(db, _u)
     rep = calcular_gastos_del_periodo(db, periodo, rubro=rubro, proveedor_id=proveedor_id)
     config = db.get(ConfiguracionConsorcio, 1)
     pdf = generar_pdf_gastos_periodo(rep, config)
@@ -126,6 +145,7 @@ def listar_proveedores(
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(get_current_user),
 ):
+    _validar_acceso_reportes(db, _u)
     return calcular_lista_proveedores(db, anio=anio, periodo=periodo)
 
 
@@ -136,6 +156,7 @@ def pdf_proveedores(
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(get_current_user),
 ) -> Response:
+    _validar_acceso_reportes(db, _u)
     items = calcular_lista_proveedores(db, anio=anio, periodo=periodo)
     config = db.get(ConfiguracionConsorcio, 1)
     pdf = generar_pdf_lista_proveedores(items, anio, config)

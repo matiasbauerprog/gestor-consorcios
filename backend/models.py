@@ -477,6 +477,7 @@ class ConfiguracionConsorcio(Base):
     recargo_segundo_vencimiento_pct: Mapped[float] = mapped_column(Float, nullable=False, default=7.0)
     tasa_interes_mensual_pct: Mapped[float] = mapped_column(Float, nullable=False, default=3.0)
     caja_default_pagos_id: Mapped[int | None] = mapped_column(ForeignKey("cajas.id"))
+    reportes_visibles_a_depto: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class GastoHabitual(Base):
