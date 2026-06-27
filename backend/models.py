@@ -112,6 +112,13 @@ class FormaPago(str, enum.Enum):
     otro = "otro"
 
 
+class PeriodicidadRecurrente(str, enum.Enum):
+    mensual = "mensual"
+    trimestral = "trimestral"
+    semestral = "semestral"
+    anual = "anual"
+
+
 class CategoriaEmpleado(str, enum.Enum):
     encargado_permanente_con_vivienda = "encargado_permanente_con_vivienda"
     encargado_permanente_sin_vivienda = "encargado_permanente_sin_vivienda"
@@ -195,6 +202,12 @@ class Trabajo(Base):
         nullable=True,
         index=True,
     )
+    presupuesto_aprobado_id: Mapped[int | None] = mapped_column(
+        ForeignKey("presupuestos.id"), nullable=True,
+    )
+    gasto_id: Mapped[int | None] = mapped_column(
+        ForeignKey("gastos.id"), nullable=True,
+    )
     descripcion: Mapped[str] = mapped_column(String(2000), nullable=False)
     estado: Mapped[EstadoTrabajo] = mapped_column(
         SqlEnum(EstadoTrabajo, name="estado_trabajo"),
@@ -206,7 +219,10 @@ class Trabajo(Base):
     )
 
     peticion: Mapped["Peticion | None"] = relationship(back_populates="trabajos")
-    presupuestos: Mapped[list["Presupuesto"]] = relationship(back_populates="trabajo")
+    presupuestos: Mapped[list["Presupuesto"]] = relationship(
+        back_populates="trabajo",
+        foreign_keys="Presupuesto.trabajo_id"
+    )
 
 
 class Presupuesto(Base):
@@ -215,21 +231,27 @@ class Presupuesto(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     trabajo_id: Mapped[int] = mapped_column(
         ForeignKey("trabajos.id", ondelete="RESTRICT"),
-        nullable=False,
-        index=True,
+        nullable=False, index=True,
     )
-    proveedor: Mapped[str] = mapped_column(String(255), nullable=False)
+    proveedor_id: Mapped[int] = mapped_column(
+        ForeignKey("proveedores.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     monto: Mapped[float] = mapped_column(Float, nullable=False)
     estado: Mapped[EstadoPresupuesto] = mapped_column(
         SqlEnum(EstadoPresupuesto, name="estado_presupuesto"),
-        nullable=False,
-        default=EstadoPresupuesto.presentado,
+        nullable=False, default=EstadoPresupuesto.presentado,
     )
     fecha_presentacion: Mapped[date] = mapped_column(
-        Date, nullable=False, server_default=func.current_date()
+        Date, nullable=False, server_default=func.current_date(),
     )
+    archivo_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    observaciones: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
-    trabajo: Mapped["Trabajo"] = relationship(back_populates="presupuestos")
+    trabajo: Mapped["Trabajo"] = relationship(
+        back_populates="presupuestos",
+        foreign_keys=[trabajo_id]
+    )
 
 
 class Comunicado(Base):
@@ -767,4 +789,40 @@ class TransferenciaCaja(Base):
     descripcion: Mapped[str] = mapped_column(String(500), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow
+    )
+
+
+class TrabajoRecurrente(Base):
+    __tablename__ = "trabajos_recurrentes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nombre: Mapped[str] = mapped_column(String(255), nullable=False)
+    descripcion: Mapped[str] = mapped_column(String(2000), nullable=False)
+    periodicidad: Mapped[PeriodicidadRecurrente] = mapped_column(
+        SqlEnum(PeriodicidadRecurrente, name="periodicidad_recurrente"),
+        nullable=False,
+    )
+    proveedor_sugerido_id: Mapped[int | None] = mapped_column(
+        ForeignKey("proveedores.id"), nullable=True,
+    )
+    monto_estimado: Mapped[float | None] = mapped_column(Float, nullable=True)
+    activa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(),
+    )
+
+
+class Notificacion(Base):
+    __tablename__ = "notificaciones"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    mensaje: Mapped[str] = mapped_column(String(500), nullable=False)
+    link: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    leida: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(),
     )
