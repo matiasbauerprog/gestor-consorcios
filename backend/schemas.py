@@ -93,7 +93,7 @@ class TrabajoOut(BaseModel):
 
 
 class PresupuestoCrear(BaseModel):
-    proveedor: str = Field(..., min_length=1, max_length=255)
+    proveedor_id: int = Field(..., gt=0)
     monto: float = Field(..., gt=0)
     aprobado: bool = False
 
@@ -103,7 +103,7 @@ class PresupuestoOut(BaseModel):
 
     id: int
     trabajo_id: int
-    proveedor: str
+    proveedor_id: int
     monto: float
     estado: EstadoPresupuesto
     fecha_presentacion: date
