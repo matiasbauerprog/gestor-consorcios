@@ -29,6 +29,7 @@ from .routers import (
     haberes,
     liquidaciones,
     movimientos,
+    notificaciones,
     periodos,
     peticiones,
     proveedores,
@@ -110,6 +111,7 @@ app.include_router(conceptos_liquidacion.router)
 app.include_router(haberes.router)
 app.include_router(liquidaciones.router)
 app.include_router(movimientos.router)
+app.include_router(notificaciones.router)
 app.include_router(periodos.router)
 app.include_router(cajas.router)
 app.include_router(transferencias_caja.router)
