@@ -32,6 +32,7 @@ from .routers import (
     notificaciones,
     periodos,
     peticiones,
+    presupuestos,
     proveedores,
     reportes,
     reservas,
@@ -94,6 +95,7 @@ async def validation_exception_handler(_: Request, exc: RequestValidationError) 
 app.include_router(auth.router)
 app.include_router(empleados.router)
 app.include_router(peticiones.router)
+app.include_router(presupuestos.router)
 app.include_router(trabajos.router)
 app.include_router(expensas.router)
 app.include_router(comprobantes.router)
