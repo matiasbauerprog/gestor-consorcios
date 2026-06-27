@@ -37,6 +37,7 @@ from .routers import (
     reportes,
     reservas,
     trabajos,
+    trabajos_recurrentes,
     transferencias_caja,
     usuarios,
 )
@@ -97,6 +98,7 @@ app.include_router(empleados.router)
 app.include_router(peticiones.router)
 app.include_router(presupuestos.router)
 app.include_router(trabajos.router)
+app.include_router(trabajos_recurrentes.router)
 app.include_router(expensas.router)
 app.include_router(comprobantes.router)
 app.include_router(comunicados.router)
