@@ -210,6 +210,7 @@ class ReservaOut(BaseModel):
     inicio: datetime
     fin: datetime
     estado: EstadoReserva
+    movimiento_cuenta_id: int | None
 
 
 class BloqueHorarioOut(BaseModel):
@@ -229,16 +230,33 @@ class AmenityOut(BaseModel):
     id: int
     nombre: str
     descripcion: str | None
+    activo: bool
+    precio_reserva: float | None
+    duracion_maxima_horas: int | None
+    anticipacion_maxima_dias: int | None
+    max_reservas_activas_por_depto: int | None
+    horas_minimas_cancelacion: int | None
 
 
 class AmenityCrear(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=100)
     descripcion: str | None = Field(default=None, max_length=500)
+    precio_reserva: float | None = Field(default=None, ge=0)
+    duracion_maxima_horas: int | None = Field(default=None, gt=0)
+    anticipacion_maxima_dias: int | None = Field(default=None, gt=0)
+    max_reservas_activas_por_depto: int | None = Field(default=None, gt=0)
+    horas_minimas_cancelacion: int | None = Field(default=None, ge=0)
 
 
 class AmenityActualizar(BaseModel):
     nombre: str | None = Field(default=None, min_length=1, max_length=100)
     descripcion: str | None = Field(default=None, max_length=500)
+    activo: bool | None = None
+    precio_reserva: float | None = Field(default=None, ge=0)
+    duracion_maxima_horas: int | None = Field(default=None, gt=0)
+    anticipacion_maxima_dias: int | None = Field(default=None, gt=0)
+    max_reservas_activas_por_depto: int | None = Field(default=None, gt=0)
+    horas_minimas_cancelacion: int | None = Field(default=None, ge=0)
 
 
 class DepartamentoOut(BaseModel):

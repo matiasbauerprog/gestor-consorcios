@@ -218,8 +218,14 @@ def _seed(db) -> None:
                 cuerpo="Comunicado inicial del consorcio.",
                 autor_id=admin.id,
             ),
-            Amenity(id=300, nombre="SUM", descripcion="Salón de usos múltiples"),
-            Amenity(id=301, nombre="Laundry", descripcion="Lavandería compartida"),
+            Amenity(
+                id=300, nombre="SUM", descripcion="Salón de usos múltiples",
+                activo=True,
+            ),
+            Amenity(
+                id=301, nombre="Laundry", descripcion="Lavandería compartida",
+                activo=True,
+            ),
             # Reserva confirmada existente en SUM: 2026-07-15 14:00–17:00.
             Reserva(
                 id=400,

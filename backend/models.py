@@ -379,6 +379,13 @@ class Amenity(Base):
     nombre: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     descripcion: Mapped[str | None] = mapped_column(String(500))
 
+    activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    precio_reserva: Mapped[float | None] = mapped_column(Float, nullable=True)
+    duracion_maxima_horas: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    anticipacion_maxima_dias: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_reservas_activas_por_depto: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    horas_minimas_cancelacion: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     reservas: Mapped[list["Reserva"]] = relationship(back_populates="amenity")
 
 
@@ -405,6 +412,10 @@ class Reserva(Base):
     )
     fecha_creacion: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    movimiento_cuenta_id: Mapped[int | None] = mapped_column(
+        ForeignKey("movimientos_cuenta.id", ondelete="SET NULL"),
+        nullable=True,
     )
 
     amenity: Mapped["Amenity"] = relationship(back_populates="reservas")
