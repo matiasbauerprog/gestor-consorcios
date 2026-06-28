@@ -45,6 +45,12 @@ tags:
     description: Dashboard de tesorería
   - name: Reportes
     description: Reportes consultables (morosos, estado financiero, gastos, proveedores)
+  - name: Presupuestos
+    description: Presupuestos de proveedores para trabajos
+  - name: TrabajosRecurrentes
+    description: Plantillas de trabajos recurrentes (materialización manual)
+  - name: Notificaciones
+    description: Sistema de notificaciones in-app (campanita)
 
 security:
   - bearerAuth: []
@@ -633,7 +639,62 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+    delete:
+      tags: [Tareas]
+      summary: Eliminar una petición
+      description: |
+        Elimina una petición. Administración y Representantes pueden borrar
+        cualquier petición en cualquier estado. Los Departamentos solo pueden
+        eliminar sus propias peticiones en estado `abierta`; intentar borrar una
+        petición ajena o en estado terminal devuelve 403 o 409 respectivamente.
+      operationId: eliminarPeticion
+      parameters:
+        - name: peticion_id
+          in: path
+          required: true
+          description: Identificador único de la petición.
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Petición eliminada exitosamente. Sin cuerpo de respuesta.
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          description: La petición no está en estado abierta (solo para rol Departamento).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /trabajos:
+    get:
+      tags: [Tareas]
+      summary: Listar trabajos
+      description: |
+        Devuelve todos los trabajos ordenados por fecha de creación descendente.
+        Solo accesible para Administración y Representantes. Los Departamentos
+        no tienen acceso a la lista global de trabajos.
+      operationId: listarTrabajos
+      responses:
+        '200':
+          description: Lista de trabajos recuperada exitosamente.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Trabajo'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+
     post:
       tags: [Tareas]
       summary: Crear un trabajo a realizar
@@ -666,6 +727,35 @@ paths:
           $ref: '#/components/responses/NoEncontrado'
 
   /trabajos/{trabajo_id}:
+    get:
+      tags: [Tareas]
+      summary: Obtener detalle de un trabajo
+      description: |
+        Devuelve el detalle de un trabajo específico por su ID.
+        Solo accesible para Administración y Representantes.
+      operationId: obtenerTrabajo
+      parameters:
+        - name: trabajo_id
+          in: path
+          required: true
+          description: Identificador único del trabajo.
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Detalle del trabajo recuperado exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trabajo'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
     patch:
       tags: [Tareas]
       summary: Cerrar un trabajo (finalizar o cancelar)
@@ -712,27 +802,67 @@ paths:
                 $ref: '#/components/schemas/Error'
 
   /trabajos/{trabajo_id}/presupuestos:
-    post:
-      tags: [Tareas]
-      summary: Registrar/aprobar presupuesto de un proveedor
+    get:
+      tags: [Presupuestos]
+      summary: Listar presupuestos de un trabajo
       description: |
-        Adjunta a un trabajo el presupuesto de un proveedor y permite marcarlo como
-        aprobado. Solo accesible para Administración y Representantes.
-      operationId: registrarPresupuesto
+        Devuelve todos los presupuestos asociados al trabajo, ordenados por
+        fecha de presentación. Accesible para todos los roles autenticados
+        (admin, representante y departamento) — los departamentos pueden ver
+        los presupuestos de trabajos que vienen de sus peticiones.
+      operationId: listarPresupuestos
       parameters:
         - name: trabajo_id
           in: path
           required: true
-          description: Identificador único del trabajo.
-          schema:
-            type: integer
-            format: int64
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Lista de presupuestos del trabajo.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Presupuesto'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+    post:
+      tags: [Presupuestos]
+      summary: Registrar un presupuesto (con archivo adjunto opcional)
+      description: |
+        Crea un presupuesto para el trabajo. Recibe `multipart/form-data` para
+        permitir adjuntar un archivo (PDF/JPG/PNG/WebP ≤ 5MB) junto a los datos.
+        El presupuesto se crea en estado `presentado` (la aprobación se hace por
+        separado vía POST `/aprobar`). Solo Administración y Representantes.
+      operationId: crearPresupuesto
+      parameters:
+        - name: trabajo_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PresupuestoCrear'
+              type: object
+              required: [proveedor_id, monto]
+              properties:
+                proveedor_id: { type: integer, minimum: 1 }
+                monto: { type: number, exclusiveMinimum: 0 }
+                fecha_presentacion:
+                  type: string
+                  format: date
+                  description: Opcional. Si se omite, se usa la fecha actual.
+                observaciones: { type: string, maxLength: 1000 }
+                archivo:
+                  type: string
+                  format: binary
+                  description: PDF/JPG/PNG/WebP, máximo 5 MB.
       responses:
         '201':
           description: Presupuesto registrado exitosamente.
@@ -746,6 +876,424 @@ paths:
           $ref: '#/components/responses/NoAutenticado'
         '403':
           $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+  /trabajos/{trabajo_id}/presupuestos/{presupuesto_id}:
+    patch:
+      tags: [Presupuestos]
+      summary: Editar un presupuesto presentado
+      description: |
+        PATCH parcial. Solo se permite editar presupuestos en estado
+        `presentado`; intentar editar uno `aprobado` o `rechazado` devuelve 409.
+        Solo Administración y Representantes.
+      operationId: actualizarPresupuesto
+      parameters:
+        - name: trabajo_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: presupuesto_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PresupuestoActualizar'
+      responses:
+        '200':
+          description: Presupuesto actualizado exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Presupuesto'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          description: El presupuesto no está en estado `presentado`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [Presupuestos]
+      summary: Eliminar un presupuesto presentado
+      description: |
+        Solo se permite eliminar presupuestos en estado `presentado`. Solo
+        Administración y Representantes.
+      operationId: eliminarPresupuesto
+      parameters:
+        - name: trabajo_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: presupuesto_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '204':
+          description: Presupuesto eliminado exitosamente. Sin cuerpo de respuesta.
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          description: El presupuesto no está en estado `presentado`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /trabajos/{trabajo_id}/presupuestos/{presupuesto_id}/aprobar:
+    post:
+      tags: [Presupuestos]
+      summary: Aprobar un presupuesto (mutex)
+      description: |
+        Marca el presupuesto como `aprobado` y lo enlaza al trabajo como
+        `presupuesto_aprobado_id`. Si ya había otro presupuesto aprobado para
+        el mismo trabajo, lo transiciona a `rechazado` automáticamente
+        (mutex: un solo presupuesto aprobado por trabajo). Solo Administración
+        y Representantes.
+      operationId: aprobarPresupuesto
+      parameters:
+        - name: trabajo_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: presupuesto_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Presupuesto aprobado exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Presupuesto'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+  /trabajos/{trabajo_id}/presupuestos/{presupuesto_id}/rechazar:
+    post:
+      tags: [Presupuestos]
+      summary: Rechazar un presupuesto
+      description: |
+        Marca el presupuesto como `rechazado`. Si era el aprobado del trabajo,
+        desvincula el FK `presupuesto_aprobado_id`. Solo Administración y
+        Representantes.
+      operationId: rechazarPresupuesto
+      parameters:
+        - name: trabajo_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+        - name: presupuesto_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Presupuesto rechazado exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Presupuesto'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+  /trabajos/{trabajo_id}/completar:
+    post:
+      tags: [Tareas]
+      summary: Devuelve payload pre-completado para crear el Gasto
+      description: |
+        NO crea el Gasto. Devuelve un objeto con los datos pre-cargados
+        (proveedor, monto y concepto sugerido) que el frontend usa para abrir
+        el formulario de `POST /gastos` con todo listo. El gasto se crea
+        después con `trabajo_id` en el body, lo que dispara la finalización
+        del trabajo. Solo Administración y Representantes.
+      operationId: completarTrabajo
+      parameters:
+        - name: trabajo_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Payload pre-completado devuelto exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompletarTrabajoOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          description: El trabajo no tiene un presupuesto aprobado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /trabajos/{trabajo_id}/cancelar:
+    post:
+      tags: [Tareas]
+      summary: Cancelar un trabajo
+      description: |
+        Marca el trabajo como `cancelado`. Solo Administración y Representantes.
+      operationId: cancelarTrabajo
+      parameters:
+        - name: trabajo_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '204':
+          description: Trabajo cancelado exitosamente. Sin cuerpo de respuesta.
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+  # ========================================================================
+  # Plantillas de trabajos recurrentes (admin / representante)
+  # ========================================================================
+
+  /trabajos-recurrentes:
+    get:
+      tags: [TrabajosRecurrentes]
+      summary: Listar plantillas de trabajos recurrentes
+      operationId: listarTrabajosRecurrentes
+      responses:
+        '200':
+          description: Lista de plantillas recurrentes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrabajoRecurrenteOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+
+    post:
+      tags: [TrabajosRecurrentes]
+      summary: Crear una plantilla de trabajo recurrente
+      operationId: crearTrabajoRecurrente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrabajoRecurrenteCrear'
+      responses:
+        '201':
+          description: Plantilla creada exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrabajoRecurrenteOut'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+  /trabajos-recurrentes/{recurrente_id}:
+    patch:
+      tags: [TrabajosRecurrentes]
+      summary: Editar una plantilla de trabajo recurrente
+      operationId: actualizarTrabajoRecurrente
+      parameters:
+        - name: recurrente_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrabajoRecurrenteActualizar'
+      responses:
+        '200':
+          description: Plantilla actualizada exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrabajoRecurrenteOut'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+    delete:
+      tags: [TrabajosRecurrentes]
+      summary: Eliminar una plantilla de trabajo recurrente
+      operationId: eliminarTrabajoRecurrente
+      parameters:
+        - name: recurrente_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '204':
+          description: Plantilla eliminada exitosamente. Sin cuerpo de respuesta.
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+  /trabajos-recurrentes/{recurrente_id}/materializar:
+    post:
+      tags: [TrabajosRecurrentes]
+      summary: Materializar la plantilla en un Trabajo concreto
+      description: |
+        Crea un Trabajo `en_curso` con descripción derivada de la plantilla
+        (`"{nombre} — {descripcion}"`). La plantilla debe estar activa.
+      operationId: materializarTrabajoRecurrente
+      parameters:
+        - name: recurrente_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '201':
+          description: Trabajo creado a partir de la plantilla.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trabajo'
+        '400':
+          description: La plantilla está inactiva.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
+  # ========================================================================
+  # Notificaciones in-app (campanita) — filtradas por usuario del JWT
+  # ========================================================================
+
+  /notificaciones:
+    get:
+      tags: [Notificaciones]
+      summary: Listar notificaciones del usuario actual
+      description: |
+        Devuelve las notificaciones del usuario autenticado, ordenadas por
+        `created_at` descendente. Cada usuario solo ve sus propias notificaciones.
+      operationId: listarNotificaciones
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Máximo de notificaciones a devolver. Default 50.
+          schema:
+            type: integer
+            minimum: 1
+            default: 50
+      responses:
+        '200':
+          description: Lista de notificaciones del usuario.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificacionOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+
+  /notificaciones/no-leidas-count:
+    get:
+      tags: [Notificaciones]
+      summary: Contar notificaciones no leídas del usuario actual
+      description: |
+        Usado por el componente campanita para mostrar el badge. El frontend
+        consulta este endpoint en polling (cada 60 s).
+      operationId: contarNotificacionesNoLeidas
+      responses:
+        '200':
+          description: Conteo de no leídas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificacionesCountOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+
+  /notificaciones/marcar-todas-leidas:
+    post:
+      tags: [Notificaciones]
+      summary: Marcar todas las notificaciones como leídas
+      operationId: marcarTodasNotificacionesLeidas
+      responses:
+        '204':
+          description: Todas las notificaciones del usuario marcadas como leídas.
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+
+  /notificaciones/{notificacion_id}/marcar-leida:
+    post:
+      tags: [Notificaciones]
+      summary: Marcar una notificación como leída
+      description: |
+        Solo el dueño de la notificación puede marcarla; intentar marcar una
+        de otro usuario devuelve 404 (anti-enumeración).
+      operationId: marcarNotificacionLeida
+      parameters:
+        - name: notificacion_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '204':
+          description: Notificación marcada como leída.
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
         '404':
           $ref: '#/components/responses/NoEncontrado'
 
@@ -2982,7 +3530,7 @@ components:
           type: string
         estado:
           type: string
-          enum: [abierta, convertida_en_trabajo, rechazada]
+          enum: [abierta, convertida_en_trabajo, rechazada, cancelada]
         fecha_creacion:
           type: string
           format: date-time
@@ -3054,7 +3602,7 @@ components:
 
     Presupuesto:
       type: object
-      required: [id, trabajo_id, proveedor, monto, estado, fecha_presentacion]
+      required: [id, trabajo_id, proveedor_id, monto, estado, fecha_presentacion, archivo_path, observaciones]
       properties:
         id:
           type: integer
@@ -3062,8 +3610,10 @@ components:
         trabajo_id:
           type: integer
           format: int64
-        proveedor:
-          type: string
+        proveedor_id:
+          type: integer
+          format: int64
+          description: FK al proveedor que presenta el presupuesto.
         monto:
           type: number
           format: double
@@ -3073,20 +3623,136 @@ components:
         fecha_presentacion:
           type: string
           format: date
-
-    PresupuestoCrear:
-      type: object
-      required: [proveedor, monto]
-      properties:
-        proveedor:
+        archivo_path:
           type: string
+          nullable: true
+          description: |
+            Path relativo al UPLOAD_DIR donde se guarda el archivo adjunto
+            (PDF/JPG/PNG/WebP). Null si el presupuesto se cargó sin archivo.
+        observaciones:
+          type: string
+          nullable: true
+
+    PresupuestoActualizar:
+      type: object
+      description: |
+        PATCH parcial. Todos los campos son opcionales. Solo se permite editar
+        presupuestos en estado `presentado`.
+      properties:
+        proveedor_id:
+          type: integer
+          minimum: 1
+          nullable: true
+        monto:
+          type: number
+          exclusiveMinimum: 0
+          nullable: true
+        fecha_presentacion:
+          type: string
+          format: date
+          nullable: true
+        observaciones:
+          type: string
+          maxLength: 1000
+          nullable: true
+
+    CompletarTrabajoOut:
+      type: object
+      description: |
+        Payload pre-completado que devuelve `POST /trabajos/{trabajo_id}/completar`.
+        El frontend lo usa para pre-cargar el formulario de `POST /gastos`.
+      required: [proveedor_id, monto, concepto_sugerido, trabajo_id]
+      properties:
+        proveedor_id:
+          type: integer
+          format: int64
         monto:
           type: number
           format: double
-        aprobado:
-          type: boolean
-          default: false
-          description: Si es true, el presupuesto se crea ya aprobado.
+        concepto_sugerido:
+          type: string
+        trabajo_id:
+          type: integer
+          format: int64
+
+    # ------------------------ Trabajos recurrentes ------------------------
+
+    TrabajoRecurrenteOut:
+      type: object
+      required: [id, nombre, descripcion, periodicidad, proveedor_sugerido_id, monto_estimado, activa]
+      properties:
+        id: { type: integer, format: int64 }
+        nombre: { type: string }
+        descripcion: { type: string }
+        periodicidad:
+          type: string
+          enum: [mensual, trimestral, semestral, anual]
+        proveedor_sugerido_id:
+          type: integer
+          format: int64
+          nullable: true
+        monto_estimado:
+          type: number
+          format: double
+          nullable: true
+        activa: { type: boolean }
+
+    TrabajoRecurrenteCrear:
+      type: object
+      required: [nombre, descripcion, periodicidad]
+      properties:
+        nombre: { type: string, minLength: 1, maxLength: 255 }
+        descripcion: { type: string, minLength: 1, maxLength: 2000 }
+        periodicidad:
+          type: string
+          enum: [mensual, trimestral, semestral, anual]
+        proveedor_sugerido_id:
+          type: integer
+          minimum: 1
+          nullable: true
+        monto_estimado:
+          type: number
+          minimum: 0
+          nullable: true
+        activa: { type: boolean, default: true }
+
+    TrabajoRecurrenteActualizar:
+      type: object
+      description: PATCH parcial. Todos los campos son opcionales.
+      properties:
+        nombre: { type: string, minLength: 1, maxLength: 255, nullable: true }
+        descripcion: { type: string, minLength: 1, maxLength: 2000, nullable: true }
+        periodicidad:
+          type: string
+          enum: [mensual, trimestral, semestral, anual]
+          nullable: true
+        proveedor_sugerido_id: { type: integer, minimum: 1, nullable: true }
+        monto_estimado: { type: number, minimum: 0, nullable: true }
+        activa: { type: boolean, nullable: true }
+
+    # --------------------------- Notificaciones ---------------------------
+
+    NotificacionOut:
+      type: object
+      required: [id, usuario_id, mensaje, link, leida, created_at]
+      properties:
+        id: { type: integer, format: int64 }
+        usuario_id: { type: integer, format: int64 }
+        mensaje: { type: string }
+        link:
+          type: string
+          nullable: true
+          description: Ruta del frontend a la que navegar al hacer click.
+        leida: { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    NotificacionesCountOut:
+      type: object
+      required: [count]
+      properties:
+        count:
+          type: integer
+          description: Cantidad de notificaciones no leídas del usuario actual.
 
     # ---------------------------- Comunicación ----------------------------
 
@@ -3572,6 +4238,13 @@ components:
         fecha_factura: { type: string, format: date, nullable: true }
         cuota_actual: { type: integer, minimum: 1, nullable: true }
         cuota_total: { type: integer, minimum: 1, nullable: true }
+        trabajo_id:
+          type: integer
+          nullable: true
+          description: |
+            ID del trabajo asociado al gasto. Si se provee, el backend marca
+            el trabajo como `finalizado`, lo enlaza al gasto y notifica al
+            departamento si el trabajo provino de una petición.
 
     GastoActualizar:
       type: object

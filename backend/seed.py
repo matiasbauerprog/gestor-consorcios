@@ -24,6 +24,7 @@ from .models import (
     Haber,
     MovimientoCaja,
     MovimientoCuenta,
+    PeriodicidadRecurrente,
     Peticion,
     Proveedor,
     Rol,
@@ -33,6 +34,7 @@ from .models import (
     TipoHaber,
     TipoMovimiento,
     TipoMovimientoCaja,
+    TrabajoRecurrente,
     Usuario,
 )
 from .security import hash_password
@@ -336,6 +338,27 @@ def seed_if_empty(db: Session) -> None:
         ConceptoLiquidacion(nombre="FATERYH-SERACARH", tipo=TipoConcepto.contribucion, porcentaje=0.5, proveedor_id=fateryh.id, orden=13, activo=True),
         ConceptoLiquidacion(nombre="SUTERH patronal", tipo=TipoConcepto.contribucion, porcentaje=4.51, proveedor_id=suterh_prov.id, orden=14, activo=True),
     ])
+
+    # ----- Fase 11: plantillas de trabajos recurrentes -----
+    db.add_all([
+        TrabajoRecurrente(
+            nombre="Limpieza tanque",
+            descripcion="Limpieza trimestral del tanque de agua",
+            periodicidad=PeriodicidadRecurrente.trimestral,
+            proveedor_sugerido_id=prov_limpieza.id,
+            monto_estimado=80000,
+            activa=True,
+        ),
+        TrabajoRecurrente(
+            nombre="Mantenimiento ascensores",
+            descripcion="Service mensual de ascensores",
+            periodicidad=PeriodicidadRecurrente.mensual,
+            proveedor_sugerido_id=prov_ascensor.id,
+            monto_estimado=120000,
+            activa=True,
+        ),
+    ])
+    db.flush()
 
     db.add_all(
         [

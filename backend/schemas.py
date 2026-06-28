@@ -12,6 +12,7 @@ from .models import (
     EstadoReserva,
     EstadoTrabajo,
     FormaPago,
+    PeriodicidadRecurrente,
     Rol,
     Rubro,
     TipoCaja,
@@ -92,7 +93,7 @@ class TrabajoOut(BaseModel):
 
 
 class PresupuestoCrear(BaseModel):
-    proveedor: str = Field(..., min_length=1, max_length=255)
+    proveedor_id: int = Field(..., gt=0)
     monto: float = Field(..., gt=0)
     aprobado: bool = False
 
@@ -102,7 +103,7 @@ class PresupuestoOut(BaseModel):
 
     id: int
     trabajo_id: int
-    proveedor: str
+    proveedor_id: int
     monto: float
     estado: EstadoPresupuesto
     fecha_presentacion: date
@@ -477,6 +478,7 @@ class GastoCrear(BaseModel):
     fecha_factura: date | None = None
     cuota_actual: int | None = Field(default=None, ge=1)
     cuota_total: int | None = Field(default=None, ge=1)
+    trabajo_id: int | None = None  # Fase 11: marca el trabajo como completado
 
     @model_validator(mode="after")
     def _validar_clase_o_depto(self) -> "GastoCrear":
@@ -980,3 +982,74 @@ class ItemProveedorOut(BaseModel):
     cantidad_gastos: int
     total_facturado: float
     ultimo_gasto: date | None
+
+
+# === Fase 11 — Tareas y Presupuestos ===
+
+class PresupuestoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    trabajo_id: int
+    proveedor_id: int
+    monto: float
+    estado: EstadoPresupuesto
+    fecha_presentacion: date
+    archivo_path: str | None
+    observaciones: str | None
+
+
+class PresupuestoActualizar(BaseModel):
+    proveedor_id: int | None = None
+    monto: float | None = Field(None, gt=0)
+    fecha_presentacion: date | None = None
+    observaciones: str | None = Field(None, max_length=1000)
+
+
+class TrabajoRecurrenteOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    nombre: str
+    descripcion: str
+    periodicidad: PeriodicidadRecurrente
+    proveedor_sugerido_id: int | None
+    monto_estimado: float | None
+    activa: bool
+
+
+class TrabajoRecurrenteCrear(BaseModel):
+    nombre: str = Field(..., min_length=1, max_length=255)
+    descripcion: str = Field(..., min_length=1, max_length=2000)
+    periodicidad: PeriodicidadRecurrente
+    proveedor_sugerido_id: int | None = None
+    monto_estimado: float | None = Field(None, ge=0)
+    activa: bool = True
+
+
+class TrabajoRecurrenteActualizar(BaseModel):
+    nombre: str | None = Field(None, min_length=1, max_length=255)
+    descripcion: str | None = Field(None, min_length=1, max_length=2000)
+    periodicidad: PeriodicidadRecurrente | None = None
+    proveedor_sugerido_id: int | None = None
+    monto_estimado: float | None = Field(None, ge=0)
+    activa: bool | None = None
+
+
+class NotificacionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    usuario_id: int
+    mensaje: str
+    link: str | None
+    leida: bool
+    created_at: datetime
+
+
+class NotificacionesCountOut(BaseModel):
+    count: int
+
+
+class CompletarTrabajoOut(BaseModel):
+    proveedor_id: int
+    monto: float
+    concepto_sugerido: str
+    trabajo_id: int

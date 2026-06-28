@@ -55,10 +55,10 @@ def test_login_token_obtenido_funciona_para_endpoints_protegidos(client):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert r2.status_code == 200
-    # Depto A solo ve sus propias peticiones (id=10).
+    # Desde Fase 11: depto ve TODAS las peticiones (transparencia entre vecinos).
     data = r2.json()
-    assert len(data) == 1
-    assert data[0]["departamento_id"] == 1
+    assert isinstance(data, list)
+    assert any(p["departamento_id"] == 1 for p in data)
 
 
 # ---------------------------------------------------------------------------

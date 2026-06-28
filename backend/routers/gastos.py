@@ -10,14 +10,18 @@ from ..models import (
     Caja,
     ClaseProrrateo,
     Departamento,
+    EstadoTrabajo,
     Gasto,
     GastoHabitual,
     MovimientoCaja,
+    Peticion,
     PeriodoCerrado,
     Proveedor,
     Rol,
     Rubro,
     TipoMovimientoCaja,
+    Trabajo,
+    Usuario,
 )
 from ..schemas import (
     CargarHabitualesIn,
@@ -194,6 +198,29 @@ def crear_gasto(
     db.add(gasto)
     db.flush()
     _crear_movimiento_para_gasto(db, gasto)
+
+    # Integración Fase 11: si vino trabajo_id, marcar el trabajo finalizado
+    if payload.trabajo_id:
+        from ..notificaciones import crear_notificacion
+        t = db.get(Trabajo, payload.trabajo_id)
+        if t is None:
+            raise HTTPException(404, f"Trabajo {payload.trabajo_id} no encontrado.")
+        t.gasto_id = gasto.id
+        t.estado = EstadoTrabajo.finalizado
+        # Notificar al depto de la petición (si la hay)
+        if t.peticion_id:
+            pet = db.get(Peticion, t.peticion_id)
+            if pet:
+                usuarios = list(db.scalars(
+                    select(Usuario).where(
+                        Usuario.departamento_id == pet.departamento_id,
+                        Usuario.rol == Rol.departamento,
+                    )
+                ).all())
+                mensaje = f"El trabajo de tu petición '{pet.titulo}' fue completado."
+                for u in usuarios:
+                    crear_notificacion(db, usuario_id=u.id, mensaje=mensaje, link="/peticiones")
+
     db.commit()
     db.refresh(gasto)
     return gasto

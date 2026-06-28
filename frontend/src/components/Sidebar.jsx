@@ -14,6 +14,26 @@ const SECCIONES = [
     ],
   },
   {
+    titulo: "Tareas y presupuestos",
+    modulos: [
+      {
+        ruta: "/peticiones",
+        nombre: "Peticiones",
+        rolesPermitidos: ["administracion", "representante", "departamento"],
+      },
+      {
+        ruta: "/trabajos",
+        nombre: "Trabajos",
+        rolesPermitidos: ["administracion", "representante"],
+      },
+      {
+        ruta: "/trabajos-recurrentes",
+        nombre: "Trabajos recurrentes",
+        rolesPermitidos: ["administracion", "representante"],
+      },
+    ],
+  },
+  {
     titulo: "Expensas y pagos",
     modulos: [
       {

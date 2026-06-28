@@ -1,4 +1,4 @@
-from backend.models import EstadoPeticion, Peticion
+from backend.models import EstadoPeticion, EstadoPresupuesto, Peticion, Presupuesto, Proveedor, Trabajo
 
 
 def test_crear_trabajo_como_departamento_devuelve_403(client, headers_depto_a):
@@ -91,139 +91,201 @@ def test_crear_trabajo_body_peticion_id_invalido_devuelve_400(client, headers_ad
     assert r.status_code == 400
 
 
-def test_registrar_presupuesto_como_departamento_devuelve_403(
-    client, headers_admin, headers_depto_a
-):
-    # Primero crear un trabajo (rol admin).
-    trabajo = client.post(
-        "/trabajos",
-        json={"peticion_id": 10, "descripcion": "Trabajo"},
-        headers=headers_admin,
-    ).json()
+def test_listar_trabajos_admin_devuelve_200(client, headers_admin):
+    r = client.get("/trabajos", headers=headers_admin)
+    assert r.status_code == 200
+    assert isinstance(r.json(), list)
 
-    r = client.post(
-        f"/trabajos/{trabajo['id']}/presupuestos",
-        json={"proveedor": "Plomero S.A.", "monto": 15000},
-        headers=headers_depto_a,
-    )
+
+def test_listar_trabajos_como_departamento_devuelve_403(client, headers_depto_a):
+    r = client.get("/trabajos", headers=headers_depto_a)
     assert r.status_code == 403
 
 
-def test_registrar_presupuesto_admin_default_estado_presentado(client, headers_admin):
-    trabajo = client.post(
-        "/trabajos",
-        json={"peticion_id": 10, "descripcion": "Trabajo"},
-        headers=headers_admin,
-    ).json()
-    r = client.post(
-        f"/trabajos/{trabajo['id']}/presupuestos",
-        json={"proveedor": "Plomero S.A.", "monto": 15000},
-        headers=headers_admin,
-    )
-    assert r.status_code == 201
-    assert r.json()["estado"] == "presentado"
-
-
-def test_registrar_presupuesto_admin_aprobado_true(client, headers_admin):
-    trabajo = client.post(
-        "/trabajos",
-        json={"peticion_id": 10, "descripcion": "Trabajo"},
-        headers=headers_admin,
-    ).json()
-    r = client.post(
-        f"/trabajos/{trabajo['id']}/presupuestos",
-        json={"proveedor": "Electricista", "monto": 8000, "aprobado": True},
-        headers=headers_admin,
-    )
-    assert r.status_code == 201
-    assert r.json()["estado"] == "aprobado"
-
-
-def test_registrar_presupuesto_trabajo_inexistente_devuelve_404(client, headers_admin):
-    r = client.post(
-        "/trabajos/9999/presupuestos",
-        json={"proveedor": "X", "monto": 1},
-        headers=headers_admin,
-    )
-    assert r.status_code == 404
-
-
-def test_registrar_presupuesto_sin_token_devuelve_401(client, headers_admin):
-    # Crear primero un trabajo para tener un id válido.
-    trabajo = client.post(
-        "/trabajos",
-        json={"peticion_id": 10, "descripcion": "Trabajo"},
-        headers=headers_admin,
-    ).json()
-    r = client.post(
-        f"/trabajos/{trabajo['id']}/presupuestos",
-        json={"proveedor": "Plomero S.A.", "monto": 15000},
-    )
+def test_listar_trabajos_sin_token_devuelve_401(client):
+    r = client.get("/trabajos")
     assert r.status_code == 401
 
 
-def test_registrar_presupuesto_como_representante_devuelve_201(
-    client, headers_admin, headers_representante
-):
+def test_obtener_trabajo_admin_devuelve_200(client, headers_admin):
     trabajo = client.post(
         "/trabajos",
-        json={"peticion_id": 10, "descripcion": "Trabajo"},
+        json={"peticion_id": 10, "descripcion": "Trabajo para obtener"},
         headers=headers_admin,
     ).json()
+    r = client.get(f"/trabajos/{trabajo['id']}", headers=headers_admin)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["id"] == trabajo["id"]
+    assert body["descripcion"] == "Trabajo para obtener"
+
+
+def test_obtener_trabajo_inexistente_devuelve_404(client, headers_admin):
+    r = client.get("/trabajos/9999", headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_completar_sin_presupuesto_aprobado_devuelve_409(client, headers_admin, db_session):
+    t = Trabajo(descripcion="Sin ppto")
+    db_session.add(t)
+    db_session.commit()
+    db_session.refresh(t)
+    r = client.post(f"/trabajos/{t.id}/completar", headers=headers_admin)
+    assert r.status_code == 409
+
+
+def test_completar_con_aprobado_devuelve_payload(client, headers_admin, db_session):
+    t = Trabajo(descripcion="Con ppto")
+    db_session.add(t)
+    db_session.commit()
+    db_session.refresh(t)
+
+    prov = db_session.query(Proveedor).first()
+    p = Presupuesto(
+        trabajo_id=t.id,
+        proveedor_id=prov.id,
+        monto=5000,
+        estado=EstadoPresupuesto.aprobado,
+    )
+    db_session.add(p)
+    db_session.commit()
+    db_session.refresh(p)
+
+    t.presupuesto_aprobado_id = p.id
+    db_session.commit()
+
+    r = client.post(f"/trabajos/{t.id}/completar", headers=headers_admin)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["proveedor_id"] == prov.id
+    assert body["monto"] == 5000
+    assert body["trabajo_id"] == t.id
+
+
+def test_cancelar_trabajo_devuelve_204(client, headers_admin, db_session):
+    t = Trabajo(descripcion="Para cancelar")
+    db_session.add(t)
+    db_session.commit()
+    db_session.refresh(t)
+
+    r = client.post(f"/trabajos/{t.id}/cancelar", headers=headers_admin)
+    assert r.status_code == 204
+
+    db_session.refresh(t)
+    assert t.estado == "cancelado"
+
+
+def test_cancelar_trabajo_con_peticion_marca_peticion_cancelada(
+    client, headers_admin, db_session
+):
+    """Si el trabajo vino de una petición, al cancelarlo la petición también
+    pasa a cancelada (no queda huérfana en convertida_en_trabajo)."""
+    from backend.models import Notificacion
+
+    p = Peticion(
+        departamento_id=1,
+        titulo="A cancelar via trabajo",
+        descripcion="x",
+        estado=EstadoPeticion.abierta,
+    )
+    db_session.add(p)
+    db_session.commit()
+    db_session.refresh(p)
+
+    # Crear trabajo desde la petición → petición pasa a convertida_en_trabajo.
     r = client.post(
-        f"/trabajos/{trabajo['id']}/presupuestos",
-        json={"proveedor": "Electricista", "monto": 8500},
-        headers=headers_representante,
+        "/trabajos",
+        json={"peticion_id": p.id, "descripcion": "trabajo"},
+        headers=headers_admin,
     )
     assert r.status_code == 201
-    assert r.json()["estado"] == "presentado"
+    trabajo_id = r.json()["id"]
+    db_session.refresh(p)
+    assert p.estado == EstadoPeticion.convertida_en_trabajo
+
+    # Cancelar el trabajo → la petición cascadea a cancelada y se notifica.
+    notifs_antes = db_session.query(Notificacion).count()
+    r = client.post(f"/trabajos/{trabajo_id}/cancelar", headers=headers_admin)
+    assert r.status_code == 204
+
+    db_session.refresh(p)
+    assert p.estado == EstadoPeticion.cancelada
+
+    notifs_despues = db_session.query(Notificacion).count()
+    assert notifs_despues > notifs_antes
 
 
-def test_registrar_presupuesto_proveedor_vacio_devuelve_400(client, headers_admin):
-    trabajo = client.post(
+def test_cancelar_trabajo_sin_peticion_no_explota(
+    client, headers_admin, db_session
+):
+    """Trabajo "desde cero" (sin peticion_id) se cancela sin tocar peticiones."""
+    t = Trabajo(descripcion="sin peticion")
+    db_session.add(t)
+    db_session.commit()
+    db_session.refresh(t)
+
+    r = client.post(f"/trabajos/{t.id}/cancelar", headers=headers_admin)
+    assert r.status_code == 204
+    db_session.refresh(t)
+    assert t.estado == "cancelado"
+
+
+def test_crear_trabajo_desde_peticion_marca_convertida(client, headers_admin, db_session):
+    """POST /trabajos con peticion_id marca la petición como convertida_en_trabajo."""
+    p = Peticion(
+        departamento_id=1,
+        titulo="Para convertir",
+        descripcion="x",
+        estado=EstadoPeticion.abierta,
+    )
+    db_session.add(p)
+    db_session.commit()
+    db_session.refresh(p)
+
+    r = client.post(
         "/trabajos",
-        json={"peticion_id": 10, "descripcion": "Trabajo"},
-        headers=headers_admin,
-    ).json()
-    r = client.post(
-        f"/trabajos/{trabajo['id']}/presupuestos",
-        json={"proveedor": "", "monto": 15000},
+        json={
+            "peticion_id": p.id,
+            "descripcion": "Trabajo desde petición",
+        },
         headers=headers_admin,
     )
-    assert r.status_code == 400
+    assert r.status_code == 201
+
+    db_session.refresh(p)
+    assert p.estado == EstadoPeticion.convertida_en_trabajo
 
 
-def test_registrar_presupuesto_monto_no_positivo_devuelve_400(client, headers_admin):
-    trabajo = client.post(
+def test_crear_trabajo_desde_peticion_notifica_al_depto(
+    client, headers_admin, db_session
+):
+    """Al aceptar (convertir en trabajo) una petición, el depto dueño recibe
+    una notificación in-app en la campanita."""
+    from backend.models import Notificacion
+
+    p = Peticion(
+        departamento_id=1,
+        titulo="Aviso al depto",
+        descripcion="x",
+        estado=EstadoPeticion.abierta,
+    )
+    db_session.add(p)
+    db_session.commit()
+    db_session.refresh(p)
+
+    notifs_antes = db_session.query(Notificacion).count()
+
+    r = client.post(
         "/trabajos",
-        json={"peticion_id": 10, "descripcion": "Trabajo"},
-        headers=headers_admin,
-    ).json()
-    r = client.post(
-        f"/trabajos/{trabajo['id']}/presupuestos",
-        json={"proveedor": "X", "monto": 0},
+        json={"peticion_id": p.id, "descripcion": "ok"},
         headers=headers_admin,
     )
-    assert r.status_code == 400
+    assert r.status_code == 201
 
-    r = client.post(
-        f"/trabajos/{trabajo['id']}/presupuestos",
-        json={"proveedor": "X", "monto": -100},
-        headers=headers_admin,
+    notifs = list(
+        db_session.query(Notificacion)
+        .filter(Notificacion.mensaje.contains("convertida_en_trabajo"))
+        .all()
     )
-    assert r.status_code == 400
-
-
-def test_registrar_presupuesto_body_incompleto_devuelve_400(client, headers_admin):
-    trabajo = client.post(
-        "/trabajos",
-        json={"peticion_id": 10, "descripcion": "Trabajo"},
-        headers=headers_admin,
-    ).json()
-    # Falta `monto`.
-    r = client.post(
-        f"/trabajos/{trabajo['id']}/presupuestos",
-        json={"proveedor": "X"},
-        headers=headers_admin,
-    )
-    assert r.status_code == 400
+    assert len(notifs) >= 1
+    assert db_session.query(Notificacion).count() > notifs_antes

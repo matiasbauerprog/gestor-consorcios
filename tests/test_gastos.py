@@ -450,3 +450,32 @@ def test_delete_gasto_borra_movimiento(client, headers_admin, db_session):
     client.delete(f"/gastos/{gasto_id}", headers=headers_admin)
     movs = db_session.query(MovimientoCaja).filter_by(gasto_id=gasto_id).all()
     assert len(movs) == 0
+
+
+# ---------------------------------------------------------------------------
+# Fase 11: Integración POST /gastos con trabajo_id
+# ---------------------------------------------------------------------------
+
+
+def test_crear_gasto_con_trabajo_id_marca_finalizado(client, headers_admin, db_session):
+    """POST /gastos con trabajo_id marca el trabajo como finalizado y setea gasto_id."""
+    from backend.models import EstadoTrabajo, Trabajo
+    t = Trabajo(descripcion="Trabajo para gasto")
+    db_session.add(t)
+    db_session.commit()
+    db_session.refresh(t)
+
+    payload = dict(_GASTO_VALIDO, trabajo_id=t.id)
+    r = client.post("/gastos", json=payload, headers=headers_admin)
+    assert r.status_code == 201
+    gasto_id = r.json()["id"]
+
+    db_session.refresh(t)
+    assert t.estado == EstadoTrabajo.finalizado
+    assert t.gasto_id == gasto_id
+
+
+def test_crear_gasto_con_trabajo_id_inexistente_404(client, headers_admin):
+    payload = dict(_GASTO_VALIDO, trabajo_id=99999)
+    r = client.post("/gastos", json=payload, headers=headers_admin)
+    assert r.status_code == 404

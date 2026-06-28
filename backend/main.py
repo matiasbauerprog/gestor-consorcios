@@ -29,12 +29,15 @@ from .routers import (
     haberes,
     liquidaciones,
     movimientos,
+    notificaciones,
     periodos,
     peticiones,
+    presupuestos,
     proveedores,
     reportes,
     reservas,
     trabajos,
+    trabajos_recurrentes,
     transferencias_caja,
     usuarios,
 )
@@ -93,7 +96,9 @@ async def validation_exception_handler(_: Request, exc: RequestValidationError) 
 app.include_router(auth.router)
 app.include_router(empleados.router)
 app.include_router(peticiones.router)
+app.include_router(presupuestos.router)
 app.include_router(trabajos.router)
+app.include_router(trabajos_recurrentes.router)
 app.include_router(expensas.router)
 app.include_router(comprobantes.router)
 app.include_router(comunicados.router)
@@ -110,6 +115,7 @@ app.include_router(conceptos_liquidacion.router)
 app.include_router(haberes.router)
 app.include_router(liquidaciones.router)
 app.include_router(movimientos.router)
+app.include_router(notificaciones.router)
 app.include_router(periodos.router)
 app.include_router(cajas.router)
 app.include_router(transferencias_caja.router)

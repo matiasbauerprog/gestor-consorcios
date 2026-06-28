@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, require_roles
@@ -9,10 +10,13 @@ from ..models import (
     EstadoTrabajo,
     Peticion,
     Presupuesto,
+    Proveedor,
     Rol,
     Trabajo,
 )
+from ..notificaciones import notificar_cambio_estado_peticion
 from ..schemas import (
+    CompletarTrabajoOut,
     PresupuestoCrear,
     PresupuestoOut,
     TrabajoActualizar,
@@ -37,6 +41,8 @@ def crear_trabajo(
     _user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
 ) -> Trabajo:
     peticion_id: int | None = None
+    peticion_a_notificar: Peticion | None = None
+    estado_anterior: EstadoPeticion | None = None
 
     # Si el trabajo viene de una petición existente, validamos y la marcamos
     # como convertida. Si no, queda como trabajo "desde cero" (peticion_id null).
@@ -47,8 +53,10 @@ def crear_trabajo(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="La petición indicada no existe.",
             )
+        estado_anterior = peticion.estado
         peticion.estado = EstadoPeticion.convertida_en_trabajo
         peticion_id = peticion.id
+        peticion_a_notificar = peticion
 
     trabajo = Trabajo(
         peticion_id=peticion_id,
@@ -56,42 +64,15 @@ def crear_trabajo(
         estado=EstadoTrabajo.en_curso,
     )
     db.add(trabajo)
+    db.flush()
+
+    # Notificar al depto que su petición pasó a convertida_en_trabajo.
+    if peticion_a_notificar is not None:
+        notificar_cambio_estado_peticion(db, peticion_a_notificar, estado_anterior)
+
     db.commit()
     db.refresh(trabajo)
     return trabajo
-
-
-@router.post(
-    "/{trabajo_id}/presupuestos",
-    response_model=PresupuestoOut,
-    status_code=status.HTTP_201_CREATED,
-    summary="Registrar/aprobar presupuesto de un proveedor",
-)
-def registrar_presupuesto(
-    trabajo_id: int,
-    payload: PresupuestoCrear,
-    db: Session = Depends(get_db),
-    _user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
-) -> Presupuesto:
-    trabajo = db.get(Trabajo, trabajo_id)
-    if trabajo is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="El trabajo solicitado no existe.",
-        )
-
-    presupuesto = Presupuesto(
-        trabajo_id=trabajo.id,
-        proveedor=payload.proveedor,
-        monto=payload.monto,
-        estado=(
-            EstadoPresupuesto.aprobado if payload.aprobado else EstadoPresupuesto.presentado
-        ),
-    )
-    db.add(presupuesto)
-    db.commit()
-    db.refresh(presupuesto)
-    return presupuesto
 
 
 @router.patch(
@@ -124,3 +105,86 @@ def actualizar_trabajo(
     db.commit()
     db.refresh(trabajo)
     return trabajo
+
+
+@router.get("", response_model=list[TrabajoOut])
+def listar_trabajos(
+    db: Session = Depends(get_db),
+    _user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
+) -> list[Trabajo]:
+    return list(
+        db.scalars(select(Trabajo).order_by(Trabajo.fecha_creacion.desc())).all()
+    )
+
+
+@router.get("/{trabajo_id}", response_model=TrabajoOut)
+def obtener_trabajo(
+    trabajo_id: int,
+    db: Session = Depends(get_db),
+    _user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
+) -> Trabajo:
+    t = db.get(Trabajo, trabajo_id)
+    if t is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Trabajo no encontrado.",
+        )
+    return t
+
+
+@router.post(
+    "/{trabajo_id}/completar",
+    response_model=CompletarTrabajoOut,
+    summary="Devuelve payload pre-completado para crear el Gasto. NO crea el Gasto.",
+)
+def completar_trabajo(
+    trabajo_id: int,
+    db: Session = Depends(get_db),
+    _user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
+) -> CompletarTrabajoOut:
+    t = db.get(Trabajo, trabajo_id)
+    if t is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Trabajo no encontrado.",
+        )
+    if t.presupuesto_aprobado_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="El trabajo no tiene un presupuesto aprobado.",
+        )
+    p = db.get(Presupuesto, t.presupuesto_aprobado_id)
+    return CompletarTrabajoOut(
+        proveedor_id=p.proveedor_id,
+        monto=p.monto,
+        concepto_sugerido=t.descripcion or "Trabajo",
+        trabajo_id=t.id,
+    )
+
+
+@router.post("/{trabajo_id}/cancelar", status_code=status.HTTP_204_NO_CONTENT)
+def cancelar_trabajo(
+    trabajo_id: int,
+    db: Session = Depends(get_db),
+    _user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
+):
+    t = db.get(Trabajo, trabajo_id)
+    if t is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Trabajo no encontrado.",
+        )
+    t.estado = EstadoTrabajo.cancelado
+
+    # Cascade: si el trabajo provenía de una petición convertida, marcarla
+    # también como cancelada y notificar al depto. La petición no debería
+    # quedar huérfana en "convertida_en_trabajo" sin trabajo activo.
+    if t.peticion_id:
+        peticion = db.get(Peticion, t.peticion_id)
+        if peticion and peticion.estado == EstadoPeticion.convertida_en_trabajo:
+            estado_anterior = peticion.estado
+            peticion.estado = EstadoPeticion.cancelada
+            db.flush()
+            notificar_cambio_estado_peticion(db, peticion, estado_anterior)
+
+    db.commit()

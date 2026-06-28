@@ -9,13 +9,16 @@ def test_listar_token_invalido_devuelve_401(client):
     assert r.status_code == 401
 
 
-def test_departamento_solo_ve_sus_peticiones(client, headers_depto_a):
+def test_departamento_ve_todas_las_peticiones(client, headers_depto_a):
+    """Depto ve peticiones de TODOS los departamentos (transparencia)."""
     r = client.get("/peticiones", headers=headers_depto_a)
     assert r.status_code == 200
     data = r.json()
-    assert len(data) == 1
-    assert data[0]["departamento_id"] == 1
-    assert data[0]["titulo"] == "Filtración A"
+    # Debe ver al menos sus peticiones y las de otros deptos
+    assert len(data) >= 2
+    deptos_ids = {p["departamento_id"] for p in data}
+    assert 1 in deptos_ids  # su depto
+    assert 2 in deptos_ids  # depto B
 
 
 def test_admin_ve_todas_las_peticiones(client, headers_admin):
@@ -106,3 +109,125 @@ def test_crear_peticion_sin_token_devuelve_401(client):
 def test_crear_peticion_body_invalido_devuelve_400(client, headers_depto_a):
     r = client.post("/peticiones", json={"titulo": ""}, headers=headers_depto_a)
     assert r.status_code == 400
+
+
+def test_depto_patch_devuelve_403(client, headers_depto_a, db):
+    """Depto NO puede cambiar el estado de una petición."""
+    from backend.models import Peticion
+    p = Peticion(departamento_id=1, titulo="X", descripcion="x")
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    r = client.patch(
+        f"/peticiones/{p.id}",
+        json={"estado": "rechazada"},
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 403
+
+
+def test_admin_patch_cambia_estado_200(client, headers_admin, db):
+    """Admin puede cambiar estado abierta → rechazada."""
+    from backend.models import Peticion, EstadoPeticion
+    p = Peticion(departamento_id=1, titulo="X", descripcion="x", estado=EstadoPeticion.abierta)
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    r = client.patch(
+        f"/peticiones/{p.id}",
+        json={"estado": "rechazada"},
+        headers=headers_admin,
+    )
+    assert r.status_code == 200
+    assert r.json()["estado"] == "rechazada"
+
+
+def test_patch_cambio_estado_dispara_notificacion(client, headers_admin, db):
+    """Cambiar a rechazada debe crear Notificacion."""
+    from backend.models import Peticion, EstadoPeticion, Notificacion
+    p = Peticion(departamento_id=1, titulo="Notif test", descripcion="x", estado=EstadoPeticion.abierta)
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    before = db.query(Notificacion).count()
+    r = client.patch(
+        f"/peticiones/{p.id}",
+        json={"estado": "rechazada"},
+        headers=headers_admin,
+    )
+    assert r.status_code == 200
+    after = db.query(Notificacion).count()
+    assert after > before
+
+
+def test_depto_delete_su_abierta_204(client, headers_depto_a, db):
+    """Depto puede borrar su propia petición si está abierta."""
+    from backend.models import Peticion, EstadoPeticion
+    # headers_depto_a tiene departamento_id=1
+    p = Peticion(
+        departamento_id=1,
+        titulo="A borrar",
+        descripcion="x",
+        estado=EstadoPeticion.abierta,
+    )
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    r = client.delete(f"/peticiones/{p.id}", headers=headers_depto_a)
+    assert r.status_code == 204
+
+
+def test_depto_delete_su_convertida_409(client, headers_depto_a, db):
+    """Si la petición pasó a convertida_en_trabajo, depto no puede borrarla."""
+    from backend.models import Peticion, EstadoPeticion
+    # headers_depto_a tiene departamento_id=1
+    p = Peticion(
+        departamento_id=1,
+        titulo="Convertida",
+        descripcion="x",
+        estado=EstadoPeticion.convertida_en_trabajo,
+    )
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    r = client.delete(f"/peticiones/{p.id}", headers=headers_depto_a)
+    assert r.status_code == 409
+
+
+def test_depto_delete_ajena_403(client, headers_depto_a, db):
+    """Depto NO puede borrar petición de otro depto."""
+    from backend.models import Peticion, EstadoPeticion
+    # headers_depto_a tiene departamento_id=1, intentamos borrar una de depto 2
+    p = Peticion(
+        departamento_id=2,
+        titulo="ajena",
+        descripcion="x",
+        estado=EstadoPeticion.abierta,
+    )
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    r = client.delete(f"/peticiones/{p.id}", headers=headers_depto_a)
+    assert r.status_code == 403
+
+
+def test_admin_delete_cualquier_estado_204(client, headers_admin, db):
+    """Admin puede borrar cualquier petición en cualquier estado."""
+    from backend.models import Peticion, EstadoPeticion
+    p = Peticion(
+        departamento_id=2,
+        titulo="Convertida, pero admin la borra",
+        descripcion="x",
+        estado=EstadoPeticion.convertida_en_trabajo,
+    )
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    r = client.delete(f"/peticiones/{p.id}", headers=headers_admin)
+    assert r.status_code == 204
+
+
+def test_delete_inexistente_404(client, headers_admin):
+    """DELETE en petición que no existe retorna 404."""
+    r = client.delete("/peticiones/9999", headers=headers_admin)
+    assert r.status_code == 404
