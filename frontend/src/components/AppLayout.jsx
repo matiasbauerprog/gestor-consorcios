@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import Sidebar from "./Sidebar";
+import Campanita from "./Campanita";
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
@@ -34,6 +35,7 @@ export default function AppLayout() {
           <h1>Gestión de Consorcios</h1>
         </div>
         <nav className="app-user">
+          <Campanita />
           <span>
             {user.email} <strong>({user.rol})</strong>
           </span>
