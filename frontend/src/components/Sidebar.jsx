@@ -34,6 +34,21 @@ const SECCIONES = [
     ],
   },
   {
+    titulo: "Espacios comunes",
+    modulos: [
+      {
+        ruta: "/reservas",
+        nombre: "Reservas",
+        rolesPermitidos: ["administracion", "departamento"],
+      },
+      {
+        ruta: "/amenities",
+        nombre: "Amenities",
+        rolesPermitidos: ["administracion"],
+      },
+    ],
+  },
+  {
     titulo: "Expensas y pagos",
     modulos: [
       {
