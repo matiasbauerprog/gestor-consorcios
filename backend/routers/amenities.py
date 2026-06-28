@@ -1,7 +1,7 @@
 from datetime import date, datetime, time
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, get_current_user, require_roles
@@ -162,13 +162,69 @@ def crear_reserva(
     amenity_id: int,
     payload: ReservaCrear,
     db: Session = Depends(get_db),
-    user: CurrentUser = Depends(get_current_user),
+    user: CurrentUser = Depends(require_roles(Rol.administracion, Rol.departamento)),
 ) -> Reserva:
-    if db.get(Amenity, amenity_id) is None:
+    amenity = db.get(Amenity, amenity_id)
+    if amenity is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El amenity solicitado no existe.",
         )
+
+    if not amenity.activo:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="El amenity está inactivo.",
+        )
+
+    # Normalización: payload puede venir con tz o naive. Comparamos en naive
+    # contra datetime.now() para evitar mezclar offsets — el front manda naive.
+    inicio_naive = payload.inicio.replace(tzinfo=None) if payload.inicio.tzinfo else payload.inicio
+    fin_naive = payload.fin.replace(tzinfo=None) if payload.fin.tzinfo else payload.fin
+    ahora = datetime.now().replace(microsecond=0)
+
+    if inicio_naive <= ahora:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se puede reservar para el pasado.",
+        )
+
+    duracion_horas = (fin_naive - inicio_naive).total_seconds() / 3600
+    if amenity.duracion_maxima_horas is not None and duracion_horas > amenity.duracion_maxima_horas:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"La duración supera el máximo permitido ({amenity.duracion_maxima_horas}h).",
+        )
+
+    if amenity.anticipacion_maxima_dias is not None:
+        dias_anticipacion = (inicio_naive.date() - ahora.date()).days
+        if dias_anticipacion > amenity.anticipacion_maxima_dias:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"No se puede reservar con más de {amenity.anticipacion_maxima_dias} "
+                    f"días de anticipación."
+                ),
+            )
+
+    # Límite de reservas activas por depto: solo para rol departamento.
+    if user.rol == Rol.departamento and amenity.max_reservas_activas_por_depto is not None:
+        activas = db.scalar(
+            select(func.count(Reserva.id)).where(
+                Reserva.amenity_id == amenity_id,
+                Reserva.usuario_id == user.id,
+                Reserva.estado == EstadoReserva.confirmada,
+                Reserva.inicio > ahora,
+            )
+        ) or 0
+        if activas >= amenity.max_reservas_activas_por_depto:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"Ya alcanzaste el máximo de reservas activas para este amenity "
+                    f"({amenity.max_reservas_activas_por_depto})."
+                ),
+            )
 
     # Anti-solapamiento: dos intervalos [a, b) y [c, d) se superponen
     # iff a < d AND c < b. Se ignoran reservas canceladas.
@@ -176,8 +232,8 @@ def crear_reserva(
         select(Reserva.id).where(
             Reserva.amenity_id == amenity_id,
             Reserva.estado == EstadoReserva.confirmada,
-            Reserva.inicio < payload.fin,
-            Reserva.fin > payload.inicio,
+            Reserva.inicio < fin_naive,
+            Reserva.fin > inicio_naive,
         )
     )
     if solape_id is not None:
@@ -190,8 +246,8 @@ def crear_reserva(
     reserva = Reserva(
         amenity_id=amenity_id,
         usuario_id=user.id,
-        inicio=payload.inicio,
-        fin=payload.fin,
+        inicio=inicio_naive,
+        fin=fin_naive,
         estado=EstadoReserva.confirmada,
     )
     db.add(reserva)

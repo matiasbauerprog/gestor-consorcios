@@ -136,14 +136,13 @@ def test_reserva_departamento_devuelve_201(client, headers_depto_b):
     assert r.json()["usuario_id"] == 3
 
 
-def test_reserva_representante_devuelve_201(client, headers_representante):
+def test_reserva_representante_devuelve_403(client, headers_representante):
     r = client.post(
         "/amenities/301/reservas",
         json={"inicio": "2026-09-01T10:00:00", "fin": "2026-09-01T11:00:00"},
         headers=headers_representante,
     )
-    assert r.status_code == 201
-    assert r.json()["usuario_id"] == 4
+    assert r.status_code == 403
 
 
 def test_reserva_ignora_usuario_id_del_body(client, headers_admin):
