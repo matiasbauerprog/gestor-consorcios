@@ -95,6 +95,7 @@ def cancelar_reserva(
     reserva.estado = EstadoReserva.cancelada
 
     # Reversa del cargo, si tenía MovimientoCuenta asociado.
+    monto_reversado = None
     if reserva.movimiento_cuenta_id is not None:
         amenity = db.get(Amenity, reserva.amenity_id)
         mov_original = db.get(MovimientoCuenta, reserva.movimiento_cuenta_id)
@@ -121,6 +122,12 @@ def cancelar_reserva(
                 descripcion=f"Reversa de reserva cancelada {reserva.inicio.date().isoformat()}",
             )
             db.add(nota_credito)
+            monto_reversado = mov_original.monto
+
+    if es_admin and not es_dueno:
+        from ..notificaciones import notificar_reserva_cancelada_por_admin
+        amenity_n = db.get(Amenity, reserva.amenity_id)
+        notificar_reserva_cancelada_por_admin(db, reserva, amenity_n.nombre, monto_reversado)
 
     db.commit()
     db.refresh(reserva)

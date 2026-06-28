@@ -268,6 +268,11 @@ def crear_reserva(
 
     db.commit()
     db.refresh(reserva)
+
+    from ..notificaciones import notificar_reserva_creada
+    monto = amenity.precio_reserva if (user.rol == Rol.departamento and amenity.precio_reserva is not None) else None
+    notificar_reserva_creada(db, reserva, amenity.nombre, monto)
+
     return reserva
 
 

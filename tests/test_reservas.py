@@ -334,3 +334,41 @@ def test_obtener_reserva_ajena_como_depto_devuelve_403(client, headers_depto_a, 
 def test_obtener_reserva_inexistente_devuelve_404(client, headers_admin):
     r = client.get("/reservas/99999", headers=headers_admin)
     assert r.status_code == 404
+
+
+def test_admin_cancela_reserva_ajena_notifica_al_depto(client, headers_admin, headers_depto_a, db_session):
+    from backend.models import Notificacion
+
+    inicio, fin = _en_futuro()
+    r = client.post(
+        "/amenities/301/reservas",
+        json={"inicio": inicio, "fin": fin},
+        headers=headers_depto_a,
+    )
+    reserva_id = r.json()["id"]
+
+    notif_antes = db_session.query(Notificacion).count()
+    rc = client.delete(f"/reservas/{reserva_id}", headers=headers_admin)
+    assert rc.status_code == 200
+
+    notif_despues = db_session.query(Notificacion).count()
+    assert notif_despues > notif_antes
+
+
+def test_depto_cancela_su_reserva_no_genera_notificacion(client, headers_depto_a, db_session):
+    from backend.models import Notificacion
+
+    inicio, fin = _en_futuro()
+    r = client.post(
+        "/amenities/301/reservas",
+        json={"inicio": inicio, "fin": fin},
+        headers=headers_depto_a,
+    )
+    reserva_id = r.json()["id"]
+
+    notif_antes = db_session.query(Notificacion).count()
+    rc = client.delete(f"/reservas/{reserva_id}", headers=headers_depto_a)
+    assert rc.status_code == 200
+
+    notif_despues = db_session.query(Notificacion).count()
+    assert notif_despues == notif_antes
