@@ -66,7 +66,7 @@ Clean start: drop + create + seed. No requiere migración real porque SQLite ace
 
 | Endpoint | Cambio |
 |---|---|
-| `GET /amenities` | Filtra `activo=true` por default. Query `?incluir_inactivos=true` solo admin → ve todos. Depto/representante: error 403 si pasan el flag, o se ignora silenciosamente. |
+| `GET /amenities` | Filtra `activo=true` por default. Query `?incluir_inactivos=true` solo aplica si el usuario es admin → ve todos. Para depto/representante el flag se ignora silenciosamente (siempre ven solo activos). No devuelve 403 — el flag pasa a no-op. |
 | `POST /amenities` | Body suma campos de política. Schema valida tipos/rangos. |
 | `PATCH /amenities/{amenity_id}` | Edita políticas y `activo`. |
 | `POST /amenities/{amenity_id}/reservas` | Suma validaciones (ver abajo) y creación de `MovimientoCuenta` si aplica. |
@@ -91,7 +91,7 @@ Aplican en este orden (rechazo en la primera que falla):
 6. `fin > inicio` → 400 (intervalo válido).
 7. `(fin - inicio).total_seconds() / 3600 ≤ amenity.duracion_maxima_horas` (si está configurado) → 400.
 8. `(inicio.date() - now.date()).days ≤ amenity.anticipacion_maxima_dias` (si está configurado) → 400.
-9. Si depto y `amenity.max_reservas_activas_por_depto` está configurado: contar reservas del depto del usuario para ese amenity en estado `confirmada` con `inicio > now`; debe ser `<` el límite → 409.
+9. Si depto y `amenity.max_reservas_activas_por_depto` está configurado: contar reservas del depto del usuario para ese amenity en estado `confirmada` con `inicio > now`. Si ese conteo es `>=` al límite, rechazar con 409 (la nueva reserva haría superar el tope). Si reservante es admin, no se aplica esta regla.
 10. Anti-solapamiento (ya implementado): no debe existir otra `confirmada` con `inicio < payload.fin AND fin > payload.inicio` para el mismo amenity → 409.
 
 Si todas pasan:
@@ -113,11 +113,13 @@ Si todas pasan:
 Si todas pasan:
 
 - `reserva.estado = cancelada`.
-- **Reversa del cargo:** si `reserva.movimiento_cuenta_id` no es null:
-  - Calcular `horas_hasta_inicio = (reserva.inicio - now).total_seconds() / 3600`.
-  - **Reversar si**: el que cancela es admin sobre reserva ajena (sin importar el plazo), o `horas_hasta_inicio ≥ amenity.horas_minimas_cancelacion` (o `horas_minimas_cancelacion` es null → siempre se reversa).
-  - **No reversar (penalty 100%) si**: el dueño cancela y `horas_hasta_inicio < amenity.horas_minimas_cancelacion`.
-  - Reversa = `MovimientoCuenta(departamento_id=..., fecha=date.today(), tipo=nota_credito, monto=mismo_monto, descripcion=f"Reversa de reserva cancelada {reserva.inicio.date().isoformat()}")`.
+- **Reversa del cargo:** si `reserva.movimiento_cuenta_id` no es null, se decide si crear `nota_credito` reversora:
+  - **Caso A (admin cancela reserva ajena):** se reversa SIEMPRE, sin importar el plazo. La cancelación no es decisión del depto, no corresponde penalty.
+  - **Caso B (dueño cancela su propia reserva):**
+    - Si `amenity.horas_minimas_cancelacion` es null → se reversa siempre (sin plazo configurado significa "siempre se permite cancelar gratis").
+    - Si está configurado y `(reserva.inicio - now).total_seconds() / 3600 ≥ amenity.horas_minimas_cancelacion` → se reversa.
+    - Si está configurado y el cálculo da `<` el plazo → NO se reversa (penalty 100%, el cargo original queda firme).
+  - Reversa, cuando aplica = `MovimientoCuenta(departamento_id=..., fecha=date.today(), tipo=nota_credito, monto=mismo_monto, descripcion=f"Reversa de reserva cancelada {reserva.inicio.date().isoformat()}")`.
 - **Notificación**: si quien cancela es admin sobre reserva ajena → doble canal (campanita + email) al depto dueño. Si dueño cancela su propia: sin notif.
 
 ## Frontend (mobile-first)
