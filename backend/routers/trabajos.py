@@ -41,6 +41,8 @@ def crear_trabajo(
     _user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
 ) -> Trabajo:
     peticion_id: int | None = None
+    peticion_a_notificar: Peticion | None = None
+    estado_anterior: EstadoPeticion | None = None
 
     # Si el trabajo viene de una petición existente, validamos y la marcamos
     # como convertida. Si no, queda como trabajo "desde cero" (peticion_id null).
@@ -51,8 +53,10 @@ def crear_trabajo(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="La petición indicada no existe.",
             )
+        estado_anterior = peticion.estado
         peticion.estado = EstadoPeticion.convertida_en_trabajo
         peticion_id = peticion.id
+        peticion_a_notificar = peticion
 
     trabajo = Trabajo(
         peticion_id=peticion_id,
@@ -60,6 +64,12 @@ def crear_trabajo(
         estado=EstadoTrabajo.en_curso,
     )
     db.add(trabajo)
+    db.flush()
+
+    # Notificar al depto que su petición pasó a convertida_en_trabajo.
+    if peticion_a_notificar is not None:
+        notificar_cambio_estado_peticion(db, peticion_a_notificar, estado_anterior)
+
     db.commit()
     db.refresh(trabajo)
     return trabajo

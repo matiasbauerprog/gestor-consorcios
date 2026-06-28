@@ -254,3 +254,38 @@ def test_crear_trabajo_desde_peticion_marca_convertida(client, headers_admin, db
 
     db_session.refresh(p)
     assert p.estado == EstadoPeticion.convertida_en_trabajo
+
+
+def test_crear_trabajo_desde_peticion_notifica_al_depto(
+    client, headers_admin, db_session
+):
+    """Al aceptar (convertir en trabajo) una petición, el depto dueño recibe
+    una notificación in-app en la campanita."""
+    from backend.models import Notificacion
+
+    p = Peticion(
+        departamento_id=1,
+        titulo="Aviso al depto",
+        descripcion="x",
+        estado=EstadoPeticion.abierta,
+    )
+    db_session.add(p)
+    db_session.commit()
+    db_session.refresh(p)
+
+    notifs_antes = db_session.query(Notificacion).count()
+
+    r = client.post(
+        "/trabajos",
+        json={"peticion_id": p.id, "descripcion": "ok"},
+        headers=headers_admin,
+    )
+    assert r.status_code == 201
+
+    notifs = list(
+        db_session.query(Notificacion)
+        .filter(Notificacion.mensaje.contains("convertida_en_trabajo"))
+        .all()
+    )
+    assert len(notifs) >= 1
+    assert db_session.query(Notificacion).count() > notifs_antes
