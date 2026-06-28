@@ -420,3 +420,57 @@ def test_patch_amenity_body_vacio_no_falla(client, headers_admin):
     r = client.patch("/amenities/300", json={}, headers=headers_admin)
     assert r.status_code == 200
     assert r.json()["nombre"] == "SUM"
+
+
+# ---------------------------------------------------------------------------
+# DELETE /amenities/{id} (soft-delete) + filtro activo en GET
+# ---------------------------------------------------------------------------
+
+
+def test_delete_amenity_admin_devuelve_200_y_marca_inactivo(client, headers_admin, db_session):
+    from backend.models import Amenity
+    r = client.delete("/amenities/301", headers=headers_admin)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["id"] == 301
+    assert body["activo"] is False
+    db_session.expire_all()
+    a = db_session.get(Amenity, 301)
+    assert a.activo is False
+
+
+def test_delete_amenity_ya_inactivo_devuelve_409(client, headers_admin, db_session):
+    from backend.models import Amenity
+    a = db_session.get(Amenity, 301)
+    a.activo = False
+    db_session.commit()
+    r = client.delete("/amenities/301", headers=headers_admin)
+    assert r.status_code == 409
+
+
+def test_delete_amenity_como_departamento_devuelve_403(client, headers_depto_a):
+    r = client.delete("/amenities/301", headers=headers_depto_a)
+    assert r.status_code == 403
+
+
+def test_listar_amenities_no_admin_solo_ve_activos(client, headers_depto_a, db_session):
+    from backend.models import Amenity
+    a = db_session.get(Amenity, 301)
+    a.activo = False
+    db_session.commit()
+    r = client.get("/amenities", headers=headers_depto_a)
+    assert r.status_code == 200
+    ids = [x["id"] for x in r.json()]
+    assert 300 in ids
+    assert 301 not in ids
+
+
+def test_listar_amenities_admin_con_incluir_inactivos_ve_todos(client, headers_admin, db_session):
+    from backend.models import Amenity
+    a = db_session.get(Amenity, 301)
+    a.activo = False
+    db_session.commit()
+    r = client.get("/amenities?incluir_inactivos=true", headers=headers_admin)
+    ids = [x["id"] for x in r.json()]
+    assert 300 in ids
+    assert 301 in ids

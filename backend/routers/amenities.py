@@ -27,10 +27,14 @@ router = APIRouter(prefix="/amenities", tags=["Amenities"])
     summary="Listar amenities",
 )
 def listar_amenities(
+    incluir_inactivos: bool = False,
     db: Session = Depends(get_db),
-    _user: CurrentUser = Depends(get_current_user),
+    user: CurrentUser = Depends(get_current_user),
 ) -> list[Amenity]:
     stmt = select(Amenity).order_by(Amenity.nombre.asc())
+    # incluir_inactivos solo aplica para admin; para depto/representante se ignora silenciosamente.
+    if not (incluir_inactivos and user.rol == Rol.administracion):
+        stmt = stmt.where(Amenity.activo == True)  # noqa: E712
     return list(db.scalars(stmt).all())
 
 
@@ -194,3 +198,31 @@ def crear_reserva(
     db.commit()
     db.refresh(reserva)
     return reserva
+
+
+@router.delete(
+    "/{amenity_id}",
+    response_model=AmenityOut,
+    status_code=status.HTTP_200_OK,
+    summary="Dar de baja un amenity (soft-delete)",
+)
+def dar_de_baja_amenity(
+    amenity_id: int,
+    db: Session = Depends(get_db),
+    _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+) -> Amenity:
+    amenity = db.get(Amenity, amenity_id)
+    if amenity is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="El amenity solicitado no existe.",
+        )
+    if not amenity.activo:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="El amenity ya está inactivo.",
+        )
+    amenity.activo = False
+    db.commit()
+    db.refresh(amenity)
+    return amenity
