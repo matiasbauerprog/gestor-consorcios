@@ -1061,3 +1061,76 @@ img, svg, video {
   color: var(--color-text-muted);
   font-style: italic;
 }
+
+/* ---------- Card reserva ---------- */
+.card-reserva {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+
+.card-reserva.cancelada {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+.card-reserva h4 {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.95rem;
+}
+
+/* ---------- Banner políticas + form reserva ---------- */
+.banner-politicas {
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin: 0.75rem 0;
+}
+
+.banner-politicas header {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.banner-politicas .banner-toggle {
+  margin-left: auto;
+}
+
+.banner-politicas ul {
+  margin: 0.5rem 0 0 1rem;
+  font-size: 0.85rem;
+}
+
+.form-reserva {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 1rem;
+  margin: 0.75rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.form-reserva h3 {
+  margin: 0;
+}
+
+.cta-sticky button {
+  width: 100%;
+  min-height: 48px;
+}
+
+@media (max-width: 599px) {
+  .cta-sticky {
+    position: sticky;
+    bottom: 0;
+    background: var(--color-surface);
+    padding: 0.5rem 0;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+  }
+}
