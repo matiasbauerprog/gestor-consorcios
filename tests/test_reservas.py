@@ -176,3 +176,119 @@ def test_movimiento_usa_fecha_de_hoy_no_inicio_reserva(client, headers_depto_a, 
     mov_id = r.json()["movimiento_cuenta_id"]
     m = db_session.get(MovimientoCuenta, mov_id)
     assert m.fecha == date_cls.today()
+
+
+def test_cancelar_reserva_dueno_dentro_de_plazo_reversa_cargo(client, headers_depto_a, db_session):
+    from backend.models import MovimientoCuenta, TipoMovimiento
+
+    a = db_session.get(Amenity, 301)
+    a.precio_reserva = 4000.0
+    a.horas_minimas_cancelacion = 24
+    db_session.commit()
+
+    # Reserva en +5 días → dentro del plazo gratuito (24h)
+    inicio, fin = _en_futuro(dias=5)
+    r = client.post(
+        "/amenities/301/reservas",
+        json={"inicio": inicio, "fin": fin},
+        headers=headers_depto_a,
+    )
+    reserva_id = r.json()["id"]
+    mov_inicial_id = r.json()["movimiento_cuenta_id"]
+
+    rc = client.delete(f"/reservas/{reserva_id}", headers=headers_depto_a)
+    assert rc.status_code == 200
+
+    reversa = db_session.query(MovimientoCuenta).filter(
+        MovimientoCuenta.departamento_id == 1,
+        MovimientoCuenta.tipo == TipoMovimiento.nota_credito,
+        MovimientoCuenta.monto == 4000.0,
+    ).order_by(MovimientoCuenta.id.desc()).first()
+    assert reversa is not None
+    assert reversa.id != mov_inicial_id
+
+
+def test_cancelar_reserva_dueno_fuera_de_plazo_no_reversa(client, headers_depto_a, db_session):
+    from datetime import datetime, timedelta
+    from backend.models import MovimientoCuenta, TipoMovimiento
+
+    a = db_session.get(Amenity, 301)
+    a.precio_reserva = 4000.0
+    a.horas_minimas_cancelacion = 48
+    db_session.commit()
+
+    # Reserva en +12h → FUERA del plazo gratuito de 48h
+    inicio = (datetime.now() + timedelta(hours=12)).replace(microsecond=0).isoformat()
+    fin = (datetime.now() + timedelta(hours=14)).replace(microsecond=0).isoformat()
+    r = client.post(
+        "/amenities/301/reservas",
+        json={"inicio": inicio, "fin": fin},
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 201
+    reserva_id = r.json()["id"]
+
+    rc = client.delete(f"/reservas/{reserva_id}", headers=headers_depto_a)
+    assert rc.status_code == 200
+
+    reversa = db_session.query(MovimientoCuenta).filter(
+        MovimientoCuenta.departamento_id == 1,
+        MovimientoCuenta.tipo == TipoMovimiento.nota_credito,
+    ).first()
+    assert reversa is None
+
+
+def test_cancelar_reserva_admin_cancela_ajena_siempre_reversa(client, headers_admin, headers_depto_a, db_session):
+    from datetime import datetime, timedelta
+    from backend.models import MovimientoCuenta, TipoMovimiento
+
+    a = db_session.get(Amenity, 301)
+    a.precio_reserva = 4000.0
+    a.horas_minimas_cancelacion = 48
+    db_session.commit()
+
+    # Depto reserva con +12h (fuera del plazo gratuito normalmente)
+    inicio = (datetime.now() + timedelta(hours=12)).replace(microsecond=0).isoformat()
+    fin = (datetime.now() + timedelta(hours=14)).replace(microsecond=0).isoformat()
+    r = client.post(
+        "/amenities/301/reservas",
+        json={"inicio": inicio, "fin": fin},
+        headers=headers_depto_a,
+    )
+    reserva_id = r.json()["id"]
+
+    # Admin cancela → reversa SIEMPRE
+    rc = client.delete(f"/reservas/{reserva_id}", headers=headers_admin)
+    assert rc.status_code == 200
+
+    reversa = db_session.query(MovimientoCuenta).filter(
+        MovimientoCuenta.tipo == TipoMovimiento.nota_credito,
+    ).first()
+    assert reversa is not None
+
+
+def test_cancelar_reserva_sin_horas_minimas_siempre_reversa(client, headers_depto_a, db_session):
+    from datetime import datetime, timedelta
+    from backend.models import MovimientoCuenta, TipoMovimiento
+
+    a = db_session.get(Amenity, 301)
+    a.precio_reserva = 4000.0
+    # horas_minimas_cancelacion queda en None
+    db_session.commit()
+
+    inicio = (datetime.now() + timedelta(hours=1)).replace(microsecond=0).isoformat()
+    fin = (datetime.now() + timedelta(hours=3)).replace(microsecond=0).isoformat()
+    r = client.post(
+        "/amenities/301/reservas",
+        json={"inicio": inicio, "fin": fin},
+        headers=headers_depto_a,
+    )
+    reserva_id = r.json()["id"]
+
+    rc = client.delete(f"/reservas/{reserva_id}", headers=headers_depto_a)
+    assert rc.status_code == 200
+
+    reversa = db_session.query(MovimientoCuenta).filter(
+        MovimientoCuenta.tipo == TipoMovimiento.nota_credito,
+    ).first()
+    assert reversa is not None
