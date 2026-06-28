@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, get_current_user, require_roles
 from ..database import get_db
-from ..models import Amenity, EstadoReserva, Reserva, Rol
+from ..models import Amenity, EstadoReserva, MovimientoCuenta, Reserva, Rol, TipoMovimiento
 from ..schemas import (
     AmenityActualizar,
     AmenityCrear,
@@ -251,6 +251,21 @@ def crear_reserva(
         estado=EstadoReserva.confirmada,
     )
     db.add(reserva)
+    db.flush()  # asignar id antes de FK del movimiento
+
+    # Cobro: solo si reservante es depto y el amenity tiene precio.
+    if user.rol == Rol.departamento and amenity.precio_reserva is not None:
+        movimiento = MovimientoCuenta(
+            departamento_id=user.departamento_id,
+            fecha=date.today(),
+            tipo=TipoMovimiento.nota_debito,
+            monto=amenity.precio_reserva,
+            descripcion=f"Reserva {amenity.nombre} {inicio_naive.date().isoformat()}",
+        )
+        db.add(movimiento)
+        db.flush()
+        reserva.movimiento_cuenta_id = movimiento.id
+
     db.commit()
     db.refresh(reserva)
     return reserva
