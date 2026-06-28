@@ -292,3 +292,45 @@ def test_cancelar_reserva_sin_horas_minimas_siempre_reversa(client, headers_dept
         MovimientoCuenta.tipo == TipoMovimiento.nota_credito,
     ).first()
     assert reversa is not None
+
+
+def test_obtener_reserva_dueno_devuelve_200(client, headers_depto_a):
+    inicio, fin = _en_futuro()
+    r = client.post(
+        "/amenities/301/reservas",
+        json={"inicio": inicio, "fin": fin},
+        headers=headers_depto_a,
+    )
+    reserva_id = r.json()["id"]
+    rg = client.get(f"/reservas/{reserva_id}", headers=headers_depto_a)
+    assert rg.status_code == 200
+    assert rg.json()["id"] == reserva_id
+
+
+def test_obtener_reserva_admin_devuelve_200(client, headers_admin, headers_depto_a):
+    inicio, fin = _en_futuro()
+    r = client.post(
+        "/amenities/301/reservas",
+        json={"inicio": inicio, "fin": fin},
+        headers=headers_depto_a,
+    )
+    reserva_id = r.json()["id"]
+    rg = client.get(f"/reservas/{reserva_id}", headers=headers_admin)
+    assert rg.status_code == 200
+
+
+def test_obtener_reserva_ajena_como_depto_devuelve_403(client, headers_depto_a, headers_depto_b):
+    inicio, fin = _en_futuro()
+    r = client.post(
+        "/amenities/301/reservas",
+        json={"inicio": inicio, "fin": fin},
+        headers=headers_depto_a,
+    )
+    reserva_id = r.json()["id"]
+    rg = client.get(f"/reservas/{reserva_id}", headers=headers_depto_b)
+    assert rg.status_code == 403
+
+
+def test_obtener_reserva_inexistente_devuelve_404(client, headers_admin):
+    r = client.get("/reservas/99999", headers=headers_admin)
+    assert r.status_code == 404

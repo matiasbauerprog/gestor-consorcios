@@ -33,6 +33,33 @@ def listar_reservas(
     return list(db.scalars(stmt).all())
 
 
+@router.get(
+    "/{reserva_id}",
+    response_model=ReservaOut,
+    status_code=status.HTTP_200_OK,
+    summary="Obtener detalle de una reserva",
+)
+def obtener_reserva(
+    reserva_id: int,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+) -> Reserva:
+    reserva = db.get(Reserva, reserva_id)
+    if reserva is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="La reserva solicitada no existe.",
+        )
+    es_dueno = reserva.usuario_id == user.id
+    es_admin = user.rol == Rol.administracion
+    if not (es_dueno or es_admin):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tiene permisos para acceder a este recurso.",
+        )
+    return reserva
+
+
 @router.delete(
     "/{reserva_id}",
     response_model=ReservaOut,
