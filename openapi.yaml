@@ -1385,6 +1385,12 @@ paths:
         Devuelve los amenities disponibles en el consorcio (SUM, Laundry, etc.).
         Accesible para todos los roles autenticados.
       operationId: listarAmenities
+      parameters:
+        - name: incluir_inactivos
+          in: query
+          required: false
+          description: Si true y el caller es admin, devuelve también inactivos. Para no-admin se ignora.
+          schema: { type: boolean, default: false }
       responses:
         '200':
           description: Lista de amenities recuperada exitosamente.
@@ -1470,6 +1476,35 @@ paths:
           $ref: '#/components/responses/NoEncontrado'
         '409':
           description: Ya existe otro amenity con ese nombre.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [Amenities]
+      summary: Dar de baja un amenity (soft-delete)
+      operationId: darDeBajaAmenity
+      parameters:
+        - name: amenity_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Amenity dado de baja exitosamente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Amenity'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          description: El amenity ya estaba inactivo.
           content:
             application/json:
               schema:
@@ -1809,6 +1844,29 @@ paths:
                 $ref: '#/components/schemas/Error'
 
   /reservas/{reserva_id}:
+    get:
+      tags: [Amenities]
+      summary: Obtener detalle de una reserva
+      operationId: obtenerReserva
+      parameters:
+        - name: reserva_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Detalle de la reserva.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reserva'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+
     delete:
       tags: [Amenities]
       summary: Cancelar una reserva
@@ -3787,41 +3845,41 @@ components:
 
     Amenity:
       type: object
-      required: [id, nombre]
+      required: [id, nombre, descripcion, activo, precio_reserva, duracion_maxima_horas, anticipacion_maxima_dias, max_reservas_activas_por_depto, horas_minimas_cancelacion]
       properties:
-        id:
-          type: integer
-          format: int64
-        nombre:
-          type: string
-        descripcion:
-          type: string
-          nullable: true
+        id: { type: integer, format: int64 }
+        nombre: { type: string }
+        descripcion: { type: string, nullable: true }
+        activo: { type: boolean }
+        precio_reserva: { type: number, nullable: true }
+        duracion_maxima_horas: { type: integer, nullable: true }
+        anticipacion_maxima_dias: { type: integer, nullable: true }
+        max_reservas_activas_por_depto: { type: integer, nullable: true }
+        horas_minimas_cancelacion: { type: integer, nullable: true }
 
     AmenityCrear:
       type: object
       required: [nombre]
       properties:
-        nombre:
-          type: string
-          minLength: 1
-          maxLength: 100
-        descripcion:
-          type: string
-          maxLength: 500
-          nullable: true
+        nombre: { type: string, minLength: 1, maxLength: 100 }
+        descripcion: { type: string, maxLength: 500, nullable: true }
+        precio_reserva: { type: number, minimum: 0, nullable: true }
+        duracion_maxima_horas: { type: integer, exclusiveMinimum: 0, nullable: true }
+        anticipacion_maxima_dias: { type: integer, exclusiveMinimum: 0, nullable: true }
+        max_reservas_activas_por_depto: { type: integer, exclusiveMinimum: 0, nullable: true }
+        horas_minimas_cancelacion: { type: integer, minimum: 0, nullable: true }
 
     AmenityActualizar:
       type: object
       properties:
-        nombre:
-          type: string
-          minLength: 1
-          maxLength: 100
-        descripcion:
-          type: string
-          maxLength: 500
-          nullable: true
+        nombre: { type: string, minLength: 1, maxLength: 100, nullable: true }
+        descripcion: { type: string, maxLength: 500, nullable: true }
+        activo: { type: boolean, nullable: true }
+        precio_reserva: { type: number, minimum: 0, nullable: true }
+        duracion_maxima_horas: { type: integer, exclusiveMinimum: 0, nullable: true }
+        anticipacion_maxima_dias: { type: integer, exclusiveMinimum: 0, nullable: true }
+        max_reservas_activas_por_depto: { type: integer, exclusiveMinimum: 0, nullable: true }
+        horas_minimas_cancelacion: { type: integer, minimum: 0, nullable: true }
 
     Departamento:
       type: object
@@ -3927,26 +3985,15 @@ components:
 
     Reserva:
       type: object
-      required: [id, amenity_id, usuario_id, inicio, fin, estado]
+      required: [id, amenity_id, usuario_id, inicio, fin, estado, movimiento_cuenta_id]
       properties:
-        id:
-          type: integer
-          format: int64
-        amenity_id:
-          type: integer
-          format: int64
-        usuario_id:
-          type: integer
-          format: int64
-        inicio:
-          type: string
-          format: date-time
-        fin:
-          type: string
-          format: date-time
-        estado:
-          type: string
-          enum: [confirmada, cancelada]
+        id: { type: integer, format: int64 }
+        amenity_id: { type: integer, format: int64 }
+        usuario_id: { type: integer, format: int64 }
+        inicio: { type: string, format: date-time }
+        fin: { type: string, format: date-time }
+        estado: { type: string, enum: [confirmada, cancelada] }
+        movimiento_cuenta_id: { type: integer, format: int64, nullable: true }
 
     ReservaCrear:
       type: object

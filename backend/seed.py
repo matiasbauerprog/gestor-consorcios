@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from .config import get_settings
 from .models import (
+    Amenity,
     Caja,
     CategoriaEmpleado,
     ClaseProrrateo,
@@ -455,6 +456,32 @@ def seed_if_empty(db: Session) -> None:
             monto=1500.00,
         ),
     ])
+
+    # ----- Fase 12: amenities demo -----
+    db.add_all([
+        Amenity(
+            nombre="SUM",
+            descripcion="Salón de usos múltiples (eventos privados)",
+            activo=True,
+            precio_reserva=20000.0,
+            duracion_maxima_horas=12,
+            anticipacion_maxima_dias=60,
+            max_reservas_activas_por_depto=2,
+            horas_minimas_cancelacion=48,
+        ),
+        Amenity(
+            nombre="Laundry",
+            descripcion="Lavandería compartida",
+            activo=True,
+            precio_reserva=None,
+            duracion_maxima_horas=3,
+            anticipacion_maxima_dias=14,
+            max_reservas_activas_por_depto=3,
+            horas_minimas_cancelacion=None,
+        ),
+    ])
+    db.flush()
+
     db.commit()
 
     logger.warning(
