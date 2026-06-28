@@ -976,3 +976,88 @@ img, svg, video {
     flex: 1 1 200px;
   }
 }
+
+/* ---------- Cards de amenity (Fase 12) ---------- */
+.lista-cards {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 600px) {
+  .lista-cards {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+
+.card-amenity {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.card-amenity.inactivo {
+  opacity: 0.6;
+}
+
+.card-amenity h3 {
+  margin: 0 0 0.5rem 0;
+}
+
+.amenity-policies {
+  margin: 0.5rem 0;
+  font-size: 0.85rem;
+}
+
+.amenity-policies > div {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.15rem 0;
+}
+
+.amenity-policies dt {
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.amenity-policies dd {
+  margin: 0;
+}
+
+/* Checkbox inline (label-checkbox) */
+.label-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+}
+
+.label-checkbox input[type="checkbox"] {
+  width: auto;
+  min-height: auto;
+  accent-color: var(--color-primary);
+}
+
+/* Acciones dentro de cards */
+.card-amenity .acciones {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+.card-amenity .acciones button {
+  flex: 1 1 auto;
+  font-size: 0.85rem;
+  padding: 0.4em 0.8em;
+  min-height: 44px;
+}
+
+.card-amenity .vacio {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
