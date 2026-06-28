@@ -51,16 +51,16 @@ def contar_no_leidas(
 
 
 @router.post(
-    "/{notif_id}/marcar-leida",
+    "/{notificacion_id}/marcar-leida",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Marcar una notificación como leída",
 )
 def marcar_leida(
-    notif_id: int,
+    notificacion_id: int,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ):
-    notif = db.get(Notificacion, notif_id)
+    notif = db.get(Notificacion, notificacion_id)
     if notif is None or notif.usuario_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
