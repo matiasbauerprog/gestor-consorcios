@@ -14,6 +14,7 @@ from ..models import (
     Rol,
     Trabajo,
 )
+from ..notificaciones import notificar_cambio_estado_peticion
 from ..schemas import (
     CompletarTrabajoOut,
     PresupuestoCrear,
@@ -164,4 +165,16 @@ def cancelar_trabajo(
             detail="Trabajo no encontrado.",
         )
     t.estado = EstadoTrabajo.cancelado
+
+    # Cascade: si el trabajo provenía de una petición convertida, marcarla
+    # también como cancelada y notificar al depto. La petición no debería
+    # quedar huérfana en "convertida_en_trabajo" sin trabajo activo.
+    if t.peticion_id:
+        peticion = db.get(Peticion, t.peticion_id)
+        if peticion and peticion.estado == EstadoPeticion.convertida_en_trabajo:
+            estado_anterior = peticion.estado
+            peticion.estado = EstadoPeticion.cancelada
+            db.flush()
+            notificar_cambio_estado_peticion(db, peticion, estado_anterior)
+
     db.commit()

@@ -30,14 +30,18 @@ def notificar_cambio_estado_peticion(
     peticion: Peticion,
     estado_anterior: EstadoPeticion,
 ) -> None:
-    """Doble canal cuando la petición pasa a convertida_en_trabajo o rechazada.
+    """Doble canal cuando la petición pasa a convertida_en_trabajo, rechazada o cancelada.
 
     No notifica si el estado no cambió, o si el nuevo estado es 'abierta'.
     Best-effort: si email falla, la in-app igual queda.
     """
     if estado_anterior == peticion.estado:
         return
-    if peticion.estado not in (EstadoPeticion.convertida_en_trabajo, EstadoPeticion.rechazada):
+    if peticion.estado not in (
+        EstadoPeticion.convertida_en_trabajo,
+        EstadoPeticion.rechazada,
+        EstadoPeticion.cancelada,
+    ):
         return
 
     usuarios = list(db.scalars(

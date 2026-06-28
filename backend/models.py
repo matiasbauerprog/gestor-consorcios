@@ -28,6 +28,7 @@ class EstadoPeticion(str, enum.Enum):
     abierta = "abierta"
     convertida_en_trabajo = "convertida_en_trabajo"
     rechazada = "rechazada"
+    cancelada = "cancelada"
 
 
 class EstadoTrabajo(str, enum.Enum):

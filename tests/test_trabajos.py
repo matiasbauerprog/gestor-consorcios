@@ -175,6 +175,61 @@ def test_cancelar_trabajo_devuelve_204(client, headers_admin, db_session):
     assert t.estado == "cancelado"
 
 
+def test_cancelar_trabajo_con_peticion_marca_peticion_cancelada(
+    client, headers_admin, db_session
+):
+    """Si el trabajo vino de una petición, al cancelarlo la petición también
+    pasa a cancelada (no queda huérfana en convertida_en_trabajo)."""
+    from backend.models import Notificacion
+
+    p = Peticion(
+        departamento_id=1,
+        titulo="A cancelar via trabajo",
+        descripcion="x",
+        estado=EstadoPeticion.abierta,
+    )
+    db_session.add(p)
+    db_session.commit()
+    db_session.refresh(p)
+
+    # Crear trabajo desde la petición → petición pasa a convertida_en_trabajo.
+    r = client.post(
+        "/trabajos",
+        json={"peticion_id": p.id, "descripcion": "trabajo"},
+        headers=headers_admin,
+    )
+    assert r.status_code == 201
+    trabajo_id = r.json()["id"]
+    db_session.refresh(p)
+    assert p.estado == EstadoPeticion.convertida_en_trabajo
+
+    # Cancelar el trabajo → la petición cascadea a cancelada y se notifica.
+    notifs_antes = db_session.query(Notificacion).count()
+    r = client.post(f"/trabajos/{trabajo_id}/cancelar", headers=headers_admin)
+    assert r.status_code == 204
+
+    db_session.refresh(p)
+    assert p.estado == EstadoPeticion.cancelada
+
+    notifs_despues = db_session.query(Notificacion).count()
+    assert notifs_despues > notifs_antes
+
+
+def test_cancelar_trabajo_sin_peticion_no_explota(
+    client, headers_admin, db_session
+):
+    """Trabajo "desde cero" (sin peticion_id) se cancela sin tocar peticiones."""
+    t = Trabajo(descripcion="sin peticion")
+    db_session.add(t)
+    db_session.commit()
+    db_session.refresh(t)
+
+    r = client.post(f"/trabajos/{t.id}/cancelar", headers=headers_admin)
+    assert r.status_code == 204
+    db_session.refresh(t)
+    assert t.estado == "cancelado"
+
+
 def test_crear_trabajo_desde_peticion_marca_convertida(client, headers_admin, db_session):
     """POST /trabajos con peticion_id marca la petición como convertida_en_trabajo."""
     p = Peticion(

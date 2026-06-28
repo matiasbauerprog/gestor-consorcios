@@ -3,12 +3,13 @@ import { listarPeticiones, crearPeticion } from "../api/peticiones";
 import { useAuth } from "../auth/AuthContext";
 import ModalDetallePeticion from "../components/ModalDetallePeticion";
 
-const ESTADOS = ["abierta", "convertida_en_trabajo", "rechazada"];
+const ESTADOS = ["abierta", "convertida_en_trabajo", "rechazada", "cancelada"];
 
 const ETIQUETAS_ESTADO = {
   abierta: "Abierta",
   convertida_en_trabajo: "Convertida en trabajo",
   rechazada: "Rechazada",
+  cancelada: "Cancelada",
 };
 
 export default function Peticiones() {

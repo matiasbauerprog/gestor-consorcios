@@ -8,6 +8,7 @@ const ETIQUETAS_ESTADO = {
   abierta: "Abierta",
   convertida_en_trabajo: "Convertida en trabajo",
   rechazada: "Rechazada",
+  cancelada: "Cancelada",
 };
 
 export default function ModalDetallePeticion({

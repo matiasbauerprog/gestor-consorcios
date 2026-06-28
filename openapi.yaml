@@ -3530,7 +3530,7 @@ components:
           type: string
         estado:
           type: string
-          enum: [abierta, convertida_en_trabajo, rechazada]
+          enum: [abierta, convertida_en_trabajo, rechazada, cancelada]
         fecha_creacion:
           type: string
           format: date-time
