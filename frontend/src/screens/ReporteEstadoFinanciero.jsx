@@ -70,7 +70,7 @@ export default function ReporteEstadoFinanciero() {
               <tr
                 style={{
                   fontWeight: "bold",
-                  borderTop: "2px solid #ccc",
+                  borderTop: "2px solid var(--color-border-strong)",
                 }}
               >
                 <td>TOTAL ACTIVO</td>
@@ -108,7 +108,7 @@ export default function ReporteEstadoFinanciero() {
                 <tr
                   style={{
                     fontWeight: "bold",
-                    borderTop: "2px solid #ccc",
+                    borderTop: "2px solid var(--color-border-strong)",
                   }}
                 >
                   <td colSpan="2">TOTAL PASIVO</td>

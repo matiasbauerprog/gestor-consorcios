@@ -31,8 +31,8 @@ export default function ModalEnvioPdfs({ periodo, periodoCerrado, cantidadExpens
           {!periodoCerrado && (
             <div
               style={{
-                background: "#fff3cd",
-                border: "1px solid #ffc107",
+                background: "var(--color-warning-bg)",
+                border: "1px solid var(--color-warning)",
                 padding: "1em",
                 marginBottom: "1em",
                 borderRadius: "4px",

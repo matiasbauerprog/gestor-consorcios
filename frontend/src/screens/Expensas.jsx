@@ -245,8 +245,8 @@ export default function Expensas() {
       {filtroPeriodo && (
         <div
           style={{
-            background: periodosCerradosSet.has(filtroPeriodo) ? "#e8f4f8" : "#fff3cd",
-            border: `1px solid ${periodosCerradosSet.has(filtroPeriodo) ? "#0d6efd" : "#ffc107"}`,
+            background: periodosCerradosSet.has(filtroPeriodo) ? "var(--color-primary-soft)" : "var(--color-warning-bg)",
+            border: `1px solid ${periodosCerradosSet.has(filtroPeriodo) ? "var(--color-primary)" : "var(--color-warning)"}`,
             padding: "0.8em 1em",
             marginBottom: "1em",
             borderRadius: "4px",

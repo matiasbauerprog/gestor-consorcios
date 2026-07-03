@@ -82,7 +82,7 @@ export default function ReporteMorosos() {
               <tr
                 style={{
                   fontWeight: "bold",
-                  borderTop: "2px solid #ccc",
+                  borderTop: "2px solid var(--color-border-strong)",
                 }}
               >
                 <td>TOTAL</td>
