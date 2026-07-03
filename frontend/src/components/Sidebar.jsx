@@ -204,6 +204,7 @@ export default function Sidebar({ rol, abierto, onCerrar }) {
 
   return (
     <aside className={abierto ? "app-sidebar abierto" : "app-sidebar"}>
+      <div className="sidebar-logo">Gestión de Consorcios</div>
       <div className="sidebar-cabecera">
         <span className="sidebar-cabecera-titulo">Menú</span>
         <button
