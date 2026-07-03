@@ -46,3 +46,6 @@ Thumbs.db
 # Archivos subidos por usuarios (las imágenes de comprobantes)
 backend/uploads/comprobantes/*
 !backend/uploads/comprobantes/.gitkeep
+
+# Visual companion (brainstorming)
+.superpowers/
