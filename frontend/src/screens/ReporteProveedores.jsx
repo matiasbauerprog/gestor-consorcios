@@ -54,7 +54,7 @@ export default function ReporteProveedores() {
                 <td>{it.ultimo_gasto || "—"}</td>
               </tr>
             ))}
-            <tr style={{ fontWeight: "bold", borderTop: "2px solid #ccc" }}>
+            <tr style={{ fontWeight: "bold", borderTop: "2px solid var(--color-border-strong)" }}>
               <td colSpan="3">TOTAL</td>
               <td style={{ textAlign: "right" }}>{fmtMoney(total)}</td>
               <td></td>

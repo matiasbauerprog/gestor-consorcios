@@ -54,7 +54,7 @@ export default function ModalPresentarPago({ expensa, onClose, onDone }) {
             required
           />
         </label>
-        <p style={{ color: "var(--color-text-muted, #666)", fontSize: "0.85rem", margin: "0.5rem 0 1rem", padding: "0.5rem 0.75rem", borderLeft: "3px solid var(--color-primary, #0d6efd)", background: "rgba(13, 110, 253, 0.05)" }}>
+        <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", margin: "0.5rem 0 1rem", padding: "0.5rem 0.75rem", borderLeft: "3px solid var(--color-primary)", background: "var(--color-primary-soft)" }}>
           💡 Tu pago se aplica primero a las deudas más antiguas. Si tenés saldo a favor o pendiente, podés ver el detalle en tu cuenta corriente.
         </p>
         <label>
