@@ -52,7 +52,7 @@ export default function Amenities() {
         {items.length === 0 ? (
           <li className="vacio">Sin amenities.</li>
         ) : items.map((a) => (
-          <li key={a.id} className={`card-amenity${a.activo ? "" : " inactivo"}`}>
+          <li key={a.id} className={`tarjeta${a.activo ? "" : " inactivo"}`}>
             <h3>{a.nombre} {!a.activo && <small>(inactivo)</small>}</h3>
             {a.descripcion && <p>{a.descripcion}</p>}
             <dl className="amenity-policies">

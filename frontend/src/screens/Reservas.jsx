@@ -243,7 +243,7 @@ export default function Reservas() {
             <li className="vacio">Sin próximas reservas.</li>
           ) : (
             proximasDelAmenity.map((r) => (
-              <li key={r.id} className="card-reserva">
+              <li key={r.id} className="tarjeta">
                 <h4>
                   {fmtFecha(r.inicio)} → {fmtFecha(r.fin)}
                 </h4>
@@ -267,7 +267,7 @@ export default function Reservas() {
                 return (
                   <li
                     key={r.id}
-                    className={`card-reserva${activa ? "" : " cancelada"}`}
+                    className={`tarjeta${activa ? "" : " cancelada"}`}
                   >
                     <h4>
                       {fmtFecha(r.inicio)} → {fmtFecha(r.fin)}
