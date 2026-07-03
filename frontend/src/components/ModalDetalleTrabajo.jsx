@@ -154,7 +154,7 @@ export default function ModalDetalleTrabajo({
               <tr
                 key={p.id}
                 style={
-                  p.estado === "aprobado" ? { background: "var(--color-bg-ok, #e6ffed)" } : {}
+                  p.estado === "aprobado" ? { background: "var(--color-success-bg)" } : {}
                 }
               >
                 <td>{proveedorNombre(p.proveedor_id)}</td>
