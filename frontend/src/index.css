@@ -555,7 +555,8 @@ td button {
 }
 
 .sidebar-link:hover {
-  background: var(--color-bg);
+  background: color-mix(in srgb, var(--color-primary-soft) 55%, transparent);
+  color: var(--color-primary);
 }
 
 .sidebar-link.activo {
