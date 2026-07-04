@@ -1293,6 +1293,8 @@ td button {
   border-radius: var(--radius-sm);
   padding: 0.5rem 0.75rem;
   margin: 0.75rem 0;
+  width: fit-content;
+  max-width: 100%;
 }
 
 .banner-politicas header {
