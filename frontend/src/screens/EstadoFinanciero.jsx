@@ -37,7 +37,7 @@ export default function EstadoFinanciero() {
         <p style={{ fontSize: "1.5em" }}><strong>{fmtMoney(data.total)}</strong></p>
       </Tarjeta>
 
-      <div className="grid-cajas" style={{ display: "grid", gap: "1rem", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
+      <div className="grid-cajas">
         {data.cajas.map((c) => (
           <Link key={c.id} to={`/cajas`} style={{ textDecoration: "none" }}>
             <Tarjeta>

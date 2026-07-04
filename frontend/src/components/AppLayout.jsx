@@ -33,9 +33,9 @@ export default function AppLayout() {
             ☰
           </button>
           <h1>Gestión de Consorcios</h1>
+          <Campanita />
         </div>
         <nav className="app-user">
-          <Campanita />
           <span>
             {user.email} <strong>({user.rol})</strong>
           </span>

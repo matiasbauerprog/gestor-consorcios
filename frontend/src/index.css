@@ -71,7 +71,7 @@ p {
 button {
   font-family: inherit;
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 500;
   padding: 0.6em 1.2em;
   min-height: 44px;
   border: 1px solid transparent;
@@ -120,6 +120,14 @@ input[type="radio"] {
   accent-color: var(--color-primary);
 }
 
+/* Fecha/hora/mes: ancho según contenido, no 100% */
+input[type="date"],
+input[type="time"],
+input[type="month"] {
+  width: auto;
+  align-self: flex-start;
+}
+
 label {
   display: flex;
   flex-direction: column;
@@ -144,7 +152,10 @@ table {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  overflow: hidden;
+  /* Mobile: la tabla scrollea horizontal dentro de su caja, sin desbordar la pantalla */
+  display: block;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 th {
@@ -165,6 +176,26 @@ td {
 
 tr:last-child td {
   border-bottom: none;
+}
+
+/* Botones de acción en tablas y cards: ghost, compactos, con aire.
+   :where() mantiene especificidad 0 para que .boton-borrar/.boton-link ganen. */
+:where(td, .tarjeta, .tarjeta-acciones) button {
+  background: transparent;
+  color: var(--color-primary);
+  border-color: var(--color-border-strong);
+  font-size: 0.85rem;
+  padding: 0.35em 0.9em;
+  min-height: 36px;
+}
+
+:where(td, .tarjeta, .tarjeta-acciones) button:hover:not(:disabled) {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
+}
+
+td button + button {
+  margin-left: 0.4rem;
 }
 
 /* ---------- Login ---------- */
@@ -233,6 +264,11 @@ tr:last-child td {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+/* En mobile la campanita va al extremo derecho de la primera fila del header */
+.app-header-titulo .campanita {
+  margin-left: auto;
 }
 
 .app-header h1 {
@@ -592,10 +628,7 @@ tr:last-child td {
 }
 
 .tarjeta .acciones button {
-  flex: 1 1 auto;
-  font-size: 0.85rem;
-  padding: 0.4em 0.8em;
-  min-height: 44px;
+  flex: 0 1 auto;
 }
 
 .tarjeta .vacio {
@@ -724,12 +757,40 @@ tr:last-child td {
   resize: vertical;
 }
 
+/* Modales con markup plano (h3 + form directos, sin modal-header/cuerpo) */
+.modal > h3 {
+  margin: 0;
+  padding: 1rem 1.25rem;
+  font-size: 1.1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal > form {
+  padding: 1.25rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
 .modal-acciones {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
   margin-top: 0.5rem;
   flex-wrap: wrap;
+}
+
+/* En modal-acciones, todos los type="button" son Cancelar/Cerrar → secundario */
+.modal-acciones button[type="button"] {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+}
+
+.modal-acciones button[type="button"]:hover:not(:disabled) {
+  background: var(--color-bg);
+  border-color: var(--color-text-muted);
 }
 
 .boton-secundario {
@@ -793,15 +854,27 @@ tr:last-child td {
 
 /* ---------- Filtros ---------- */
 
-.filtros {
+.filtros,
+.filtros-barra {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   margin-bottom: 1rem;
+  align-items: flex-start;
 }
 
-.filtros label {
+.filtros label,
+.filtros-barra label {
   font-size: 0.9rem;
+}
+
+/* Los controles de filtro ocupan su contenido, no el 100% */
+.filtros input,
+.filtros select,
+.filtros-barra input,
+.filtros-barra select {
+  width: auto;
+  align-self: flex-start;
 }
 
 /* ---------- Acciones del header (selector + botón) ---------- */
@@ -835,6 +908,30 @@ tr:last-child td {
   border: 1px solid var(--color-border);
   object-fit: contain;
   cursor: zoom-in;
+}
+
+/* ---------- Ritmo vertical entre bloques de una pantalla ---------- */
+
+.app-content :is(section, form, table, .tarjeta, .grid-cajas)
+  + :is(section, form, table, .tarjeta, .grid-cajas) {
+  margin-block-start: 1.5rem;
+}
+
+/* ---------- Grid de cajas (estado financiero) ---------- */
+
+.grid-cajas {
+  display: grid;
+  gap: 1rem;
+  margin-block: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+/* ---------- Acciones al pie de un modal de detalle ---------- */
+
+.acciones-modal {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 /* ============================================================ */
@@ -880,9 +977,11 @@ tr:last-child td {
     border-radius: var(--radius);
   }
 
-  .filtros {
+  .filtros,
+  .filtros-barra {
     flex-direction: row;
     align-items: flex-end;
+    flex-wrap: wrap;
   }
 
   .seccion-acciones {
@@ -900,9 +999,26 @@ tr:last-child td {
     flex-direction: row;
   }
 
+  /* Las tablas vuelven a renderizar como tabla (ya entran sin scroll) */
+  table {
+    display: table;
+    overflow: hidden;
+  }
+
   /* El nombre de la app vive en el sidebar en desktop */
   .app-header h1 {
     display: none;
+  }
+
+  /* Sin título ni hamburguesa, todo el header se agrupa a la derecha:
+     campanita + usuario + cerrar sesión */
+  .app-header {
+    justify-content: flex-end;
+    gap: 1rem;
+  }
+
+  .app-header-titulo .campanita {
+    margin-left: 0;
   }
 
   .hamburguesa,
@@ -985,7 +1101,8 @@ tr:last-child td {
   font-weight: 600;
 }
 
-.exito {
+.exito,
+.info {
   color: var(--color-success);
   font-weight: 600;
 }
@@ -1194,6 +1311,7 @@ tr:last-child td {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+  max-width: 480px;
 }
 
 .form-reserva h3 {
