@@ -400,6 +400,12 @@ td button {
   min-height: 44px;
 }
 
+.campanita-marcar-todas:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary-soft) 55%, transparent);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
 .campanita-vacio {
   padding: 1rem;
   color: var(--color-text-muted);
@@ -553,9 +559,9 @@ td button {
   text-align: left;
 }
 
-.sidebar-section-titulo:hover {
+.sidebar-section-titulo:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-primary-soft) 55%, transparent);
-  color: var(--color-primary);
+  color: var(--color-text);
 }
 
 .sidebar-section-titulo:focus-visible {
