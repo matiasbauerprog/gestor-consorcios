@@ -4,7 +4,7 @@ import { obtenerConfiguracion } from "../api/configuracion";
 
 const SECCIONES = [
   {
-    titulo: "Comunicaciones",
+    titulo: "Comunicación",
     modulos: [
       {
         ruta: "/comunicados",
