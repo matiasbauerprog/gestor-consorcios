@@ -172,7 +172,11 @@ const SECCIONES = [
 
 function grupoDeRuta(pathname) {
   for (const seccion of SECCIONES) {
-    if (seccion.modulos.some((m) => pathname.startsWith(m.ruta))) {
+    if (
+      seccion.modulos.some(
+        (m) => pathname === m.ruta || pathname.startsWith(m.ruta + "/")
+      )
+    ) {
       return seccion.titulo;
     }
   }
