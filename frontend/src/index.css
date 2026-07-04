@@ -532,13 +532,50 @@ td button {
 }
 
 .sidebar-section-titulo {
-  margin: 0;
-  padding: 0.5em 1em 0.35em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: calc(100% - 1rem);
+  margin: 0 0.5rem;
+  padding: 0.75em 0.75em;
+  min-height: 44px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
   font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--color-text-muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.sidebar-section-titulo:hover {
+  background: color-mix(in srgb, var(--color-primary-soft) 55%, transparent);
+  color: var(--color-primary);
+}
+
+.sidebar-section-titulo.activo {
+  color: var(--color-primary);
+}
+
+.sidebar-chevron {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  transition: transform 150ms ease;
+  transform: rotate(0deg);
+}
+
+.sidebar-section-titulo[aria-expanded="true"] .sidebar-chevron {
+  transform: rotate(90deg);
+  color: var(--color-primary);
+}
+
+.sidebar-section-titulo.activo .sidebar-chevron {
+  color: var(--color-primary);
 }
 
 .sidebar-link {
@@ -1071,7 +1108,9 @@ td button {
   }
 
   .sidebar-section-titulo {
-    padding: 0.5em 1.25em 0.4em;
+    width: calc(100% - 1.5rem);
+    margin: 0 0.75rem;
+    padding: 0.75em 0.9em;
   }
 
   .app-content {
