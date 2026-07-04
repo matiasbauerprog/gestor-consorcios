@@ -236,7 +236,7 @@ export default function Sidebar({ rol, abierto, onCerrar }) {
       </div>
       <nav>
         {seccionesVisibles.map((s) => {
-          const abierto = grupoAbierto === s.titulo;
+          const expandido = grupoAbierto === s.titulo;
           const grupoActivo = grupoDeRuta(location.pathname) === s.titulo;
           return (
             <div key={s.titulo} className="sidebar-section">
@@ -247,13 +247,13 @@ export default function Sidebar({ rol, abierto, onCerrar }) {
                     ? "sidebar-section-titulo activo"
                     : "sidebar-section-titulo"
                 }
-                aria-expanded={abierto}
+                aria-expanded={expandido}
                 onClick={() => toggleGrupo(s.titulo)}
               >
                 <span>{s.titulo}</span>
                 <span className="sidebar-chevron" aria-hidden="true">▸</span>
               </button>
-              {abierto && (
+              {expandido && (
                 <ul>
                   {s.modulos.map((m) => (
                     <li key={m.ruta}>
