@@ -15,8 +15,8 @@ export default function TarjetaExpensa({
   esAdmin,
   depto,
   token,
-  onEliminar,
-  onVerComprobantes,
+  onEliminar = () => {},
+  onVerComprobantes = () => {},
 }) {
   async function handleAbrirPdf() {
     try {
