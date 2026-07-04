@@ -17,6 +17,7 @@ export default function TarjetaExpensa({
   token,
   onEliminar = () => {},
   onVerComprobantes = () => {},
+  mostrarBotonComprobantes = true,
 }) {
   async function handleAbrirPdf() {
     try {
@@ -55,13 +56,15 @@ export default function TarjetaExpensa({
       </p>
       {(expensa.detalle?.length > 0 || esAdmin) && (
         <div className="tarjeta-acciones">
-          <button
-            type="button"
-            className="boton-secundario"
-            onClick={() => onVerComprobantes(expensa)}
-          >
-            Ver comprobantes
-          </button>
+          {mostrarBotonComprobantes && (
+            <button
+              type="button"
+              className="boton-secundario"
+              onClick={() => onVerComprobantes(expensa)}
+            >
+              Ver comprobantes
+            </button>
+          )}
           <button
             type="button"
             className="boton-secundario"

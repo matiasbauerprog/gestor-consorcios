@@ -82,14 +82,14 @@ export default function MiCuenta() {
 
   async function cargarExpensas() {
     const res = await listarExpensas();
-    if (res.status === 200) {
+    if (res.ok) {
       setExpensas(res.data);
     }
   }
 
   async function cargarComprobantes() {
     const res = await listarComprobantes();
-    if (res.status === 200) {
+    if (res.ok) {
       setComprobantes(res.data);
     }
   }
@@ -267,6 +267,7 @@ function SeccionExpensas({ expensas, token }) {
             esAdmin={false}
             depto={null}
             token={token}
+            mostrarBotonComprobantes={false}
           />
         </li>
       ))}
