@@ -27,7 +27,6 @@ export default function Expensas() {
   const [modalEnvio, setModalEnvio] = useState(null);
 
   const esAdmin = user.rol === "administracion";
-  const esDepto = user.rol === "departamento";
 
   useEffect(() => {
     if (!esAdmin) return;
@@ -111,7 +110,7 @@ export default function Expensas() {
   }
 
   return (
-    <main className="pantalla">
+    <section className="pantalla">
       <header className="seccion-header">
         <h2>Expensas</h2>
         {esAdmin && (
@@ -143,12 +142,6 @@ export default function Expensas() {
           </div>
         )}
       </header>
-
-      {esDepto && (
-        <p className="meta">
-          Para presentar un pago, andá a <Link to="/mi-cuenta">Mi cuenta</Link>.
-        </p>
-      )}
 
       {cargando && <p>Cargando…</p>}
       {errorCarga && (
@@ -273,7 +266,7 @@ export default function Expensas() {
           onClose={() => setModalEnvio(null)}
         />
       )}
-    </main>
+    </section>
   );
 }
 

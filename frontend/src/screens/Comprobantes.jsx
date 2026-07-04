@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import {
   listarComprobantes,
@@ -200,12 +200,7 @@ export default function Comprobantes() {
       {errorCarga && <p role="alert" className="error-banner">{errorCarga}</p>}
       {errorAccion && <p role="alert" className="error-banner">{errorAccion}</p>}
       {!cargando && !errorCarga && comprobantes.length === 0 && (
-        <p>
-          No hay comprobantes con esos filtros.
-          {!esAdmin && (
-            <>{" "}Para presentar un pago, andá a <Link to="/mi-cuenta">Mi cuenta</Link>.</>
-          )}
-        </p>
+        <p>No hay comprobantes con esos filtros.</p>
       )}
 
       <ul className="lista-comprobantes">

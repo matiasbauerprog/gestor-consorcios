@@ -31,6 +31,7 @@ import Peticiones from "./screens/Peticiones";
 import Trabajos from "./screens/Trabajos";
 import TrabajosRecurrentes from "./screens/TrabajosRecurrentes";
 import Amenities from "./screens/Amenities";
+import Cobranzas from "./screens/Cobranzas";
 import Reservas from "./screens/Reservas";
 import Reglamento from "./screens/Reglamento";
 import NotFound from "./screens/NotFound";
@@ -81,6 +82,7 @@ export default function App() {
             <Route path="amenities" element={<Amenities />} />
             <Route path="reservas" element={<Reservas />} />
             <Route path="reglamento" element={<Reglamento />} />
+            <Route path="cobranzas" element={<Cobranzas />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
