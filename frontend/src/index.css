@@ -198,6 +198,15 @@ td button + button {
   margin-left: 0.4rem;
 }
 
+/* Celdas de acciones: botones en una sola línea y alineados entre sí */
+td:has(button) {
+  white-space: nowrap;
+}
+
+td button {
+  vertical-align: middle;
+}
+
 /* ---------- Login ---------- */
 
 .login-page {
