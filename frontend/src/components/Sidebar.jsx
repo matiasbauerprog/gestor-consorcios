@@ -4,52 +4,22 @@ import { obtenerConfiguracion } from "../api/configuracion";
 
 const SECCIONES = [
   {
-    titulo: "General",
+    titulo: "Comunicaciones",
     modulos: [
       {
         ruta: "/comunicados",
-        nombre: "Comunicación",
+        nombre: "Comunicados",
+        rolesPermitidos: ["administracion", "representante", "departamento"],
+      },
+      {
+        ruta: "/reglamento",
+        nombre: "Reglamento",
         rolesPermitidos: ["administracion", "representante", "departamento"],
       },
     ],
   },
   {
-    titulo: "Tareas y presupuestos",
-    modulos: [
-      {
-        ruta: "/peticiones",
-        nombre: "Peticiones",
-        rolesPermitidos: ["administracion", "representante", "departamento"],
-      },
-      {
-        ruta: "/trabajos",
-        nombre: "Trabajos",
-        rolesPermitidos: ["administracion", "representante"],
-      },
-      {
-        ruta: "/trabajos-recurrentes",
-        nombre: "Trabajos recurrentes",
-        rolesPermitidos: ["administracion", "representante"],
-      },
-    ],
-  },
-  {
-    titulo: "Espacios comunes",
-    modulos: [
-      {
-        ruta: "/reservas",
-        nombre: "Reservas",
-        rolesPermitidos: ["administracion", "departamento"],
-      },
-      {
-        ruta: "/amenities",
-        nombre: "Amenities",
-        rolesPermitidos: ["administracion"],
-      },
-    ],
-  },
-  {
-    titulo: "Expensas y pagos",
+    titulo: "Finanzas",
     modulos: [
       {
         ruta: "/mi-cuenta",
@@ -76,11 +46,6 @@ const SECCIONES = [
         nombre: "Gastos",
         rolesPermitidos: ["administracion"],
       },
-    ],
-  },
-  {
-    titulo: "Tesorería",
-    modulos: [
       {
         ruta: "/estado-financiero",
         nombre: "Estado financiero",
@@ -94,6 +59,36 @@ const SECCIONES = [
       {
         ruta: "/transferencias",
         nombre: "Transferencias",
+        rolesPermitidos: ["administracion"],
+      },
+    ],
+  },
+  {
+    titulo: "Operación",
+    modulos: [
+      {
+        ruta: "/peticiones",
+        nombre: "Peticiones",
+        rolesPermitidos: ["administracion", "representante", "departamento"],
+      },
+      {
+        ruta: "/trabajos",
+        nombre: "Trabajos",
+        rolesPermitidos: ["administracion", "representante"],
+      },
+      {
+        ruta: "/trabajos-recurrentes",
+        nombre: "Trabajos recurrentes",
+        rolesPermitidos: ["administracion", "representante"],
+      },
+      {
+        ruta: "/reservas",
+        nombre: "Reservas",
+        rolesPermitidos: ["administracion", "departamento"],
+      },
+      {
+        ruta: "/amenities",
+        nombre: "Amenities",
         rolesPermitidos: ["administracion"],
       },
     ],
@@ -124,7 +119,7 @@ const SECCIONES = [
     ],
   },
   {
-    titulo: "Sueldos",
+    titulo: "Personal",
     modulos: [
       {
         ruta: "/liquidaciones",
