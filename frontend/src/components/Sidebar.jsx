@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { obtenerConfiguracion } from "../api/configuracion";
 
 const SECCIONES = [
@@ -170,10 +170,33 @@ const SECCIONES = [
   },
 ];
 
+function grupoDeRuta(pathname) {
+  for (const seccion of SECCIONES) {
+    if (seccion.modulos.some((m) => pathname.startsWith(m.ruta))) {
+      return seccion.titulo;
+    }
+  }
+  return null;
+}
+
 export default function Sidebar({ rol, abierto, onCerrar }) {
   // Para depto: el admin debe habilitar la visibilidad de reportes.
   // Otros roles los ven siempre (admin/representante).
   const [reportesVisiblesDepto, setReportesVisiblesDepto] = useState(false);
+
+  const location = useLocation();
+  const [grupoAbierto, setGrupoAbierto] = useState(() =>
+    grupoDeRuta(location.pathname)
+  );
+
+  useEffect(() => {
+    const grupo = grupoDeRuta(location.pathname);
+    if (grupo) setGrupoAbierto(grupo);
+  }, [location.pathname]);
+
+  function toggleGrupo(titulo) {
+    setGrupoAbierto((actual) => (actual === titulo ? null : titulo));
+  }
 
   useEffect(() => {
     if (rol !== "departamento") return;
@@ -212,26 +235,44 @@ export default function Sidebar({ rol, abierto, onCerrar }) {
         </button>
       </div>
       <nav>
-        {seccionesVisibles.map((s) => (
-          <div key={s.titulo} className="sidebar-section">
-            <h3 className="sidebar-section-titulo">{s.titulo}</h3>
-            <ul>
-              {s.modulos.map((m) => (
-                <li key={m.ruta}>
-                  <NavLink
-                    to={m.ruta}
-                    onClick={onCerrar}
-                    className={({ isActive }) =>
-                      isActive ? "sidebar-link activo" : "sidebar-link"
-                    }
-                  >
-                    {m.nombre}
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        {seccionesVisibles.map((s) => {
+          const abierto = grupoAbierto === s.titulo;
+          const grupoActivo = grupoDeRuta(location.pathname) === s.titulo;
+          return (
+            <div key={s.titulo} className="sidebar-section">
+              <button
+                type="button"
+                className={
+                  grupoActivo
+                    ? "sidebar-section-titulo activo"
+                    : "sidebar-section-titulo"
+                }
+                aria-expanded={abierto}
+                onClick={() => toggleGrupo(s.titulo)}
+              >
+                <span>{s.titulo}</span>
+                <span className="sidebar-chevron" aria-hidden="true">▸</span>
+              </button>
+              {abierto && (
+                <ul>
+                  {s.modulos.map((m) => (
+                    <li key={m.ruta}>
+                      <NavLink
+                        to={m.ruta}
+                        onClick={onCerrar}
+                        className={({ isActive }) =>
+                          isActive ? "sidebar-link activo" : "sidebar-link"
+                        }
+                      >
+                        {m.nombre}
+                      </NavLink>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })}
       </nav>
     </aside>
   );
