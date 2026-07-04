@@ -4,88 +4,11 @@ import { useAuth } from "../auth/AuthContext";
 import { listarExpensas, crearExpensa, eliminarExpensa } from "../api/expensas";
 import { listarDepartamentos } from "../api/departamentos";
 import { listarPeriodos } from "../api/periodos";
-import { abrirPdfExpensa } from "../api/pdf";
 import Modal from "../components/Modal";
 import ModalComprobantesExpensa from "../components/ModalComprobantesExpensa";
 import ModalEnvioPdfs from "../components/ModalEnvioPdfs";
 import SelectorDepartamento from "../components/SelectorDepartamento";
-import BadgeEstado from "../components/BadgeEstado";
-import Tarjeta from "../components/Tarjeta";
-
-function formatearMonto(v) {
-  return Number(v).toLocaleString("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  });
-}
-
-function TarjetaExpensa({ expensa, esAdmin, depto, token, onEliminar, onVerComprobantes }) {
-  async function handleAbrirPdf() {
-    try {
-      await abrirPdfExpensa(expensa.id, token);
-    } catch (e) {
-      alert(`No se pudo abrir el PDF: ${e.message}`);
-    }
-  }
-
-  return (
-    <Tarjeta>
-      <h3>
-        {expensa.periodo} — {formatearMonto(expensa.monto_primer_vencimiento)}
-      </h3>
-      {esAdmin && (
-        <p className="meta">
-          {depto ? `${depto.codigo} — ${depto.descripcion}` : `Depto #${expensa.departamento_id}`}
-        </p>
-      )}
-      <p className="meta">
-        1° venc {expensa.fecha_primer_vencimiento}: {formatearMonto(expensa.monto_primer_vencimiento)}
-      </p>
-      <p className="meta">
-        2° venc {expensa.fecha_segundo_vencimiento}: {formatearMonto(expensa.monto_segundo_vencimiento)} (+recargo)
-      </p>
-      {expensa.saldo_anterior > 0 && (
-        <p className="meta">Saldo anterior: {formatearMonto(expensa.saldo_anterior)}</p>
-      )}
-      <p>
-        <BadgeEstado estado={expensa.estado_calculado} />
-        {expensa.monto_pendiente > 0 && (
-          <span className="meta" style={{ marginLeft: "0.5rem" }}>
-            Pendiente {formatearMonto(expensa.monto_pendiente)}
-          </span>
-        )}
-      </p>
-      {(expensa.detalle?.length > 0 || esAdmin) && (
-        <div className="tarjeta-acciones">
-          <button
-            type="button"
-            className="boton-secundario"
-            onClick={() => onVerComprobantes(expensa)}
-          >
-            Ver comprobantes
-          </button>
-          <button
-            type="button"
-            className="boton-secundario"
-            onClick={handleAbrirPdf}
-          >
-            📄 Ver PDF
-          </button>
-          {esAdmin && (
-            <button
-              type="button"
-              className="boton-peligro"
-              onClick={() => onEliminar(expensa)}
-            >
-              Eliminar
-            </button>
-          )}
-        </div>
-      )}
-    </Tarjeta>
-  );
-}
+import TarjetaExpensa from "../components/TarjetaExpensa";
 
 export default function Expensas() {
   const { user, token } = useAuth();
