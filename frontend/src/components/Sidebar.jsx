@@ -234,44 +234,64 @@ export default function Sidebar({ rol, abierto, onCerrar }) {
         </button>
       </div>
       <nav>
-        {seccionesVisibles.map((s) => {
-          const expandido = grupoAbierto === s.titulo;
-          const grupoActivo = grupoDeRuta(location.pathname) === s.titulo;
-          return (
-            <div key={s.titulo} className="sidebar-section">
-              <button
-                type="button"
-                className={
-                  grupoActivo
-                    ? "sidebar-section-titulo activo"
-                    : "sidebar-section-titulo"
-                }
-                aria-expanded={expandido}
-                onClick={() => toggleGrupo(s.titulo)}
-              >
-                <span>{s.titulo}</span>
-                <span className="sidebar-chevron" aria-hidden="true">▸</span>
-              </button>
-              {expandido && (
-                <ul>
-                  {s.modulos.map((m) => (
-                    <li key={m.ruta}>
-                      <NavLink
-                        to={m.ruta}
-                        onClick={onCerrar}
-                        className={({ isActive }) =>
-                          isActive ? "sidebar-link activo" : "sidebar-link"
-                        }
-                      >
-                        {m.nombre}
-                      </NavLink>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          );
-        })}
+        {rol === "departamento" ? (
+          <ul>
+            {seccionesVisibles.flatMap((s) =>
+              s.modulos.map((m) => (
+                <li key={m.ruta}>
+                  <NavLink
+                    to={m.ruta}
+                    onClick={onCerrar}
+                    className={({ isActive }) =>
+                      isActive ? "sidebar-link activo" : "sidebar-link"
+                    }
+                  >
+                    {m.nombre}
+                  </NavLink>
+                </li>
+              )),
+            )}
+          </ul>
+        ) : (
+          seccionesVisibles.map((s) => {
+            const expandido = grupoAbierto === s.titulo;
+            const grupoActivo = grupoDeRuta(location.pathname) === s.titulo;
+            return (
+              <div key={s.titulo} className="sidebar-section">
+                <button
+                  type="button"
+                  className={
+                    grupoActivo
+                      ? "sidebar-section-titulo activo"
+                      : "sidebar-section-titulo"
+                  }
+                  aria-expanded={expandido}
+                  onClick={() => toggleGrupo(s.titulo)}
+                >
+                  <span>{s.titulo}</span>
+                  <span className="sidebar-chevron" aria-hidden="true">▸</span>
+                </button>
+                {expandido && (
+                  <ul>
+                    {s.modulos.map((m) => (
+                      <li key={m.ruta}>
+                        <NavLink
+                          to={m.ruta}
+                          onClick={onCerrar}
+                          className={({ isActive }) =>
+                            isActive ? "sidebar-link activo" : "sidebar-link"
+                          }
+                        >
+                          {m.nombre}
+                        </NavLink>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })
+        )}
       </nav>
     </aside>
   );
