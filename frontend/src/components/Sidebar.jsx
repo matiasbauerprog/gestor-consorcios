@@ -27,14 +27,9 @@ const SECCIONES = [
         rolesPermitidos: ["departamento"],
       },
       {
-        ruta: "/expensas",
-        nombre: "Expensas",
-        rolesPermitidos: ["administracion", "departamento"],
-      },
-      {
-        ruta: "/comprobantes",
-        nombre: "Comprobantes",
-        rolesPermitidos: ["administracion", "departamento"],
+        ruta: "/cobranzas",
+        nombre: "Cobranzas",
+        rolesPermitidos: ["administracion"],
       },
       {
         ruta: "/periodos",

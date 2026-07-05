@@ -1,5 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./auth/AuthContext";
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from "react-router-dom";
+import { AuthProvider, useAuth } from "./auth/AuthContext";
 import AppLayout from "./components/AppLayout";
 import RequireAuth from "./components/RequireAuth";
 import Login from "./screens/Login";
@@ -36,6 +36,31 @@ import Reservas from "./screens/Reservas";
 import Reglamento from "./screens/Reglamento";
 import NotFound from "./screens/NotFound";
 
+function ExpensasRoute() {
+  const { user } = useAuth();
+  if (user.rol === "departamento") {
+    return <Navigate to="/mi-cuenta?tab=expensas" replace />;
+  }
+  if (user.rol === "administracion") {
+    return <Navigate to="/cobranzas?tab=expensas" replace />;
+  }
+  return <Expensas />;
+}
+
+function ComprobantesRoute() {
+  const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  if (user.rol === "departamento") {
+    return <Navigate to="/mi-cuenta?tab=comprobantes" replace />;
+  }
+  if (user.rol === "administracion") {
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", "comprobantes");
+    return <Navigate to={`/cobranzas?${params.toString()}`} replace />;
+  }
+  return <Comprobantes />;
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -52,10 +77,10 @@ export default function App() {
           >
             <Route index element={<Navigate to="/comunicados" replace />} />
             <Route path="comunicados" element={<Comunicados />} />
-            <Route path="expensas" element={<Expensas />} />
+            <Route path="expensas" element={<ExpensasRoute />} />
             <Route path="mi-cuenta" element={<MiCuenta />} />
             <Route path="departamentos/:id/cuenta" element={<DepartamentoCuenta />} />
-            <Route path="comprobantes" element={<Comprobantes />} />
+            <Route path="comprobantes" element={<ComprobantesRoute />} />
             <Route path="cierre-de-periodo" element={<CierreDePeriodo />} />
             <Route path="periodos" element={<Periodos />} />
             <Route path="gastos" element={<Gastos />} />
