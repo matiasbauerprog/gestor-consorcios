@@ -61,6 +61,22 @@ function ComprobantesRoute() {
   return <Comprobantes />;
 }
 
+function CobranzasRoute() {
+  const { user } = useAuth();
+  if (user.rol !== "administracion") {
+    return <Navigate to="/" replace />;
+  }
+  return <Cobranzas />;
+}
+
+function MiCuentaRoute() {
+  const { user } = useAuth();
+  if (user.rol !== "departamento") {
+    return <Navigate to="/" replace />;
+  }
+  return <MiCuenta />;
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -78,7 +94,7 @@ export default function App() {
             <Route index element={<Navigate to="/comunicados" replace />} />
             <Route path="comunicados" element={<Comunicados />} />
             <Route path="expensas" element={<ExpensasRoute />} />
-            <Route path="mi-cuenta" element={<MiCuenta />} />
+            <Route path="mi-cuenta" element={<MiCuentaRoute />} />
             <Route path="departamentos/:id/cuenta" element={<DepartamentoCuenta />} />
             <Route path="comprobantes" element={<ComprobantesRoute />} />
             <Route path="cierre-de-periodo" element={<CierreDePeriodo />} />
@@ -107,7 +123,7 @@ export default function App() {
             <Route path="amenities" element={<Amenities />} />
             <Route path="reservas" element={<Reservas />} />
             <Route path="reglamento" element={<Reglamento />} />
-            <Route path="cobranzas" element={<Cobranzas />} />
+            <Route path="cobranzas" element={<CobranzasRoute />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
