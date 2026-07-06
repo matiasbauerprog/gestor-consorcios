@@ -2,18 +2,15 @@ import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { obtenerConfiguracion } from "../api/configuracion";
 
+const ORDEN_DEPTO = ["/mi-cuenta", "/peticiones", "/reservas", "/comunicados"];
+
 const SECCIONES = [
   {
     titulo: "Comunicación",
     modulos: [
       {
         ruta: "/comunicados",
-        nombre: "Comunicados",
-        rolesPermitidos: ["administracion", "representante", "departamento"],
-      },
-      {
-        ruta: "/reglamento",
-        nombre: "Reglamento",
+        nombre: "Comunicación",
         rolesPermitidos: ["administracion", "representante", "departamento"],
       },
     ],
@@ -236,8 +233,16 @@ export default function Sidebar({ rol, abierto, onCerrar }) {
       <nav>
         {rol === "departamento" ? (
           <ul>
-            {seccionesVisibles.flatMap((s) =>
-              s.modulos.map((m) => (
+            {seccionesVisibles
+              .flatMap((s) => s.modulos)
+              .sort((a, b) => {
+                const ia = ORDEN_DEPTO.indexOf(a.ruta);
+                const ib = ORDEN_DEPTO.indexOf(b.ruta);
+                const na = ia === -1 ? ORDEN_DEPTO.length : ia;
+                const nb = ib === -1 ? ORDEN_DEPTO.length : ib;
+                return na - nb;
+              })
+              .map((m) => (
                 <li key={m.ruta}>
                   <NavLink
                     to={m.ruta}
@@ -249,11 +254,28 @@ export default function Sidebar({ rol, abierto, onCerrar }) {
                     {m.nombre}
                   </NavLink>
                 </li>
-              )),
-            )}
+              ))}
           </ul>
         ) : (
           seccionesVisibles.map((s) => {
+            if (s.modulos.length === 1) {
+              const m = s.modulos[0];
+              return (
+                <ul key={s.titulo} className="sidebar-section">
+                  <li>
+                    <NavLink
+                      to={m.ruta}
+                      onClick={onCerrar}
+                      className={({ isActive }) =>
+                        isActive ? "sidebar-link activo" : "sidebar-link"
+                      }
+                    >
+                      {s.titulo}
+                    </NavLink>
+                  </li>
+                </ul>
+              );
+            }
             const expandido = grupoAbierto === s.titulo;
             const grupoActivo = grupoDeRuta(location.pathname) === s.titulo;
             return (

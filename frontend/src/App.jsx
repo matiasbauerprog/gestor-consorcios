@@ -33,7 +33,6 @@ import TrabajosRecurrentes from "./screens/TrabajosRecurrentes";
 import Amenities from "./screens/Amenities";
 import Cobranzas from "./screens/Cobranzas";
 import Reservas from "./screens/Reservas";
-import Reglamento from "./screens/Reglamento";
 import NotFound from "./screens/NotFound";
 
 function ExpensasRoute() {
@@ -122,7 +121,7 @@ export default function App() {
             <Route path="trabajos-recurrentes" element={<TrabajosRecurrentes />} />
             <Route path="amenities" element={<Amenities />} />
             <Route path="reservas" element={<Reservas />} />
-            <Route path="reglamento" element={<Reglamento />} />
+            <Route path="reglamento" element={<Navigate to="/comunicados?tab=reglamento" replace />} />
             <Route path="cobranzas" element={<CobranzasRoute />} />
             <Route path="*" element={<NotFound />} />
           </Route>
