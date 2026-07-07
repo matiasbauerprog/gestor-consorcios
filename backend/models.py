@@ -816,9 +816,16 @@ class MovimientoCuenta(Base):
 
 class Caja(Base):
     __tablename__ = "cajas"
+    __table_args__ = (
+        UniqueConstraint("consorcio_id", "nombre", name="uq_caja_consorcio_nombre"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    nombre: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
+    nombre: Mapped[str] = mapped_column(String(100), nullable=False)
     tipo: Mapped[TipoCaja] = mapped_column(
         SqlEnum(TipoCaja, name="tipo_caja"), nullable=False
     )
@@ -836,6 +843,10 @@ class MovimientoCaja(Base):
     __tablename__ = "movimientos_caja"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     caja_id: Mapped[int] = mapped_column(
         ForeignKey("cajas.id", ondelete="RESTRICT"), nullable=False
     )
@@ -863,6 +874,10 @@ class TransferenciaCaja(Base):
     __tablename__ = "transferencias_caja"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     caja_origen_id: Mapped[int] = mapped_column(
         ForeignKey("cajas.id"), nullable=False
     )

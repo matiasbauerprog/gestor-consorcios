@@ -154,6 +154,7 @@ def _seed(db) -> None:
     # Fase 5: caja default para tests (id=900)
     caja_seed = Caja(
         id=900,
+        consorcio_id=1,
         nombre="Banco Test",
         tipo=TipoCaja.banco,
         saldo_inicial=0.0,

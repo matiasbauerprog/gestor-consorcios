@@ -140,7 +140,12 @@ def migrar(db: Session) -> None:
         _adoptar_tabla(db, tabla, consorcio.id)
         logger.info(f"Adoptada tabla {tabla} bajo consorcio #{consorcio.id}")
 
-    # Las tareas 11-16 popularán consorcio_id en las tablas restantes.
+    GRUPO_TESORERIA = ("cajas", "movimientos_caja", "transferencias_caja")
+    for tabla in GRUPO_TESORERIA:
+        _adoptar_tabla(db, tabla, consorcio.id)
+        logger.info(f"Adoptada tabla {tabla} bajo consorcio #{consorcio.id}")
+
+    # Las tareas 12-16 popularán consorcio_id en las tablas restantes.
     db.commit()
 
 
