@@ -6,7 +6,7 @@ from .. import blacklist
 from ..auth import CurrentUser, create_access_token, get_current_user
 from ..config import get_settings
 from ..database import get_db
-from ..models import Usuario
+from ..models import Administracion, Consorcio, Departamento, Rol, Usuario
 from ..schemas import CambiarPasswordIn, LoginIn, TokenOut, UsuarioOut
 from ..security import hash_password, verify_password
 
@@ -16,6 +16,27 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 # para que `verify_password` corra siempre, equiparando el tiempo de respuesta
 # y previniendo enumeración de usuarios por timing attack.
 _DUMMY_HASH = hash_password("anti-enumeration-placeholder")
+
+
+def _administracion_activa_para(db: Session, user: Usuario) -> bool:
+    """Devuelve True si el tenant del usuario está activo (o si el usuario no tiene tenant)."""
+    if user.rol == Rol.super_admin:
+        return True
+    aid = None
+    if user.rol == Rol.administracion:
+        aid = user.administracion_id
+    elif user.rol == Rol.representante and user.consorcio_id is not None:
+        c = db.get(Consorcio, user.consorcio_id)
+        aid = c.administracion_id if c is not None else None
+    elif user.rol == Rol.departamento and user.departamento_id is not None:
+        d = db.get(Departamento, user.departamento_id)
+        if d is not None:
+            c = db.get(Consorcio, d.consorcio_id)
+            aid = c.administracion_id if c is not None else None
+    if aid is None:
+        return True
+    admin_tenant = db.get(Administracion, aid)
+    return admin_tenant is not None and admin_tenant.activa
 
 
 @router.post(
@@ -37,6 +58,13 @@ def login(payload: LoginIn, db: Session = Depends(get_db)) -> TokenOut:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Credenciales inválidas.",
             headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Multitenant: bloquear login si la administracion del usuario está suspendida.
+    if not _administracion_activa_para(db, user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="administracion_suspendida",
         )
 
     settings = get_settings()
