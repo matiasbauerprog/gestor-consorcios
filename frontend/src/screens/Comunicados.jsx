@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import {
   listarComunicados,
@@ -6,7 +7,15 @@ import {
   borrarComunicado,
 } from "../api/comunicados";
 import Modal from "../components/Modal";
+import TabsPanel from "../components/TabsPanel";
 import Tarjeta from "../components/Tarjeta";
+
+const TABS = [
+  { valor: "comunicados", label: "Comunicados" },
+  { valor: "reglamento", label: "Reglamento" },
+];
+
+const TABS_VALIDOS = new Set(TABS.map((t) => t.valor));
 
 function formatearFecha(iso) {
   const d = new Date(iso);
@@ -24,6 +33,37 @@ function cuerpoLargo(cuerpo) {
 }
 
 export default function Comunicados() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const tabActivo = TABS_VALIDOS.has(tabParam) ? tabParam : "comunicados";
+
+  function cambiarTab(valor) {
+    const params = new URLSearchParams(searchParams);
+    if (valor === "comunicados") params.delete("tab");
+    else params.set("tab", valor);
+    setSearchParams(params, { replace: true });
+  }
+
+  return (
+    <main className="pantalla">
+      <header className="cabecera-pantalla">
+        <h2>Comunicación</h2>
+      </header>
+
+      <TabsPanel
+        items={TABS}
+        activo={tabActivo}
+        onCambio={cambiarTab}
+        ariaLabel="Secciones de comunicación"
+      />
+
+      {tabActivo === "comunicados" && <SeccionComunicados />}
+      {tabActivo === "reglamento" && <SeccionReglamento />}
+    </main>
+  );
+}
+
+function SeccionComunicados() {
   const { user } = useAuth();
   const [comunicados, setComunicados] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -88,7 +128,6 @@ export default function Comunicados() {
         setComunicados(r.data);
         setErrorCarga(null);
       } else if (r.status !== 401) {
-        // 401 lo maneja apiFetch (logout automático). El resto es error genérico.
         setErrorCarga("No se pudieron cargar los comunicados.");
       }
       setCargando(false);
@@ -101,15 +140,14 @@ export default function Comunicados() {
   }, []);
 
   return (
-    <section>
-      <header className="seccion-header">
-        <h2>Comunicados</h2>
-        {user.rol === "administracion" && (
+    <>
+      {user.rol === "administracion" && (
+        <div className="tarjeta-acciones" style={{ marginBottom: "1rem" }}>
           <button type="button" onClick={() => setModalCrearAbierto(true)}>
             + Nuevo comunicado
           </button>
-        )}
-      </header>
+        </div>
+      )}
 
       {cargando && <p>Cargando…</p>}
       {errorCarga && <p role="alert" className="error-banner">{errorCarga}</p>}
@@ -204,7 +242,18 @@ export default function Comunicados() {
           </div>
         </Modal>
       )}
-    </section>
+    </>
+  );
+}
+
+function SeccionReglamento() {
+  return (
+    <Tarjeta>
+      <p>
+        Próximamente vas a poder consultar el reglamento del consorcio desde
+        acá. El módulo todavía está en construcción.
+      </p>
+    </Tarjeta>
   );
 }
 

@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { listarMisMovimientos } from "../api/movimientos";
 import { listarExpensas } from "../api/expensas";
-import { presentarComprobante } from "../api/comprobantes";
+import { listarComprobantes, presentarComprobante } from "../api/comprobantes";
 import { abrirPdfExpensa } from "../api/pdf";
+import { API_BASE } from "../api/client";
 import Modal from "../components/Modal";
-import ModalPresentarPago from "../components/ModalPresentarPago";
+import TabsPanel from "../components/TabsPanel";
 import Tarjeta from "../components/Tarjeta";
+import TarjetaExpensa from "../components/TarjetaExpensa";
+import BadgeEstado from "../components/BadgeEstado";
 
 const TIPO_LABEL = {
   expensa_emitida: "Expensa emitida",
@@ -24,6 +28,15 @@ const TIPO_SIGNO = {
   nota_credito: "-",
 };
 
+const TABS = [
+  { valor: "resumen", label: "Resumen" },
+  { valor: "expensas", label: "Expensas" },
+  { valor: "comprobantes", label: "Comprobantes" },
+  { valor: "movimientos", label: "Movimientos" },
+];
+
+const TABS_VALIDOS = new Set(TABS.map((t) => t.valor));
+
 function formatMoney(n) {
   return Number(n).toLocaleString("es-AR", {
     style: "currency",
@@ -39,11 +52,23 @@ function sumarDias(yyyymmdd, n) {
 
 export default function MiCuenta() {
   const { token } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const tabActivo = TABS_VALIDOS.has(tabParam) ? tabParam : "resumen";
+
   const [data, setData] = useState(null);
   const [expensas, setExpensas] = useState([]);
+  const [comprobantes, setComprobantes] = useState([]);
   const [error, setError] = useState(null);
-  const [modalPago, setModalPago] = useState(null);
+  const [modalPagoAbierto, setModalPagoAbierto] = useState(false);
   const [successMsg, setSuccessMsg] = useState(null);
+
+  function cambiarTab(valor) {
+    const params = new URLSearchParams(searchParams);
+    if (valor === "resumen") params.delete("tab");
+    else params.set("tab", valor);
+    setSearchParams(params, { replace: true });
+  }
 
   async function cargar() {
     setError(null);
@@ -57,14 +82,22 @@ export default function MiCuenta() {
 
   async function cargarExpensas() {
     const res = await listarExpensas();
-    if (res.status === 200) {
+    if (res.ok) {
       setExpensas(res.data);
+    }
+  }
+
+  async function cargarComprobantes() {
+    const res = await listarComprobantes();
+    if (res.ok) {
+      setComprobantes(res.data);
     }
   }
 
   useEffect(() => {
     cargar();
     cargarExpensas();
+    cargarComprobantes();
   }, []);
 
   if (error) {
@@ -87,7 +120,7 @@ export default function MiCuenta() {
     saldo > 0
       ? "var(--color-danger)"
       : saldo < 0
-        ? "var(--color-success, #1f8a3a)"
+        ? "var(--color-success)"
         : "var(--color-text)";
   const saldoTexto =
     saldo > 0
@@ -96,194 +129,222 @@ export default function MiCuenta() {
         ? "Tenés saldo a favor."
         : "Estás al día.";
 
+  const montoInicialPago = saldo > 0 ? saldo : "";
+
   return (
     <main className="pantalla">
-      <header className="pantalla-encabezado">
-        <h1>Mi cuenta</h1>
-        <button type="button" onClick={() => setModalPago("sin-expensa")}>
+      <header className="cabecera-pantalla">
+        <h2>Mi cuenta</h2>
+        <button type="button" onClick={() => setModalPagoAbierto(true)}>
           + Presentar pago
         </button>
       </header>
 
       {successMsg && (
-        <p
-          role="status"
-          className="banner-exito"
-          style={{
-            background: "var(--color-success-bg, #d6f5d6)",
-            color: "var(--color-success, #1f8a3a)",
-            padding: "0.75rem 1rem",
-            borderRadius: "0.4rem",
-            margin: "0 0 1rem",
-          }}
-        >
+        <p role="status" className="banner-exito">
           ✓ {successMsg}
         </p>
       )}
 
-      <Tarjeta>
-        <p style={{ fontSize: "1.4rem", margin: 0, color: saldoColor }}>
-          <strong>Saldo: {formatMoney(saldo)}</strong>
-        </p>
-        <p style={{ margin: "0.4rem 0 0", color: "var(--color-text-muted, #666)" }}>
-          {saldoTexto}
-        </p>
-      </Tarjeta>
+      <TabsPanel
+        items={TABS}
+        activo={tabActivo}
+        onCambio={cambiarTab}
+        ariaLabel="Secciones de mi cuenta"
+      />
 
-      {(() => {
-        const hoy = new Date().toISOString().slice(0, 10);
-        const proximaExpensa = expensas
-          .filter((e) => e.fecha_primer_vencimiento >= hoy)
-          .sort((a, b) =>
-            a.fecha_primer_vencimiento.localeCompare(b.fecha_primer_vencimiento),
-          )[0];
-        if (!proximaExpensa) return null;
+      {tabActivo === "resumen" && (
+        <SeccionResumen
+          saldo={saldo}
+          saldoColor={saldoColor}
+          saldoTexto={saldoTexto}
+          expensas={expensas}
+          token={token}
+        />
+      )}
 
-        async function handleAbrirPdf() {
-          try {
-            await abrirPdfExpensa(proximaExpensa.id, token);
-          } catch (e) {
-            alert(`No se pudo abrir el PDF: ${e.message}`);
-          }
-        }
+      {tabActivo === "expensas" && (
+        <SeccionExpensas expensas={expensas} token={token} />
+      )}
 
-        return (
-          <Tarjeta>
-            <h3>Próximo vencimiento</h3>
-            <p>
-              Si pagás hasta el {proximaExpensa.fecha_primer_vencimiento}:{" "}
-              <strong>{formatMoney(proximaExpensa.monto_primer_vencimiento)}</strong>
-            </p>
-            <p>
-              Del {sumarDias(proximaExpensa.fecha_primer_vencimiento, 1)} al{" "}
-              {proximaExpensa.fecha_segundo_vencimiento}:{" "}
-              <strong>{formatMoney(proximaExpensa.monto_segundo_vencimiento)}</strong>{" "}
-              (+recargo)
-            </p>
-            <p className="meta">
-              Después del {proximaExpensa.fecha_segundo_vencimiento}: se acumulan
-              intereses mensuales.
-            </p>
-            <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
-              <button
-                type="button"
-                onClick={() => setModalPago(proximaExpensa)}
-              >
-                Presentar pago
-              </button>
-              <button
-                type="button"
-                className="boton-secundario"
-                onClick={handleAbrirPdf}
-              >
-                📄 Ver PDF
-              </button>
-            </div>
-          </Tarjeta>
-        );
-      })()}
+      {tabActivo === "comprobantes" && (
+        <SeccionComprobantes comprobantes={comprobantes} />
+      )}
 
-      <section>
-        <h2>Expensas</h2>
-        {expensas.length === 0 ? (
-          <p>No hay expensas.</p>
-        ) : (
-          <ul style={{ listStyle: "none", padding: 0 }}>
-            {expensas.map((e) => (
-              <li key={e.id} style={{ marginBottom: "1rem" }}>
-                <Tarjeta>
-                  <h4 style={{ margin: "0 0 0.5rem" }}>
-                    {e.periodo} — {formatMoney(e.monto_primer_vencimiento)}
-                  </h4>
-                  <p className="meta" style={{ margin: "0.25rem 0" }}>
-                    Vencimiento: {e.fecha_primer_vencimiento}
-                  </p>
-                  <button
-                    type="button"
-                    className="boton-secundario"
-                    style={{ marginTop: "0.5rem" }}
-                    onClick={async () => {
-                      try {
-                        await abrirPdfExpensa(e.id, token);
-                      } catch (err) {
-                        alert(`No se pudo abrir el PDF: ${err.message}`);
-                      }
-                    }}
-                  >
-                    📄 Ver PDF
-                  </button>
-                </Tarjeta>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {tabActivo === "movimientos" && (
+        <SeccionMovimientos movimientos={data.movimientos} />
+      )}
 
-      <section>
-        <h2>Movimientos</h2>
-        {data.movimientos.length === 0 ? (
-          <p>No hay movimientos.</p>
-        ) : (
-          <table className="tabla-movimientos">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Tipo</th>
-                <th>Descripción</th>
-                <th>Monto</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.movimientos.map((m) => (
-                <tr key={m.id}>
-                  <td>{m.fecha}</td>
-                  <td>{TIPO_LABEL[m.tipo] || m.tipo}</td>
-                  <td>{m.descripcion}</td>
-                  <td>
-                    {TIPO_SIGNO[m.tipo] || ""}
-                    {formatMoney(m.monto)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
-
-      {modalPago && typeof modalPago === "object" ? (
+      {modalPagoAbierto && (
         <ModalPresentarPago
-          expensa={modalPago}
-          onClose={() => setModalPago(null)}
+          montoInicial={montoInicialPago}
+          onClose={() => setModalPagoAbierto(false)}
           onDone={() => {
-            setModalPago(null);
+            setModalPagoAbierto(false);
             setSuccessMsg(
               "Comprobante enviado. Va a quedar pendiente hasta que administración lo apruebe.",
             );
             cargar();
             cargarExpensas();
+            cargarComprobantes();
           }}
         />
-      ) : modalPago === "sin-expensa" ? (
-        <ModalPresentarPagoGenerico
-          onClose={() => setModalPago(null)}
-          onDone={() => {
-            setModalPago(null);
-            setSuccessMsg(
-              "Comprobante enviado. Va a quedar pendiente hasta que administración lo apruebe.",
-            );
-            cargar();
-          }}
-        />
-      ) : null}
+      )}
     </main>
   );
 }
 
-function ModalPresentarPagoGenerico({ onClose, onDone }) {
+function SeccionResumen({ saldo, saldoColor, saldoTexto, expensas, token }) {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const proximaExpensa = expensas
+    .filter((e) => e.fecha_primer_vencimiento >= hoy)
+    .sort((a, b) =>
+      a.fecha_primer_vencimiento.localeCompare(b.fecha_primer_vencimiento),
+    )[0];
+
+  async function handleAbrirPdf() {
+    if (!proximaExpensa) return;
+    try {
+      await abrirPdfExpensa(proximaExpensa.id, token);
+    } catch (e) {
+      alert(`No se pudo abrir el PDF: ${e.message}`);
+    }
+  }
+
+  return (
+    <>
+      <Tarjeta>
+        <p style={{ fontSize: "1.4rem", margin: 0, color: saldoColor }}>
+          <strong>Saldo: {formatMoney(saldo)}</strong>
+        </p>
+        <p style={{ margin: "0.4rem 0 0", color: "var(--color-text-muted)" }}>
+          {saldoTexto}
+        </p>
+      </Tarjeta>
+
+      {proximaExpensa && (
+        <Tarjeta>
+          <h3>Próximo vencimiento</h3>
+          <p>
+            Si pagás hasta el {proximaExpensa.fecha_primer_vencimiento}:{" "}
+            <strong>{formatMoney(proximaExpensa.monto_primer_vencimiento)}</strong>
+          </p>
+          <p>
+            Del {sumarDias(proximaExpensa.fecha_primer_vencimiento, 1)} al{" "}
+            {proximaExpensa.fecha_segundo_vencimiento}:{" "}
+            <strong>{formatMoney(proximaExpensa.monto_segundo_vencimiento)}</strong>{" "}
+            (+recargo)
+          </p>
+          <p className="meta">
+            Después del {proximaExpensa.fecha_segundo_vencimiento}: se acumulan
+            intereses mensuales.
+          </p>
+          <div className="tarjeta-acciones">
+            <button
+              type="button"
+              className="boton-secundario"
+              onClick={handleAbrirPdf}
+            >
+              📄 Ver PDF
+            </button>
+          </div>
+        </Tarjeta>
+      )}
+    </>
+  );
+}
+
+function SeccionExpensas({ expensas, token }) {
+  if (expensas.length === 0) {
+    return <p>No hay expensas.</p>;
+  }
+  return (
+    <ul className="lista-expensas">
+      {expensas.map((e) => (
+        <li key={e.id}>
+          <TarjetaExpensa
+            expensa={e}
+            esAdmin={false}
+            depto={null}
+            token={token}
+            mostrarBotonComprobantes={false}
+          />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function SeccionComprobantes({ comprobantes }) {
+  if (comprobantes.length === 0) {
+    return <p>No hay comprobantes.</p>;
+  }
+  return (
+    <ul className="lista-comprobantes">
+      {comprobantes.map((c) => (
+        <li key={c.id}>
+          <Tarjeta>
+            <h3>{formatMoney(c.monto)}</h3>
+            <p className="meta">Pagado {c.fecha_pago}</p>
+            <p><BadgeEstado estado={c.estado} /></p>
+            {c.archivo_path && (
+              <a
+                href={`${API_BASE}${c.archivo_path}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <img
+                  src={`${API_BASE}${c.archivo_path}`}
+                  alt="Comprobante"
+                  className="comprobante-img"
+                />
+              </a>
+            )}
+          </Tarjeta>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function SeccionMovimientos({ movimientos }) {
+  if (movimientos.length === 0) {
+    return <p>No hay movimientos.</p>;
+  }
+  return (
+    <table className="tabla-movimientos">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Tipo</th>
+          <th>Descripción</th>
+          <th>Monto</th>
+        </tr>
+      </thead>
+      <tbody>
+        {movimientos.map((m) => (
+          <tr key={m.id}>
+            <td>{m.fecha}</td>
+            <td>{TIPO_LABEL[m.tipo] || m.tipo}</td>
+            <td>{m.descripcion}</td>
+            <td>
+              {TIPO_SIGNO[m.tipo] || ""}
+              {formatMoney(m.monto)}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function ModalPresentarPago({ montoInicial, onClose, onDone }) {
   const [fechaPago, setFechaPago] = useState(
     new Date().toISOString().slice(0, 10),
   );
-  const [monto, setMonto] = useState("");
+  const [monto, setMonto] = useState(
+    montoInicial ? String(montoInicial) : "",
+  );
   const [archivo, setArchivo] = useState(null);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -338,7 +399,7 @@ function ModalPresentarPagoGenerico({ onClose, onDone }) {
           />
         </label>
         {error && <p role="alert">{error}</p>}
-        <p style={{ color: "var(--color-text-muted, #666)", fontSize: "0.9rem" }}>
+        <p style={{ color: "var(--color-text-muted)", fontSize: "0.9rem" }}>
           Tu pago será visible cuando administración lo apruebe.
         </p>
         <div className="modal-acciones">
