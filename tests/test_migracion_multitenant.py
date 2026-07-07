@@ -95,3 +95,26 @@ def test_usuario_representante_con_consorcio(db_empty):
     )
     db_empty.add(u); db_empty.commit()
     assert u.consorcio_id == c.id
+
+
+def test_migracion_crea_demo_si_no_hay_datos(db_empty):
+    from backend.migrate_multitenant import migrar
+    from backend.models import Administracion, Consorcio
+
+    migrar(db_empty)
+
+    admins = db_empty.query(Administracion).all()
+    consorcios = db_empty.query(Consorcio).all()
+    assert len(admins) == 1
+    assert admins[0].razon_social == "Administración Demo"
+    assert len(consorcios) == 1
+    assert consorcios[0].administracion_id == admins[0].id
+
+
+def test_migracion_es_idempotente(db_empty):
+    from backend.migrate_multitenant import migrar
+    from backend.models import Administracion
+
+    migrar(db_empty)
+    migrar(db_empty)  # segunda pasada no debe explotar ni duplicar
+    assert db_empty.query(Administracion).count() == 1

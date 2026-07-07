@@ -1,0 +1,114 @@
+"""
+Migración idempotente a multitenant.
+
+- Crea administracion "Demo" + consorcio "Demo" si no existen.
+- Adopta datos existentes bajo esos IDs (tasks futuras).
+- Idempotente: correr N veces es equivalente a correr 1 vez.
+
+Uso: python -m backend.migrate_multitenant
+"""
+import logging
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+
+from .database import SessionLocal
+from .models import Administracion, Consorcio, ConfiguracionConsorcio
+
+logger = logging.getLogger(__name__)
+
+
+def ya_migrado(db: Session) -> bool:
+    """Devuelve True si ya existe al menos una administración."""
+    return db.query(Administracion).first() is not None
+
+
+def _tabla_existe(db: Session, nombre: str) -> bool:
+    r = db.execute(
+        text("SELECT name FROM sqlite_master WHERE type='table' AND name=:n"),
+        {"n": nombre},
+    ).first()
+    return r is not None
+
+
+def _crear_demo(db: Session) -> tuple[Administracion, Consorcio]:
+    admin = Administracion(
+        razon_social="Administración Demo",
+        cuit="30-00000000-0",
+        email_contacto="demo@example.com",
+    )
+    db.add(admin)
+    db.flush()
+
+    cfg = None
+    if _tabla_existe(db, "configuracion_consorcio"):
+        cfg = db.query(ConfiguracionConsorcio).first()
+
+    if cfg is not None:
+        c = Consorcio(
+            administracion_id=admin.id,
+            nombre=cfg.consorcio_nombre,
+            consorcio_domicilio=cfg.consorcio_domicilio,
+            consorcio_cuit=cfg.consorcio_cuit,
+            consorcio_convenio_suterh=cfg.consorcio_convenio_suterh,
+            admin_nombre=cfg.admin_nombre,
+            admin_domicilio=cfg.admin_domicilio,
+            admin_email=cfg.admin_email,
+            admin_telefono=cfg.admin_telefono,
+            admin_cuit=cfg.admin_cuit,
+            admin_rpa=cfg.admin_rpa,
+            admin_situacion_fiscal=cfg.admin_situacion_fiscal,
+            banco_titular=cfg.banco_titular,
+            banco_nombre=cfg.banco_nombre,
+            banco_sucursal=cfg.banco_sucursal,
+            banco_numero_cuenta=cfg.banco_numero_cuenta,
+            banco_cbu=cfg.banco_cbu,
+            banco_alias=cfg.banco_alias,
+            dia_primer_vencimiento=cfg.dia_primer_vencimiento,
+            dias_entre_vencimientos=cfg.dias_entre_vencimientos,
+            recargo_segundo_vencimiento_pct=cfg.recargo_segundo_vencimiento_pct,
+            tasa_interes_mensual_pct=cfg.tasa_interes_mensual_pct,
+            caja_default_pagos_id=cfg.caja_default_pagos_id,
+            reportes_visibles_a_depto=cfg.reportes_visibles_a_depto,
+        )
+    else:
+        c = Consorcio(
+            administracion_id=admin.id,
+            nombre="Consorcio Demo",
+            consorcio_domicilio="Sin domicilio",
+            consorcio_cuit="30-00000000-0",
+            admin_nombre="Demo",
+            admin_domicilio="Sin domicilio",
+            admin_email="demo@example.com",
+            admin_telefono="0",
+            admin_cuit="30-00000000-0",
+            admin_rpa="0000",
+            admin_situacion_fiscal="Monotributo",
+            banco_titular="Demo",
+            banco_nombre="Banco Demo",
+            banco_numero_cuenta="0-0",
+            banco_cbu="0" * 22,
+        )
+    db.add(c)
+    db.flush()
+    return admin, c
+
+
+def migrar(db: Session) -> None:
+    if ya_migrado(db):
+        logger.info("Ya migrado a multitenant, nada que hacer.")
+        return
+
+    admin, consorcio = _crear_demo(db)
+    logger.info(f"Creados admin #{admin.id} y consorcio #{consorcio.id}")
+    # Las tareas 6-16 popularán consorcio_id en las tablas operacionales.
+    db.commit()
+
+
+def main() -> None:
+    logging.basicConfig(level=logging.INFO)
+    with SessionLocal() as db:
+        migrar(db)
+
+
+if __name__ == "__main__":
+    main()
