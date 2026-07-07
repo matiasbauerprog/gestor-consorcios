@@ -27,7 +27,7 @@ def listar_reservas(
     user: CurrentUser = Depends(get_current_user),
     cid: int = Depends(get_consorcio_activo),
 ) -> list[Reserva]:
-    stmt = select(Reserva).order_by(Reserva.inicio.desc(), Reserva.id.desc())
+    stmt = select(Reserva).where(Reserva.consorcio_id == cid).order_by(Reserva.inicio.desc(), Reserva.id.desc())
     if user.rol == Rol.departamento:
         stmt = stmt.where(Reserva.usuario_id == user.id)
     if estado is not None:
@@ -48,7 +48,7 @@ def obtener_reserva(
     cid: int = Depends(get_consorcio_activo),
 ) -> Reserva:
     reserva = db.get(Reserva, reserva_id)
-    if reserva is None:
+    if reserva is None or reserva.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La reserva solicitada no existe.",
@@ -76,7 +76,7 @@ def cancelar_reserva(
     cid: int = Depends(get_consorcio_activo),
 ) -> Reserva:
     reserva = db.get(Reserva, reserva_id)
-    if reserva is None:
+    if reserva is None or reserva.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La reserva solicitada no existe.",

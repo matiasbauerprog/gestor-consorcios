@@ -27,7 +27,7 @@ def listar_peticiones(
     # Todos los roles (admin, representante, departamento) ven TODAS las peticiones.
     # Transparencia: cada depto ve en qué estado están sus propias peticiones
     # y de qué otros deptos hay peticiones abiertas (para coordinación).
-    stmt = select(Peticion).order_by(Peticion.fecha_creacion.desc())
+    stmt = select(Peticion).where(Peticion.consorcio_id == cid).order_by(Peticion.fecha_creacion.desc())
     return list(db.scalars(stmt).all())
 
 
@@ -45,6 +45,7 @@ def crear_peticion(
 ) -> Peticion:
     # departamento_id NUNCA del body: siempre del token.
     peticion = Peticion(
+        consorcio_id=cid,
         departamento_id=user.departamento_id,
         titulo=payload.titulo,
         descripcion=payload.descripcion,
@@ -68,7 +69,7 @@ def obtener_peticion(
     cid: int = Depends(get_consorcio_activo),
 ) -> Peticion:
     peticion = db.get(Peticion, peticion_id)
-    if peticion is None:
+    if peticion is None or peticion.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La petición solicitada no existe.",
@@ -97,7 +98,7 @@ def actualizar_peticion(
     cid: int = Depends(get_consorcio_activo),
 ) -> Peticion:
     peticion = db.get(Peticion, peticion_id)
-    if peticion is None:
+    if peticion is None or peticion.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La petición solicitada no existe.",
@@ -136,7 +137,7 @@ def eliminar_peticion(
     cid: int = Depends(get_consorcio_activo),
 ) -> None:
     peticion = db.get(Peticion, peticion_id)
-    if peticion is None:
+    if peticion is None or peticion.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La petición solicitada no existe.",

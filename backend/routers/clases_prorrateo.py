@@ -27,7 +27,7 @@ def listar_clases(
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
 ) -> list[ClaseProrrateo]:
-    stmt = select(ClaseProrrateo).order_by(ClaseProrrateo.codigo.asc())
+    stmt = select(ClaseProrrateo).where(ClaseProrrateo.consorcio_id == cid).order_by(ClaseProrrateo.codigo.asc())
     if activa is not None:
         stmt = stmt.where(ClaseProrrateo.activa == activa)
     return list(db.scalars(stmt).all())
@@ -55,6 +55,7 @@ def crear_clase(
         )
 
     clase = ClaseProrrateo(
+        consorcio_id=cid,
         codigo=payload.codigo,
         nombre=payload.nombre,
         descripcion=payload.descripcion,
@@ -79,7 +80,7 @@ def obtener_clase(
     cid: int = Depends(get_consorcio_activo),
 ) -> ClaseProrrateo:
     clase = db.get(ClaseProrrateo, clase_prorrateo_id)
-    if clase is None:
+    if clase is None or clase.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La clase solicitada no existe.",
@@ -101,7 +102,7 @@ def actualizar_clase(
     cid: int = Depends(get_consorcio_activo),
 ) -> ClaseProrrateo:
     clase = db.get(ClaseProrrateo, clase_prorrateo_id)
-    if clase is None:
+    if clase is None or clase.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La clase solicitada no existe.",
@@ -130,7 +131,7 @@ def eliminar_clase(
     from fastapi import Response
 
     clase = db.get(ClaseProrrateo, clase_prorrateo_id)
-    if clase is None:
+    if clase is None or clase.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La clase solicitada no existe.",

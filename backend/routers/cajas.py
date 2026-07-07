@@ -43,7 +43,7 @@ def listar_cajas(
     _u: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
 ) -> list[CajaOut]:
-    cajas = db.scalars(select(Caja).order_by(Caja.id)).all()
+    cajas = db.scalars(select(Caja).where(Caja.consorcio_id == cid).order_by(Caja.id)).all()
     out = []
     for c in cajas:
         movs = db.scalars(
@@ -78,7 +78,7 @@ def actualizar_caja(
     cid: int = Depends(get_consorcio_activo),
 ) -> CajaOut:
     caja = db.get(Caja, caja_id)
-    if caja is None:
+    if caja is None or caja.consorcio_id != cid:
         raise HTTPException(404, "Caja no encontrada.")
     for campo, valor in payload.model_dump(exclude_unset=True).items():
         setattr(caja, campo, valor)
@@ -97,7 +97,7 @@ def eliminar_caja(
     _u: CurrentUser = Depends(require_roles(Rol.administracion)),
 ):
     caja = db.get(Caja, caja_id)
-    if caja is None:
+    if caja is None or caja.consorcio_id != cid:
         raise HTTPException(404, "Caja no encontrada.")
     tiene_movs = db.scalar(
         select(MovimientoCaja.id).where(MovimientoCaja.caja_id == caja_id)
@@ -141,12 +141,13 @@ def crear_ajuste(
     cid: int = Depends(get_consorcio_activo),
 ) -> MovimientoCaja:
     caja = db.get(Caja, caja_id)
-    if caja is None:
+    if caja is None or caja.consorcio_id != cid:
         raise HTTPException(404, "Caja no encontrada.")
     if not caja.activa:
         raise HTTPException(400, "La caja está inactiva.")
     _bloquear_si_periodo_cerrado_por_fecha(db, payload.fecha)
     mov = MovimientoCaja(
+        consorcio_id=cid,
         caja_id=caja_id,
         fecha=payload.fecha,
         tipo=TipoMovimientoCaja.ajuste,

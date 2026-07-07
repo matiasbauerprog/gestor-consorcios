@@ -282,7 +282,7 @@ def listar_liquidaciones(
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
 ) -> list[LiquidacionEmpleado]:
-    stmt = select(LiquidacionEmpleado).order_by(
+    stmt = select(LiquidacionEmpleado).where(LiquidacionEmpleado.consorcio_id == cid).order_by(
         LiquidacionEmpleado.periodo.desc(), LiquidacionEmpleado.id.desc()
     )
     if periodo is not None:
@@ -332,6 +332,7 @@ def crear_liquidacion(
     clase_id = _clase_default(db)
 
     liquidacion = LiquidacionEmpleado(
+        consorcio_id=cid,
         empleado_id=empleado.id,
         periodo=payload.periodo,
         sueldo_bruto=0,
@@ -362,7 +363,7 @@ def obtener_liquidacion(
     cid: int = Depends(get_consorcio_activo),
 ) -> LiquidacionEmpleado:
     liq = db.get(LiquidacionEmpleado, liquidacion_id)
-    if liq is None:
+    if liq is None or liq.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La liquidación solicitada no existe.",
@@ -384,7 +385,7 @@ def actualizar_liquidacion(
     cid: int = Depends(get_consorcio_activo),
 ) -> LiquidacionEmpleado:
     liq = db.get(LiquidacionEmpleado, liquidacion_id)
-    if liq is None:
+    if liq is None or liq.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La liquidación solicitada no existe.",
@@ -437,7 +438,7 @@ def eliminar_liquidacion(
     cid: int = Depends(get_consorcio_activo),
 ) -> Response:
     liq = db.get(LiquidacionEmpleado, liquidacion_id)
-    if liq is None:
+    if liq is None or liq.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La liquidación solicitada no existe.",

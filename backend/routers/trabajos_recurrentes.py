@@ -26,7 +26,7 @@ def listar(
     _u: CurrentUser = Depends(require_roles(Rol.administracion, Rol.representante)),
 ):
     return list(db.scalars(
-        select(TrabajoRecurrente).order_by(TrabajoRecurrente.id)
+        select(TrabajoRecurrente).where(TrabajoRecurrente.consorcio_id == cid).order_by(TrabajoRecurrente.id)
     ).all())
 
 
@@ -52,7 +52,7 @@ def actualizar(
     _u: CurrentUser = Depends(require_roles(Rol.administracion, Rol.representante)),
 ):
     tr = db.get(TrabajoRecurrente, recurrente_id)
-    if tr is None:
+    if tr is None or tr.consorcio_id != cid:
         raise HTTPException(404, "Recurrente no encontrado.")
     if payload.proveedor_sugerido_id is not None:
         if db.get(Proveedor, payload.proveedor_sugerido_id) is None:
@@ -70,7 +70,7 @@ def eliminar(
     _u: CurrentUser = Depends(require_roles(Rol.administracion, Rol.representante)),
 ):
     tr = db.get(TrabajoRecurrente, recurrente_id)
-    if tr is None:
+    if tr is None or tr.consorcio_id != cid:
         raise HTTPException(404, "Recurrente no encontrado.")
     db.delete(tr); db.commit()
 
@@ -83,7 +83,7 @@ def materializar(
 ):
     """Crea un Trabajo concreto desde la plantilla."""
     tr = db.get(TrabajoRecurrente, recurrente_id)
-    if tr is None:
+    if tr is None or tr.consorcio_id != cid:
         raise HTTPException(404, "Recurrente no encontrado.")
     if not tr.activa:
         raise HTTPException(400, "La plantilla está inactiva.")

@@ -23,7 +23,7 @@ def listar_haberes(
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
 ) -> list[Haber]:
-    stmt = select(Haber).order_by(Haber.orden.asc(), Haber.nombre.asc())
+    stmt = select(Haber).where(Haber.consorcio_id == cid).order_by(Haber.orden.asc(), Haber.nombre.asc())
     if activo is not None:
         stmt = stmt.where(Haber.activo == activo)
     return list(db.scalars(stmt).all())
@@ -49,6 +49,7 @@ def crear_haber(
         )
 
     haber = Haber(
+        consorcio_id=cid,
         nombre=payload.nombre,
         tipo=payload.tipo,
         valor_default=payload.valor_default,
@@ -74,7 +75,7 @@ def obtener_haber(
     cid: int = Depends(get_consorcio_activo),
 ) -> Haber:
     haber = db.get(Haber, haber_id)
-    if haber is None:
+    if haber is None or haber.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El haber solicitado no existe.",
@@ -96,7 +97,7 @@ def actualizar_haber(
     cid: int = Depends(get_consorcio_activo),
 ) -> Haber:
     haber = db.get(Haber, haber_id)
-    if haber is None:
+    if haber is None or haber.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El haber solicitado no existe.",
@@ -123,7 +124,7 @@ def eliminar_haber(
     cid: int = Depends(get_consorcio_activo),
 ) -> Haber:
     haber = db.get(Haber, haber_id)
-    if haber is None:
+    if haber is None or haber.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El haber solicitado no existe.",

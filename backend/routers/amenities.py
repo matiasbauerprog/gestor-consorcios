@@ -33,7 +33,7 @@ def listar_amenities(
     user: CurrentUser = Depends(get_current_user),
     cid: int = Depends(get_consorcio_activo),
 ) -> list[Amenity]:
-    stmt = select(Amenity).order_by(Amenity.nombre.asc())
+    stmt = select(Amenity).where(Amenity.consorcio_id == cid).order_by(Amenity.nombre.asc())
     # incluir_inactivos solo aplica para admin; para depto/representante se ignora silenciosamente.
     if not (incluir_inactivos and user.rol == Rol.administracion):
         stmt = stmt.where(Amenity.activo == True)  # noqa: E712
@@ -80,7 +80,7 @@ def actualizar_amenity(
     cid: int = Depends(get_consorcio_activo),
 ) -> Amenity:
     amenity = db.get(Amenity, amenity_id)
-    if amenity is None:
+    if amenity is None or amenity.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El amenity solicitado no existe.",
@@ -171,7 +171,7 @@ def crear_reserva(
     cid: int = Depends(get_consorcio_activo),
 ) -> Reserva:
     amenity = db.get(Amenity, amenity_id)
-    if amenity is None:
+    if amenity is None or amenity.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El amenity solicitado no existe.",
@@ -295,7 +295,7 @@ def dar_de_baja_amenity(
     cid: int = Depends(get_consorcio_activo),
 ) -> Amenity:
     amenity = db.get(Amenity, amenity_id)
-    if amenity is None:
+    if amenity is None or amenity.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El amenity solicitado no existe.",

@@ -89,6 +89,7 @@ def crear_presupuesto(
     archivo_path = _guardar_archivo(archivo) if (archivo and archivo.filename) else None
 
     p = Presupuesto(
+        consorcio_id=cid,
         trabajo_id=trabajo_id,
         proveedor_id=proveedor_id,
         monto=monto,

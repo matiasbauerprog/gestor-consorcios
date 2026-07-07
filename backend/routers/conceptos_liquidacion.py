@@ -37,7 +37,7 @@ def listar_conceptos(
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
 ) -> list[ConceptoLiquidacion]:
-    stmt = select(ConceptoLiquidacion).order_by(
+    stmt = select(ConceptoLiquidacion).where(ConceptoLiquidacion.consorcio_id == cid).order_by(
         ConceptoLiquidacion.orden.asc(), ConceptoLiquidacion.nombre.asc()
     )
     if activo is not None:
@@ -69,6 +69,7 @@ def crear_concepto(
     _validar_proveedor(db, payload.proveedor_id)
 
     concepto = ConceptoLiquidacion(
+        consorcio_id=cid,
         nombre=payload.nombre,
         tipo=payload.tipo,
         porcentaje=payload.porcentaje,
@@ -95,7 +96,7 @@ def obtener_concepto(
     cid: int = Depends(get_consorcio_activo),
 ) -> ConceptoLiquidacion:
     concepto = db.get(ConceptoLiquidacion, concepto_id)
-    if concepto is None:
+    if concepto is None or concepto.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El concepto solicitado no existe.",
@@ -117,7 +118,7 @@ def actualizar_concepto(
     cid: int = Depends(get_consorcio_activo),
 ) -> ConceptoLiquidacion:
     concepto = db.get(ConceptoLiquidacion, concepto_id)
-    if concepto is None:
+    if concepto is None or concepto.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El concepto solicitado no existe.",
@@ -148,7 +149,7 @@ def eliminar_concepto(
     cid: int = Depends(get_consorcio_activo),
 ) -> ConceptoLiquidacion:
     concepto = db.get(ConceptoLiquidacion, concepto_id)
-    if concepto is None:
+    if concepto is None or concepto.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El concepto solicitado no existe.",
