@@ -484,9 +484,16 @@ class Reserva(Base):
 
 class ClaseProrrateo(Base):
     __tablename__ = "clases_prorrateo"
+    __table_args__ = (
+        UniqueConstraint("consorcio_id", "codigo", name="uq_clase_consorcio_codigo"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    codigo: Mapped[str] = mapped_column(String(8), unique=True, nullable=False)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
+    codigo: Mapped[str] = mapped_column(String(8), nullable=False)
     nombre: Mapped[str] = mapped_column(String(120), nullable=False)
     descripcion: Mapped[str | None] = mapped_column(String(500))
     activa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -508,6 +515,10 @@ class CoeficienteDepartamento(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     departamento_id: Mapped[int] = mapped_column(
         ForeignKey("departamentos.id", ondelete="CASCADE"),
         index=True,
@@ -526,11 +537,18 @@ class CoeficienteDepartamento(Base):
 
 class Proveedor(Base):
     __tablename__ = "proveedores"
+    __table_args__ = (
+        UniqueConstraint("consorcio_id", "cuit", name="uq_proveedor_consorcio_cuit"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     razon_social: Mapped[str] = mapped_column(String(255), nullable=False)
     nombre_fantasia: Mapped[str | None] = mapped_column(String(255))
-    cuit: Mapped[str] = mapped_column(String(13), unique=True, nullable=False)
+    cuit: Mapped[str] = mapped_column(String(13), nullable=False)
     direccion: Mapped[str | None] = mapped_column(String(500))
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     fecha_creacion: Mapped[datetime] = mapped_column(

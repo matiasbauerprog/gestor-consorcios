@@ -282,6 +282,7 @@ def _seed(db) -> None:
             # Fase 1: clase de prorrateo de ejemplo (id=500)
             ClaseProrrateo(
                 id=500,
+                consorcio_id=1,
                 codigo="A",
                 nombre="Expensas ordinarias",
                 descripcion="Prorrateo principal",
@@ -290,6 +291,7 @@ def _seed(db) -> None:
             # Fase 1: proveedor de ejemplo (id=600)
             Proveedor(
                 id=600,
+                consorcio_id=1,
                 razon_social="Proveedor Test SA",
                 nombre_fantasia="Test",
                 cuit="30-12345678-9",
