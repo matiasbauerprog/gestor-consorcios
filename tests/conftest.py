@@ -255,21 +255,23 @@ def _seed(db) -> None:
             ),
             Comunicado(
                 id=200,
+                consorcio_id=1,
                 titulo="Bienvenida",
                 cuerpo="Comunicado inicial del consorcio.",
                 autor_id=admin.id,
             ),
             Amenity(
-                id=300, nombre="SUM", descripcion="Salón de usos múltiples",
+                id=300, consorcio_id=1, nombre="SUM", descripcion="Salón de usos múltiples",
                 activo=True,
             ),
             Amenity(
-                id=301, nombre="Laundry", descripcion="Lavandería compartida",
+                id=301, consorcio_id=1, nombre="Laundry", descripcion="Lavandería compartida",
                 activo=True,
             ),
             # Reserva confirmada existente en SUM: 2026-07-15 14:00–17:00.
             Reserva(
                 id=400,
+                consorcio_id=1,
                 amenity_id=300,
                 usuario_id=user_a.id,
                 inicio=datetime(2026, 7, 15, 14, 0),

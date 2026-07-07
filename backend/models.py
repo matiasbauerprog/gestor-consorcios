@@ -288,6 +288,10 @@ class Comunicado(Base):
     __tablename__ = "comunicados"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     titulo: Mapped[str] = mapped_column(String(255), nullable=False)
     cuerpo: Mapped[str] = mapped_column(String(5000), nullable=False)
     fecha_publicacion: Mapped[datetime] = mapped_column(
@@ -420,9 +424,16 @@ class Comprobante(Base):
 
 class Amenity(Base):
     __tablename__ = "amenities"
+    __table_args__ = (
+        UniqueConstraint("consorcio_id", "nombre", name="uq_amenity_consorcio_nombre"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    nombre: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
+    nombre: Mapped[str] = mapped_column(String(100), nullable=False)
     descripcion: Mapped[str | None] = mapped_column(String(500))
 
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -439,6 +450,10 @@ class Reserva(Base):
     __tablename__ = "reservas"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     amenity_id: Mapped[int] = mapped_column(
         ForeignKey("amenities.id", ondelete="RESTRICT"),
         nullable=False,
