@@ -141,9 +141,16 @@ class TipoHaber(str, enum.Enum):
 
 class Departamento(Base):
     __tablename__ = "departamentos"
+    __table_args__ = (
+        UniqueConstraint("consorcio_id", "codigo", name="uq_depto_consorcio_codigo"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    codigo: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
+    codigo: Mapped[str] = mapped_column(String(32), nullable=False)
     descripcion: Mapped[str | None] = mapped_column(String(255))
 
     usuarios: Mapped[list["Usuario"]] = relationship(back_populates="departamento")

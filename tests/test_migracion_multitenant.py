@@ -118,3 +118,25 @@ def test_migracion_es_idempotente(db_empty):
     migrar(db_empty)
     migrar(db_empty)  # segunda pasada no debe explotar ni duplicar
     assert db_empty.query(Administracion).count() == 1
+
+
+def test_migracion_agrega_consorcio_id_a_departamentos(db_empty):
+    from backend.migrate_multitenant import migrar
+    from backend.models import Departamento
+    from sqlalchemy import text
+
+    # Simular estado pre-migración: recrear tabla sin consorcio_id.
+    db_empty.execute(text("DROP TABLE departamentos"))
+    db_empty.execute(text(
+        "CREATE TABLE departamentos (id INTEGER PRIMARY KEY, codigo VARCHAR(32) UNIQUE NOT NULL, descripcion VARCHAR(255))"
+    ))
+    db_empty.execute(text(
+        "INSERT INTO departamentos (id, codigo, descripcion) VALUES (1, 'UF-1', 'A'), (2, 'UF-2', 'B')"
+    ))
+    db_empty.commit()
+
+    migrar(db_empty)
+
+    deptos = db_empty.query(Departamento).order_by(Departamento.id).all()
+    assert len(deptos) == 2
+    assert all(d.consorcio_id == 1 for d in deptos)  # consorcio Demo id=1

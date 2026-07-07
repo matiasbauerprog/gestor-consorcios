@@ -93,6 +93,21 @@ def _crear_demo(db: Session) -> tuple[Administracion, Consorcio]:
     return admin, c
 
 
+def _adoptar_tabla(db: Session, tabla: str, cid: int) -> None:
+    """Agrega columna consorcio_id (si falta) y setea todas las filas al cid."""
+    cols = db.execute(text(f"PRAGMA table_info({tabla})")).all()
+    tiene_col = any(c[1] == "consorcio_id" for c in cols)
+    if not tiene_col:
+        db.execute(text(f"ALTER TABLE {tabla} ADD COLUMN consorcio_id INTEGER"))
+    db.execute(
+        text(f"UPDATE {tabla} SET consorcio_id = :cid WHERE consorcio_id IS NULL"),
+        {"cid": cid},
+    )
+    db.execute(text(
+        f"CREATE INDEX IF NOT EXISTS ix_{tabla}_consorcio_id ON {tabla}(consorcio_id)"
+    ))
+
+
 def migrar(db: Session) -> None:
     if ya_migrado(db):
         logger.info("Ya migrado a multitenant, nada que hacer.")
@@ -100,7 +115,11 @@ def migrar(db: Session) -> None:
 
     admin, consorcio = _crear_demo(db)
     logger.info(f"Creados admin #{admin.id} y consorcio #{consorcio.id}")
-    # Las tareas 6-16 popularán consorcio_id en las tablas operacionales.
+
+    _adoptar_tabla(db, "departamentos", consorcio.id)
+    logger.info(f"Tabla departamentos adoptada bajo consorcio #{consorcio.id}")
+
+    # Las tareas 7-16 popularán consorcio_id en las tablas restantes.
     db.commit()
 
 
