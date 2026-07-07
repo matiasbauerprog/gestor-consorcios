@@ -854,5 +854,52 @@ class Administracion(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    # consorcios: se agrega en Task 2 cuando exista el modelo Consorcio
-    # consorcios: Mapped[list["Consorcio"]] = relationship(back_populates="administracion")
+    consorcios: Mapped[list["Consorcio"]] = relationship(back_populates="administracion")
+
+
+class Consorcio(Base):
+    __tablename__ = "consorcios"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    administracion_id: Mapped[int] = mapped_column(
+        ForeignKey("administraciones.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
+    nombre: Mapped[str] = mapped_column(String(255), nullable=False)
+    usa_personal_propio: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    # Datos del consorcio (heredado de ConfiguracionConsorcio)
+    consorcio_domicilio: Mapped[str] = mapped_column(String(500), nullable=False)
+    consorcio_cuit: Mapped[str] = mapped_column(String(13), nullable=False)
+    consorcio_convenio_suterh: Mapped[str | None] = mapped_column(String(50))
+
+    # Administración
+    admin_nombre: Mapped[str] = mapped_column(String(255), nullable=False)
+    admin_domicilio: Mapped[str] = mapped_column(String(500), nullable=False)
+    admin_email: Mapped[str] = mapped_column(String(255), nullable=False)
+    admin_telefono: Mapped[str] = mapped_column(String(50), nullable=False)
+    admin_cuit: Mapped[str] = mapped_column(String(13), nullable=False)
+    admin_rpa: Mapped[str] = mapped_column(String(50), nullable=False)
+    admin_situacion_fiscal: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    # Banco
+    banco_titular: Mapped[str] = mapped_column(String(255), nullable=False)
+    banco_nombre: Mapped[str] = mapped_column(String(100), nullable=False)
+    banco_sucursal: Mapped[str | None] = mapped_column(String(50))
+    banco_numero_cuenta: Mapped[str] = mapped_column(String(50), nullable=False)
+    banco_cbu: Mapped[str] = mapped_column(String(22), nullable=False)
+    banco_alias: Mapped[str | None] = mapped_column(String(50))
+
+    # Vencimientos
+    dia_primer_vencimiento: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
+    dias_entre_vencimientos: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
+    recargo_segundo_vencimiento_pct: Mapped[float] = mapped_column(Float, nullable=False, default=7.0)
+    tasa_interes_mensual_pct: Mapped[float] = mapped_column(Float, nullable=False, default=3.0)
+    caja_default_pagos_id: Mapped[int | None] = mapped_column(ForeignKey("cajas.id"), nullable=True)
+    reportes_visibles_a_depto: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    fecha_creacion: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    administracion: Mapped["Administracion"] = relationship(back_populates="consorcios")

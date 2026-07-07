@@ -16,3 +16,31 @@ def test_puede_crear_administracion(db_empty):
     assert a.id is not None
     assert a.activa is True
     assert a.plan == "free"
+
+
+def test_puede_crear_consorcio(db_empty):
+    from backend.models import Administracion, Consorcio
+
+    admin = Administracion(razon_social="X", cuit="30-11-1", email_contacto="x@x.com")
+    db_empty.add(admin); db_empty.flush()
+    c = Consorcio(
+        administracion_id=admin.id,
+        nombre="Edificio 1",
+        consorcio_domicilio="Av. Test 100",
+        consorcio_cuit="30-99-9",
+        admin_nombre="Admin X",
+        admin_domicilio="Of. 1",
+        admin_email="x@x.com",
+        admin_telefono="1111",
+        admin_cuit="20-11-1",
+        admin_rpa="0001",
+        admin_situacion_fiscal="Monotributo",
+        banco_titular="X",
+        banco_nombre="Banco X",
+        banco_numero_cuenta="000-0",
+        banco_cbu="0" * 22,
+    )
+    db_empty.add(c); db_empty.commit()
+    assert c.id is not None
+    assert c.usa_personal_propio is True
+    assert c.dia_primer_vencimiento == 10
