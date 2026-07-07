@@ -167,6 +167,15 @@ class Usuario(Base):
         ForeignKey("departamentos.id", ondelete="RESTRICT"),
         nullable=True,
     )
+    administracion_id: Mapped[int | None] = mapped_column(
+        ForeignKey("administraciones.id", ondelete="RESTRICT"),
+        nullable=True, index=True,
+    )
+    consorcio_id: Mapped[int | None] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=True, index=True,
+    )
+    must_change_password: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     departamento: Mapped["Departamento | None"] = relationship(back_populates="usuarios")
 

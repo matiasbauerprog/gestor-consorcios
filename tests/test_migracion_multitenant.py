@@ -59,3 +59,39 @@ def test_puede_crear_audit_log(db_empty):
     )
     db_empty.add(log); db_empty.commit()
     assert log.id is not None
+
+
+def test_usuario_super_admin(db_empty):
+    from backend.models import Usuario, Rol
+    from backend.security import hash_password
+
+    u = Usuario(
+        email="sa@x.com",
+        password_hash=hash_password("x"),
+        rol=Rol.super_admin,
+    )
+    db_empty.add(u); db_empty.commit()
+    assert u.administracion_id is None
+    assert u.consorcio_id is None
+    assert u.must_change_password is False
+
+
+def test_usuario_representante_con_consorcio(db_empty):
+    from backend.models import Administracion, Consorcio, Usuario, Rol
+    from backend.security import hash_password
+
+    admin = Administracion(razon_social="X", cuit="30-11-1", email_contacto="x@x.com")
+    db_empty.add(admin); db_empty.flush()
+    c = Consorcio(administracion_id=admin.id, nombre="C",
+        consorcio_domicilio="d", consorcio_cuit="c", admin_nombre="a",
+        admin_domicilio="d", admin_email="a@a.com", admin_telefono="1",
+        admin_cuit="c", admin_rpa="0", admin_situacion_fiscal="M",
+        banco_titular="t", banco_nombre="n", banco_numero_cuenta="0",
+        banco_cbu="0" * 22)
+    db_empty.add(c); db_empty.flush()
+    u = Usuario(
+        email="rep@x.com", password_hash=hash_password("x"),
+        rol=Rol.representante, consorcio_id=c.id,
+    )
+    db_empty.add(u); db_empty.commit()
+    assert u.consorcio_id == c.id
