@@ -169,6 +169,7 @@ def _seed(db) -> None:
         email="admin@test.local",
         password_hash=_PASSWORD_HASH,
         rol=Rol.administracion,
+        administracion_id=1,
         departamento_id=None,
     )
     user_a = Usuario(
@@ -190,6 +191,7 @@ def _seed(db) -> None:
         email="repre@test.local",
         password_hash=_PASSWORD_HASH,
         rol=Rol.representante,
+        consorcio_id=1,
         departamento_id=None,
     )
     db.add_all([admin, user_a, user_b, repre])
@@ -431,24 +433,38 @@ def client(db_session) -> Iterator[TestClient]:
 @pytest.fixture()
 def headers_admin() -> dict[str, str]:
     token = create_access_token(user_id=1, rol=Rol.administracion, departamento_id=None)
-    return {"Authorization": f"Bearer {token}"}
+    return {"Authorization": f"Bearer {token}", "X-Consorcio-Id": "1"}
 
 
 @pytest.fixture()
 def headers_depto_a() -> dict[str, str]:
     token = create_access_token(user_id=2, rol=Rol.departamento, departamento_id=1)
-    return {"Authorization": f"Bearer {token}"}
+    return {"Authorization": f"Bearer {token}", "X-Consorcio-Id": "1"}
 
 
 @pytest.fixture()
 def headers_depto_b() -> dict[str, str]:
     token = create_access_token(user_id=3, rol=Rol.departamento, departamento_id=2)
-    return {"Authorization": f"Bearer {token}"}
+    return {"Authorization": f"Bearer {token}", "X-Consorcio-Id": "1"}
 
 
 @pytest.fixture()
 def headers_representante() -> dict[str, str]:
     token = create_access_token(user_id=4, rol=Rol.representante, departamento_id=None)
+    return {"Authorization": f"Bearer {token}", "X-Consorcio-Id": "1"}
+
+
+@pytest.fixture()
+def headers_super_admin(db_session) -> dict[str, str]:
+    from backend.models import Rol as _Rol, Usuario as _Usuario
+    sa = _Usuario(
+        id=5, email="sa@test.local",
+        password_hash=_PASSWORD_HASH,
+        rol=_Rol.super_admin,
+    )
+    db_session.add(sa)
+    db_session.commit()
+    token = create_access_token(user_id=5, rol=_Rol.super_admin, departamento_id=None)
     return {"Authorization": f"Bearer {token}"}
 
 
