@@ -44,3 +44,18 @@ def test_puede_crear_consorcio(db_empty):
     assert c.id is not None
     assert c.usa_personal_propio is True
     assert c.dia_primer_vencimiento == 10
+
+
+def test_puede_crear_audit_log(db_empty):
+    from backend.models import AuditLogSuperAdmin, Usuario, Rol
+    from backend.security import hash_password
+
+    u = Usuario(email="sa@x.com", password_hash=hash_password("x"), rol=Rol.super_admin)
+    db_empty.add(u); db_empty.flush()
+    log = AuditLogSuperAdmin(
+        super_admin_usuario_id=u.id,
+        accion="crear_admin",
+        motivo=None,
+    )
+    db_empty.add(log); db_empty.commit()
+    assert log.id is not None

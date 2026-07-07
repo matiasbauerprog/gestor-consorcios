@@ -903,3 +903,21 @@ class Consorcio(Base):
     )
 
     administracion: Mapped["Administracion"] = relationship(back_populates="consorcios")
+
+
+class AuditLogSuperAdmin(Base):
+    __tablename__ = "audit_log_super_admin"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    super_admin_usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="RESTRICT"), nullable=False
+    )
+    accion: Mapped[str] = mapped_column(String(80), nullable=False)
+    administracion_id_afectada: Mapped[int | None] = mapped_column(
+        ForeignKey("administraciones.id", ondelete="SET NULL"), nullable=True
+    )
+    motivo: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    detalles: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    fecha: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
+    )
