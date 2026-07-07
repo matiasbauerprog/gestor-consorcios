@@ -10,6 +10,7 @@ from ..models import (
     Amenity, EstadoReserva, MovimientoCuenta, Reserva, Rol, TipoMovimiento,
 )
 from ..schemas import ReservaOut
+from ..tenant import get_consorcio_activo
 
 router = APIRouter(prefix="/reservas", tags=["Amenities"])
 
@@ -24,6 +25,7 @@ def listar_reservas(
     estado: EstadoReserva | None = Query(default=None),
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[Reserva]:
     stmt = select(Reserva).order_by(Reserva.inicio.desc(), Reserva.id.desc())
     if user.rol == Rol.departamento:
@@ -43,6 +45,7 @@ def obtener_reserva(
     reserva_id: int,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Reserva:
     reserva = db.get(Reserva, reserva_id)
     if reserva is None:
@@ -70,6 +73,7 @@ def cancelar_reserva(
     reserva_id: int,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Reserva:
     reserva = db.get(Reserva, reserva_id)
     if reserva is None:

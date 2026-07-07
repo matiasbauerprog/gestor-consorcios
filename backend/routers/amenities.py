@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, get_current_user, require_roles
 from ..database import get_db
 from ..models import Amenity, EstadoReserva, MovimientoCuenta, Reserva, Rol, TipoMovimiento
+from ..tenant import get_consorcio_activo
 from ..schemas import (
     AmenityActualizar,
     AmenityCrear,
@@ -30,6 +31,7 @@ def listar_amenities(
     incluir_inactivos: bool = False,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[Amenity]:
     stmt = select(Amenity).order_by(Amenity.nombre.asc())
     # incluir_inactivos solo aplica para admin; para depto/representante se ignora silenciosamente.
@@ -48,6 +50,7 @@ def crear_amenity(
     payload: AmenityCrear,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Amenity:
     duplicado = db.scalar(select(Amenity.id).where(Amenity.nombre == payload.nombre))
     if duplicado is not None:
@@ -74,6 +77,7 @@ def actualizar_amenity(
     payload: AmenityActualizar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Amenity:
     amenity = db.get(Amenity, amenity_id)
     if amenity is None:
@@ -117,6 +121,7 @@ def consultar_disponibilidad(
     hasta: date = Query(..., description="Fecha final del rango (ISO 8601)."),
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> DisponibilidadOut:
     if desde > hasta:
         raise HTTPException(
@@ -163,6 +168,7 @@ def crear_reserva(
     payload: ReservaCrear,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.administracion, Rol.departamento)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Reserva:
     amenity = db.get(Amenity, amenity_id)
     if amenity is None:
@@ -286,6 +292,7 @@ def dar_de_baja_amenity(
     amenity_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Amenity:
     amenity = db.get(Amenity, amenity_id)
     if amenity is None:

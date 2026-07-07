@@ -6,6 +6,7 @@ from ..auth import CurrentUser, require_roles
 from ..database import get_db
 from ..models import Haber, Rol
 from ..schemas import HaberActualizar, HaberCrear, HaberOut
+from ..tenant import get_consorcio_activo
 
 router = APIRouter(prefix="/haberes", tags=["Personal"])
 
@@ -20,6 +21,7 @@ def listar_haberes(
     activo: bool | None = Query(default=None),
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[Haber]:
     stmt = select(Haber).order_by(Haber.orden.asc(), Haber.nombre.asc())
     if activo is not None:
@@ -37,6 +39,7 @@ def crear_haber(
     payload: HaberCrear,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Haber:
     duplicado = db.scalar(select(Haber.id).where(Haber.nombre == payload.nombre))
     if duplicado is not None:
@@ -68,6 +71,7 @@ def obtener_haber(
     haber_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Haber:
     haber = db.get(Haber, haber_id)
     if haber is None:
@@ -89,6 +93,7 @@ def actualizar_haber(
     payload: HaberActualizar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Haber:
     haber = db.get(Haber, haber_id)
     if haber is None:
@@ -115,6 +120,7 @@ def eliminar_haber(
     haber_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Haber:
     haber = db.get(Haber, haber_id)
     if haber is None:

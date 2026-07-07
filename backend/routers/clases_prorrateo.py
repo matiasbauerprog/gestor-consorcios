@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, require_roles
 from ..database import get_db
 from ..models import ClaseProrrateo, CoeficienteDepartamento, Rol
+from ..tenant import get_consorcio_activo
 from ..schemas import (
     ClaseProrrateoActualizar,
     ClaseProrrateoCrear,
@@ -24,6 +25,7 @@ def listar_clases(
     activa: bool | None = Query(default=None, description="Filtrar por estado activo"),
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[ClaseProrrateo]:
     stmt = select(ClaseProrrateo).order_by(ClaseProrrateo.codigo.asc())
     if activa is not None:
@@ -41,6 +43,7 @@ def crear_clase(
     payload: ClaseProrrateoCrear,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> ClaseProrrateo:
     duplicada = db.scalar(
         select(ClaseProrrateo.id).where(ClaseProrrateo.codigo == payload.codigo)
@@ -73,6 +76,7 @@ def obtener_clase(
     clase_prorrateo_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> ClaseProrrateo:
     clase = db.get(ClaseProrrateo, clase_prorrateo_id)
     if clase is None:
@@ -94,6 +98,7 @@ def actualizar_clase(
     payload: ClaseProrrateoActualizar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> ClaseProrrateo:
     clase = db.get(ClaseProrrateo, clase_prorrateo_id)
     if clase is None:

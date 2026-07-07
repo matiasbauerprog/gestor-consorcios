@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, require_roles
 from ..database import get_db
 from ..models import ConceptoLiquidacion, Proveedor, Rol
+from ..tenant import get_consorcio_activo
 from ..schemas import (
     ConceptoLiquidacionActualizar,
     ConceptoLiquidacionCrear,
@@ -34,6 +35,7 @@ def listar_conceptos(
     activo: bool | None = Query(default=None),
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[ConceptoLiquidacion]:
     stmt = select(ConceptoLiquidacion).order_by(
         ConceptoLiquidacion.orden.asc(), ConceptoLiquidacion.nombre.asc()
@@ -53,6 +55,7 @@ def crear_concepto(
     payload: ConceptoLiquidacionCrear,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> ConceptoLiquidacion:
     duplicado = db.scalar(
         select(ConceptoLiquidacion.id).where(ConceptoLiquidacion.nombre == payload.nombre)
@@ -89,6 +92,7 @@ def obtener_concepto(
     concepto_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> ConceptoLiquidacion:
     concepto = db.get(ConceptoLiquidacion, concepto_id)
     if concepto is None:
@@ -110,6 +114,7 @@ def actualizar_concepto(
     payload: ConceptoLiquidacionActualizar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> ConceptoLiquidacion:
     concepto = db.get(ConceptoLiquidacion, concepto_id)
     if concepto is None:
@@ -140,6 +145,7 @@ def eliminar_concepto(
     concepto_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> ConceptoLiquidacion:
     concepto = db.get(ConceptoLiquidacion, concepto_id)
     if concepto is None:

@@ -6,6 +6,7 @@ from ..auth import CurrentUser, require_roles
 from ..database import get_db
 from ..models import Empleado, LiquidacionEmpleado, Proveedor, Rol
 from ..schemas import EmpleadoActualizar, EmpleadoCrear, EmpleadoOut
+from ..tenant import get_consorcio_activo
 
 router = APIRouter(prefix="/empleados", tags=["Personal"])
 
@@ -28,6 +29,7 @@ def listar_empleados(
     activo: bool | None = Query(default=True),
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[Empleado]:
     stmt = select(Empleado).order_by(Empleado.nombre_completo.asc())
     if activo is not None:
@@ -45,6 +47,7 @@ def crear_empleado(
     payload: EmpleadoCrear,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Empleado:
     duplicado = db.scalar(select(Empleado.id).where(Empleado.cuil == payload.cuil))
     if duplicado is not None:
@@ -81,6 +84,7 @@ def obtener_empleado(
     empleado_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Empleado:
     empleado = db.get(Empleado, empleado_id)
     if empleado is None:
@@ -102,6 +106,7 @@ def actualizar_empleado(
     payload: EmpleadoActualizar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Empleado:
     empleado = db.get(Empleado, empleado_id)
     if empleado is None:

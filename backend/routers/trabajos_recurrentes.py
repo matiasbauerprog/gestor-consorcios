@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, require_roles
 from ..database import get_db
 from ..models import Proveedor, Rol, Trabajo, TrabajoRecurrente
+from ..tenant import get_consorcio_activo
 from ..schemas import (
     TrabajoOut,
     TrabajoRecurrenteActualizar,

@@ -14,6 +14,7 @@ from ..models import (
     Rol,
     Trabajo,
 )
+from ..tenant import get_consorcio_activo
 from ..notificaciones import notificar_cambio_estado_peticion
 from ..schemas import (
     CompletarTrabajoOut,
@@ -39,6 +40,7 @@ def crear_trabajo(
     payload: TrabajoCrear,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Trabajo:
     peticion_id: int | None = None
     peticion_a_notificar: Peticion | None = None
@@ -86,6 +88,7 @@ def actualizar_trabajo(
     payload: TrabajoActualizar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Trabajo:
     trabajo = db.get(Trabajo, trabajo_id)
     if trabajo is None:
@@ -111,6 +114,7 @@ def actualizar_trabajo(
 def listar_trabajos(
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[Trabajo]:
     return list(
         db.scalars(select(Trabajo).order_by(Trabajo.fecha_creacion.desc())).all()
@@ -122,6 +126,7 @@ def obtener_trabajo(
     trabajo_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Trabajo:
     t = db.get(Trabajo, trabajo_id)
     if t is None:
@@ -141,6 +146,7 @@ def completar_trabajo(
     trabajo_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> CompletarTrabajoOut:
     t = db.get(Trabajo, trabajo_id)
     if t is None:

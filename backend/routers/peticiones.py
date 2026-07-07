@@ -7,6 +7,7 @@ from ..database import get_db
 from ..models import EstadoPeticion, Peticion, Rol
 from ..notificaciones import notificar_cambio_estado_peticion
 from ..schemas import PeticionActualizar, PeticionCrear, PeticionOut
+from ..tenant import get_consorcio_activo
 
 _ADMIN_O_REPRESENTANTE = (Rol.administracion, Rol.representante)
 
@@ -21,6 +22,7 @@ router = APIRouter(prefix="/peticiones", tags=["Tareas"])
 def listar_peticiones(
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[Peticion]:
     # Todos los roles (admin, representante, departamento) ven TODAS las peticiones.
     # Transparencia: cada depto ve en qué estado están sus propias peticiones
@@ -39,6 +41,7 @@ def crear_peticion(
     payload: PeticionCrear,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.departamento)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Peticion:
     # departamento_id NUNCA del body: siempre del token.
     peticion = Peticion(
@@ -62,6 +65,7 @@ def obtener_peticion(
     peticion_id: int,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Peticion:
     peticion = db.get(Peticion, peticion_id)
     if peticion is None:
@@ -90,6 +94,7 @@ def actualizar_peticion(
     payload: PeticionActualizar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Peticion:
     peticion = db.get(Peticion, peticion_id)
     if peticion is None:
@@ -128,6 +133,7 @@ def eliminar_peticion(
     peticion_id: int,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> None:
     peticion = db.get(Peticion, peticion_id)
     if peticion is None:

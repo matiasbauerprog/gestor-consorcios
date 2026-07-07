@@ -8,6 +8,7 @@ from ..caja_saldo import MovimientoSnapshot, calcular_saldo
 from ..database import get_db
 from ..models import Caja, MovimientoCaja, PeriodoCerrado, Rol, TipoMovimientoCaja
 from ..schemas import AjusteCrear, CajaCrear, CajaActualizar, CajaOut, MovimientoCajaOut
+from ..tenant import get_consorcio_activo
 
 router = APIRouter(prefix="/cajas", tags=["Cajas"])
 
@@ -40,6 +41,7 @@ def _bloquear_si_periodo_cerrado_por_fecha(db: Session, fecha) -> None:
 def listar_cajas(
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[CajaOut]:
     cajas = db.scalars(select(Caja).order_by(Caja.id)).all()
     out = []
@@ -56,6 +58,7 @@ def crear_caja(
     payload: CajaCrear,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> CajaOut:
     if db.scalar(select(Caja).where(Caja.nombre == payload.nombre)):
         raise HTTPException(400, f"Ya existe una caja con el nombre '{payload.nombre}'.")
@@ -72,6 +75,7 @@ def actualizar_caja(
     payload: CajaActualizar,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> CajaOut:
     caja = db.get(Caja, caja_id)
     if caja is None:
@@ -111,6 +115,7 @@ def listar_movimientos(
     offset: int = 0,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[MovimientoCaja]:
     if db.get(Caja, caja_id) is None:
         raise HTTPException(404, "Caja no encontrada.")
@@ -133,6 +138,7 @@ def crear_ajuste(
     payload: AjusteCrear,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> MovimientoCaja:
     caja = db.get(Caja, caja_id)
     if caja is None:

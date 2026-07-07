@@ -62,9 +62,9 @@ def db(db_empty: Session) -> Session:
         tasa_interes_mensual_pct=3.0,
     ))
     db_empty.flush()
-    db_empty.add(Departamento(consorcio_id=1, id=1, consorcio_id=1, codigo="UF-1A", descripcion="Depto A"))
-    db_empty.add(Departamento(consorcio_id=1, id=2, consorcio_id=1, codigo="UF-2B", descripcion="Depto B"))
-    db_empty.add(Caja(consorcio_id=1, id=900,
+    db_empty.add(Departamento(id=1, consorcio_id=1, codigo="UF-1A", descripcion="Depto A"))
+    db_empty.add(Departamento(id=2, consorcio_id=1, codigo="UF-2B", descripcion="Depto B"))
+    db_empty.add(Caja(id=900,
         consorcio_id=1,
         nombre="Banco Test",
         tipo=TipoCaja.banco,
@@ -98,7 +98,7 @@ def clase_50_50(db: Session) -> ClaseProrrateo:
 
 
 def _gasto(periodo, monto, proveedor_id, *, clase_id=None, depto_id=None, rubro=Rubro.servicios_publicos, concepto="Test"):
-    return Gasto(consorcio_id=1,  consorcio_id=1,
+    return Gasto(consorcio_id=1,
         periodo=periodo, monto=monto, rubro=rubro,
         clase_prorrateo_id=clase_id, departamento_id=depto_id,
         proveedor_id=proveedor_id, concepto=concepto,
@@ -207,14 +207,14 @@ def test_intereses_depto_al_dia_devuelve_cero(db):
 
 def test_intereses_un_mes_de_mora_calcula_correcto(db, proveedor):
     # Expensa de abril, 2° venc 20-may, monto 1000, sin pago. Calcular al 30-may.
-    expensa = Expensa(consorcio_id=1,  consorcio_id=1,
+    expensa = Expensa(consorcio_id=1,
         departamento_id=1, periodo="2026-04",
         monto_primer_vencimiento=1000, fecha_primer_vencimiento=date(2026, 5, 10),
         monto_segundo_vencimiento=1070, fecha_segundo_vencimiento=date(2026, 5, 20),
         saldo_anterior=0.0,
     )
     db.add(expensa); db.flush()
-    db.add(MovimientoCuenta(consorcio_id=1,  consorcio_id=1,
+    db.add(MovimientoCuenta(consorcio_id=1,
         departamento_id=1, fecha=date(2026, 5, 1),
         tipo=TipoMovimiento.expensa_emitida, descripcion="Expensa 2026-04",
         monto=1000, expensa_id=expensa.id,

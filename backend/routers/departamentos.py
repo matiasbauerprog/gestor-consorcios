@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, require_roles
 from ..database import get_db
 from ..models import ClaseProrrateo, CoeficienteDepartamento, Departamento, Rol
+from ..tenant import get_consorcio_activo
 from ..schemas import (
     CoeficienteOut,
     CoeficientesReemplazar,
@@ -25,6 +26,7 @@ router = APIRouter(prefix="/departamentos", tags=["Administracion"])
 def listar_departamentos(
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[Departamento]:
     stmt = select(Departamento).order_by(Departamento.codigo.asc())
     return list(db.scalars(stmt).all())
@@ -40,6 +42,7 @@ def crear_departamento(
     payload: DepartamentoCrear,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Departamento:
     duplicado = db.scalar(select(Departamento.id).where(Departamento.codigo == payload.codigo))
     if duplicado is not None:
@@ -66,6 +69,7 @@ def actualizar_departamento(
     payload: DepartamentoActualizar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Departamento:
     departamento = db.get(Departamento, departamento_id)
     if departamento is None:
@@ -93,6 +97,7 @@ def listar_coeficientes(
     departamento_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[CoeficienteOut]:
     depto = db.get(Departamento, departamento_id)
     if depto is None:
@@ -129,6 +134,7 @@ def reemplazar_coeficientes(
     payload: CoeficientesReemplazar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[CoeficienteOut]:
     depto = db.get(Departamento, departamento_id)
     if depto is None:

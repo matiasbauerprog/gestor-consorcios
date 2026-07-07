@@ -10,6 +10,7 @@ from ..models import (
     TipoMovimientoCaja, TransferenciaCaja
 )
 from ..schemas import TransferenciaCajaCrear, TransferenciaCajaOut
+from ..tenant import get_consorcio_activo
 
 router = APIRouter(prefix="/transferencias-caja", tags=["TransferenciasCaja"])
 

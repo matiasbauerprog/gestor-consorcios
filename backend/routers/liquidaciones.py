@@ -26,6 +26,7 @@ from ..models import (
     TipoHaber,
     TipoMovimientoCaja,
 )
+from ..tenant import get_consorcio_activo
 from ..schemas import (
     LiquidacionEmpleadoActualizar,
     LiquidacionEmpleadoCrear,
@@ -279,6 +280,7 @@ def listar_liquidaciones(
     empleado_id: int | None = Query(default=None, gt=0),
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[LiquidacionEmpleado]:
     stmt = select(LiquidacionEmpleado).order_by(
         LiquidacionEmpleado.periodo.desc(), LiquidacionEmpleado.id.desc()
@@ -300,6 +302,7 @@ def crear_liquidacion(
     payload: LiquidacionEmpleadoCrear,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> LiquidacionEmpleado:
     # Bloquear si el período está cerrado
     _bloquear_si_periodo_cerrado(db, payload.periodo)
@@ -356,6 +359,7 @@ def obtener_liquidacion(
     liquidacion_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> LiquidacionEmpleado:
     liq = db.get(LiquidacionEmpleado, liquidacion_id)
     if liq is None:
@@ -377,6 +381,7 @@ def actualizar_liquidacion(
     payload: LiquidacionEmpleadoActualizar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> LiquidacionEmpleado:
     liq = db.get(LiquidacionEmpleado, liquidacion_id)
     if liq is None:
@@ -429,6 +434,7 @@ def eliminar_liquidacion(
     liquidacion_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Response:
     liq = db.get(LiquidacionEmpleado, liquidacion_id)
     if liq is None:
