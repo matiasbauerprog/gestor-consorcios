@@ -159,7 +159,18 @@ def migrar(db: Session) -> None:
     _adoptar_tabla(db, "notificaciones", consorcio.id)
     logger.info(f"Adoptada tabla notificaciones bajo consorcio #{consorcio.id}")
 
-    # Task 15 se encarga de asignar administracion_id a admins + drop configuracion_consorcio.
+    # Asignar administracion_id a todos los usuarios con rol administracion
+    db.execute(
+        text("UPDATE usuarios SET administracion_id = :aid WHERE rol = 'administracion'"),
+        {"aid": admin.id},
+    )
+    logger.info(f"Usuarios administracion asignados al tenant #{admin.id}")
+
+    # Drop configuracion_consorcio (ya migrada a Consorcio) si existe
+    if _tabla_existe(db, "configuracion_consorcio"):
+        db.execute(text("DROP TABLE configuracion_consorcio"))
+        logger.info("Tabla configuracion_consorcio eliminada")
+
     db.commit()
 
 

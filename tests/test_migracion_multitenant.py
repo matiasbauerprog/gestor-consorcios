@@ -213,3 +213,35 @@ def test_migracion_adopta_grupo_gastos(db_empty):
 
     r = db_empty.execute(text("SELECT consorcio_id FROM gastos WHERE id=1")).first()
     assert r[0] == 1
+
+
+def test_migracion_asigna_administracion_a_admins(db_empty):
+    from backend.migrate_multitenant import migrar
+    from backend.models import Rol, Usuario
+    from backend.security import hash_password
+    from sqlalchemy import text
+
+    # Sembrar admin pre-migración (sin administracion_id)
+    db_empty.execute(text(
+        "INSERT INTO usuarios (id, email, password_hash, rol, must_change_password) "
+        "VALUES (1, 'admin@x.com', :h, 'administracion', 0)"
+    ), {"h": hash_password("x")})
+    db_empty.commit()
+
+    migrar(db_empty)
+
+    u = db_empty.query(Usuario).filter(Usuario.email == "admin@x.com").first()
+    assert u.administracion_id == 1
+
+
+def test_migracion_dropea_configuracion_consorcio(db_empty):
+    from backend.migrate_multitenant import migrar
+    from sqlalchemy import text
+
+    # No hay ConfiguracionConsorcio en db_empty (fue removido del modelo),
+    # así que este test verifica el comportamiento con la tabla ausente.
+    migrar(db_empty)
+    r = db_empty.execute(text(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='configuracion_consorcio'"
+    )).first()
+    assert r is None
