@@ -8,6 +8,7 @@ from ..auth import CurrentUser, get_current_user, require_roles
 from ..database import get_db
 from ..models import Comunicado, Rol
 from ..schemas import ComunicadoCrear, ComunicadoOut
+from ..tenant import get_consorcio_activo
 
 router = APIRouter(prefix="/comunicados", tags=["Comunicación"])
 
@@ -21,10 +22,11 @@ router = APIRouter(prefix="/comunicados", tags=["Comunicación"])
 def listar_comunicados(
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[Comunicado]:
     stmt = (
         select(Comunicado)
-        .where(Comunicado.eliminado_at.is_(None))
+        .where(Comunicado.consorcio_id == cid, Comunicado.eliminado_at.is_(None))
         .order_by(Comunicado.fecha_publicacion.desc(), Comunicado.id.desc())
     )
     return list(db.scalars(stmt).all())
@@ -40,9 +42,11 @@ def crear_comunicado(
     payload: ComunicadoCrear,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Comunicado:
-    # autor_id NUNCA del body: siempre del token.
+    # autor_id y consorcio_id NUNCA del body: del token/header.
     comunicado = Comunicado(
+        consorcio_id=cid,
         titulo=payload.titulo,
         cuerpo=payload.cuerpo,
         autor_id=user.id,
@@ -62,9 +66,10 @@ def borrar_comunicado(
     comunicado_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> None:
     comunicado = db.get(Comunicado, comunicado_id)
-    if comunicado is None or comunicado.eliminado_at is not None:
+    if comunicado is None or comunicado.consorcio_id != cid or comunicado.eliminado_at is not None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El comunicado no existe.",
