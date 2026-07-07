@@ -28,6 +28,7 @@ from .routers import (
     gastos_habituales,
     haberes,
     liquidaciones,
+    me,
     movimientos,
     notificaciones,
     periodos,
@@ -94,6 +95,7 @@ async def validation_exception_handler(_: Request, exc: RequestValidationError) 
 
 
 app.include_router(auth.router)
+app.include_router(me.router)
 app.include_router(empleados.router)
 app.include_router(peticiones.router)
 app.include_router(presupuestos.router)
