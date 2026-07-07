@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, require_roles
 from ..database import get_db
 from ..models import Caja, ClaseProrrateo, Gasto, GastoHabitual, Proveedor, Rol
+from ..tenant import get_consorcio_activo
 from ..schemas import (
     GastoHabitualActualizar,
     GastoHabitualCrear,
@@ -53,8 +54,9 @@ def listar_habituales(
     activa: bool | None = Query(default=None),
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[GastoHabitual]:
-    stmt = select(GastoHabitual).order_by(GastoHabitual.nombre.asc())
+    stmt = select(GastoHabitual).where(GastoHabitual.consorcio_id == cid).order_by(GastoHabitual.nombre.asc())
     if activa is not None:
         stmt = stmt.where(GastoHabitual.activa == activa)
     return list(db.scalars(stmt).all())
@@ -70,11 +72,13 @@ def crear_habitual(
     payload: GastoHabitualCrear,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> GastoHabitual:
     _validar_referencias(db, payload.clase_prorrateo_id, payload.proveedor_id)
     _validar_caja_activa(db, payload.caja_id)
 
     plantilla = GastoHabitual(
+        consorcio_id=cid,
         nombre=payload.nombre,
         rubro=payload.rubro,
         clase_prorrateo_id=payload.clase_prorrateo_id,
@@ -101,9 +105,10 @@ def obtener_habitual(
     gasto_habitual_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> GastoHabitual:
     plantilla = db.get(GastoHabitual, gasto_habitual_id)
-    if plantilla is None:
+    if plantilla is None or plantilla.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La plantilla solicitada no existe.",
@@ -122,9 +127,10 @@ def actualizar_habitual(
     payload: GastoHabitualActualizar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> GastoHabitual:
     plantilla = db.get(GastoHabitual, gasto_habitual_id)
-    if plantilla is None:
+    if plantilla is None or plantilla.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La plantilla solicitada no existe.",
@@ -160,9 +166,10 @@ def eliminar_habitual(
     gasto_habitual_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ):
     plantilla = db.get(GastoHabitual, gasto_habitual_id)
-    if plantilla is None:
+    if plantilla is None or plantilla.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La plantilla solicitada no existe.",
