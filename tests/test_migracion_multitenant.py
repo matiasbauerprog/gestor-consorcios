@@ -245,3 +245,60 @@ def test_migracion_dropea_configuracion_consorcio(db_empty):
         "SELECT name FROM sqlite_master WHERE type='table' AND name='configuracion_consorcio'"
     )).first()
     assert r is None
+
+
+def test_migracion_end_to_end_con_datos_variados(db_empty):
+    """
+    Simula una DB con datos productivos (single-tenant) y verifica que después
+    de migrar todo tiene consorcio_id = 1.
+    """
+    from backend.migrate_multitenant import migrar
+    from sqlalchemy import text
+
+    # Recrear tablas base sin consorcio_id para simular pre-migración
+    db_empty.execute(text("DROP TABLE departamentos"))
+    db_empty.execute(text(
+        "CREATE TABLE departamentos ("
+        "id INTEGER PRIMARY KEY, "
+        "codigo VARCHAR(32) NOT NULL, "
+        "descripcion VARCHAR(255))"
+    ))
+    db_empty.execute(text("DROP TABLE proveedores"))
+    db_empty.execute(text(
+        "CREATE TABLE proveedores ("
+        "id INTEGER PRIMARY KEY, "
+        "razon_social VARCHAR(255) NOT NULL, "
+        "cuit VARCHAR(13) NOT NULL, "
+        "activo BOOLEAN NOT NULL DEFAULT 1)"
+    ))
+    db_empty.execute(text("DROP TABLE cajas"))
+    db_empty.execute(text(
+        "CREATE TABLE cajas ("
+        "id INTEGER PRIMARY KEY, "
+        "nombre VARCHAR(100) NOT NULL, "
+        "tipo VARCHAR NOT NULL, "
+        "saldo_inicial FLOAT NOT NULL DEFAULT 0, "
+        "activa BOOLEAN NOT NULL DEFAULT 1, "
+        "created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+    ))
+    # Sembrar datos legacy
+    db_empty.execute(text(
+        "INSERT INTO departamentos (id, codigo, descripcion) VALUES "
+        "(1, 'UF-1', 'A'), (2, 'UF-2', 'B')"
+    ))
+    db_empty.execute(text(
+        "INSERT INTO proveedores (id, razon_social, cuit) VALUES "
+        "(1, 'X', '30-11111111-1')"
+    ))
+    db_empty.execute(text(
+        "INSERT INTO cajas (id, nombre, tipo, saldo_inicial, activa) VALUES "
+        "(1, 'Banco', 'banco', 0, 1)"
+    ))
+    db_empty.commit()
+
+    migrar(db_empty)
+
+    tablas = ["departamentos", "proveedores", "cajas"]
+    for tabla in tablas:
+        rows = db_empty.execute(text(f"SELECT consorcio_id FROM {tabla}")).all()
+        assert all(r[0] == 1 for r in rows), f"{tabla} tiene filas sin consorcio_id"
