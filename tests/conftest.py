@@ -111,8 +111,43 @@ def db_empty() -> Iterator:
 
 
 def _seed(db) -> None:
-    depto_a = Departamento(id=1, codigo="UF-1A", descripcion="Depto A")
-    depto_b = Departamento(id=2, codigo="UF-2B", descripcion="Depto B")
+    # Bridge multitenant: crear administracion+consorcio Demo antes de departamentos.
+    # Task 23 va a reestructurar esto; por ahora suficiente para deblockear tests.
+    from backend.models import Administracion, Consorcio
+
+    admin_tenant = Administracion(
+        id=1,
+        razon_social="Administración Test",
+        cuit="30-11111111-1",
+        email_contacto="admin@test.local",
+    )
+    db.add(admin_tenant)
+    db.flush()
+
+    consorcio = Consorcio(
+        id=1,
+        administracion_id=1,
+        nombre="Consorcio Test",
+        consorcio_domicilio="Av. Test 100",
+        consorcio_cuit="30-99999999-9",
+        admin_nombre="Admin Test",
+        admin_domicilio="Oficinas 200",
+        admin_email="admin@test.local",
+        admin_telefono="11-1111-1111",
+        admin_cuit="20-11111111-1",
+        admin_rpa="0001",
+        admin_situacion_fiscal="Monotributo",
+        banco_titular="Consorcio Test",
+        banco_nombre="Banco Test",
+        banco_sucursal="001",
+        banco_numero_cuenta="000-1234567/8",
+        banco_cbu="0000000000000000000000",
+    )
+    db.add(consorcio)
+    db.flush()
+
+    depto_a = Departamento(id=1, consorcio_id=1, codigo="UF-1A", descripcion="Depto A")
+    depto_b = Departamento(id=2, consorcio_id=1, codigo="UF-2B", descripcion="Depto B")
     db.add_all([depto_a, depto_b])
     db.flush()
 
