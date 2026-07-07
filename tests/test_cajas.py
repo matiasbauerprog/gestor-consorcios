@@ -55,8 +55,7 @@ def test_delete_caja_sin_movimientos_204(client, headers_admin):
 
 def test_delete_caja_con_movimientos_409(client, headers_admin, db_session):
     p = client.post("/cajas", json={"nombre": "Con movs", "tipo": "banco"}, headers=headers_admin).json()
-    db_session.add(MovimientoCaja(
-        caja_id=p["id"], fecha=date.today(), tipo=TipoMovimientoCaja.ajuste,
+    db_session.add(MovimientoCaja(consorcio_id=1, caja_id=p["id"], fecha=date.today(), tipo=TipoMovimientoCaja.ajuste,
         monto=100, descripcion="test ajuste"
     ))
     db_session.commit()
@@ -68,9 +67,9 @@ def test_saldo_actual_refleja_movimientos(client, headers_admin, db_session):
     p = client.post("/cajas", json={"nombre": "Saldo Test", "tipo": "banco", "saldo_inicial": 1000}, headers=headers_admin).json()
     caja_id = p["id"]
     db_session.add_all([
-        MovimientoCaja(caja_id=caja_id, fecha=date.today(), tipo=TipoMovimientoCaja.ingreso, monto=500, descripcion="x"),
-        MovimientoCaja(caja_id=caja_id, fecha=date.today(), tipo=TipoMovimientoCaja.egreso, monto=200, descripcion="x"),
-        MovimientoCaja(caja_id=caja_id, fecha=date.today(), tipo=TipoMovimientoCaja.ajuste, monto=-50, descripcion="x"),
+        MovimientoCaja(consorcio_id=1, caja_id=caja_id, fecha=date.today(), tipo=TipoMovimientoCaja.ingreso, monto=500, descripcion="x"),
+        MovimientoCaja(consorcio_id=1, caja_id=caja_id, fecha=date.today(), tipo=TipoMovimientoCaja.egreso, monto=200, descripcion="x"),
+        MovimientoCaja(consorcio_id=1, caja_id=caja_id, fecha=date.today(), tipo=TipoMovimientoCaja.ajuste, monto=-50, descripcion="x"),
     ])
     db_session.commit()
     r = client.get("/cajas", headers=headers_admin)

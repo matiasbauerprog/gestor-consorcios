@@ -13,8 +13,7 @@ def test_crear_notificacion_persiste(db):
 
 
 def test_notificar_abierta_a_convertida_crea_notif(db, capsys):
-    p = Peticion(
-        departamento_id=1, titulo="Test peti",
+    p = Peticion(consorcio_id=1, departamento_id=1, titulo="Test peti",
         descripcion="x", estado=EstadoPeticion.convertida_en_trabajo,
     )
     db.add(p); db.flush()
@@ -26,8 +25,7 @@ def test_notificar_abierta_a_convertida_crea_notif(db, capsys):
 
 
 def test_notificar_sin_cambio_estado_no_hace_nada(db):
-    p = Peticion(
-        departamento_id=1, titulo="X", descripcion="x",
+    p = Peticion(consorcio_id=1, departamento_id=1, titulo="X", descripcion="x",
         estado=EstadoPeticion.convertida_en_trabajo,
     )
     db.add(p); db.flush()
@@ -40,8 +38,8 @@ def test_notificar_sin_cambio_estado_no_hace_nada(db):
 def test_get_notificaciones_filtra_por_usuario(client, headers_depto_a, headers_depto_b, db):
     u_a = db.query(Usuario).filter_by(id=2).first()
     u_b = db.query(Usuario).filter_by(id=3).first()
-    db.add(Notificacion(usuario_id=u_a.id, mensaje="Para A", link="/peticiones"))
-    db.add(Notificacion(usuario_id=u_b.id, mensaje="Para B", link="/peticiones"))
+    db.add(Notificacion(consorcio_id=1, usuario_id=u_a.id, mensaje="Para A", link="/peticiones"))
+    db.add(Notificacion(consorcio_id=1, usuario_id=u_b.id, mensaje="Para B", link="/peticiones"))
     db.commit()
     r = client.get("/notificaciones", headers=headers_depto_a)
     assert r.status_code == 200
@@ -52,9 +50,9 @@ def test_get_notificaciones_filtra_por_usuario(client, headers_depto_a, headers_
 
 def test_no_leidas_count(client, headers_depto_a, db):
     u = db.query(Usuario).filter_by(id=2).first()
-    db.add(Notificacion(usuario_id=u.id, mensaje="No leida 1", leida=False))
-    db.add(Notificacion(usuario_id=u.id, mensaje="No leida 2", leida=False))
-    db.add(Notificacion(usuario_id=u.id, mensaje="Leida", leida=True))
+    db.add(Notificacion(consorcio_id=1, usuario_id=u.id, mensaje="No leida 1", leida=False))
+    db.add(Notificacion(consorcio_id=1, usuario_id=u.id, mensaje="No leida 2", leida=False))
+    db.add(Notificacion(consorcio_id=1, usuario_id=u.id, mensaje="Leida", leida=True))
     db.commit()
     r = client.get("/notificaciones/no-leidas-count", headers=headers_depto_a)
     assert r.status_code == 200
@@ -63,7 +61,7 @@ def test_no_leidas_count(client, headers_depto_a, db):
 
 def test_marcar_leida_solo_propia(client, headers_depto_a, db):
     u_b = db.query(Usuario).filter_by(id=3).first()
-    notif_ajena = Notificacion(usuario_id=u_b.id, mensaje="ajena", leida=False)
+    notif_ajena = Notificacion(consorcio_id=1, usuario_id=u_b.id, mensaje="ajena", leida=False)
     db.add(notif_ajena); db.commit()
     r = client.post(f"/notificaciones/{notif_ajena.id}/marcar-leida", headers=headers_depto_a)
     assert r.status_code == 404

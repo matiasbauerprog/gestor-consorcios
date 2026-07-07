@@ -23,18 +23,16 @@ def db_lista_para_cierre(db_session):
 
     # Asegurar coeficientes 50/50 para depto 1 y 2 con la clase existente
     # (si ya existen, SQLAlchemy los reutilizará)
-    db_session.add(CoeficienteDepartamento(departamento_id=1, clase_prorrateo_id=clase_id, porcentaje=50))
-    db_session.add(CoeficienteDepartamento(departamento_id=2, clase_prorrateo_id=clase_id, porcentaje=50))
+    db_session.add(CoeficienteDepartamento(consorcio_id=1, departamento_id=1, clase_prorrateo_id=clase_id, porcentaje=50))
+    db_session.add(CoeficienteDepartamento(consorcio_id=1, departamento_id=2, clase_prorrateo_id=clase_id, porcentaje=50))
 
-    db_session.add(Gasto(
-        periodo="2026-07", monto=1000, rubro=Rubro.servicios_publicos,
+    db_session.add(Gasto(consorcio_id=1, periodo="2026-07", monto=1000, rubro=Rubro.servicios_publicos,
         clase_prorrateo_id=clase_id, departamento_id=None,
         proveedor_id=proveedor_id, concepto="Luz",
         forma_pago=FormaPago.efectivo, caja_id=900,  # Fase 5: caja default
         fecha_pago=date(2026, 7, 10),
     ))
-    db_session.add(Gasto(
-        periodo="2026-07", monto=500, rubro=Rubro.servicios_publicos,
+    db_session.add(Gasto(consorcio_id=1, periodo="2026-07", monto=500, rubro=Rubro.servicios_publicos,
         clase_prorrateo_id=None, departamento_id=1,
         proveedor_id=proveedor_id, concepto="Reparación 1A",
         forma_pago=FormaPago.efectivo, caja_id=900,  # Fase 5: caja default

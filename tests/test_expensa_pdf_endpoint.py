@@ -24,8 +24,7 @@ def test_depto_descarga_su_propia_expensa(client, headers_depto_a, db_session):
     if expensa is None:
         # Crear una expensa para ese depto si no existe
         from datetime import date
-        expensa = Expensa(
-            departamento_id=depto_a_user.departamento_id, periodo="2099-12",
+        expensa = Expensa(consorcio_id=1, departamento_id=depto_a_user.departamento_id, periodo="2099-12",
             monto_primer_vencimiento=1000, fecha_primer_vencimiento=date(2099, 12, 10),
             monto_segundo_vencimiento=1070, fecha_segundo_vencimiento=date(2099, 12, 20),
             saldo_anterior=0,

@@ -20,6 +20,7 @@ from ..models import (
     Usuario,
 )
 from ..pdf import generar_pdf_boleta
+from ..tenant import get_consorcio_activo
 from ..schemas import (
     CerrarPeriodoIn,
     EnviarPdfsIn,
@@ -76,9 +77,12 @@ def _preview_to_out(preview) -> PreviewCierreOut:
 def listar_periodos(
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[PeriodoCerrado]:
     return list(db.scalars(
-        select(PeriodoCerrado).order_by(PeriodoCerrado.fecha_cierre.desc())
+        select(PeriodoCerrado)
+        .where(PeriodoCerrado.consorcio_id == cid)
+        .order_by(PeriodoCerrado.fecha_cierre.desc())
     ).all())
 
 
@@ -87,6 +91,7 @@ def estado_periodo(
     periodo: str,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    _cid: int = Depends(get_consorcio_activo),
 ) -> EstadoCierreOut:
     if not re.fullmatch(_PERIODO_PATTERN, periodo):
         raise HTTPException(400, "Período inválido. Use formato YYYY-MM.")
@@ -106,6 +111,7 @@ def preview_periodo(
     fecha_2: date | None = Query(default=None),
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    _cid: int = Depends(get_consorcio_activo),
 ) -> PreviewCierreOut:
     if not re.fullmatch(_PERIODO_PATTERN, periodo):
         raise HTTPException(400, "Período inválido.")
@@ -121,6 +127,7 @@ def cerrar_periodo(
     payload: CerrarPeriodoIn,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> PeriodoCerrado:
     if not re.fullmatch(_PERIODO_PATTERN, periodo):
         raise HTTPException(400, "Período inválido.")
@@ -139,6 +146,7 @@ def cerrar_periodo(
 
     for it in preview.intereses:
         db.add(MovimientoCuenta(
+            consorcio_id=cid,
             departamento_id=it.departamento_id,
             fecha=hoy,
             tipo=TipoMovimiento.interes_punitorio,
@@ -149,6 +157,7 @@ def cerrar_periodo(
 
     for exp in preview.expensas:
         e = Expensa(
+            consorcio_id=cid,
             departamento_id=exp.departamento_id,
             periodo=periodo,
             monto_primer_vencimiento=exp.monto_primer_vencimiento,
@@ -160,6 +169,7 @@ def cerrar_periodo(
         db.add(e); db.flush()
         for d in exp.detalle:
             db.add(ExpensaDetalle(
+                consorcio_id=cid,
                 expensa_id=e.id,
                 rubro=d.rubro,
                 clase_prorrateo_id=d.clase_prorrateo_id,
@@ -168,6 +178,7 @@ def cerrar_periodo(
                 monto=d.monto,
             ))
         db.add(MovimientoCuenta(
+            consorcio_id=cid,
             departamento_id=exp.departamento_id,
             fecha=hoy,
             tipo=TipoMovimiento.expensa_emitida,
@@ -178,6 +189,7 @@ def cerrar_periodo(
 
     cerrado = PeriodoCerrado(
         periodo=periodo,
+        consorcio_id=cid,
         cerrado_por_usuario_id=user.id,
         total_expensado=preview.total_expensado,
         total_intereses=preview.total_intereses,
@@ -200,6 +212,7 @@ def enviar_pdfs_periodo(
     payload: EnviarPdfsIn,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion)),
+    _cid: int = Depends(get_consorcio_activo),
 ) -> EnviarPdfsOut:
     # 1. Buscar expensas del período
     expensas = list(db.scalars(

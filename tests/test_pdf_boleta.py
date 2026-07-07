@@ -28,13 +28,11 @@ def test_genera_pdf_con_detalle_multi_rubro(db_session):
     from backend.models import Expensa, ExpensaDetalle, Rubro
     expensa = db_session.query(Expensa).first()
     db_session.add_all([
-        ExpensaDetalle(
-            expensa_id=expensa.id, rubro=Rubro.servicios_publicos,
+        ExpensaDetalle(consorcio_id=1, expensa_id=expensa.id, rubro=Rubro.servicios_publicos,
             clase_prorrateo_id=None, departamento_origen_id=None,
             concepto="Luz", monto=5000,
         ),
-        ExpensaDetalle(
-            expensa_id=expensa.id, rubro=Rubro.seguros,
+        ExpensaDetalle(consorcio_id=1, expensa_id=expensa.id, rubro=Rubro.seguros,
             clase_prorrateo_id=None, departamento_origen_id=None,
             concepto="Seguro hogar", monto=3000,
         ),

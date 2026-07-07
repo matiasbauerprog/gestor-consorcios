@@ -28,6 +28,7 @@ from ..models import (
 )
 from ..schemas import ComprobanteActualizar, ComprobanteOut
 from ..storage import guardar_imagen_comprobante
+from ..tenant import get_consorcio_activo
 
 router = APIRouter(prefix="/comprobantes", tags=["Expensas"])
 
@@ -45,10 +46,11 @@ def listar_comprobantes(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.administracion, Rol.departamento)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[Comprobante]:
     stmt = (
         select(Comprobante)
-        .where(Comprobante.eliminado_at.is_(None))
+        .where(Comprobante.consorcio_id == cid, Comprobante.eliminado_at.is_(None))
         .order_by(Comprobante.fecha_creacion.desc(), Comprobante.id.desc())
     )
 
@@ -78,6 +80,7 @@ def presentar_comprobante(
     archivo: UploadFile = File(...),
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.departamento)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Comprobante:
     if fecha_pago > date.today():
         raise HTTPException(
@@ -94,6 +97,7 @@ def presentar_comprobante(
     archivo_path = guardar_imagen_comprobante(archivo)
 
     comprobante = Comprobante(
+        consorcio_id=cid,
         departamento_id=user.departamento_id,
         fecha_pago=fecha_pago,
         monto=monto,
@@ -117,9 +121,10 @@ def actualizar_comprobante(
     payload: ComprobanteActualizar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Comprobante:
     comprobante = db.get(Comprobante, comprobante_id)
-    if comprobante is None or comprobante.eliminado_at is not None:
+    if comprobante is None or comprobante.consorcio_id != cid or comprobante.eliminado_at is not None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El comprobante solicitado no existe.",
@@ -139,7 +144,7 @@ def actualizar_comprobante(
         # Resolver caja destino
         caja_destino_id = payload.caja_destino_id
         if caja_destino_id is None:
-            cfg = db.get(Consorcio, 1)
+            cfg = db.get(Consorcio, cid)
             caja_destino_id = cfg.caja_default_pagos_id if cfg else None
         if caja_destino_id is None:
             raise HTTPException(
@@ -159,6 +164,7 @@ def actualizar_comprobante(
         # Generar MovimientoCuenta ingreso
         db.add(
             MovimientoCuenta(
+                consorcio_id=cid,
                 departamento_id=comprobante.departamento_id,
                 fecha=comprobante.fecha_pago,
                 tipo=TipoMovimiento.pago_recibido,
@@ -171,6 +177,7 @@ def actualizar_comprobante(
         # Generar MovimientoCaja ingreso
         db.add(
             MovimientoCaja(
+                consorcio_id=cid,
                 caja_id=caja_destino_id,
                 fecha=comprobante.fecha_pago,
                 tipo=TipoMovimientoCaja.ingreso,
@@ -194,9 +201,10 @@ def eliminar_comprobante(
     comprobante_id: int,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.administracion, Rol.departamento)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> None:
     comprobante = db.get(Comprobante, comprobante_id)
-    if comprobante is None or comprobante.eliminado_at is not None:
+    if comprobante is None or comprobante.consorcio_id != cid or comprobante.eliminado_at is not None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El comprobante solicitado no existe.",
