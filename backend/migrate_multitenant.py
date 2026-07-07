@@ -156,7 +156,10 @@ def migrar(db: Session) -> None:
         _adoptar_tabla(db, tabla, consorcio.id)
         logger.info(f"Adoptada tabla {tabla} bajo consorcio #{consorcio.id}")
 
-    # Las tareas 14-16 popularán consorcio_id en las tablas restantes.
+    _adoptar_tabla(db, "notificaciones", consorcio.id)
+    logger.info(f"Adoptada tabla notificaciones bajo consorcio #{consorcio.id}")
+
+    # Task 15 se encarga de asignar administracion_id a admins + drop configuracion_consorcio.
     db.commit()
 
 
