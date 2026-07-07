@@ -140,5 +140,6 @@ def cambiar_password(
         )
 
     usuario.password_hash = hash_password(payload.new_password)
+    usuario.must_change_password = False
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
