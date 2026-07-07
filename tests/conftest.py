@@ -197,6 +197,7 @@ def _seed(db) -> None:
         [
             Peticion(
                 id=10,
+                consorcio_id=1,
                 departamento_id=depto_a.id,
                 titulo="Filtración A",
                 descripcion="Cocina depto A",
@@ -204,6 +205,7 @@ def _seed(db) -> None:
             ),
             Peticion(
                 id=11,
+                consorcio_id=1,
                 departamento_id=depto_b.id,
                 titulo="Luz pasillo B",
                 descripcion="Pasillo depto B",

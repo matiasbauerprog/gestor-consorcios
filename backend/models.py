@@ -191,6 +191,10 @@ class Peticion(Base):
     __tablename__ = "peticiones"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     departamento_id: Mapped[int] = mapped_column(
         ForeignKey("departamentos.id", ondelete="RESTRICT"),
         nullable=False,
@@ -215,6 +219,10 @@ class Trabajo(Base):
     __tablename__ = "trabajos"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     peticion_id: Mapped[int | None] = mapped_column(
         ForeignKey("peticiones.id", ondelete="RESTRICT"),
         nullable=True,
@@ -247,6 +255,10 @@ class Presupuesto(Base):
     __tablename__ = "presupuestos"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     trabajo_id: Mapped[int] = mapped_column(
         ForeignKey("trabajos.id", ondelete="RESTRICT"),
         nullable=False, index=True,
@@ -854,6 +866,10 @@ class TrabajoRecurrente(Base):
     __tablename__ = "trabajos_recurrentes"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     nombre: Mapped[str] = mapped_column(String(255), nullable=False)
     descripcion: Mapped[str] = mapped_column(String(2000), nullable=False)
     periodicidad: Mapped[PeriodicidadRecurrente] = mapped_column(
