@@ -181,3 +181,35 @@ def test_migracion_adopta_grupo_expensas(db_empty):
 
     r = db_empty.execute(text("SELECT consorcio_id FROM expensas WHERE id=10")).first()
     assert r[0] == 1
+
+
+def test_migracion_adopta_grupo_gastos(db_empty):
+    from backend.migrate_multitenant import migrar
+    from sqlalchemy import text
+
+    db_empty.execute(text("DROP TABLE gastos"))
+    db_empty.execute(text(
+        "CREATE TABLE gastos ("
+        "id INTEGER PRIMARY KEY, "
+        "periodo VARCHAR(7) NOT NULL, "
+        "rubro VARCHAR NOT NULL, "
+        "clase_prorrateo_id INTEGER, "
+        "departamento_id INTEGER, "
+        "proveedor_id INTEGER NOT NULL, "
+        "concepto VARCHAR(500) NOT NULL, "
+        "monto FLOAT NOT NULL, "
+        "forma_pago VARCHAR NOT NULL, "
+        "caja_id INTEGER NOT NULL, "
+        "fecha_pago DATE NOT NULL"
+        ")"
+    ))
+    db_empty.execute(text(
+        "INSERT INTO gastos (id, periodo, rubro, proveedor_id, concepto, monto, forma_pago, caja_id, fecha_pago) "
+        "VALUES (1, '2026-05', 'servicios_publicos', 1, 'test', 100, 'transferencia', 1, '2026-05-01')"
+    ))
+    db_empty.commit()
+
+    migrar(db_empty)
+
+    r = db_empty.execute(text("SELECT consorcio_id FROM gastos WHERE id=1")).first()
+    assert r[0] == 1

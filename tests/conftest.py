@@ -316,6 +316,7 @@ def _seed(db) -> None:
             # Fase 2: plantilla habitual de ejemplo (id=700)
             GastoHabitual(
                 id=700,
+                consorcio_id=1,
                 nombre="Plantilla Test",
                 rubro=Rubro.abonos_y_servicios,
                 clase_prorrateo_id=500,  # clase A sembrada en Fase 1
@@ -329,6 +330,7 @@ def _seed(db) -> None:
             # Fase 2: gasto puntual de ejemplo (id=800), prorrateable por clase A
             Gasto(
                 id=800,
+                consorcio_id=1,
                 periodo="2026-06",
                 rubro=Rubro.servicios_publicos,
                 clase_prorrateo_id=500,

@@ -552,6 +552,10 @@ class GastoHabitual(Base):
     __tablename__ = "gastos_habituales"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     nombre: Mapped[str] = mapped_column(String(120), nullable=False)
     rubro: Mapped[Rubro] = mapped_column(SqlEnum(Rubro, name="rubro"), nullable=False)
     clase_prorrateo_id: Mapped[int] = mapped_column(
@@ -578,6 +582,10 @@ class Gasto(Base):
     __tablename__ = "gastos"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     periodo: Mapped[str] = mapped_column(String(7), index=True, nullable=False)
     rubro: Mapped[Rubro] = mapped_column(SqlEnum(Rubro, name="rubro"), nullable=False)
 
