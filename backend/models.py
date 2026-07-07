@@ -22,6 +22,7 @@ class Rol(str, enum.Enum):
     administracion = "administracion"
     representante = "representante"
     departamento = "departamento"
+    super_admin = "super_admin"
 
 
 class EstadoPeticion(str, enum.Enum):
@@ -838,3 +839,20 @@ class Notificacion(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(),
     )
+
+
+class Administracion(Base):
+    __tablename__ = "administraciones"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    razon_social: Mapped[str] = mapped_column(String(255), nullable=False)
+    cuit: Mapped[str] = mapped_column(String(13), unique=True, nullable=False)
+    email_contacto: Mapped[str] = mapped_column(String(255), nullable=False)
+    activa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    plan: Mapped[str] = mapped_column(String(50), nullable=False, default="free")
+    fecha_creacion: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    # consorcios: se agrega en Task 2 cuando exista el modelo Consorcio
+    # consorcios: Mapped[list["Consorcio"]] = relationship(back_populates="administracion")
