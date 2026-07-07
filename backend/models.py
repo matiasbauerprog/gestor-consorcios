@@ -294,10 +294,15 @@ class Comunicado(Base):
 class Expensa(Base):
     __tablename__ = "expensas"
     __table_args__ = (
-        UniqueConstraint("departamento_id", "periodo", name="uq_expensa_depto_periodo"),
+        UniqueConstraint("consorcio_id", "departamento_id", "periodo",
+                         name="uq_expensa_consorcio_depto_periodo"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     departamento_id: Mapped[int] = mapped_column(
         ForeignKey("departamentos.id", ondelete="RESTRICT"),
         nullable=False,
@@ -324,6 +329,10 @@ class ExpensaDetalle(Base):
     __tablename__ = "expensa_detalle"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     expensa_id: Mapped[int] = mapped_column(
         ForeignKey("expensas.id", ondelete="CASCADE"),
         nullable=False,
@@ -348,6 +357,10 @@ class PeriodoCerrado(Base):
     __tablename__ = "periodos_cerrados"
 
     periodo: Mapped[str] = mapped_column(String(7), primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     fecha_cierre: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -365,6 +378,10 @@ class Comprobante(Base):
     __tablename__ = "comprobantes"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     departamento_id: Mapped[int] = mapped_column(
         ForeignKey("departamentos.id", ondelete="RESTRICT"),
         nullable=False,
@@ -727,6 +744,10 @@ class MovimientoCuenta(Base):
     __tablename__ = "movimientos_cuenta"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     departamento_id: Mapped[int] = mapped_column(
         ForeignKey("departamentos.id", ondelete="RESTRICT"),
         nullable=False,

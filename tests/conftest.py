@@ -211,6 +211,7 @@ def _seed(db) -> None:
             ),
             Expensa(
                 id=100,
+                consorcio_id=1,
                 departamento_id=depto_a.id,
                 periodo="2026-05",
                 monto_primer_vencimiento=85000.00,
@@ -221,6 +222,7 @@ def _seed(db) -> None:
             ),
             Expensa(
                 id=101,
+                consorcio_id=1,
                 departamento_id=depto_b.id,
                 periodo="2026-05",
                 monto_primer_vencimiento=92000.00,
@@ -231,6 +233,7 @@ def _seed(db) -> None:
             ),
             MovimientoCuenta(
                 id=1100,
+                consorcio_id=1,
                 departamento_id=depto_a.id,
                 fecha=date(2026, 5, 1),
                 tipo=TipoMovimiento.expensa_emitida,
@@ -240,6 +243,7 @@ def _seed(db) -> None:
             ),
             MovimientoCuenta(
                 id=1101,
+                consorcio_id=1,
                 departamento_id=depto_b.id,
                 fecha=date(2026, 5, 1),
                 tipo=TipoMovimiento.expensa_emitida,

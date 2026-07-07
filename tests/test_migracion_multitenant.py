@@ -140,3 +140,44 @@ def test_migracion_agrega_consorcio_id_a_departamentos(db_empty):
     deptos = db_empty.query(Departamento).order_by(Departamento.id).all()
     assert len(deptos) == 2
     assert all(d.consorcio_id == 1 for d in deptos)  # consorcio Demo id=1
+
+
+def test_migracion_adopta_grupo_expensas(db_empty):
+    from backend.migrate_multitenant import migrar
+    from sqlalchemy import text
+
+    # Recrear las tablas del grupo sin consorcio_id (simulando pre-migración).
+    db_empty.execute(text("DROP TABLE expensas"))
+    db_empty.execute(text(
+        "CREATE TABLE expensas ("
+        "id INTEGER PRIMARY KEY, "
+        "departamento_id INTEGER NOT NULL, "
+        "periodo VARCHAR(7) NOT NULL, "
+        "monto_primer_vencimiento FLOAT NOT NULL, "
+        "fecha_primer_vencimiento DATE NOT NULL, "
+        "monto_segundo_vencimiento FLOAT NOT NULL, "
+        "fecha_segundo_vencimiento DATE NOT NULL, "
+        "saldo_anterior FLOAT NOT NULL DEFAULT 0"
+        ")"
+    ))
+    db_empty.execute(text("DROP TABLE departamentos"))
+    db_empty.execute(text(
+        "CREATE TABLE departamentos ("
+        "id INTEGER PRIMARY KEY, "
+        "codigo VARCHAR(32) NOT NULL, "
+        "descripcion VARCHAR(255))"
+    ))
+    db_empty.execute(text(
+        "INSERT INTO departamentos (id, codigo) VALUES (1, 'UF-1')"
+    ))
+    db_empty.execute(text(
+        "INSERT INTO expensas (id, departamento_id, periodo, monto_primer_vencimiento, "
+        "  fecha_primer_vencimiento, monto_segundo_vencimiento, fecha_segundo_vencimiento, saldo_anterior) "
+        "  VALUES (10, 1, '2026-05', 1000, '2026-07-10', 1070, '2026-07-20', 0)"
+    ))
+    db_empty.commit()
+
+    migrar(db_empty)
+
+    r = db_empty.execute(text("SELECT consorcio_id FROM expensas WHERE id=10")).first()
+    assert r[0] == 1
