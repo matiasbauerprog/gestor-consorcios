@@ -556,43 +556,6 @@ class Proveedor(Base):
     )
 
 
-class ConfiguracionConsorcio(Base):
-    __tablename__ = "configuracion_consorcio"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-
-    # consorcio
-    consorcio_nombre: Mapped[str] = mapped_column(String(255), nullable=False)
-    consorcio_domicilio: Mapped[str] = mapped_column(String(500), nullable=False)
-    consorcio_cuit: Mapped[str] = mapped_column(String(13), nullable=False)
-    consorcio_convenio_suterh: Mapped[str | None] = mapped_column(String(50))
-
-    # administración
-    admin_nombre: Mapped[str] = mapped_column(String(255), nullable=False)
-    admin_domicilio: Mapped[str] = mapped_column(String(500), nullable=False)
-    admin_email: Mapped[str] = mapped_column(String(255), nullable=False)
-    admin_telefono: Mapped[str] = mapped_column(String(50), nullable=False)
-    admin_cuit: Mapped[str] = mapped_column(String(13), nullable=False)
-    admin_rpa: Mapped[str] = mapped_column(String(50), nullable=False)
-    admin_situacion_fiscal: Mapped[str] = mapped_column(String(100), nullable=False)
-
-    # banco
-    banco_titular: Mapped[str] = mapped_column(String(255), nullable=False)
-    banco_nombre: Mapped[str] = mapped_column(String(100), nullable=False)
-    banco_sucursal: Mapped[str | None] = mapped_column(String(50))
-    banco_numero_cuenta: Mapped[str] = mapped_column(String(50), nullable=False)
-    banco_cbu: Mapped[str] = mapped_column(String(22), nullable=False)
-    banco_alias: Mapped[str | None] = mapped_column(String(50))
-
-    # vencimientos e intereses (Fase 4)
-    dia_primer_vencimiento: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
-    dias_entre_vencimientos: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
-    recargo_segundo_vencimiento_pct: Mapped[float] = mapped_column(Float, nullable=False, default=7.0)
-    tasa_interes_mensual_pct: Mapped[float] = mapped_column(Float, nullable=False, default=3.0)
-    caja_default_pagos_id: Mapped[int | None] = mapped_column(ForeignKey("cajas.id"))
-    reportes_visibles_a_depto: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-
-
 class GastoHabitual(Base):
     __tablename__ = "gastos_habituales"
 

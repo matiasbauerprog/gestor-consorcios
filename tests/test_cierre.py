@@ -9,10 +9,11 @@ from backend.cierre import (
     calcular_preview_cierre,
 )
 from backend.models import (
+    Administracion,
     Caja,
     ClaseProrrateo,
     CoeficienteDepartamento,
-    ConfiguracionConsorcio,
+    Consorcio,
     Departamento,
     Expensa,
     FormaPago,
@@ -33,20 +34,15 @@ from backend.models import (
 
 @pytest.fixture
 def db(db_empty: Session) -> Session:
-    """DB limpia con deptos 1 y 2 y ConfiguracionConsorcio mínima."""
-    db_empty.add(Departamento(id=1, codigo="UF-1A", descripcion="Depto A"))
-    db_empty.add(Departamento(id=2, codigo="UF-2B", descripcion="Depto B"))
-    # Fase 5: Caja default para tests
-    db_empty.add(Caja(
-        id=900,
-        nombre="Banco Test",
-        tipo=TipoCaja.banco,
-        saldo_inicial=0.0,
-        activa=True,
+    """DB limpia con administracion + consorcio + deptos 1 y 2 y caja default."""
+    db_empty.add(Administracion(
+        id=1, razon_social="Admin Demo", cuit="30-11-1", email_contacto="a@a.com",
     ))
-    db_empty.add(ConfiguracionConsorcio(
+    db_empty.flush()
+    db_empty.add(Consorcio(
         id=1,
-        consorcio_nombre="Consorcio Test",
+        administracion_id=1,
+        nombre="Consorcio Test",
         consorcio_domicilio="Av. Test 100",
         consorcio_cuit="30-99999999-9",
         admin_nombre="Admin Test",
@@ -60,20 +56,33 @@ def db(db_empty: Session) -> Session:
         banco_nombre="Banco Test",
         banco_numero_cuenta="000-1234567/8",
         banco_cbu="0000000000000000000000",
-        # Fase 4 defaults
         dia_primer_vencimiento=10,
         dias_entre_vencimientos=10,
         recargo_segundo_vencimiento_pct=7.0,
         tasa_interes_mensual_pct=3.0,
-        caja_default_pagos_id=900,  # Fase 5: caja default
     ))
+    db_empty.flush()
+    db_empty.add(Departamento(id=1, consorcio_id=1, codigo="UF-1A", descripcion="Depto A"))
+    db_empty.add(Departamento(id=2, consorcio_id=1, codigo="UF-2B", descripcion="Depto B"))
+    db_empty.add(Caja(
+        id=900,
+        consorcio_id=1,
+        nombre="Banco Test",
+        tipo=TipoCaja.banco,
+        saldo_inicial=0.0,
+        activa=True,
+    ))
+    db_empty.flush()
+    # Actualizar la caja default del consorcio ahora que la caja existe
+    c = db_empty.get(Consorcio, 1)
+    c.caja_default_pagos_id = 900
     db_empty.commit()
     return db_empty
 
 
 @pytest.fixture
 def proveedor(db: Session) -> Proveedor:
-    p = Proveedor(razon_social="ACME SRL", cuit="30-12345678-9")
+    p = Proveedor(consorcio_id=1, razon_social="ACME SRL", cuit="30-12345678-9")
     db.add(p); db.commit(); db.refresh(p)
     return p
 
@@ -81,16 +90,17 @@ def proveedor(db: Session) -> Proveedor:
 @pytest.fixture
 def clase_50_50(db: Session) -> ClaseProrrateo:
     """Clase A con 50/50 entre depto_a (id=1) y depto_b (id=2)."""
-    c = ClaseProrrateo(codigo="A", nombre="Clase A")
+    c = ClaseProrrateo(consorcio_id=1, codigo="A", nombre="Clase A")
     db.add(c); db.flush()
-    db.add(CoeficienteDepartamento(departamento_id=1, clase_prorrateo_id=c.id, porcentaje=50))
-    db.add(CoeficienteDepartamento(departamento_id=2, clase_prorrateo_id=c.id, porcentaje=50))
+    db.add(CoeficienteDepartamento(consorcio_id=1, departamento_id=1, clase_prorrateo_id=c.id, porcentaje=50))
+    db.add(CoeficienteDepartamento(consorcio_id=1, departamento_id=2, clase_prorrateo_id=c.id, porcentaje=50))
     db.commit(); db.refresh(c)
     return c
 
 
 def _gasto(periodo, monto, proveedor_id, *, clase_id=None, depto_id=None, rubro=Rubro.servicios_publicos, concepto="Test"):
     return Gasto(
+        consorcio_id=1,
         periodo=periodo, monto=monto, rubro=rubro,
         clase_prorrateo_id=clase_id, departamento_id=depto_id,
         proveedor_id=proveedor_id, concepto=concepto,
@@ -200,6 +210,7 @@ def test_intereses_depto_al_dia_devuelve_cero(db):
 def test_intereses_un_mes_de_mora_calcula_correcto(db, proveedor):
     # Expensa de abril, 2° venc 20-may, monto 1000, sin pago. Calcular al 30-may.
     expensa = Expensa(
+        consorcio_id=1,
         departamento_id=1, periodo="2026-04",
         monto_primer_vencimiento=1000, fecha_primer_vencimiento=date(2026, 5, 10),
         monto_segundo_vencimiento=1070, fecha_segundo_vencimiento=date(2026, 5, 20),
@@ -207,6 +218,7 @@ def test_intereses_un_mes_de_mora_calcula_correcto(db, proveedor):
     )
     db.add(expensa); db.flush()
     db.add(MovimientoCuenta(
+        consorcio_id=1,
         departamento_id=1, fecha=date(2026, 5, 1),
         tipo=TipoMovimiento.expensa_emitida, descripcion="Expensa 2026-04",
         monto=1000, expensa_id=expensa.id,

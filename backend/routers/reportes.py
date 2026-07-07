@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, get_current_user
 from ..database import get_db
-from ..models import ConfiguracionConsorcio, Rol
+from ..models import Consorcio, Rol
 from ..pdf import (
     generar_pdf_estado_financiero,
     generar_pdf_gastos_periodo,
@@ -37,7 +37,7 @@ def _validar_acceso_reportes(db: Session, user: CurrentUser) -> None:
     """403 si el usuario es departamento y la admin no habilitó la visibilidad."""
     if user.rol != Rol.departamento:
         return
-    config = db.get(ConfiguracionConsorcio, 1)
+    config = db.get(Consorcio, 1)
     if config is None or not config.reportes_visibles_a_depto:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -65,7 +65,7 @@ def pdf_morosos(
 ) -> Response:
     _validar_acceso_reportes(db, _u)
     items = calcular_morosos(db, solo_deudores=solo_deudores)
-    config = db.get(ConfiguracionConsorcio, 1)
+    config = db.get(Consorcio, 1)
     pdf = generar_pdf_morosos(items, date.today(), config)
     return Response(
         content=pdf,
@@ -94,7 +94,7 @@ def pdf_estado_financiero(
 ) -> Response:
     _validar_acceso_reportes(db, _u)
     rep = calcular_estado_financiero(db, fecha_corte or date.today())
-    config = db.get(ConfiguracionConsorcio, 1)
+    config = db.get(Consorcio, 1)
     pdf = generar_pdf_estado_financiero(rep, config)
     return Response(
         content=pdf,
@@ -127,7 +127,7 @@ def pdf_gastos_periodo(
 ) -> Response:
     _validar_acceso_reportes(db, _u)
     rep = calcular_gastos_del_periodo(db, periodo, rubro=rubro, proveedor_id=proveedor_id)
-    config = db.get(ConfiguracionConsorcio, 1)
+    config = db.get(Consorcio, 1)
     pdf = generar_pdf_gastos_periodo(rep, config)
     return Response(
         content=pdf,
@@ -158,7 +158,7 @@ def pdf_proveedores(
 ) -> Response:
     _validar_acceso_reportes(db, _u)
     items = calcular_lista_proveedores(db, anio=anio, periodo=periodo)
-    config = db.get(ConfiguracionConsorcio, 1)
+    config = db.get(Consorcio, 1)
     pdf = generar_pdf_lista_proveedores(items, anio, config)
     return Response(
         content=pdf,

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from .database import SessionLocal
-from .models import Administracion, Consorcio, ConfiguracionConsorcio
+from .models import Administracion, Consorcio
 
 logger = logging.getLogger(__name__)
 
@@ -41,34 +41,46 @@ def _crear_demo(db: Session) -> tuple[Administracion, Consorcio]:
 
     cfg = None
     if _tabla_existe(db, "configuracion_consorcio"):
-        cfg = db.query(ConfiguracionConsorcio).first()
+        # Leemos con raw SQL — el modelo Python ya fue eliminado
+        row = db.execute(text(
+            "SELECT consorcio_nombre, consorcio_domicilio, consorcio_cuit, "
+            "  consorcio_convenio_suterh, admin_nombre, admin_domicilio, admin_email, "
+            "  admin_telefono, admin_cuit, admin_rpa, admin_situacion_fiscal, "
+            "  banco_titular, banco_nombre, banco_sucursal, banco_numero_cuenta, "
+            "  banco_cbu, banco_alias, dia_primer_vencimiento, dias_entre_vencimientos, "
+            "  recargo_segundo_vencimiento_pct, tasa_interes_mensual_pct, "
+            "  caja_default_pagos_id, reportes_visibles_a_depto "
+            "FROM configuracion_consorcio LIMIT 1"
+        )).first()
+        if row is not None:
+            cfg = row._mapping
 
     if cfg is not None:
         c = Consorcio(
             administracion_id=admin.id,
-            nombre=cfg.consorcio_nombre,
-            consorcio_domicilio=cfg.consorcio_domicilio,
-            consorcio_cuit=cfg.consorcio_cuit,
-            consorcio_convenio_suterh=cfg.consorcio_convenio_suterh,
-            admin_nombre=cfg.admin_nombre,
-            admin_domicilio=cfg.admin_domicilio,
-            admin_email=cfg.admin_email,
-            admin_telefono=cfg.admin_telefono,
-            admin_cuit=cfg.admin_cuit,
-            admin_rpa=cfg.admin_rpa,
-            admin_situacion_fiscal=cfg.admin_situacion_fiscal,
-            banco_titular=cfg.banco_titular,
-            banco_nombre=cfg.banco_nombre,
-            banco_sucursal=cfg.banco_sucursal,
-            banco_numero_cuenta=cfg.banco_numero_cuenta,
-            banco_cbu=cfg.banco_cbu,
-            banco_alias=cfg.banco_alias,
-            dia_primer_vencimiento=cfg.dia_primer_vencimiento,
-            dias_entre_vencimientos=cfg.dias_entre_vencimientos,
-            recargo_segundo_vencimiento_pct=cfg.recargo_segundo_vencimiento_pct,
-            tasa_interes_mensual_pct=cfg.tasa_interes_mensual_pct,
-            caja_default_pagos_id=cfg.caja_default_pagos_id,
-            reportes_visibles_a_depto=cfg.reportes_visibles_a_depto,
+            nombre=cfg["consorcio_nombre"],
+            consorcio_domicilio=cfg["consorcio_domicilio"],
+            consorcio_cuit=cfg["consorcio_cuit"],
+            consorcio_convenio_suterh=cfg["consorcio_convenio_suterh"],
+            admin_nombre=cfg["admin_nombre"],
+            admin_domicilio=cfg["admin_domicilio"],
+            admin_email=cfg["admin_email"],
+            admin_telefono=cfg["admin_telefono"],
+            admin_cuit=cfg["admin_cuit"],
+            admin_rpa=cfg["admin_rpa"],
+            admin_situacion_fiscal=cfg["admin_situacion_fiscal"],
+            banco_titular=cfg["banco_titular"],
+            banco_nombre=cfg["banco_nombre"],
+            banco_sucursal=cfg["banco_sucursal"],
+            banco_numero_cuenta=cfg["banco_numero_cuenta"],
+            banco_cbu=cfg["banco_cbu"],
+            banco_alias=cfg["banco_alias"],
+            dia_primer_vencimiento=cfg["dia_primer_vencimiento"],
+            dias_entre_vencimientos=cfg["dias_entre_vencimientos"],
+            recargo_segundo_vencimiento_pct=cfg["recargo_segundo_vencimiento_pct"],
+            tasa_interes_mensual_pct=cfg["tasa_interes_mensual_pct"],
+            caja_default_pagos_id=cfg["caja_default_pagos_id"],
+            reportes_visibles_a_depto=cfg["reportes_visibles_a_depto"],
         )
     else:
         c = Consorcio(

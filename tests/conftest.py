@@ -32,7 +32,6 @@ from backend.models import (  # noqa: E402
     ClaseProrrateo,
     Comunicado,
     ConceptoLiquidacion,
-    ConfiguracionConsorcio,
     Departamento,
     Empleado,
     EstadoPeticion,
@@ -161,6 +160,8 @@ def _seed(db) -> None:
         activa=True,
     )
     db.add(caja_seed)
+    db.flush()
+    consorcio.caja_default_pagos_id = 900
     db.flush()
 
     admin = Usuario(
@@ -297,28 +298,6 @@ def _seed(db) -> None:
                 cuit="30-12345678-9",
                 direccion="Calle Falsa 123",
                 activo=True,
-            ),
-            # Fase 1: configuración del consorcio (singleton id=1)
-            ConfiguracionConsorcio(
-                id=1,
-                consorcio_nombre="Consorcio Test",
-                consorcio_domicilio="Av. Test 100",
-                consorcio_cuit="30-99999999-9",
-                consorcio_convenio_suterh=None,
-                admin_nombre="Admin Test",
-                admin_domicilio="Oficinas 200",
-                admin_email="admin@test.local",
-                admin_telefono="11-1111-1111",
-                admin_cuit="20-11111111-1",
-                admin_rpa="0001",
-                admin_situacion_fiscal="Monotributo",
-                banco_titular="Consorcio Test",
-                banco_nombre="Banco Test",
-                banco_sucursal="001",
-                banco_numero_cuenta="000-1234567/8",
-                banco_cbu="0000000000000000000000",
-                banco_alias=None,
-                caja_default_pagos_id=900,  # Fase 5: caja default
             ),
             # Fase 2: plantilla habitual de ejemplo (id=700)
             GastoHabitual(

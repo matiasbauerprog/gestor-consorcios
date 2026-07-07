@@ -15,8 +15,8 @@ def test_morosos_depto_sin_permiso_devuelve_403(client, headers_depto_a):
 
 def test_morosos_depto_con_permiso_devuelve_200(client, headers_depto_a, headers_admin, db):
     """Cuando admin habilita el flag, depto puede ver el reporte."""
-    from backend.models import ConfiguracionConsorcio
-    cfg = db.get(ConfiguracionConsorcio, 1)
+    from backend.models import Consorcio
+    cfg = db.get(Consorcio, 1)
     cfg.reportes_visibles_a_depto = True
     db.commit()
     try:

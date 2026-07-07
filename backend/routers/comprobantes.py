@@ -18,7 +18,7 @@ from ..database import get_db
 from ..models import (
     Caja,
     Comprobante,
-    ConfiguracionConsorcio,
+    Consorcio,
     EstadoComprobante,
     MovimientoCaja,
     MovimientoCuenta,
@@ -139,7 +139,7 @@ def actualizar_comprobante(
         # Resolver caja destino
         caja_destino_id = payload.caja_destino_id
         if caja_destino_id is None:
-            cfg = db.get(ConfiguracionConsorcio, 1)
+            cfg = db.get(Consorcio, 1)
             caja_destino_id = cfg.caja_default_pagos_id if cfg else None
         if caja_destino_id is None:
             raise HTTPException(
