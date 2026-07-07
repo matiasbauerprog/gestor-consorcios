@@ -678,10 +678,17 @@ class Gasto(Base):
 
 class Empleado(Base):
     __tablename__ = "empleados"
+    __table_args__ = (
+        UniqueConstraint("consorcio_id", "cuil", name="uq_empleado_consorcio_cuil"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     nombre_completo: Mapped[str] = mapped_column(String(255), nullable=False)
-    cuil: Mapped[str] = mapped_column(String(13), unique=True, nullable=False)
+    cuil: Mapped[str] = mapped_column(String(13), nullable=False)
     categoria: Mapped[CategoriaEmpleado] = mapped_column(
         SqlEnum(CategoriaEmpleado, name="categoria_empleado"), nullable=False
     )
@@ -699,9 +706,16 @@ class Empleado(Base):
 
 class Haber(Base):
     __tablename__ = "haberes"
+    __table_args__ = (
+        UniqueConstraint("consorcio_id", "nombre", name="uq_haber_consorcio_nombre"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    nombre: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
+    nombre: Mapped[str] = mapped_column(String(120), nullable=False)
     tipo: Mapped[TipoHaber] = mapped_column(SqlEnum(TipoHaber, name="tipo_haber"), nullable=False)
     valor_default: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     orden: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -710,9 +724,16 @@ class Haber(Base):
 
 class ConceptoLiquidacion(Base):
     __tablename__ = "conceptos_liquidacion"
+    __table_args__ = (
+        UniqueConstraint("consorcio_id", "nombre", name="uq_concepto_consorcio_nombre"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    nombre: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
+    nombre: Mapped[str] = mapped_column(String(120), nullable=False)
     tipo: Mapped[TipoConcepto] = mapped_column(SqlEnum(TipoConcepto, name="tipo_concepto"), nullable=False)
     porcentaje: Mapped[float] = mapped_column(Float, nullable=False)
     proveedor_id: Mapped[int | None] = mapped_column(
@@ -729,6 +750,10 @@ class LiquidacionEmpleado(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     empleado_id: Mapped[int] = mapped_column(
         ForeignKey("empleados.id", ondelete="RESTRICT"), nullable=False, index=True
     )
@@ -757,6 +782,10 @@ class LiquidacionHaber(Base):
     __tablename__ = "liquidaciones_haber"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     liquidacion_id: Mapped[int] = mapped_column(
         ForeignKey("liquidaciones_empleado.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -776,6 +805,10 @@ class LiquidacionDetalle(Base):
     __tablename__ = "liquidaciones_detalle"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     liquidacion_id: Mapped[int] = mapped_column(
         ForeignKey("liquidaciones_empleado.id", ondelete="CASCADE"), nullable=False, index=True
     )

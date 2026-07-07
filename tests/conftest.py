@@ -357,6 +357,7 @@ def _seed(db) -> None:
             # Fase 3: empleado de ejemplo (id=900)
             Empleado(
                 id=900,
+                consorcio_id=1,
                 nombre_completo="Test Empleado",
                 cuil="20-30000000-3",
                 categoria=CategoriaEmpleado.encargado_permanente_sin_vivienda,
@@ -369,6 +370,7 @@ def _seed(db) -> None:
             # Fase 3: liquidación histórica para empleado 900 (fuerza soft-delete en tests)
             LiquidacionEmpleado(
                 id=970,
+                consorcio_id=1,
                 empleado_id=900,
                 periodo="2025-01",
                 sueldo_bruto=1000000.0,
@@ -377,6 +379,7 @@ def _seed(db) -> None:
             # Fase 3: dos haberes mínimos
             Haber(
                 id=940,
+                consorcio_id=1,
                 nombre="Básico Test",
                 tipo=TipoHaber.porcentaje_sobre_basico,
                 valor_default=100.0,
@@ -385,6 +388,7 @@ def _seed(db) -> None:
             ),
             Haber(
                 id=941,
+                consorcio_id=1,
                 nombre="Antigüedad Test",
                 tipo=TipoHaber.porcentaje_sobre_basico,
                 valor_default=1.0,
@@ -394,6 +398,7 @@ def _seed(db) -> None:
             # Fase 3: dos conceptos mínimos
             ConceptoLiquidacion(
                 id=950,
+                consorcio_id=1,
                 nombre="Jubilación Test",
                 tipo=TipoConcepto.descuento,
                 porcentaje=11.0,
@@ -403,6 +408,7 @@ def _seed(db) -> None:
             ),
             ConceptoLiquidacion(
                 id=951,
+                consorcio_id=1,
                 nombre="AFIP Test",
                 tipo=TipoConcepto.contribucion,
                 porcentaje=16.0,
