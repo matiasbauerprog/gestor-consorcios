@@ -94,3 +94,20 @@ def test_resolver_bloquea_must_change_password(db_session):
         get_consorcio_activo(req, user, db_session)
     assert exc.value.status_code == 403
     assert exc.value.detail == "cambio_password_requerido"
+
+
+def test_resolver_bloquea_administracion_suspendida(db_session):
+    from backend.models import Administracion, Usuario
+
+    u = db_session.query(Usuario).filter(Usuario.id == 1).first()
+    u.administracion_id = 1
+    a1 = db_session.get(Administracion, 1)
+    a1.activa = False
+    db_session.commit()
+
+    user = CurrentUser(id=1, rol=Rol.administracion, departamento_id=None, jti="x", exp=0)
+    req = _fake_request({"x-consorcio-id": "1"})
+    with pytest.raises(HTTPException) as exc:
+        get_consorcio_activo(req, user, db_session)
+    assert exc.value.status_code == 403
+    assert exc.value.detail == "administracion_suspendida"

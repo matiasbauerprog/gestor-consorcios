@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from .auth import CurrentUser, get_current_user
 from .database import get_db
-from .models import Consorcio, Departamento, Rol, Usuario
+from .models import Administracion, Consorcio, Departamento, Rol, Usuario
 
 
 def get_consorcio_activo(
@@ -59,4 +59,17 @@ def get_consorcio_activo(
 
     if not ok:
         raise HTTPException(403, "sin acceso a este consorcio")
+
+    # Corta tokens vigentes de una administración suspendida: el login ya la
+    # bloquea, pero sin este chequeo un JWT emitido antes de suspender seguiría
+    # operando hasta su exp.
+    suspendida = db.query(Administracion.id).join(
+        Consorcio, Consorcio.administracion_id == Administracion.id
+    ).filter(
+        Consorcio.id == cid,
+        Administracion.activa == False,  # noqa: E712
+    ).first() is not None
+    if suspendida:
+        raise HTTPException(403, "administracion_suspendida")
+
     return cid
