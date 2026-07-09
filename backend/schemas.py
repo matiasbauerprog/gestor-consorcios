@@ -1071,3 +1071,179 @@ class CompletarTrabajoOut(BaseModel):
     monto: float
     concepto_sugerido: str
     trabajo_id: int
+
+
+# ---------------------------------------------------------------------------
+# Super-admin (Plan B)
+# ---------------------------------------------------------------------------
+
+
+class AdministracionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    razon_social: str
+    cuit: str
+    email_contacto: str
+    activa: bool
+    plan: str
+    fecha_creacion: datetime
+
+
+class AdministracionCrear(BaseModel):
+    razon_social: str = Field(min_length=1, max_length=255)
+    cuit: str = Field(min_length=1, max_length=13)
+    email_contacto: str = Field(min_length=3, max_length=255)
+    admin_email: str = Field(min_length=3, max_length=255)
+    admin_password_inicial: str = Field(min_length=8, max_length=128)
+
+
+class AdministracionActualizar(BaseModel):
+    razon_social: str | None = Field(default=None, min_length=1, max_length=255)
+    email_contacto: str | None = Field(default=None, min_length=3, max_length=255)
+    plan: str | None = Field(default=None, max_length=50)
+
+
+class ResetPasswordOut(BaseModel):
+    password_temporal: str
+
+
+class UsuarioAdminOut(BaseModel):
+    id: int
+    email: str
+    rol: Rol
+    departamento_id: int | None = None
+    consorcio_id: int | None = None
+    must_change_password: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ImpersonateStartIn(BaseModel):
+    usuario_id: int = Field(ge=1)
+    motivo: str = Field(min_length=10, max_length=500)
+
+
+class ImpersonateStartOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    impersonated_user_id: int
+
+
+class MetricasOut(BaseModel):
+    administraciones: dict
+    consorcios: dict
+    departamentos: dict
+    expensas_ultimo_mes: dict
+    impersonates_ultimos_30_dias: int
+
+
+class AuditLogEntryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    super_admin_usuario_id: int
+    accion: str
+    administracion_id_afectada: int | None
+    motivo: str | None
+    detalles: str | None
+    fecha: datetime
+
+
+# ---------------------------------------------------------------------------
+# Consorcios (Plan D — reemplaza los endpoints singleton /configuracion)
+# ---------------------------------------------------------------------------
+
+
+class ConsorcioOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    administracion_id: int
+    nombre: str
+    usa_personal_propio: bool
+    consorcio_domicilio: str
+    consorcio_cuit: str
+    consorcio_convenio_suterh: str | None
+    admin_nombre: str
+    admin_domicilio: str
+    admin_email: str
+    admin_telefono: str
+    admin_cuit: str
+    admin_rpa: str
+    admin_situacion_fiscal: str
+    banco_titular: str
+    banco_nombre: str
+    banco_sucursal: str | None
+    banco_numero_cuenta: str
+    banco_cbu: str
+    banco_alias: str | None
+    dia_primer_vencimiento: int
+    dias_entre_vencimientos: int
+    recargo_segundo_vencimiento_pct: float
+    tasa_interes_mensual_pct: float
+    caja_default_pagos_id: int | None
+    reportes_visibles_a_depto: bool
+    fecha_creacion: datetime
+
+
+class ConsorcioCrear(BaseModel):
+    # Paso 1
+    nombre: str = Field(min_length=1, max_length=255)
+    consorcio_domicilio: str = Field(min_length=1, max_length=500)
+    consorcio_cuit: str = Field(min_length=1, max_length=13)
+    consorcio_convenio_suterh: str | None = Field(default=None, max_length=50)
+    usa_personal_propio: bool = True
+
+    # Paso 2
+    admin_nombre: str = Field(min_length=1, max_length=255)
+    admin_domicilio: str = Field(min_length=1, max_length=500)
+    admin_email: str = Field(min_length=3, max_length=255)
+    admin_telefono: str = Field(min_length=1, max_length=50)
+    admin_cuit: str = Field(min_length=1, max_length=13)
+    admin_rpa: str = Field(min_length=1, max_length=50)
+    admin_situacion_fiscal: str = Field(min_length=1, max_length=100)
+
+    # Paso 3
+    banco_titular: str = Field(min_length=1, max_length=255)
+    banco_nombre: str = Field(min_length=1, max_length=100)
+    banco_sucursal: str | None = Field(default=None, max_length=50)
+    banco_numero_cuenta: str = Field(min_length=1, max_length=50)
+    banco_cbu: str = Field(min_length=1, max_length=22)
+    banco_alias: str | None = Field(default=None, max_length=50)
+
+    # Paso 4
+    dia_primer_vencimiento: int = Field(default=10, ge=1, le=28)
+    dias_entre_vencimientos: int = Field(default=10, ge=1, le=30)
+    recargo_segundo_vencimiento_pct: float = Field(default=7.0, ge=0, le=100)
+    tasa_interes_mensual_pct: float = Field(default=3.0, ge=0, le=100)
+    reportes_visibles_a_depto: bool = False
+
+
+class ConsorcioActualizar(BaseModel):
+    # Solo campos editables por el admin desde "Datos del consorcio".
+    nombre: str | None = Field(default=None, min_length=1, max_length=255)
+    usa_personal_propio: bool | None = None
+    consorcio_domicilio: str | None = Field(default=None, min_length=1, max_length=500)
+    consorcio_cuit: str | None = Field(default=None, min_length=1, max_length=13)
+    consorcio_convenio_suterh: str | None = Field(default=None, max_length=50)
+    admin_nombre: str | None = Field(default=None, min_length=1, max_length=255)
+    admin_domicilio: str | None = Field(default=None, min_length=1, max_length=500)
+    admin_email: str | None = Field(default=None, min_length=3, max_length=255)
+    admin_telefono: str | None = Field(default=None, min_length=1, max_length=50)
+    admin_cuit: str | None = Field(default=None, min_length=1, max_length=13)
+    admin_rpa: str | None = Field(default=None, min_length=1, max_length=50)
+    admin_situacion_fiscal: str | None = Field(default=None, min_length=1, max_length=100)
+    banco_titular: str | None = Field(default=None, min_length=1, max_length=255)
+    banco_nombre: str | None = Field(default=None, min_length=1, max_length=100)
+    banco_sucursal: str | None = Field(default=None, max_length=50)
+    banco_numero_cuenta: str | None = Field(default=None, min_length=1, max_length=50)
+    banco_cbu: str | None = Field(default=None, min_length=1, max_length=22)
+    banco_alias: str | None = Field(default=None, max_length=50)
+    dia_primer_vencimiento: int | None = Field(default=None, ge=1, le=28)
+    dias_entre_vencimientos: int | None = Field(default=None, ge=1, le=30)
+    recargo_segundo_vencimiento_pct: float | None = Field(default=None, ge=0, le=100)
+    tasa_interes_mensual_pct: float | None = Field(default=None, ge=0, le=100)
+    caja_default_pagos_id: int | None = Field(default=None, ge=1)
+    reportes_visibles_a_depto: bool | None = None

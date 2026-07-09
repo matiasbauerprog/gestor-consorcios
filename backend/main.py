@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import get_settings
 from .database import Base, SessionLocal, engine
+from .middleware.impersonate_audit import ImpersonateAuditMiddleware
 from .routers import (
     amenities,
     auth,
@@ -20,6 +21,7 @@ from .routers import (
     comunicados,
     conceptos_liquidacion,
     configuracion,
+    consorcios,
     departamentos,
     empleados,
     estado_financiero,
@@ -37,6 +39,7 @@ from .routers import (
     proveedores,
     reportes,
     reservas,
+    super_admin,
     trabajos,
     trabajos_recurrentes,
     transferencias_caja,
@@ -63,13 +66,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(ImpersonateAuditMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173", "http://127.0.0.1:5173",
-        "http://localhost:5174", "http://127.0.0.1:5174",
-        "http://localhost:5175", "http://127.0.0.1:5175",
-    ],
+    allow_origins=get_settings().cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -111,6 +112,7 @@ app.include_router(usuarios.router)
 app.include_router(clases_prorrateo.router)
 app.include_router(proveedores.router)
 app.include_router(configuracion.router)
+app.include_router(consorcios.router)
 app.include_router(gastos_habituales.router)
 app.include_router(gastos.router)
 app.include_router(conceptos_liquidacion.router)
@@ -121,6 +123,7 @@ app.include_router(notificaciones.router)
 app.include_router(periodos.router)
 app.include_router(cajas.router)
 app.include_router(transferencias_caja.router)
+app.include_router(super_admin.router)
 app.include_router(estado_financiero.router)
 app.include_router(reportes.router)
 

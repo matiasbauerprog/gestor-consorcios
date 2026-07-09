@@ -6,6 +6,7 @@ Uso: SUPER_ADMIN_EMAIL=x SUPER_ADMIN_PASSWORD=y python -m backend.seed_super_adm
 import argparse
 import logging
 import os
+
 from sqlalchemy.orm import Session
 
 from .database import SessionLocal
@@ -16,8 +17,10 @@ logger = logging.getLogger(__name__)
 
 
 def seed(db: Session, *, force: bool = False) -> Usuario:
-    email = os.environ.get("SUPER_ADMIN_EMAIL")
-    password = os.environ.get("SUPER_ADMIN_PASSWORD")
+    # Lee os.environ en cada llamada (no get_settings): el cache de lru_cache
+    # ignoraría variables seteadas después del primer acceso.
+    email = os.environ.get("SUPER_ADMIN_EMAIL", "")
+    password = os.environ.get("SUPER_ADMIN_PASSWORD", "")
     if not email or not password:
         raise RuntimeError("SUPER_ADMIN_EMAIL y SUPER_ADMIN_PASSWORD son requeridos")
 

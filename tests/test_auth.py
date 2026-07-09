@@ -52,7 +52,7 @@ def test_login_token_obtenido_funciona_para_endpoints_protegidos(client):
 
     r2 = client.get(
         "/peticiones",
-        headers={"Authorization": f"Bearer {token}"},
+        headers={"Authorization": f"Bearer {token}", "X-Consorcio-Id": "1"},
     )
     assert r2.status_code == 200
     # Desde Fase 11: depto ve TODAS las peticiones (transparencia entre vecinos).
@@ -148,7 +148,7 @@ def _login(client, email: str = "admin@test.local") -> dict[str, str]:
     )
     assert r.status_code == 200
     token = r.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+    return {"Authorization": f"Bearer {token}", "X-Consorcio-Id": "1"}
 
 
 def test_logout_sin_token_devuelve_401(client):
