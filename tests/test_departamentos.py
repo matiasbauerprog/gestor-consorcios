@@ -327,4 +327,78 @@ def test_put_coeficientes_lista_vacia_borra_todo(client, headers_admin):
     assert r.status_code == 200
 
     r2 = client.get("/departamentos/1/coeficientes", headers=headers_admin)
+    # (asserts continúan abajo)
+    assert r2.status_code == 200
     assert r2.json() == []
+
+
+# ---------------------------------------------------------------------------
+# DELETE /departamentos/{id}
+# ---------------------------------------------------------------------------
+
+
+def test_delete_depto_sin_token_devuelve_401(client):
+    r = client.delete("/departamentos/1")
+    assert r.status_code == 401
+
+
+def test_delete_depto_como_departamento_devuelve_403(client, headers_depto_a):
+    r = client.delete("/departamentos/2", headers=headers_depto_a)
+    assert r.status_code == 403
+
+
+def test_delete_depto_como_representante_devuelve_403(client, headers_representante):
+    r = client.delete("/departamentos/1", headers=headers_representante)
+    assert r.status_code == 403
+
+
+def test_delete_depto_inexistente_devuelve_404(client, headers_admin):
+    r = client.delete("/departamentos/9999", headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_delete_depto_con_usuarios_devuelve_409(client, headers_admin):
+    # Depto A (id=1) tiene un usuario en el seed.
+    r = client.delete("/departamentos/1", headers=headers_admin)
+    assert r.status_code == 409
+    assert r.json()["detail"] == "departamento_con_actividad"
+
+
+def test_delete_depto_vacio_devuelve_204(client, headers_admin, db_session):
+    from backend.models import Departamento
+    # Creo uno vacío
+    d = Departamento(consorcio_id=1, codigo="UF-VACIO", descripcion="Vacío")
+    db_session.add(d)
+    db_session.commit()
+    depto_id = d.id
+    r = client.delete(f"/departamentos/{depto_id}", headers=headers_admin)
+    assert r.status_code == 204
+    assert db_session.get(Departamento, depto_id) is None
+
+
+def test_delete_depto_con_coeficientes_hace_cascade(client, headers_admin, db_session):
+    """Coeficientes son config del depto, no actividad: se borran en cascada."""
+    from backend.models import CoeficienteDepartamento, Departamento
+    d = Departamento(consorcio_id=1, codigo="UF-COEFS", descripcion="Con coefs")
+    db_session.add(d)
+    db_session.flush()
+    c = CoeficienteDepartamento(
+        consorcio_id=1, departamento_id=d.id, clase_prorrateo_id=500, porcentaje=10.0
+    )
+    db_session.add(c)
+    db_session.commit()
+    depto_id = d.id
+
+    r = client.delete(f"/departamentos/{depto_id}", headers=headers_admin)
+    assert r.status_code == 204
+    remaining = db_session.query(CoeficienteDepartamento).filter(
+        CoeficienteDepartamento.departamento_id == depto_id
+    ).count()
+    assert remaining == 0
+
+
+def test_delete_depto_de_otro_consorcio_devuelve_404(client, dos_consorcios):
+    r = client.delete("/departamentos/3", headers=dos_consorcios["headers_admin_c1"])
+    assert r.status_code == 404
+
+

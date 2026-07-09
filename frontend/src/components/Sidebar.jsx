@@ -18,7 +18,7 @@ const SECCIONES = [
     ],
   },
   {
-    titulo: "Finanzas",
+    titulo: "Cobranzas y gastos",
     modulos: [
       {
         ruta: "/mi-cuenta",
@@ -40,6 +40,11 @@ const SECCIONES = [
         nombre: "Gastos",
         rolesPermitidos: ["administracion"],
       },
+    ],
+  },
+  {
+    titulo: "Finanzas",
+    modulos: [
       {
         ruta: "/estado-financiero",
         nombre: "Estado financiero",
@@ -53,6 +58,11 @@ const SECCIONES = [
       {
         ruta: "/transferencias",
         nombre: "Transferencias",
+        rolesPermitidos: ["administracion"],
+      },
+      {
+        ruta: "/cuentas-corrientes",
+        nombre: "Cuentas corrientes",
         rolesPermitidos: ["administracion"],
       },
     ],
@@ -75,6 +85,11 @@ const SECCIONES = [
         nombre: "Trabajos recurrentes",
         rolesPermitidos: ["administracion", "representante"],
       },
+    ],
+  },
+  {
+    titulo: "Espacios comunes",
+    modulos: [
       {
         ruta: "/reservas",
         nombre: "Reservas",
@@ -130,6 +145,11 @@ const SECCIONES = [
         nombre: "Conceptos de liquidación",
         rolesPermitidos: ["administracion"],
       },
+      {
+        ruta: "/empleados",
+        nombre: "Empleados",
+        rolesPermitidos: ["administracion"],
+      },
     ],
   },
   {
@@ -156,13 +176,8 @@ const SECCIONES = [
         rolesPermitidos: ["administracion"],
       },
       {
-        ruta: "/departamentos",
-        nombre: "Departamentos",
-        rolesPermitidos: ["administracion"],
-      },
-      {
-        ruta: "/empleados",
-        nombre: "Empleados",
+        ruta: "/padron",
+        nombre: "Usuarios y coeficientes",
         rolesPermitidos: ["administracion"],
       },
     ],

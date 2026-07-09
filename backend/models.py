@@ -183,6 +183,7 @@ class Usuario(Base):
         nullable=True, index=True,
     )
     must_change_password: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    activa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
 
     departamento: Mapped["Departamento | None"] = relationship(back_populates="usuarios")
 

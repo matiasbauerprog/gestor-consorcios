@@ -17,13 +17,14 @@ import GastosHabituales from "./screens/GastosHabituales";
 import Configuracion from "./screens/Configuracion";
 import ClasesProrrateo from "./screens/ClasesProrrateo";
 import Proveedores from "./screens/Proveedores";
-import Departamentos from "./screens/Departamentos";
+import Padron from "./screens/Padron";
 import Empleados from "./screens/Empleados";
 import Haberes from "./screens/Haberes";
 import ConceptosLiquidacion from "./screens/ConceptosLiquidacion";
 import Liquidaciones from "./screens/Liquidaciones";
 import MiCuenta from "./screens/MiCuenta";
 import DepartamentoCuenta from "./screens/DepartamentoCuenta";
+import CuentasCorrientes from "./screens/CuentasCorrientes";
 import CierreDePeriodo from "./screens/CierreDePeriodo";
 import Periodos from "./screens/Periodos";
 import EstadoFinanciero from "./screens/EstadoFinanciero";
@@ -101,6 +102,7 @@ export default function App() {
             <Route path="expensas" element={<ExpensasRoute />} />
             <Route path="mi-cuenta" element={<MiCuentaRoute />} />
             <Route path="departamentos/:id/cuenta" element={<DepartamentoCuenta />} />
+            <Route path="cuentas-corrientes" element={<CuentasCorrientes />} />
             <Route path="comprobantes" element={<ComprobantesRoute />} />
             <Route path="cierre-de-periodo" element={<CierreDePeriodo />} />
             <Route path="periodos" element={<Periodos />} />
@@ -109,7 +111,9 @@ export default function App() {
             <Route path="configuracion" element={<Configuracion />} />
             <Route path="clases-prorrateo" element={<ClasesProrrateo />} />
             <Route path="proveedores" element={<Proveedores />} />
-            <Route path="departamentos" element={<Departamentos />} />
+            <Route path="padron" element={<Padron />} />
+            <Route path="departamentos" element={<Navigate to="/padron?tab=departamentos" replace />} />
+            <Route path="usuarios" element={<Navigate to="/padron?tab=usuarios" replace />} />
             <Route path="empleados" element={<Empleados />} />
             <Route path="haberes" element={<Haberes />} />
             <Route path="conceptos-liquidacion" element={<ConceptosLiquidacion />} />

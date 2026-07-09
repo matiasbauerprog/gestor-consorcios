@@ -1753,6 +1753,80 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /coeficientes:
+    put:
+      tags: [Administracion]
+      summary: Reemplazar toda la matriz de coeficientes del consorcio
+      description: |
+        Reemplazo atómico: borra todos los coeficientes del consorcio activo
+        y guarda los enviados en el body. Valida que todos los `departamento_id`
+        y `clase_prorrateo_id` pertenezcan al consorcio activo. No valida que
+        las sumas por clase den 100 — eso lo maneja el frontend porque el
+        reglamento de copropiedad manda.
+      operationId: reemplazarCoeficientesMatriz
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CoeficientesBulkIn'
+      responses:
+        '200':
+          description: Matriz reemplazada exitosamente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cantidad: { type: integer }
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          description: Algún departamento o clase referenciado no existe en el consorcio.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /padron/importar:
+    post:
+      tags: [Administracion]
+      summary: Alta masiva unificada de departamentos y usuarios
+      description: |
+        CSV multipart con columnas `codigo`, `ubicacion`, `email`. Cada fila:
+        crea el depto (o lo reutiliza si el código ya existe) y opcionalmente
+        crea un usuario con password aleatoria + `must_change_password=true`.
+        Si `email` viene vacío se crea solo el depto.
+      operationId: importarPadron
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Resumen del batch.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PadronImportarResultado'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+
   /departamentos/{departamento_id}:
     patch:
       tags: [Administracion]
@@ -1791,6 +1865,35 @@ paths:
           $ref: '#/components/responses/AccesoDenegado'
         '404':
           $ref: '#/components/responses/NoEncontrado'
+
+    delete:
+      tags: [Administracion]
+      summary: Eliminar un departamento
+      description: |
+        Hard delete. Falla con 409 `departamento_con_actividad` si tiene
+        usuarios, expensas, peticiones, comprobantes, movimientos de cuenta
+        o gastos asignados. Los coeficientes de prorrateo se borran en cascada.
+      operationId: eliminarDepartamento
+      parameters:
+        - name: departamento_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '204':
+          description: Departamento eliminado.
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          description: Departamento con actividad vinculada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /usuarios:
     get:
@@ -1902,6 +2005,72 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [Administracion]
+      summary: Eliminar un usuario
+      description: |
+        Hard delete. Falla con 409 `usuario_con_actividad` si el usuario tiene
+        reservas, comunicados como autor o cierres de período vinculados. En
+        ese caso conviene suspender vía `/estado`.
+      operationId: eliminarUsuario
+      parameters:
+        - name: usuario_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '204':
+          description: Usuario eliminado.
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
+        '409':
+          description: Usuario con actividad vinculada. Suspenderlo en lugar de eliminar.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /usuarios/{usuario_id}/estado:
+    patch:
+      tags: [Administracion]
+      summary: Suspender o reactivar un usuario
+      description: |
+        Cambia el flag `activa` del usuario. Los usuarios suspendidos no
+        pueden loguearse (login devuelve 403 `usuario_suspendido`).
+      operationId: cambiarEstadoUsuario
+      parameters:
+        - name: usuario_id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsuarioEstado'
+      responses:
+        '200':
+          description: Estado actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioOut'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
 
   /reservas/{reserva_id}:
     get:
@@ -4323,7 +4492,7 @@ components:
 
     UsuarioOut:
       type: object
-      required: [id, email, rol]
+      required: [id, email, rol, activa, must_change_password]
       properties:
         id:
           type: integer
@@ -4338,6 +4507,48 @@ components:
           format: int64
           nullable: true
           description: Solo presente para usuarios con rol `departamento`.
+        activa:
+          type: boolean
+          description: Falso si el usuario fue suspendido — no puede loguearse.
+        must_change_password:
+          type: boolean
+          description: True cuando debe cambiar la contraseña al ingresar.
+
+    UsuarioEstado:
+      type: object
+      required: [activa]
+      properties:
+        activa:
+          type: boolean
+
+    PadronImportItemOut:
+      type: object
+      required: [codigo, depto_status, usuario_status]
+      properties:
+        codigo: { type: string }
+        ubicacion: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        depto_status:
+          type: string
+          enum: [creado, reutilizado, error]
+        usuario_status:
+          type: string
+          enum: [creado, sin_usuario, error]
+        password_generada:
+          type: string
+          nullable: true
+        error:
+          type: string
+          nullable: true
+
+    PadronImportarResultado:
+      type: object
+      required: [resultados]
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/PadronImportItemOut'
 
     # ---------------------------- Expensas --------------------------------
 
@@ -4754,6 +4965,26 @@ components:
           type: string
           maxLength: 255
           nullable: true
+
+    CoeficienteBulkItem:
+      type: object
+      required: [departamento_id, clase_prorrateo_id, porcentaje]
+      properties:
+        departamento_id: { type: integer, format: int64 }
+        clase_prorrateo_id: { type: integer, format: int64 }
+        porcentaje:
+          type: number
+          minimum: 0
+          maximum: 100
+
+    CoeficientesBulkIn:
+      type: object
+      required: [coeficientes]
+      properties:
+        coeficientes:
+          type: array
+          items:
+            $ref: '#/components/schemas/CoeficienteBulkItem'
 
     UsuarioCrear:
       type: object

@@ -9,6 +9,8 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from sqlalchemy import text
+
 from .config import get_settings
 from .database import Base, SessionLocal, engine
 from .middleware.impersonate_audit import ImpersonateAuditMiddleware
@@ -17,6 +19,7 @@ from .routers import (
     auth,
     cajas,
     clases_prorrateo,
+    coeficientes,
     comprobantes,
     comunicados,
     conceptos_liquidacion,
@@ -33,6 +36,7 @@ from .routers import (
     me,
     movimientos,
     notificaciones,
+    padron,
     periodos,
     peticiones,
     presupuestos,
@@ -51,9 +55,21 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def _migrar_usuario_activa() -> None:
+    """ALTER TABLE idempotente para bases existentes que no tienen la columna
+    `activa`. `create_all` solo crea tablas nuevas, no agrega columnas."""
+    with engine.begin() as conn:
+        cols = {r[1] for r in conn.execute(text("PRAGMA table_info(usuarios)"))}
+        if "activa" not in cols:
+            conn.execute(text(
+                "ALTER TABLE usuarios ADD COLUMN activa BOOLEAN NOT NULL DEFAULT 1"
+            ))
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
+    _migrar_usuario_activa()
     if get_settings().SEED_ENABLED:
         with SessionLocal() as db:
             seed_if_empty(db)
@@ -110,6 +126,7 @@ app.include_router(reservas.router)
 app.include_router(departamentos.router)
 app.include_router(usuarios.router)
 app.include_router(clases_prorrateo.router)
+app.include_router(coeficientes.router)
 app.include_router(proveedores.router)
 app.include_router(configuracion.router)
 app.include_router(consorcios.router)
@@ -124,6 +141,7 @@ app.include_router(periodos.router)
 app.include_router(cajas.router)
 app.include_router(transferencias_caja.router)
 app.include_router(super_admin.router)
+app.include_router(padron.router)
 app.include_router(estado_financiero.router)
 app.include_router(reportes.router)
 

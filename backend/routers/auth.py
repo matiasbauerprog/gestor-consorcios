@@ -60,6 +60,13 @@ def login(payload: LoginIn, db: Session = Depends(get_db)) -> TokenOut:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Usuario suspendido por su admin: cortar antes de emitir token.
+    if not user.activa:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="usuario_suspendido",
+        )
+
     # Multitenant: bloquear login si la administracion del usuario está suspendida.
     if not _administracion_activa_para(db, user):
         raise HTTPException(

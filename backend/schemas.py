@@ -44,6 +44,8 @@ class UsuarioOut(BaseModel):
     email: str
     rol: Rol
     departamento_id: int | None
+    activa: bool
+    must_change_password: bool
 
 
 class TokenOut(BaseModel):
@@ -277,6 +279,47 @@ class DepartamentoActualizar(BaseModel):
     descripcion: str | None = Field(default=None, max_length=255)
 
 
+class CoeficienteBulkItem(BaseModel):
+    departamento_id: int = Field(..., gt=0)
+    clase_prorrateo_id: int = Field(..., gt=0)
+    porcentaje: float = Field(..., ge=0, le=100)
+
+
+class CoeficientesBulkIn(BaseModel):
+    coeficientes: list[CoeficienteBulkItem]
+
+    @model_validator(mode="after")
+    def _sin_duplicados(self) -> "CoeficientesBulkIn":
+        pares = {(c.departamento_id, c.clase_prorrateo_id) for c in self.coeficientes}
+        if len(pares) != len(self.coeficientes):
+            raise ValueError(
+                "Hay pares (departamento_id, clase_prorrateo_id) duplicados."
+            )
+        return self
+
+
+class PadronImportItemOut(BaseModel):
+    codigo: str
+    ubicacion: str | None = None
+    email: str | None = None
+    depto_status: Literal["creado", "reutilizado", "error"]
+    usuario_status: Literal["creado", "sin_usuario", "error"]
+    password_generada: str | None = None
+    error: str | None = None
+
+
+class PadronImportarResultado(BaseModel):
+    resultados: list[PadronImportItemOut]
+
+
+class CuentaResumenOut(BaseModel):
+    departamento_id: int
+    codigo: str
+    ubicacion: str | None
+    saldo_total: float
+    en_mora: bool
+
+
 class UsuarioCrear(BaseModel):
     email: str = Field(..., min_length=3, max_length=255)
     password: str = Field(..., min_length=8, max_length=255)
@@ -301,6 +344,10 @@ class UsuarioActualizar(BaseModel):
     email: str | None = Field(default=None, min_length=3, max_length=255)
     rol: Rol | None = None
     departamento_id: int | None = Field(default=None, gt=0)
+
+
+class UsuarioEstado(BaseModel):
+    activa: bool
 
 
 class ClaseProrrateoCrear(BaseModel):
@@ -764,6 +811,8 @@ class MovimientoCuentaOut(BaseModel):
 
 class EstadoCuentaOut(BaseModel):
     departamento_id: int
+    departamento_codigo: str
+    departamento_ubicacion: str | None
     saldo_total: float
     movimientos: list[MovimientoCuentaOut]
 

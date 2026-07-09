@@ -12,6 +12,10 @@ export function actualizarDepartamento(id, payload) {
   return apiFetch(`/departamentos/${id}`, { method: "PATCH", body: payload });
 }
 
+export function eliminarDepartamento(id) {
+  return apiFetch(`/departamentos/${id}`, { method: "DELETE" });
+}
+
 export function listarCoeficientesDepartamento(id) {
   return apiFetch(`/departamentos/${id}/coeficientes`);
 }
