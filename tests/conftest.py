@@ -415,12 +415,32 @@ def _temp_upload_dir(tmp_path, monkeypatch) -> Iterator[None]:
 
 
 @pytest.fixture()
-def client(db_session) -> Iterator[TestClient]:
+def client(db_session, monkeypatch) -> Iterator[TestClient]:
     def _override_get_db():
         try:
             yield db_session
         finally:
             pass
+
+    # Monkeypatch SessionLocal para que middleware (ej. ImpersonateAudit) escriba
+    # en la misma DB que la fixture. Envolvemos la session en un proxy que
+    # ignora close() para no romper la fixture al terminar el request.
+    from backend import database as _db_module
+
+    class _NoCloseSession:
+        def __init__(self, s):
+            self._s = s
+
+        def __getattr__(self, name):
+            return getattr(self._s, name)
+
+        def close(self):
+            pass
+
+    def _factory():
+        return _NoCloseSession(db_session)
+
+    monkeypatch.setattr(_db_module, "SessionLocal", _factory)
 
     app.dependency_overrides[get_db] = _override_get_db
     try:
@@ -472,3 +492,95 @@ def headers_super_admin(db_session) -> dict[str, str]:
 def db(db_session) -> Iterator:
     """Alias for db_session (short name for unit tests)."""
     yield db_session
+
+
+@pytest.fixture()
+def dos_consorcios(db_session):
+    """Provisiona un segundo consorcio (id=2) con su admin y depto para tests de
+    aislamiento multitenant. Se apoya en el seed de consorcio 1 ya existente.
+
+    Devuelve un dict con headers para operar contra cada consorcio y para simular
+    intentos de spoofing (admin de c1 con X-Consorcio-Id=2)."""
+    from backend.models import Administracion, Caja, Consorcio, Departamento
+
+    admin2 = Administracion(
+        id=2,
+        razon_social="Administración 2",
+        cuit="30-22222222-2",
+        email_contacto="admin2@test.local",
+    )
+    db_session.add(admin2)
+    db_session.flush()
+
+    consorcio2 = Consorcio(
+        id=2,
+        administracion_id=2,
+        nombre="Consorcio Aislado",
+        consorcio_domicilio="Av. Aislada 200",
+        consorcio_cuit="30-88888888-8",
+        admin_nombre="Admin 2",
+        admin_domicilio="Oficinas 300",
+        admin_email="admin2@test.local",
+        admin_telefono="11-2222-2222",
+        admin_cuit="20-22222222-2",
+        admin_rpa="0002",
+        admin_situacion_fiscal="Monotributo",
+        banco_titular="Consorcio Aislado",
+        banco_nombre="Banco Aislado",
+        banco_sucursal="002",
+        banco_numero_cuenta="000-9999999/9",
+        banco_cbu="1111111111111111111111",
+    )
+    db_session.add(consorcio2)
+    db_session.flush()
+
+    depto_c2 = Departamento(
+        id=3, consorcio_id=2, codigo="UF-1A", descripcion="Depto C2-1"
+    )
+    db_session.add(depto_c2)
+    db_session.flush()
+
+    caja_c2 = Caja(
+        id=901, consorcio_id=2, nombre="Banco C2",
+        tipo=TipoCaja.banco, saldo_inicial=0.0, activa=True,
+    )
+    db_session.add(caja_c2)
+    db_session.flush()
+    consorcio2.caja_default_pagos_id = 901
+
+    admin_c2 = Usuario(
+        id=6,
+        email="admin_c2@test.local",
+        password_hash=_PASSWORD_HASH,
+        rol=Rol.administracion,
+        administracion_id=2,
+    )
+    depto_c2_user = Usuario(
+        id=7,
+        email="depto_c2@test.local",
+        password_hash=_PASSWORD_HASH,
+        rol=Rol.departamento,
+        departamento_id=3,
+    )
+    db_session.add_all([admin_c2, depto_c2_user])
+    db_session.commit()
+
+    token_admin_c1 = create_access_token(user_id=1, rol=Rol.administracion, departamento_id=None)
+    token_admin_c2 = create_access_token(user_id=6, rol=Rol.administracion, departamento_id=None)
+    token_depto_c1_a = create_access_token(user_id=2, rol=Rol.departamento, departamento_id=1)
+    token_depto_c2 = create_access_token(user_id=7, rol=Rol.departamento, departamento_id=3)
+
+    return {
+        "consorcio_1_id": 1,
+        "consorcio_2_id": 2,
+        "depto_c1_id": 1,
+        "depto_c2_id": 3,
+        "headers_admin_c1": {"Authorization": f"Bearer {token_admin_c1}", "X-Consorcio-Id": "1"},
+        "headers_admin_c2": {"Authorization": f"Bearer {token_admin_c2}", "X-Consorcio-Id": "2"},
+        "headers_depto_c1": {"Authorization": f"Bearer {token_depto_c1_a}", "X-Consorcio-Id": "1"},
+        "headers_depto_c2": {"Authorization": f"Bearer {token_depto_c2}", "X-Consorcio-Id": "2"},
+        # Spoof: admin de c1 intenta operar contra c2.
+        "headers_admin_c1_spoof_c2": {"Authorization": f"Bearer {token_admin_c1}", "X-Consorcio-Id": "2"},
+        # Spoof: admin de c2 intenta operar contra c1.
+        "headers_admin_c2_spoof_c1": {"Authorization": f"Bearer {token_admin_c2}", "X-Consorcio-Id": "1"},
+    }

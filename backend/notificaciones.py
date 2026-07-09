@@ -15,12 +15,19 @@ from .models import EstadoPeticion, Notificacion, Peticion, Rol, Usuario
 
 def crear_notificacion(
     db: Session,
+    *,
+    consorcio_id: int,
     usuario_id: int,
     mensaje: str,
     link: str | None = None,
 ) -> Notificacion:
     """Persiste una Notificacion para un usuario. No commitea — el caller lo hace."""
-    notif = Notificacion(usuario_id=usuario_id, mensaje=mensaje, link=link)
+    notif = Notificacion(
+        consorcio_id=consorcio_id,
+        usuario_id=usuario_id,
+        mensaje=mensaje,
+        link=link,
+    )
     db.add(notif)
     return notif
 
@@ -54,7 +61,13 @@ def notificar_cambio_estado_peticion(
     mensaje = f"Tu petición '{peticion.titulo}' cambió de estado a: {peticion.estado.value}."
 
     for u in usuarios:
-        crear_notificacion(db, usuario_id=u.id, mensaje=mensaje, link="/peticiones")
+        crear_notificacion(
+            db,
+            consorcio_id=peticion.consorcio_id,
+            usuario_id=u.id,
+            mensaje=mensaje,
+            link="/peticiones",
+        )
         if u.email:
             enviar_email(
                 to=u.email,
@@ -116,7 +129,13 @@ def notificar_reserva_cancelada_por_admin(
         mensaje += f" Se reversó el cargo de ${monto_reversado:.2f}."
 
     for u in usuarios:
-        crear_notificacion(db, usuario_id=u.id, mensaje=mensaje, link="/reservas")
+        crear_notificacion(
+            db,
+            consorcio_id=reserva.consorcio_id,
+            usuario_id=u.id,
+            mensaje=mensaje,
+            link="/reservas",
+        )
         if u.email:
             enviar_email(
                 to=u.email,

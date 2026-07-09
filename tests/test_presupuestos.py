@@ -5,7 +5,7 @@ from backend.models import EstadoPresupuesto, Presupuesto, Proveedor, Trabajo
 
 
 def _crear_trabajo(db, descripcion="Trabajo de test"):
-    t = Trabajo(descripcion=descripcion)
+    t = Trabajo(consorcio_id=1, descripcion=descripcion)
     db.add(t); db.commit(); db.refresh(t)
     return t
 
@@ -70,8 +70,8 @@ def test_crear_monto_negativo_400(client, headers_admin, db):
 
 def test_aprobar_un_segundo_desaprueba_el_primero(client, headers_admin, db):
     t = _crear_trabajo(db)
-    p1 = Presupuesto(trabajo_id=t.id, proveedor_id=_proveedor_id(db), monto=100)
-    p2 = Presupuesto(trabajo_id=t.id, proveedor_id=_proveedor_id(db), monto=200)
+    p1 = Presupuesto(consorcio_id=1, trabajo_id=t.id, proveedor_id=_proveedor_id(db), monto=100)
+    p2 = Presupuesto(consorcio_id=1, trabajo_id=t.id, proveedor_id=_proveedor_id(db), monto=200)
     db.add_all([p1, p2]); db.commit(); db.refresh(p1); db.refresh(p2)
 
     r1 = client.post(f"/trabajos/{t.id}/presupuestos/{p1.id}/aprobar", headers=headers_admin)
@@ -90,7 +90,7 @@ def test_aprobar_un_segundo_desaprueba_el_primero(client, headers_admin, db):
 
 def test_patch_aprobado_devuelve_409(client, headers_admin, db):
     t = _crear_trabajo(db)
-    p = Presupuesto(trabajo_id=t.id, proveedor_id=_proveedor_id(db), monto=100,
+    p = Presupuesto(consorcio_id=1, trabajo_id=t.id, proveedor_id=_proveedor_id(db), monto=100,
                     estado=EstadoPresupuesto.aprobado)
     db.add(p); db.commit(); db.refresh(p)
     r = client.patch(
@@ -103,7 +103,7 @@ def test_patch_aprobado_devuelve_409(client, headers_admin, db):
 
 def test_delete_aprobado_devuelve_409(client, headers_admin, db):
     t = _crear_trabajo(db)
-    p = Presupuesto(trabajo_id=t.id, proveedor_id=_proveedor_id(db), monto=100,
+    p = Presupuesto(consorcio_id=1, trabajo_id=t.id, proveedor_id=_proveedor_id(db), monto=100,
                     estado=EstadoPresupuesto.aprobado)
     db.add(p); db.commit(); db.refresh(p)
     r = client.delete(f"/trabajos/{t.id}/presupuestos/{p.id}", headers=headers_admin)

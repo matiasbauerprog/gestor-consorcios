@@ -5,7 +5,7 @@ from backend.notificaciones import crear_notificacion, notificar_cambio_estado_p
 
 def test_crear_notificacion_persiste(db):
     u = db.query(Usuario).filter_by(rol=Rol.departamento).first()
-    n = crear_notificacion(db, usuario_id=u.id, mensaje="Test", link="/test")
+    n = crear_notificacion(db, consorcio_id=1, usuario_id=u.id, mensaje="Test", link="/test")
     db.commit()
     assert n.id is not None
     assert n.leida is False

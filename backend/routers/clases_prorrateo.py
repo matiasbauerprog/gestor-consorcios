@@ -127,6 +127,7 @@ def eliminar_clase(
     clase_prorrateo_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ):
     from fastapi import Response
 

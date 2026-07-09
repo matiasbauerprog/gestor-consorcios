@@ -5,14 +5,9 @@ from ..auth import CurrentUser, get_current_user, require_roles
 from ..database import get_db
 from ..models import Consorcio, Rol
 from ..schemas import ConfiguracionConsorcioActualizar, ConfiguracionConsorcioOut
+from ..tenant import get_consorcio_activo
 
 router = APIRouter(prefix="/configuracion", tags=["Configuración"])
-
-# En este plan A, todavía no tenemos get_consorcio_activo (llega en Task 22).
-# Adaptamos manteniendo el comportamiento single-tenant: siempre operamos sobre
-# el consorcio id=1 (el Demo adoptado por la migración). Después del Plan A el
-# resolver X-Consorcio-Id reemplaza esta constante.
-_CONSORCIO_ID = 1
 
 
 def _consorcio_a_configuracion_out(c: Consorcio) -> dict:
@@ -53,8 +48,9 @@ def _consorcio_a_configuracion_out(c: Consorcio) -> dict:
 def obtener_configuracion(
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ):
-    c = db.get(Consorcio, _CONSORCIO_ID)
+    c = db.get(Consorcio, cid)
     if c is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -73,8 +69,9 @@ def actualizar_configuracion(
     payload: ConfiguracionConsorcioActualizar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ):
-    c = db.get(Consorcio, _CONSORCIO_ID)
+    c = db.get(Consorcio, cid)
     if c is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

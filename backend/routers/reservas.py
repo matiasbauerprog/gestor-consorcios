@@ -119,6 +119,7 @@ def cancelar_reserva(
 
         if reversar and mov_original is not None:
             nota_credito = MovimientoCuenta(
+                consorcio_id=cid,
                 departamento_id=mov_original.departamento_id,
                 fecha=date.today(),
                 tipo=TipoMovimiento.nota_credito,

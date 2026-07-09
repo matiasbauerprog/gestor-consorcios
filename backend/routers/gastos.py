@@ -224,7 +224,13 @@ def crear_gasto(
                 ).all())
                 mensaje = f"El trabajo de tu petición '{pet.titulo}' fue completado."
                 for u in usuarios:
-                    crear_notificacion(db, usuario_id=u.id, mensaje=mensaje, link="/peticiones")
+                    crear_notificacion(
+                        db,
+                        consorcio_id=cid,
+                        usuario_id=u.id,
+                        mensaje=mensaje,
+                        link="/peticiones",
+                    )
 
     db.commit()
     db.refresh(gasto)

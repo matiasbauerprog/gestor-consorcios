@@ -30,9 +30,11 @@ def listar_transferencias(
     offset: int = 0,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ):
     return list(db.scalars(
         select(TransferenciaCaja)
+        .where(TransferenciaCaja.consorcio_id == cid)
         .order_by(TransferenciaCaja.fecha.desc(), TransferenciaCaja.id.desc())
         .limit(limit).offset(offset)
     ).all())
@@ -43,29 +45,32 @@ def crear_transferencia(
     payload: TransferenciaCajaCrear,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ):
     if payload.caja_origen_id == payload.caja_destino_id:
         raise HTTPException(400, "Origen y destino deben ser cajas distintas.")
     origen = db.get(Caja, payload.caja_origen_id)
     destino = db.get(Caja, payload.caja_destino_id)
-    if origen is None or destino is None:
+    if origen is None or destino is None or origen.consorcio_id != cid or destino.consorcio_id != cid:
         raise HTTPException(404, "Caja origen o destino no encontrada.")
     if not origen.activa or not destino.activa:
         raise HTTPException(400, "Las cajas deben estar activas.")
     _bloquear_si_periodo_cerrado_por_fecha(db, payload.fecha)
 
-    transf = TransferenciaCaja(**payload.model_dump())
+    transf = TransferenciaCaja(consorcio_id=cid, **payload.model_dump())
     db.add(transf)
     db.flush()
 
     db.add_all([
         MovimientoCaja(
+            consorcio_id=cid,
             caja_id=payload.caja_origen_id, fecha=payload.fecha,
             tipo=TipoMovimientoCaja.egreso, monto=payload.monto,
             descripcion=f"Transf → {destino.nombre}: {payload.descripcion}",
             transferencia_id=transf.id,
         ),
         MovimientoCaja(
+            consorcio_id=cid,
             caja_id=payload.caja_destino_id, fecha=payload.fecha,
             tipo=TipoMovimientoCaja.ingreso, monto=payload.monto,
             descripcion=f"Transf ← {origen.nombre}: {payload.descripcion}",

@@ -60,9 +60,9 @@ def crear_caja(
     _u: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
 ) -> CajaOut:
-    if db.scalar(select(Caja).where(Caja.nombre == payload.nombre)):
+    if db.scalar(select(Caja).where(Caja.consorcio_id == cid, Caja.nombre == payload.nombre)):
         raise HTTPException(400, f"Ya existe una caja con el nombre '{payload.nombre}'.")
-    caja = Caja(**payload.model_dump())
+    caja = Caja(consorcio_id=cid, **payload.model_dump())
     db.add(caja)
     db.commit()
     db.refresh(caja)
@@ -95,6 +95,7 @@ def eliminar_caja(
     caja_id: int,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ):
     caja = db.get(Caja, caja_id)
     if caja is None or caja.consorcio_id != cid:

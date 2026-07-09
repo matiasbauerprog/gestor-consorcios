@@ -114,7 +114,7 @@ def test_crear_peticion_body_invalido_devuelve_400(client, headers_depto_a):
 def test_depto_patch_devuelve_403(client, headers_depto_a, db):
     """Depto NO puede cambiar el estado de una petición."""
     from backend.models import Peticion
-    p = Peticion(departamento_id=1, titulo="X", descripcion="x")
+    p = Peticion(consorcio_id=1, departamento_id=1, titulo="X", descripcion="x")
     db.add(p)
     db.commit()
     db.refresh(p)
@@ -129,7 +129,7 @@ def test_depto_patch_devuelve_403(client, headers_depto_a, db):
 def test_admin_patch_cambia_estado_200(client, headers_admin, db):
     """Admin puede cambiar estado abierta → rechazada."""
     from backend.models import Peticion, EstadoPeticion
-    p = Peticion(departamento_id=1, titulo="X", descripcion="x", estado=EstadoPeticion.abierta)
+    p = Peticion(consorcio_id=1, departamento_id=1, titulo="X", descripcion="x", estado=EstadoPeticion.abierta)
     db.add(p)
     db.commit()
     db.refresh(p)
@@ -145,7 +145,7 @@ def test_admin_patch_cambia_estado_200(client, headers_admin, db):
 def test_patch_cambio_estado_dispara_notificacion(client, headers_admin, db):
     """Cambiar a rechazada debe crear Notificacion."""
     from backend.models import Peticion, EstadoPeticion, Notificacion
-    p = Peticion(departamento_id=1, titulo="Notif test", descripcion="x", estado=EstadoPeticion.abierta)
+    p = Peticion(consorcio_id=1, departamento_id=1, titulo="Notif test", descripcion="x", estado=EstadoPeticion.abierta)
     db.add(p)
     db.commit()
     db.refresh(p)
@@ -165,6 +165,7 @@ def test_depto_delete_su_abierta_204(client, headers_depto_a, db):
     from backend.models import Peticion, EstadoPeticion
     # headers_depto_a tiene departamento_id=1
     p = Peticion(
+        consorcio_id=1,
         departamento_id=1,
         titulo="A borrar",
         descripcion="x",
@@ -182,6 +183,7 @@ def test_depto_delete_su_convertida_409(client, headers_depto_a, db):
     from backend.models import Peticion, EstadoPeticion
     # headers_depto_a tiene departamento_id=1
     p = Peticion(
+        consorcio_id=1,
         departamento_id=1,
         titulo="Convertida",
         descripcion="x",
@@ -199,6 +201,7 @@ def test_depto_delete_ajena_403(client, headers_depto_a, db):
     from backend.models import Peticion, EstadoPeticion
     # headers_depto_a tiene departamento_id=1, intentamos borrar una de depto 2
     p = Peticion(
+        consorcio_id=1,
         departamento_id=2,
         titulo="ajena",
         descripcion="x",
@@ -215,6 +218,7 @@ def test_admin_delete_cualquier_estado_204(client, headers_admin, db):
     """Admin puede borrar cualquier petición en cualquier estado."""
     from backend.models import Peticion, EstadoPeticion
     p = Peticion(
+        consorcio_id=1,
         departamento_id=2,
         titulo="Convertida, pero admin la borra",
         descripcion="x",

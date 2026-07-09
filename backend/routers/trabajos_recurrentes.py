@@ -24,6 +24,7 @@ router = APIRouter(prefix="/trabajos-recurrentes", tags=["TrabajosRecurrentes"])
 def listar(
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion, Rol.representante)),
+    cid: int = Depends(get_consorcio_activo),
 ):
     return list(db.scalars(
         select(TrabajoRecurrente).where(TrabajoRecurrente.consorcio_id == cid).order_by(TrabajoRecurrente.id)
@@ -35,11 +36,12 @@ def crear(
     payload: TrabajoRecurrenteCrear,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion, Rol.representante)),
+    cid: int = Depends(get_consorcio_activo),
 ):
     if payload.proveedor_sugerido_id is not None:
         if db.get(Proveedor, payload.proveedor_sugerido_id) is None:
             raise HTTPException(404, f"Proveedor {payload.proveedor_sugerido_id} no encontrado.")
-    tr = TrabajoRecurrente(**payload.model_dump())
+    tr = TrabajoRecurrente(consorcio_id=cid, **payload.model_dump())
     db.add(tr); db.commit(); db.refresh(tr)
     return tr
 
@@ -50,6 +52,7 @@ def actualizar(
     payload: TrabajoRecurrenteActualizar,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion, Rol.representante)),
+    cid: int = Depends(get_consorcio_activo),
 ):
     tr = db.get(TrabajoRecurrente, recurrente_id)
     if tr is None or tr.consorcio_id != cid:
@@ -68,6 +71,7 @@ def eliminar(
     recurrente_id: int,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion, Rol.representante)),
+    cid: int = Depends(get_consorcio_activo),
 ):
     tr = db.get(TrabajoRecurrente, recurrente_id)
     if tr is None or tr.consorcio_id != cid:
@@ -80,6 +84,7 @@ def materializar(
     recurrente_id: int,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion, Rol.representante)),
+    cid: int = Depends(get_consorcio_activo),
 ):
     """Crea un Trabajo concreto desde la plantilla."""
     tr = db.get(TrabajoRecurrente, recurrente_id)
@@ -87,6 +92,6 @@ def materializar(
         raise HTTPException(404, "Recurrente no encontrado.")
     if not tr.activa:
         raise HTTPException(400, "La plantilla está inactiva.")
-    t = Trabajo(descripcion=f"{tr.nombre} — {tr.descripcion}")
+    t = Trabajo(consorcio_id=cid, descripcion=f"{tr.nombre} — {tr.descripcion}")
     db.add(t); db.commit(); db.refresh(t)
     return t

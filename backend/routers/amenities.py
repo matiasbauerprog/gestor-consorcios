@@ -52,14 +52,23 @@ def crear_amenity(
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
 ) -> Amenity:
-    duplicado = db.scalar(select(Amenity.id).where(Amenity.nombre == payload.nombre))
+    duplicado = db.scalar(
+        select(Amenity.id).where(
+            Amenity.consorcio_id == cid,
+            Amenity.nombre == payload.nombre,
+        )
+    )
     if duplicado is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Ya existe un amenity con ese nombre.",
         )
 
-    amenity = Amenity(nombre=payload.nombre, descripcion=payload.descripcion)
+    amenity = Amenity(
+        consorcio_id=cid,
+        nombre=payload.nombre,
+        descripcion=payload.descripcion,
+    )
     db.add(amenity)
     db.commit()
     db.refresh(amenity)
@@ -91,6 +100,7 @@ def actualizar_amenity(
     if "nombre" in cambios and cambios["nombre"] != amenity.nombre:
         en_uso = db.scalar(
             select(Amenity.id).where(
+                Amenity.consorcio_id == cid,
                 Amenity.nombre == cambios["nombre"],
                 Amenity.id != amenity.id,
             )
@@ -129,7 +139,8 @@ def consultar_disponibilidad(
             detail="El parámetro `desde` no puede ser posterior a `hasta`.",
         )
 
-    if db.get(Amenity, amenity_id) is None:
+    amenity = db.get(Amenity, amenity_id)
+    if amenity is None or amenity.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El amenity solicitado no existe.",
@@ -250,6 +261,7 @@ def crear_reserva(
 
     # usuario_id NUNCA del body: siempre del token.
     reserva = Reserva(
+        consorcio_id=cid,
         amenity_id=amenity_id,
         usuario_id=user.id,
         inicio=inicio_naive,
@@ -262,6 +274,7 @@ def crear_reserva(
     # Cobro: solo si reservante es depto y el amenity tiene precio.
     if user.rol == Rol.departamento and amenity.precio_reserva is not None:
         movimiento = MovimientoCuenta(
+            consorcio_id=cid,
             departamento_id=user.departamento_id,
             fecha=date.today(),
             tipo=TipoMovimiento.nota_debito,

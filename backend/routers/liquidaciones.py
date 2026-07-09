@@ -80,6 +80,7 @@ def _crear_movimiento_para_gasto(db: Session, gasto: Gasto) -> None:
     """Crea un MovimientoCaja egreso asociado al gasto."""
     db.add(
         MovimientoCaja(
+            consorcio_id=gasto.consorcio_id,
             caja_id=gasto.caja_id,
             fecha=gasto.fecha_pago,
             tipo=TipoMovimientoCaja.egreso,
@@ -106,6 +107,7 @@ def _resolver_haberes(
     empleado: Empleado,
     haberes_input: list,
     haberes_ad_hoc: list,
+    cid: int,
 ) -> list[LiquidacionHaber]:
     """Convierte los items del payload en filas LiquidacionHaber con monto calculado."""
     snapshots: list[LiquidacionHaber] = []
@@ -144,6 +146,7 @@ def _resolver_haberes(
 
         snapshots.append(
             LiquidacionHaber(
+                consorcio_id=cid,
                 nombre=haber.nombre,
                 tipo=haber.tipo,
                 valor=valor,
@@ -157,6 +160,7 @@ def _resolver_haberes(
     for ad_hoc in haberes_ad_hoc:
         snapshots.append(
             LiquidacionHaber(
+                consorcio_id=cid,
                 nombre=ad_hoc.nombre,
                 tipo=None,
                 valor=None,
@@ -170,16 +174,20 @@ def _resolver_haberes(
     return snapshots
 
 
-def _aplicar_conceptos(db: Session, sueldo_bruto: float) -> list[LiquidacionDetalle]:
+def _aplicar_conceptos(db: Session, sueldo_bruto: float, cid: int) -> list[LiquidacionDetalle]:
     """Calcula los descuentos y contribuciones aplicables al bruto."""
     conceptos = db.scalars(
         select(ConceptoLiquidacion)
-        .where(ConceptoLiquidacion.activo == True)  # noqa: E712
+        .where(
+            ConceptoLiquidacion.consorcio_id == cid,
+            ConceptoLiquidacion.activo == True,  # noqa: E712
+        )
         .order_by(ConceptoLiquidacion.orden.asc(), ConceptoLiquidacion.nombre.asc())
     ).all()
 
     return [
         LiquidacionDetalle(
+            consorcio_id=cid,
             concepto_nombre=c.nombre,
             concepto_tipo=c.tipo,
             porcentaje_aplicado=c.porcentaje,
@@ -197,6 +205,7 @@ def _generar_gastos(
     empleado: Empleado,
     clase_id: int,
     caja_id: int,
+    cid: int,
 ) -> None:
     """Crea N Gastos: uno al empleado por el sueldo neto, uno por proveedor único.
     Cada gasto genera su MovimientoCaja egreso asociado."""
@@ -210,6 +219,7 @@ def _generar_gastos(
 
     # 1) Sueldo neto al empleado
     gasto_sueldo = Gasto(
+        consorcio_id=cid,
         periodo=liquidacion.periodo,
         rubro=Rubro.sueldos_y_cargas_sociales,
         clase_prorrateo_id=clase_id,
@@ -235,6 +245,7 @@ def _generar_gastos(
         nombres = ", ".join(d.concepto_nombre for d in items)
         total = sum(d.monto for d in items)
         gasto_proveedor = Gasto(
+            consorcio_id=cid,
             periodo=liquidacion.periodo,
             rubro=Rubro.sueldos_y_cargas_sociales,
             clase_prorrateo_id=clase_id,
@@ -256,12 +267,13 @@ def _calcular_y_guardar(
     liquidacion: LiquidacionEmpleado,
     empleado: Empleado,
     payload: LiquidacionEmpleadoCrear | LiquidacionEmpleadoActualizar,
+    cid: int,
 ) -> None:
     """Centraliza el cálculo (POST y PATCH lo usan)."""
-    haberes_snap = _resolver_haberes(db, empleado, payload.haberes, payload.haberes_ad_hoc)
+    haberes_snap = _resolver_haberes(db, empleado, payload.haberes, payload.haberes_ad_hoc, cid)
     liquidacion.haberes = haberes_snap
     liquidacion.sueldo_bruto = sum(h.monto for h in haberes_snap)
-    liquidacion.detalle = _aplicar_conceptos(db, liquidacion.sueldo_bruto)
+    liquidacion.detalle = _aplicar_conceptos(db, liquidacion.sueldo_bruto, cid)
 
 
 def _eager_load_liquidacion(db: Session, liquidacion_id: int) -> LiquidacionEmpleado | None:
@@ -341,9 +353,9 @@ def crear_liquidacion(
     db.add(liquidacion)
     db.flush()
 
-    _calcular_y_guardar(db, liquidacion, empleado, payload)
+    _calcular_y_guardar(db, liquidacion, empleado, payload, cid)
     db.flush()
-    _generar_gastos(db, liquidacion, empleado, clase_id, payload.caja_id)
+    _generar_gastos(db, liquidacion, empleado, clase_id, payload.caja_id, cid)
 
     db.commit()
     db.refresh(liquidacion)
@@ -417,9 +429,9 @@ def actualizar_liquidacion(
     # Borrar gastos viejos asociados
     db.query(Gasto).filter(Gasto.liquidacion_id == liq.id).delete(synchronize_session=False)
 
-    _calcular_y_guardar(db, liq, empleado, payload)
+    _calcular_y_guardar(db, liq, empleado, payload, cid)
     db.flush()
-    _generar_gastos(db, liq, empleado, clase_id, caja_id)
+    _generar_gastos(db, liq, empleado, clase_id, caja_id, cid)
 
     db.commit()
     db.refresh(liq)

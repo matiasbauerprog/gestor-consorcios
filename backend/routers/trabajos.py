@@ -174,6 +174,7 @@ def cancelar_trabajo(
     trabajo_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
+    cid: int = Depends(get_consorcio_activo),
 ):
     t = db.get(Trabajo, trabajo_id)
     if t is None or t.consorcio_id != cid:
