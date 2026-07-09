@@ -24,13 +24,25 @@ export default function Login() {
     setLoading(false);
 
     if (result.status === 200) {
-      login(result.data.access_token, result.data.user);
-      navigate("/comunicados", { replace: true });
+      await login(result.data.access_token, result.data.user);
+      const rol = result.data.user?.rol;
+      if (rol === "super_admin") {
+        navigate("/super-admin/administraciones", { replace: true });
+      } else {
+        navigate("/comunicados", { replace: true });
+      }
       return;
     }
 
     if (result.status === 401) {
       setError("Credenciales inválidas.");
+      return;
+    }
+
+    if (result.status === 403 && result.data?.detail === "administracion_suspendida") {
+      setError(
+        "La administración a la que pertenecés está suspendida. Contactá al soporte."
+      );
       return;
     }
 

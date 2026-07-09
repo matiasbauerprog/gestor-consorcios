@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { obtenerConfiguracion } from "../api/configuracion";
+import { obtenerConsorcio } from "../api/consorcios";
+import { useAuth } from "../auth/AuthContext";
 
 const ORDEN_DEPTO = ["/mi-cuenta", "/peticiones", "/reservas", "/comunicados"];
 
@@ -139,6 +141,11 @@ const SECCIONES = [
         rolesPermitidos: ["administracion"],
       },
       {
+        ruta: "/administracion/consorcios",
+        nombre: "Consorcios de la administración",
+        rolesPermitidos: ["administracion"],
+      },
+      {
         ruta: "/clases-prorrateo",
         nombre: "Clases de prorrateo",
         rolesPermitidos: ["administracion"],
@@ -179,7 +186,9 @@ export default function Sidebar({ rol, abierto, onCerrar }) {
   // Para depto: el admin debe habilitar la visibilidad de reportes.
   // Otros roles los ven siempre (admin/representante).
   const [reportesVisiblesDepto, setReportesVisiblesDepto] = useState(false);
+  const [usaPersonalPropio, setUsaPersonalPropio] = useState(true);
 
+  const { consorcioActivoId } = useAuth();
   const location = useLocation();
   const [grupoAbierto, setGrupoAbierto] = useState(() =>
     grupoDeRuta(location.pathname)
@@ -195,14 +204,20 @@ export default function Sidebar({ rol, abierto, onCerrar }) {
   }
 
   useEffect(() => {
-    if (rol !== "departamento") return;
+    if (!consorcioActivoId) return;
     (async () => {
+      // reportes_visibles_a_depto sigue viniendo de /configuracion (compat).
       const r = await obtenerConfiguracion();
       if (r.status === 200) {
         setReportesVisiblesDepto(!!r.data?.reportes_visibles_a_depto);
       }
+      // usa_personal_propio viene del endpoint nuevo /consorcios/{id}.
+      const c = await obtenerConsorcio(consorcioActivoId);
+      if (c.status === 200 && c.data?.usa_personal_propio !== undefined) {
+        setUsaPersonalPropio(!!c.data.usa_personal_propio);
+      }
     })();
-  }, [rol]);
+  }, [rol, consorcioActivoId]);
 
   const seccionesVisibles = SECCIONES.map((s) => ({
     ...s,
@@ -214,7 +229,10 @@ export default function Sidebar({ rol, abierto, onCerrar }) {
       }
       return true;
     }),
-  })).filter((s) => s.modulos.length > 0);
+  }))
+    .filter((s) => s.modulos.length > 0)
+    // Feature flag: si el consorcio no usa personal propio, ocultar el grupo.
+    .filter((s) => usaPersonalPropio || s.titulo !== "Personal");
 
   return (
     <aside className={abierto ? "app-sidebar abierto" : "app-sidebar"}>

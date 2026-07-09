@@ -3,6 +3,12 @@ import { AuthProvider, useAuth } from "./auth/AuthContext";
 import AppLayout from "./components/AppLayout";
 import RequireAuth from "./components/RequireAuth";
 import Login from "./screens/Login";
+import CambiarPassword from "./screens/CambiarPassword";
+import AdministracionConsorcios from "./screens/AdministracionConsorcios";
+import WizardNuevoConsorcio from "./screens/WizardNuevoConsorcio";
+import SuperAdminAdministraciones from "./screens/SuperAdminAdministraciones";
+import SuperAdminMetricas from "./screens/SuperAdminMetricas";
+import SuperAdminAuditLog from "./screens/SuperAdminAuditLog";
 import Comunicados from "./screens/Comunicados";
 import Expensas from "./screens/Expensas";
 import Comprobantes from "./screens/Comprobantes";
@@ -123,6 +129,12 @@ export default function App() {
             <Route path="reservas" element={<Reservas />} />
             <Route path="reglamento" element={<Navigate to="/comunicados?tab=reglamento" replace />} />
             <Route path="cobranzas" element={<CobranzasRoute />} />
+            <Route path="mi-usuario/cambiar-password" element={<CambiarPassword />} />
+            <Route path="administracion/consorcios" element={<AdministracionConsorcios />} />
+            <Route path="administracion/consorcios/nuevo" element={<WizardNuevoConsorcio />} />
+            <Route path="super-admin/administraciones" element={<SuperAdminAdministraciones />} />
+            <Route path="super-admin/metricas" element={<SuperAdminMetricas />} />
+            <Route path="super-admin/audit-log" element={<SuperAdminAuditLog />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

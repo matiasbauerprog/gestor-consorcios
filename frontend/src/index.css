@@ -1438,3 +1438,137 @@ td button {
   color: var(--color-primary);
   font-weight: 600;
 }
+
+/* ---------------------------------------------------------------------------
+ * Multitenant (Plan C): selector de consorcio, banner impersonate,
+ * sidebar super-admin.
+ * -------------------------------------------------------------------------*/
+
+.selector-consorcio {
+  position: relative;
+  display: inline-block;
+}
+
+.selector-consorcio-boton {
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border-strong);
+  padding: 0.4em 0.7em;
+  min-height: 40px;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 200px;
+}
+
+.selector-consorcio-nombre {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.selector-consorcio-lista {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 4px;
+  min-width: 220px;
+  z-index: 20;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.selector-consorcio-item button {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--color-text);
+  border: none;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  min-height: 40px;
+}
+
+.selector-consorcio-item button:hover {
+  background: var(--color-primary-soft);
+}
+
+.selector-consorcio-item.activo button {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.banner-impersonate {
+  background: var(--color-danger);
+  color: #fff;
+  padding: 0.6rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.banner-impersonate strong {
+  font-weight: 700;
+}
+
+.banner-impersonate button {
+  background: #fff;
+  color: var(--color-danger);
+  border: none;
+  padding: 0.4em 0.9em;
+  font-weight: 600;
+  min-height: 36px;
+  border-radius: 4px;
+}
+
+.banner-impersonate button:hover:not(:disabled) {
+  background: #f5f5f5;
+}
+
+.super-admin-metric-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 600px) {
+  .super-admin-metric-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 960px) {
+  .super-admin-metric-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.super-admin-metric-card {
+  background: var(--color-primary-soft);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.super-admin-metric-card h3 {
+  font-size: 0.85rem;
+  margin: 0 0 0.5rem;
+  color: var(--color-text-muted, #666);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.super-admin-metric-card .valor {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
