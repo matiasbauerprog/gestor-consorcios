@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, get_current_user, require_roles
 from ..database import get_db
 from ..models import Amenity, EstadoReserva, MovimientoCuenta, Reserva, Rol, TipoMovimiento
+from ..tenant import get_consorcio_activo
 from ..schemas import (
     AmenityActualizar,
     AmenityCrear,
@@ -30,8 +31,9 @@ def listar_amenities(
     incluir_inactivos: bool = False,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[Amenity]:
-    stmt = select(Amenity).order_by(Amenity.nombre.asc())
+    stmt = select(Amenity).where(Amenity.consorcio_id == cid).order_by(Amenity.nombre.asc())
     # incluir_inactivos solo aplica para admin; para depto/representante se ignora silenciosamente.
     if not (incluir_inactivos and user.rol == Rol.administracion):
         stmt = stmt.where(Amenity.activo == True)  # noqa: E712
@@ -48,15 +50,25 @@ def crear_amenity(
     payload: AmenityCrear,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Amenity:
-    duplicado = db.scalar(select(Amenity.id).where(Amenity.nombre == payload.nombre))
+    duplicado = db.scalar(
+        select(Amenity.id).where(
+            Amenity.consorcio_id == cid,
+            Amenity.nombre == payload.nombre,
+        )
+    )
     if duplicado is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Ya existe un amenity con ese nombre.",
         )
 
-    amenity = Amenity(nombre=payload.nombre, descripcion=payload.descripcion)
+    amenity = Amenity(
+        consorcio_id=cid,
+        nombre=payload.nombre,
+        descripcion=payload.descripcion,
+    )
     db.add(amenity)
     db.commit()
     db.refresh(amenity)
@@ -74,9 +86,10 @@ def actualizar_amenity(
     payload: AmenityActualizar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Amenity:
     amenity = db.get(Amenity, amenity_id)
-    if amenity is None:
+    if amenity is None or amenity.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El amenity solicitado no existe.",
@@ -87,6 +100,7 @@ def actualizar_amenity(
     if "nombre" in cambios and cambios["nombre"] != amenity.nombre:
         en_uso = db.scalar(
             select(Amenity.id).where(
+                Amenity.consorcio_id == cid,
                 Amenity.nombre == cambios["nombre"],
                 Amenity.id != amenity.id,
             )
@@ -117,6 +131,7 @@ def consultar_disponibilidad(
     hasta: date = Query(..., description="Fecha final del rango (ISO 8601)."),
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> DisponibilidadOut:
     if desde > hasta:
         raise HTTPException(
@@ -124,7 +139,8 @@ def consultar_disponibilidad(
             detail="El parámetro `desde` no puede ser posterior a `hasta`.",
         )
 
-    if db.get(Amenity, amenity_id) is None:
+    amenity = db.get(Amenity, amenity_id)
+    if amenity is None or amenity.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El amenity solicitado no existe.",
@@ -163,9 +179,10 @@ def crear_reserva(
     payload: ReservaCrear,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.administracion, Rol.departamento)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Reserva:
     amenity = db.get(Amenity, amenity_id)
-    if amenity is None:
+    if amenity is None or amenity.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El amenity solicitado no existe.",
@@ -244,6 +261,7 @@ def crear_reserva(
 
     # usuario_id NUNCA del body: siempre del token.
     reserva = Reserva(
+        consorcio_id=cid,
         amenity_id=amenity_id,
         usuario_id=user.id,
         inicio=inicio_naive,
@@ -256,6 +274,7 @@ def crear_reserva(
     # Cobro: solo si reservante es depto y el amenity tiene precio.
     if user.rol == Rol.departamento and amenity.precio_reserva is not None:
         movimiento = MovimientoCuenta(
+            consorcio_id=cid,
             departamento_id=user.departamento_id,
             fecha=date.today(),
             tipo=TipoMovimiento.nota_debito,
@@ -286,9 +305,10 @@ def dar_de_baja_amenity(
     amenity_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Amenity:
     amenity = db.get(Amenity, amenity_id)
-    if amenity is None:
+    if amenity is None or amenity.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El amenity solicitado no existe.",

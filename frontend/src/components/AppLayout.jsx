@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import BannerImpersonate from "./BannerImpersonate";
 import Sidebar from "./Sidebar";
+import SidebarSuperAdmin from "./SidebarSuperAdmin";
+import SelectorConsorcio from "./SelectorConsorcio";
 import Campanita from "./Campanita";
 
 export default function AppLayout() {
@@ -19,8 +22,11 @@ export default function AppLayout() {
     return () => document.removeEventListener("keydown", onKey);
   }, [drawerAbierto]);
 
+  const esSuperAdmin = user?.rol === "super_admin";
+
   return (
     <div className="app-shell">
+      <BannerImpersonate />
       <header className="app-header">
         <div className="app-header-titulo">
           <button
@@ -33,7 +39,8 @@ export default function AppLayout() {
             ☰
           </button>
           <h1>Gestión de Consorcios</h1>
-          <Campanita />
+          {!esSuperAdmin && <SelectorConsorcio />}
+          {!esSuperAdmin && <Campanita />}
         </div>
         <nav className="app-user">
           <span>
@@ -53,7 +60,11 @@ export default function AppLayout() {
             aria-hidden="true"
           />
         )}
-        <Sidebar rol={user.rol} abierto={drawerAbierto} onCerrar={cerrarDrawer} />
+        {esSuperAdmin ? (
+          <SidebarSuperAdmin abierto={drawerAbierto} onCerrar={cerrarDrawer} />
+        ) : (
+          <Sidebar rol={user.rol} abierto={drawerAbierto} onCerrar={cerrarDrawer} />
+        )}
         <main className="app-content">
           <Outlet />
         </main>

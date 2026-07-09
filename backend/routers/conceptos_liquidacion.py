@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, require_roles
 from ..database import get_db
 from ..models import ConceptoLiquidacion, Proveedor, Rol
+from ..tenant import get_consorcio_activo
 from ..schemas import (
     ConceptoLiquidacionActualizar,
     ConceptoLiquidacionCrear,
@@ -34,8 +35,9 @@ def listar_conceptos(
     activo: bool | None = Query(default=None),
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[ConceptoLiquidacion]:
-    stmt = select(ConceptoLiquidacion).order_by(
+    stmt = select(ConceptoLiquidacion).where(ConceptoLiquidacion.consorcio_id == cid).order_by(
         ConceptoLiquidacion.orden.asc(), ConceptoLiquidacion.nombre.asc()
     )
     if activo is not None:
@@ -53,6 +55,7 @@ def crear_concepto(
     payload: ConceptoLiquidacionCrear,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> ConceptoLiquidacion:
     duplicado = db.scalar(
         select(ConceptoLiquidacion.id).where(ConceptoLiquidacion.nombre == payload.nombre)
@@ -66,6 +69,7 @@ def crear_concepto(
     _validar_proveedor(db, payload.proveedor_id)
 
     concepto = ConceptoLiquidacion(
+        consorcio_id=cid,
         nombre=payload.nombre,
         tipo=payload.tipo,
         porcentaje=payload.porcentaje,
@@ -89,9 +93,10 @@ def obtener_concepto(
     concepto_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> ConceptoLiquidacion:
     concepto = db.get(ConceptoLiquidacion, concepto_id)
-    if concepto is None:
+    if concepto is None or concepto.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El concepto solicitado no existe.",
@@ -110,9 +115,10 @@ def actualizar_concepto(
     payload: ConceptoLiquidacionActualizar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> ConceptoLiquidacion:
     concepto = db.get(ConceptoLiquidacion, concepto_id)
-    if concepto is None:
+    if concepto is None or concepto.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El concepto solicitado no existe.",
@@ -140,9 +146,10 @@ def eliminar_concepto(
     concepto_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> ConceptoLiquidacion:
     concepto = db.get(ConceptoLiquidacion, concepto_id)
-    if concepto is None:
+    if concepto is None or concepto.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El concepto solicitado no existe.",

@@ -6,6 +6,7 @@ from ..auth import CurrentUser, require_roles
 from ..database import get_db
 from ..models import Proveedor, Rol
 from ..schemas import ProveedorActualizar, ProveedorCrear, ProveedorOut
+from ..tenant import get_consorcio_activo
 
 router = APIRouter(prefix="/proveedores", tags=["Configuración"])
 
@@ -22,8 +23,9 @@ def listar_proveedores(
     ),
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[Proveedor]:
-    stmt = select(Proveedor).order_by(Proveedor.razon_social.asc())
+    stmt = select(Proveedor).where(Proveedor.consorcio_id == cid).order_by(Proveedor.razon_social.asc())
     if activo is not None:
         stmt = stmt.where(Proveedor.activo == activo)
     return list(db.scalars(stmt).all())
@@ -39,6 +41,7 @@ def crear_proveedor(
     payload: ProveedorCrear,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Proveedor:
     duplicado = db.scalar(select(Proveedor.id).where(Proveedor.cuit == payload.cuit))
     if duplicado is not None:
@@ -48,6 +51,7 @@ def crear_proveedor(
         )
 
     prov = Proveedor(
+        consorcio_id=cid,
         razon_social=payload.razon_social,
         nombre_fantasia=payload.nombre_fantasia,
         cuit=payload.cuit,
@@ -70,9 +74,10 @@ def obtener_proveedor(
     proveedor_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Proveedor:
     prov = db.get(Proveedor, proveedor_id)
-    if prov is None:
+    if prov is None or prov.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El proveedor solicitado no existe.",
@@ -91,9 +96,10 @@ def actualizar_proveedor(
     payload: ProveedorActualizar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Proveedor:
     prov = db.get(Proveedor, proveedor_id)
-    if prov is None:
+    if prov is None or prov.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El proveedor solicitado no existe.",
@@ -118,9 +124,10 @@ def eliminar_proveedor(
     proveedor_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Proveedor:
     prov = db.get(Proveedor, proveedor_id)
-    if prov is None:
+    if prov is None or prov.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El proveedor solicitado no existe.",

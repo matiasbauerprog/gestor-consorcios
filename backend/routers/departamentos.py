@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, require_roles
 from ..database import get_db
 from ..models import ClaseProrrateo, CoeficienteDepartamento, Departamento, Rol
+from ..tenant import get_consorcio_activo
 from ..schemas import (
     CoeficienteOut,
     CoeficientesReemplazar,
@@ -25,8 +26,9 @@ router = APIRouter(prefix="/departamentos", tags=["Administracion"])
 def listar_departamentos(
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[Departamento]:
-    stmt = select(Departamento).order_by(Departamento.codigo.asc())
+    stmt = select(Departamento).where(Departamento.consorcio_id == cid).order_by(Departamento.codigo.asc())
     return list(db.scalars(stmt).all())
 
 
@@ -40,15 +42,25 @@ def crear_departamento(
     payload: DepartamentoCrear,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Departamento:
-    duplicado = db.scalar(select(Departamento.id).where(Departamento.codigo == payload.codigo))
+    duplicado = db.scalar(
+        select(Departamento.id).where(
+            Departamento.consorcio_id == cid,
+            Departamento.codigo == payload.codigo,
+        )
+    )
     if duplicado is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Ya existe un departamento con ese código.",
         )
 
-    departamento = Departamento(codigo=payload.codigo, descripcion=payload.descripcion)
+    departamento = Departamento(
+        consorcio_id=cid,
+        codigo=payload.codigo,
+        descripcion=payload.descripcion,
+    )
     db.add(departamento)
     db.commit()
     db.refresh(departamento)
@@ -66,9 +78,10 @@ def actualizar_departamento(
     payload: DepartamentoActualizar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Departamento:
     departamento = db.get(Departamento, departamento_id)
-    if departamento is None:
+    if departamento is None or departamento.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El departamento solicitado no existe.",
@@ -93,9 +106,10 @@ def listar_coeficientes(
     departamento_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[CoeficienteOut]:
     depto = db.get(Departamento, departamento_id)
-    if depto is None:
+    if depto is None or depto.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El departamento solicitado no existe.",
@@ -129,9 +143,10 @@ def reemplazar_coeficientes(
     payload: CoeficientesReemplazar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[CoeficienteOut]:
     depto = db.get(Departamento, departamento_id)
-    if depto is None:
+    if depto is None or depto.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El departamento solicitado no existe.",
@@ -140,7 +155,10 @@ def reemplazar_coeficientes(
     ids_pedidos = {item.clase_prorrateo_id for item in payload.coeficientes}
     if ids_pedidos:
         existentes = db.scalars(
-            select(ClaseProrrateo.id).where(ClaseProrrateo.id.in_(ids_pedidos))
+            select(ClaseProrrateo.id).where(
+                ClaseProrrateo.consorcio_id == cid,
+                ClaseProrrateo.id.in_(ids_pedidos),
+            )
         ).all()
         faltantes = ids_pedidos - set(existentes)
         if faltantes:
@@ -156,6 +174,7 @@ def reemplazar_coeficientes(
     for item in payload.coeficientes:
         db.add(
             CoeficienteDepartamento(
+                consorcio_id=cid,
                 departamento_id=departamento_id,
                 clase_prorrateo_id=item.clase_prorrateo_id,
                 porcentaje=item.porcentaje,
@@ -163,4 +182,4 @@ def reemplazar_coeficientes(
         )
     db.commit()
 
-    return listar_coeficientes(departamento_id, db, _user)
+    return listar_coeficientes(departamento_id, db, _user, cid)

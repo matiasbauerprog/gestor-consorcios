@@ -23,6 +23,7 @@ from ..models import (
     Trabajo,
     Usuario,
 )
+from ..tenant import get_consorcio_activo
 from ..schemas import (
     CargarHabitualesIn,
     GastoActualizar,
@@ -106,6 +107,7 @@ def _validar_caja_activa(db: Session, caja_id: int) -> Caja:
 def _crear_movimiento_para_gasto(db: Session, gasto: Gasto) -> None:
     """Crea el MovimientoCaja egreso asociado a un Gasto."""
     db.add(MovimientoCaja(
+        consorcio_id=gasto.consorcio_id,
         caja_id=gasto.caja_id,
         fecha=gasto.fecha_pago,
         tipo=TipoMovimientoCaja.egreso,
@@ -141,8 +143,9 @@ def listar_gastos(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[Gasto]:
-    stmt = select(Gasto).order_by(Gasto.fecha_pago.desc(), Gasto.id.desc())
+    stmt = select(Gasto).where(Gasto.consorcio_id == cid).order_by(Gasto.fecha_pago.desc(), Gasto.id.desc())
     if periodo is not None:
         stmt = stmt.where(Gasto.periodo == periodo)
     if rubro is not None:
@@ -169,6 +172,7 @@ def crear_gasto(
     payload: GastoCrear,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Gasto:
     _bloquear_si_periodo_cerrado(db, payload.periodo)
     _validar_caja_activa(db, payload.caja_id)
@@ -180,6 +184,7 @@ def crear_gasto(
     )
 
     gasto = Gasto(
+        consorcio_id=cid,
         periodo=payload.periodo,
         rubro=payload.rubro,
         clase_prorrateo_id=payload.clase_prorrateo_id,
@@ -219,7 +224,13 @@ def crear_gasto(
                 ).all())
                 mensaje = f"El trabajo de tu petición '{pet.titulo}' fue completado."
                 for u in usuarios:
-                    crear_notificacion(db, usuario_id=u.id, mensaje=mensaje, link="/peticiones")
+                    crear_notificacion(
+                        db,
+                        consorcio_id=cid,
+                        usuario_id=u.id,
+                        mensaje=mensaje,
+                        link="/peticiones",
+                    )
 
     db.commit()
     db.refresh(gasto)
@@ -236,9 +247,10 @@ def obtener_gasto(
     gasto_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Gasto:
     gasto = db.get(Gasto, gasto_id)
-    if gasto is None:
+    if gasto is None or gasto.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El gasto solicitado no existe.",
@@ -257,9 +269,10 @@ def actualizar_gasto(
     payload: GastoActualizar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Gasto:
     gasto = db.get(Gasto, gasto_id)
-    if gasto is None:
+    if gasto is None or gasto.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El gasto solicitado no existe.",
@@ -328,9 +341,10 @@ def eliminar_gasto(
     gasto_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Response:
     gasto = db.get(Gasto, gasto_id)
-    if gasto is None:
+    if gasto is None or gasto.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El gasto solicitado no existe.",
@@ -352,6 +366,7 @@ def crear_plan_cuotas(
     payload: PlanCuotasCrear,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[Gasto]:
     # Bloquear si el período inicial está cerrado
     _bloquear_si_periodo_cerrado(db, payload.periodo)
@@ -372,6 +387,7 @@ def crear_plan_cuotas(
 
     for i in range(payload.cuota_total):
         gasto = Gasto(
+            consorcio_id=cid,
             periodo=periodo_actual,
             rubro=payload.rubro,
             clase_prorrateo_id=payload.clase_prorrateo_id,
@@ -413,6 +429,7 @@ def cargar_habituales(
     payload: CargarHabitualesIn,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[Gasto]:
     # Bloquear si el período está cerrado
     _bloquear_si_periodo_cerrado(db, payload.periodo)
@@ -422,12 +439,13 @@ def cargar_habituales(
 
     # Plantillas activas que aún no tienen gasto generado en este período.
     plantillas_activas = db.scalars(
-        select(GastoHabitual).where(GastoHabitual.activa == True)  # noqa: E712
+        select(GastoHabitual).where(GastoHabitual.consorcio_id == cid, GastoHabitual.activa == True)  # noqa: E712
     ).all()
 
     ids_ya_generadas = set(
         db.scalars(
             select(Gasto.gasto_habitual_id).where(
+                Gasto.consorcio_id == cid,
                 Gasto.periodo == payload.periodo,
                 Gasto.gasto_habitual_id.is_not(None),
             )
@@ -439,6 +457,7 @@ def cargar_habituales(
         if plantilla.id in ids_ya_generadas:
             continue
         gasto = Gasto(
+            consorcio_id=cid,
             periodo=payload.periodo,
             rubro=plantilla.rubro,
             clase_prorrateo_id=plantilla.clase_prorrateo_id,

@@ -15,7 +15,7 @@ from backend.models import (
 
 @pytest.fixture
 def depto(db_empty):
-    d = Departamento(id=1, codigo="1A", descripcion="1° A")
+    d = Departamento(consorcio_id=1, id=1, codigo="1A", descripcion="1° A")
     db_empty.add(d)
     db_empty.commit()
     return d
@@ -23,8 +23,7 @@ def depto(db_empty):
 
 def _mov_expensa(db, depto_id, expensa_id, monto, fecha):
     db.add(
-        MovimientoCuenta(
-            departamento_id=depto_id,
+        MovimientoCuenta(consorcio_id=1, departamento_id=depto_id,
             fecha=fecha,
             tipo=TipoMovimiento.expensa_emitida,
             descripcion=f"Expensa {expensa_id}",
@@ -36,8 +35,7 @@ def _mov_expensa(db, depto_id, expensa_id, monto, fecha):
 
 def _mov_pago(db, depto_id, monto, fecha, comprobante_id=None):
     db.add(
-        MovimientoCuenta(
-            departamento_id=depto_id,
+        MovimientoCuenta(consorcio_id=1, departamento_id=depto_id,
             fecha=fecha,
             tipo=TipoMovimiento.pago_recibido,
             descripcion="Pago",
@@ -48,8 +46,7 @@ def _mov_pago(db, depto_id, monto, fecha, comprobante_id=None):
 
 
 def test_pago_exacto_cubre_una_expensa(db_empty, depto):
-    e = Expensa(
-        id=1,
+    e = Expensa(consorcio_id=1, id=1,
         departamento_id=depto.id,
         periodo="2026-05",
         monto_primer_vencimiento=1000.0,
@@ -72,7 +69,7 @@ def test_pago_exacto_cubre_una_expensa(db_empty, depto):
 
 
 def test_pago_parcial(db_empty, depto):
-    e = Expensa(id=1, departamento_id=depto.id, periodo="2026-05", monto_primer_vencimiento=1000.0,
+    e = Expensa(consorcio_id=1, id=1, departamento_id=depto.id, periodo="2026-05", monto_primer_vencimiento=1000.0,
                 fecha_primer_vencimiento=date(2026, 6, 10), monto_segundo_vencimiento=1070.0,
                 fecha_segundo_vencimiento=date(2026, 6, 20), saldo_anterior=0.0)
     db_empty.add(e)
@@ -88,7 +85,7 @@ def test_pago_parcial(db_empty, depto):
 
 
 def test_sobre_pago_genera_credito(db_empty, depto):
-    e = Expensa(id=1, departamento_id=depto.id, periodo="2026-05", monto_primer_vencimiento=1000.0,
+    e = Expensa(consorcio_id=1, id=1, departamento_id=depto.id, periodo="2026-05", monto_primer_vencimiento=1000.0,
                 fecha_primer_vencimiento=date(2026, 6, 10), monto_segundo_vencimiento=1070.0,
                 fecha_segundo_vencimiento=date(2026, 6, 20), saldo_anterior=0.0)
     db_empty.add(e)
@@ -102,10 +99,10 @@ def test_sobre_pago_genera_credito(db_empty, depto):
 
 
 def test_un_pago_cubre_dos_expensas_fifo(db_empty, depto):
-    e1 = Expensa(id=1, departamento_id=depto.id, periodo="2026-04", monto_primer_vencimiento=1000.0,
+    e1 = Expensa(consorcio_id=1, id=1, departamento_id=depto.id, periodo="2026-04", monto_primer_vencimiento=1000.0,
                  fecha_primer_vencimiento=date(2026, 5, 10), monto_segundo_vencimiento=1070.0,
                  fecha_segundo_vencimiento=date(2026, 5, 20), saldo_anterior=0.0)
-    e2 = Expensa(id=2, departamento_id=depto.id, periodo="2026-05", monto_primer_vencimiento=1000.0,
+    e2 = Expensa(consorcio_id=1, id=2, departamento_id=depto.id, periodo="2026-05", monto_primer_vencimiento=1000.0,
                  fecha_primer_vencimiento=date(2026, 6, 10), monto_segundo_vencimiento=1070.0,
                  fecha_segundo_vencimiento=date(2026, 6, 20), saldo_anterior=0.0)
     db_empty.add_all([e1, e2])
@@ -122,17 +119,15 @@ def test_un_pago_cubre_dos_expensas_fifo(db_empty, depto):
 
 
 def test_nota_credito_y_debito(db_empty, depto):
-    e = Expensa(id=1, departamento_id=depto.id, periodo="2026-05", monto_primer_vencimiento=1000.0,
+    e = Expensa(consorcio_id=1, id=1, departamento_id=depto.id, periodo="2026-05", monto_primer_vencimiento=1000.0,
                 fecha_primer_vencimiento=date(2026, 6, 10), monto_segundo_vencimiento=1070.0,
                 fecha_segundo_vencimiento=date(2026, 6, 20), saldo_anterior=0.0)
     db_empty.add(e)
     _mov_expensa(db_empty, depto.id, e.id, 1000.0, date(2026, 5, 10))
-    db_empty.add(MovimientoCuenta(
-        departamento_id=depto.id, fecha=date(2026, 6, 1),
+    db_empty.add(MovimientoCuenta(consorcio_id=1, departamento_id=depto.id, fecha=date(2026, 6, 1),
         tipo=TipoMovimiento.nota_credito, descripcion="Bonif.", monto=200.0,
     ))
-    db_empty.add(MovimientoCuenta(
-        departamento_id=depto.id, fecha=date(2026, 6, 2),
+    db_empty.add(MovimientoCuenta(consorcio_id=1, departamento_id=depto.id, fecha=date(2026, 6, 2),
         tipo=TipoMovimiento.nota_debito, descripcion="Ajuste", monto=50.0,
     ))
     db_empty.commit()
@@ -144,7 +139,7 @@ def test_nota_credito_y_debito(db_empty, depto):
 
 
 def test_expensa_vencida_sin_pago(db_empty, depto):
-    e = Expensa(id=1, departamento_id=depto.id, periodo="2026-04", monto_primer_vencimiento=1000.0,
+    e = Expensa(consorcio_id=1, id=1, departamento_id=depto.id, periodo="2026-04", monto_primer_vencimiento=1000.0,
                 fecha_primer_vencimiento=date(2026, 5, 10), monto_segundo_vencimiento=1070.0,
                 fecha_segundo_vencimiento=date(2026, 5, 20), saldo_anterior=0.0)
     db_empty.add(e)

@@ -126,7 +126,7 @@ def test_obtener_trabajo_inexistente_devuelve_404(client, headers_admin):
 
 
 def test_completar_sin_presupuesto_aprobado_devuelve_409(client, headers_admin, db_session):
-    t = Trabajo(descripcion="Sin ppto")
+    t = Trabajo(consorcio_id=1, descripcion="Sin ppto")
     db_session.add(t)
     db_session.commit()
     db_session.refresh(t)
@@ -135,14 +135,13 @@ def test_completar_sin_presupuesto_aprobado_devuelve_409(client, headers_admin, 
 
 
 def test_completar_con_aprobado_devuelve_payload(client, headers_admin, db_session):
-    t = Trabajo(descripcion="Con ppto")
+    t = Trabajo(consorcio_id=1, descripcion="Con ppto")
     db_session.add(t)
     db_session.commit()
     db_session.refresh(t)
 
     prov = db_session.query(Proveedor).first()
-    p = Presupuesto(
-        trabajo_id=t.id,
+    p = Presupuesto(consorcio_id=1, trabajo_id=t.id,
         proveedor_id=prov.id,
         monto=5000,
         estado=EstadoPresupuesto.aprobado,
@@ -163,7 +162,7 @@ def test_completar_con_aprobado_devuelve_payload(client, headers_admin, db_sessi
 
 
 def test_cancelar_trabajo_devuelve_204(client, headers_admin, db_session):
-    t = Trabajo(descripcion="Para cancelar")
+    t = Trabajo(consorcio_id=1, descripcion="Para cancelar")
     db_session.add(t)
     db_session.commit()
     db_session.refresh(t)
@@ -182,8 +181,7 @@ def test_cancelar_trabajo_con_peticion_marca_peticion_cancelada(
     pasa a cancelada (no queda huérfana en convertida_en_trabajo)."""
     from backend.models import Notificacion
 
-    p = Peticion(
-        departamento_id=1,
+    p = Peticion(consorcio_id=1, departamento_id=1,
         titulo="A cancelar via trabajo",
         descripcion="x",
         estado=EstadoPeticion.abierta,
@@ -219,7 +217,7 @@ def test_cancelar_trabajo_sin_peticion_no_explota(
     client, headers_admin, db_session
 ):
     """Trabajo "desde cero" (sin peticion_id) se cancela sin tocar peticiones."""
-    t = Trabajo(descripcion="sin peticion")
+    t = Trabajo(consorcio_id=1, descripcion="sin peticion")
     db_session.add(t)
     db_session.commit()
     db_session.refresh(t)
@@ -232,8 +230,7 @@ def test_cancelar_trabajo_sin_peticion_no_explota(
 
 def test_crear_trabajo_desde_peticion_marca_convertida(client, headers_admin, db_session):
     """POST /trabajos con peticion_id marca la petición como convertida_en_trabajo."""
-    p = Peticion(
-        departamento_id=1,
+    p = Peticion(consorcio_id=1, departamento_id=1,
         titulo="Para convertir",
         descripcion="x",
         estado=EstadoPeticion.abierta,
@@ -263,8 +260,7 @@ def test_crear_trabajo_desde_peticion_notifica_al_depto(
     una notificación in-app en la campanita."""
     from backend.models import Notificacion
 
-    p = Peticion(
-        departamento_id=1,
+    p = Peticion(consorcio_id=1, departamento_id=1,
         titulo="Aviso al depto",
         descripcion="x",
         estado=EstadoPeticion.abierta,

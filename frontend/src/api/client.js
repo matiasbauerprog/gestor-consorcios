@@ -1,14 +1,35 @@
 export const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 let _authToken = null;
+let _consorcioActivoId = null;
 let _onUnauthorized = null;
+let _onCambioPasswordRequerido = null;
 
 export function setAuthToken(token) {
   _authToken = token;
 }
 
+export function setConsorcioActivoId(id) {
+  _consorcioActivoId = id == null ? null : String(id);
+}
+
 export function setUnauthorizedHandler(handler) {
   _onUnauthorized = handler;
+}
+
+export function setCambioPasswordRequeridoHandler(handler) {
+  _onCambioPasswordRequerido = handler;
+}
+
+// Rutas que NO deben llevar X-Consorcio-Id automático.
+const _RUTAS_SIN_TENANT = [
+  "/auth/",
+  "/me/",
+  "/super-admin/",
+];
+
+function _requiereConsorcio(path) {
+  return !_RUTAS_SIN_TENANT.some((p) => path.startsWith(p));
 }
 
 export async function apiFetch(path, { token, body, method = "GET", headers = {}, ...rest } = {}) {
@@ -22,6 +43,15 @@ export async function apiFetch(path, { token, body, method = "GET", headers = {}
 
   if (tokenToUse) {
     finalHeaders["Authorization"] = `Bearer ${tokenToUse}`;
+  }
+
+  // Inyectar X-Consorcio-Id automático si aplica.
+  if (
+    !finalHeaders["X-Consorcio-Id"] &&
+    _consorcioActivoId &&
+    _requiereConsorcio(path)
+  ) {
+    finalHeaders["X-Consorcio-Id"] = _consorcioActivoId;
   }
 
   const res = await fetch(API_BASE + path, {
@@ -41,11 +71,20 @@ export async function apiFetch(path, { token, body, method = "GET", headers = {}
     }
   }
 
-  // Auto-logout solo si el request fue autenticado: un 401 con token significa
-  // token expirado/revocado. Un 401 sin token (ej. credenciales malas en /auth/login)
-  // lo maneja el componente.
+  // Auto-logout solo si el request fue autenticado.
   if (res.status === 401 && tokenToUse && _onUnauthorized) {
     _onUnauthorized();
+  }
+
+  // 403 cambio_password_requerido: patear a la pantalla de cambio.
+  if (
+    res.status === 403 &&
+    data &&
+    typeof data === "object" &&
+    data.detail === "cambio_password_requerido" &&
+    _onCambioPasswordRequerido
+  ) {
+    _onCambioPasswordRequerido();
   }
 
   return { ok: res.ok, status: res.status, data };

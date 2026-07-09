@@ -17,6 +17,7 @@ class CurrentUser:
     departamento_id: int | None
     jti: str
     exp: int
+    impersonated_by: int | None = None
 
 
 def _unauthorized(detail: str) -> HTTPException:
@@ -36,17 +37,22 @@ def create_access_token(
     rol: Rol,
     departamento_id: int | None,
     settings: Settings | None = None,
+    ttl_minutes: int | None = None,
+    impersonated_by: int | None = None,
 ) -> str:
     settings = settings or get_settings()
     now = datetime.now(timezone.utc)
+    ttl = ttl_minutes if ttl_minutes is not None else settings.JWT_EXPIRES_MIN
     payload = {
         "sub": str(user_id),
         "rol": rol.value,
         "departamento_id": departamento_id,
         "jti": uuid.uuid4().hex,
         "iat": int(now.timestamp()),
-        "exp": int((now + timedelta(minutes=settings.JWT_EXPIRES_MIN)).timestamp()),
+        "exp": int((now + timedelta(minutes=ttl)).timestamp()),
     }
+    if impersonated_by is not None:
+        payload["impersonated_by"] = impersonated_by
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
@@ -87,6 +93,7 @@ def decode_token(token: str, settings: Settings | None = None) -> CurrentUser:
         departamento_id=departamento_id,
         jti=jti,
         exp=exp_int,
+        impersonated_by=payload.get("impersonated_by"),
     )
 
 

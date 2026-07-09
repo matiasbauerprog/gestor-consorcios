@@ -10,8 +10,9 @@ Aplicación web para administrar un consorcio: expensas, cuenta corriente por de
 |---|---|
 | Backend | Python 3.11 · FastAPI · SQLAlchemy 2.0 · Pydantic v2 · SQLite |
 | Frontend | React 18 · Vite · React Router |
-| Auth | JWT HS256 con 3 roles fijos (Administración, Departamento, Representante) |
-| Tests | pytest (**453 tests**) |
+| Auth | JWT HS256 con 4 roles (Administración, Departamento, Representante, Super-Admin) |
+| Multitenant | SaaS 3-tier: Super-Admin → Administración → Consorcio → Departamento (discriminator column `consorcio_id` en toda tabla operacional) |
+| Tests | pytest (**765 tests**) |
 | Contrato | OpenAPI 3.1 (`openapi.yaml`) — documentación-primero |
 
 ---
@@ -109,7 +110,7 @@ Frontend en `http://localhost:5173`. Ahí podés loguearte con cualquiera de los
 pytest -v
 ```
 
-Debería pasar **453 tests**. Los tests usan SQLite en memoria, no tocan tu DB local.
+Debería pasar **765 tests**. Los tests usan SQLite en memoria, no tocan tu DB local.
 
 ### Reset rápido de datos
 
@@ -121,6 +122,109 @@ Remove-Item -Force consorcio.db    # Windows
 # rm -f consorcio.db               # Linux/Mac
 # Volvé a levantar uvicorn — vuelve a sembrar
 ```
+
+---
+
+## Multitenant SaaS
+
+El sistema opera como SaaS con jerarquía **Super-Admin → Administración → Consorcio → Departamento**. Cada Administración puede tener N Consorcios y cada Consorcio tiene sus propios usuarios, catálogos y datos operativos (aislamiento por `consorcio_id`).
+
+### Header X-Consorcio-Id
+
+Todo endpoint operacional (fuera de `/auth/*` y `/me/*`) exige el header:
+
+```
+X-Consorcio-Id: <id del consorcio activo>
+```
+
+El frontend persiste el consorcio seleccionado en `localStorage` y lo envía en cada request. El backend valida con `get_consorcio_activo` que el usuario del JWT tenga acceso al consorcio pedido; caso contrario devuelve **403**.
+
+Códigos de error específicos:
+- `400 X-Consorcio-Id requerido` — header ausente.
+- `400 X-Consorcio-Id invalido` — no numérico.
+- `403 sin acceso a este consorcio` — el user no pertenece a ese tenant.
+- `403 cambio_password_requerido` — user con `must_change_password=True` no puede operar hasta cambiar la password.
+- `403 administracion_suspendida` — devuelto en `/auth/login` si la Administración está `activa=False`.
+
+### Migración desde single-tenant
+
+Si venís de una DB pre-multitenant (single-tenant `consorcio.db`), corré el script idempotente:
+
+```bash
+python -m backend.migrate_multitenant
+```
+
+Este script:
+1. Crea la tabla `administraciones` con una fila "Administración Demo" (id=1).
+2. Crea la tabla `consorcios` con un "Consorcio Demo" (id=1) apuntando a la administración.
+3. Alter table + backfill de `consorcio_id=1` en todas las tablas operacionales.
+4. Registra el marcador `ya_migrado` para no correr dos veces.
+
+Es seguro correrlo varias veces; sale sin hacer nada si el marcador ya existe.
+
+### Super-Admin
+
+El rol `super_admin` no tiene consorcio propio: opera desde fuera y usa impersonate + audit log (Plan B). Se crea manual con:
+
+```bash
+# En .env:
+# SUPER_ADMIN_EMAIL=sa@tu-dominio.com
+# SUPER_ADMIN_PASSWORD=<password fuerte>
+
+python -m backend.seed_super_admin
+```
+
+Idempotente: si el super-admin ya existe, no hace nada (usar `--force` para regenerar password).
+
+### Plan B — Super-Admin backend (completado)
+
+Endpoints bajo `/super-admin/*` (rol `super_admin`, sin `X-Consorcio-Id`):
+
+| Método | Path | Propósito |
+|---|---|---|
+| GET | `/super-admin/administraciones` | Listar tenants |
+| POST | `/super-admin/administraciones` | Crear tenant + primer usuario admin (con `must_change_password=True`) |
+| GET/PATCH | `/super-admin/administraciones/{id}` | Detalle / editar |
+| POST | `/super-admin/administraciones/{id}/suspender` | Toggle `activa` — bloquea login con 403 `administracion_suspendida` |
+| POST | `/super-admin/administraciones/{id}/reset-password/{user_id}` | Password temporal + `must_change_password=True` |
+| POST | `/super-admin/impersonate/start` | JWT temporal 15 min con claim `impersonated_by`. Requiere `motivo` ≥ 10 chars |
+| POST | `/super-admin/impersonate/end` | Revoca el JTI impersonado |
+| GET | `/super-admin/metricas` | Agregados globales (tenants, consorcios, deptos, expensas del mes, impersonates 30d) |
+| GET | `/super-admin/audit-log` | Log paginado con filtros por `accion` y `administracion_id` |
+
+**Audit log automático:** durante impersonate, un middleware ASGI loguea todo POST/PUT/PATCH/DELETE con `path`, `body` (campos que matchen `password|token|secret` se redactan) y `status`. Los GET no se loguean — el `impersonate_start` ya deja constancia de la sesión.
+
+**Bloqueo del JWT impersonado en rutas super-admin:** el token temporal tiene el rol del usuario impersonado, así que `require_roles(Rol.super_admin)` lo rechaza con 403 automáticamente. `/impersonate/end` es la única excepción (usa `get_current_user`).
+
+### Plan C — Frontend multitenant (completado)
+
+- **`apiFetch` inyecta `X-Consorcio-Id`** automático desde `localStorage.consorcio_activo_id` en toda ruta operacional (excepto `/auth/*`, `/me/*`, `/super-admin/*`).
+- **AuthContext** expone `consorcioActivoId`, `consorciosAccesibles`, `impersonatedBy`, `mustChangePassword`. Al login llama a `GET /me/consorcios` y elige el consorcio activo (último de `localStorage` si válido; sino, el primero).
+- **Selector de consorcio en topbar** (`SelectorConsorcio.jsx`): dropdown visible sólo si el usuario tiene 2+ consorcios; al cambiar hace `reload()` para refetchear con el nuevo header.
+- **Guard `mustChangePassword`**: `RequireAuth` redirige a `/mi-usuario/cambiar-password` hasta que el usuario cambie su contraseña. `apiFetch` también detecta `403 cambio_password_requerido` como red de seguridad.
+- **`Login.jsx`** maneja el 403 `administracion_suspendida` con mensaje claro.
+- **Super-admin UI**: sidebar propio (`SidebarSuperAdmin.jsx`) con 3 items; pantallas `SuperAdminAdministraciones`, `SuperAdminMetricas`, `SuperAdminAuditLog` (paginado + filtros).
+- **Banner de impersonate** (`BannerImpersonate.jsx`): banda roja fija arriba con countdown 15 min, botón "Salir" que llama a `/super-admin/impersonate/end` y restaura el token original desde `sessionStorage`.
+
+### Plan D — Wizard onboarding + CRUD /consorcios (completado)
+
+**Backend — 4 endpoints nuevos bajo `/consorcios` (rol `administracion` para mutaciones):**
+
+| Método | Path | Rol | Comentario |
+|---|---|---|---|
+| GET | `/consorcios` | admin | Lista los consorcios de la administración. No requiere `X-Consorcio-Id`. |
+| POST | `/consorcios` | admin | Wizard 4-pasos. Crea el consorcio **y una Caja "Banco principal"** en la misma transacción, apuntada por `caja_default_pagos_id`. |
+| GET | `/consorcios/{id}` | admin (del tenant), depto/rep (del propio consorcio) | Reemplaza `GET /configuracion`. |
+| PATCH | `/consorcios/{id}` | admin | Reemplaza `PUT /configuracion`. Incluye `usa_personal_propio`. |
+
+Los endpoints legacy `/configuracion` (GET y PUT) quedan marcados `deprecated: true` en OpenAPI; siguen funcionando por compatibilidad y resuelven al consorcio del `X-Consorcio-Id`.
+
+**Frontend:**
+
+- Pantalla `/administracion/consorcios` (listado con "Editar", "Usar como activo" y "+ Nuevo consorcio").
+- Wizard `/administracion/consorcios/nuevo` con **4 pasos** y barra de progreso: (1) datos del consorcio + toggle `usa_personal_propio`, (2) administración, (3) datos bancarios, (4) vencimientos e intereses. **Pre-fill inteligente** en pasos 2 y 3 con botón "Usar los datos del último consorcio" (se muestra solo si la administración ya tiene otros consorcios).
+- Sidebar nuevo item **"Consorcios de la administración"** dentro de "Configuración".
+- **Feature flag Personal:** el grupo "Personal" del sidebar (Liquidaciones, Haberes, Conceptos) se oculta cuando el consorcio activo tiene `usa_personal_propio = false`. Se re-evalúa al cambiar de consorcio activo.
 
 ---
 
@@ -174,6 +278,12 @@ El proyecto se entrega en fases independientes:
 | 4 | Cierre de período y liquidación (saldo anterior, intereses, vencimientos) | pendiente |
 | 5 | Caja, fondo de reparación, estado financiero | pendiente |
 | 6 | Reportes Ley 941 + PDF de liquidación | pendiente |
+| 7A | **Multitenant SaaS (backend core)** — Administración/Consorcio/Super-Admin, `consorcio_id` en toda tabla operacional, resolver X-Consorcio-Id | ✅ |
+| 7B | **Super-Admin backend** — CRUD administraciones, reset-password, impersonate (JWT 15 min), métricas, audit log automático | ✅ |
+| 7C | **Frontend multitenant** — selector de consorcio, `X-Consorcio-Id` automático, `must_change_password` guard, sidebar + pantallas super-admin, banner impersonate con countdown | ✅ |
+| 7D | **Wizard onboarding + CRUD /consorcios** — endpoints `/consorcios` (list/get/POST wizard/patch) + caja default, pantalla listado admin + wizard 4 pasos, sidebar con feature flag `usa_personal_propio` | ✅ |
+| 7C | Frontend con selector de consorcio + guards por rol | pendiente |
+| 7D | Wizard onboarding 4-pasos para nuevos consorcios | pendiente |
 
 Cada fase tiene su propio ciclo `brainstorming → spec → plan → implementación TDD` documentado en `docs/superpowers/`.
 

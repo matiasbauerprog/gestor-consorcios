@@ -35,7 +35,7 @@ def test_crear_proveedor_inexistente_404(client, headers_admin):
 
 
 def test_patch_actualiza(client, headers_admin, db):
-    tr = TrabajoRecurrente(nombre="A", descripcion="x",
+    tr = TrabajoRecurrente(consorcio_id=1, nombre="A", descripcion="x",
                             periodicidad=PeriodicidadRecurrente.mensual)
     db.add(tr); db.commit(); db.refresh(tr)
     r = client.patch(f"/trabajos-recurrentes/{tr.id}",
@@ -45,7 +45,7 @@ def test_patch_actualiza(client, headers_admin, db):
 
 
 def test_materializar_crea_trabajo(client, headers_admin, db):
-    tr = TrabajoRecurrente(nombre="N", descripcion="D",
+    tr = TrabajoRecurrente(consorcio_id=1, nombre="N", descripcion="D",
                             periodicidad=PeriodicidadRecurrente.anual)
     db.add(tr); db.commit(); db.refresh(tr)
     r = client.post(f"/trabajos-recurrentes/{tr.id}/materializar", headers=headers_admin)
@@ -55,7 +55,7 @@ def test_materializar_crea_trabajo(client, headers_admin, db):
 
 
 def test_materializar_inactiva_400(client, headers_admin, db):
-    tr = TrabajoRecurrente(nombre="X", descripcion="x",
+    tr = TrabajoRecurrente(consorcio_id=1, nombre="X", descripcion="x",
                             periodicidad=PeriodicidadRecurrente.mensual, activa=False)
     db.add(tr); db.commit(); db.refresh(tr)
     r = client.post(f"/trabajos-recurrentes/{tr.id}/materializar", headers=headers_admin)

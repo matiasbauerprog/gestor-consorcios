@@ -7,6 +7,7 @@ from ..database import get_db
 from ..models import EstadoPeticion, Peticion, Rol
 from ..notificaciones import notificar_cambio_estado_peticion
 from ..schemas import PeticionActualizar, PeticionCrear, PeticionOut
+from ..tenant import get_consorcio_activo
 
 _ADMIN_O_REPRESENTANTE = (Rol.administracion, Rol.representante)
 
@@ -21,11 +22,12 @@ router = APIRouter(prefix="/peticiones", tags=["Tareas"])
 def listar_peticiones(
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[Peticion]:
     # Todos los roles (admin, representante, departamento) ven TODAS las peticiones.
     # Transparencia: cada depto ve en qué estado están sus propias peticiones
     # y de qué otros deptos hay peticiones abiertas (para coordinación).
-    stmt = select(Peticion).order_by(Peticion.fecha_creacion.desc())
+    stmt = select(Peticion).where(Peticion.consorcio_id == cid).order_by(Peticion.fecha_creacion.desc())
     return list(db.scalars(stmt).all())
 
 
@@ -39,9 +41,11 @@ def crear_peticion(
     payload: PeticionCrear,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.departamento)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Peticion:
     # departamento_id NUNCA del body: siempre del token.
     peticion = Peticion(
+        consorcio_id=cid,
         departamento_id=user.departamento_id,
         titulo=payload.titulo,
         descripcion=payload.descripcion,
@@ -62,9 +66,10 @@ def obtener_peticion(
     peticion_id: int,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Peticion:
     peticion = db.get(Peticion, peticion_id)
-    if peticion is None:
+    if peticion is None or peticion.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La petición solicitada no existe.",
@@ -90,9 +95,10 @@ def actualizar_peticion(
     payload: PeticionActualizar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Peticion:
     peticion = db.get(Peticion, peticion_id)
-    if peticion is None:
+    if peticion is None or peticion.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La petición solicitada no existe.",
@@ -128,9 +134,10 @@ def eliminar_peticion(
     peticion_id: int,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> None:
     peticion = db.get(Peticion, peticion_id)
-    if peticion is None:
+    if peticion is None or peticion.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La petición solicitada no existe.",

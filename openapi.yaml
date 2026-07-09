@@ -5,10 +5,20 @@ info:
     API REST para la gestión integral de consorcios. Permite administrar expensas,
     gastos del consorcio, personal y liquidaciones, tareas y presupuestos,
     comunicación interna, reserva de amenities y configuración global. El acceso a
-    los recursos está restringido por roles fijos: Administración, Departamentos
-    (Inquilinos/Propietarios) y Representantes.
+    los recursos está restringido por roles: Administración, Departamentos
+    (Inquilinos/Propietarios), Representantes y Super-Admin.
     Fase 3.5 (jun-2026): cuenta corriente por departamento — pagos se asignan FIFO desde movimientos.
-  version: 1.0.0
+
+    **Multitenant SaaS (Fase 7A, jul-2026)**: la plataforma es multi-tenant con
+    jerarquía Super-Admin → Administración → Consorcio → Departamento. Todo
+    endpoint operacional (fuera de `/auth/*` y `/me/*`) exige el header
+    `X-Consorcio-Id: <id>` para resolver el consorcio activo. El backend valida
+    que el usuario del JWT tenga acceso al consorcio pedido; caso contrario
+    devuelve **403**. Códigos específicos: `403 cambio_password_requerido`
+    (usuario con `must_change_password=True`), `403 administracion_suspendida`
+    (login sobre administración inactiva), `403 sin acceso a este consorcio`
+    (spoof cross-tenant), `400 X-Consorcio-Id requerido/invalido`.
+  version: 1.1.0
 
 servers:
   - url: http://localhost:8000
@@ -51,6 +61,12 @@ tags:
     description: Plantillas de trabajos recurrentes (materialización manual)
   - name: Notificaciones
     description: Sistema de notificaciones in-app (campanita)
+  - name: Cuenta
+    description: Endpoints del usuario autenticado — listar consorcios accesibles (multitenant)
+  - name: SuperAdmin
+    description: Endpoints del rol super_admin — CRUD de tenants, reset-password, impersonate con audit log, métricas globales
+  - name: Consorcios
+    description: CRUD de consorcios de la administración (Plan D). Reemplaza gradualmente al singleton /configuracion
 
 security:
   - bearerAuth: []
@@ -142,6 +158,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /me/consorcios:
+    get:
+      tags: [Cuenta]
+      summary: Listar consorcios accesibles al usuario autenticado
+      description: |
+        Devuelve la lista de consorcios sobre los que el usuario del JWT tiene
+        acceso operativo. El frontend usa este endpoint tras el login para
+        armar el selector de consorcio en el topbar:
+        - **administracion**: todos los consorcios de su `administracion_id`.
+        - **representante**: sólo su `consorcio_id`.
+        - **departamento**: el consorcio de su departamento.
+        - **super_admin**: lista vacía (opera fuera con impersonate — Plan B).
+
+        Este endpoint NO requiere `X-Consorcio-Id` (justamente sirve para
+        conocer los ids elegibles).
+      operationId: listarConsorciosAccesibles
+      responses:
+        '200':
+          description: Consorcios accesibles.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, nombre]
+                  properties:
+                    id:
+                      type: integer
+                      example: 1
+                    nombre:
+                      type: string
+                      example: "Consorcio Belgrano"
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+
   /auth/login:
     post:
       tags: [Auth]
@@ -172,6 +224,14 @@ paths:
           $ref: '#/components/responses/PedidoInvalido'
         '401':
           description: Credenciales inválidas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: |
+            Login rechazado por estado del tenant: la administración a la que
+            pertenece el usuario está inactiva (`administracion_suspendida`).
           content:
             application/json:
               schema:
@@ -2101,6 +2161,12 @@ paths:
     get:
       tags: [Configuración]
       summary: Obtener configuración del consorcio (todos los roles)
+      description: |
+        **Deprecated en Plan D:** usar `GET /consorcios/{consorcio_id}` en su
+        lugar (donde `consorcio_id` es el del header `X-Consorcio-Id`). Este
+        endpoint resuelve al consorcio del `X-Consorcio-Id` y devuelve un
+        subset de campos por compatibilidad.
+      deprecated: true
       security: [{ bearerAuth: [] }]
       responses:
         '200':
@@ -2113,6 +2179,11 @@ paths:
     put:
       tags: [Configuración]
       summary: Actualizar configuración del consorcio (admin)
+      description: |
+        **Deprecated en Plan D:** usar `PATCH /consorcios/{consorcio_id}` en su
+        lugar. Este endpoint sigue funcionando por compatibilidad y opera sobre
+        el consorcio del `X-Consorcio-Id`.
+      deprecated: true
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -3362,6 +3433,500 @@ paths:
             application/pdf:
               schema: { type: string, format: binary }
 
+  # =========================================================================
+  # CONSORCIOS (Plan D)
+  # =========================================================================
+
+  /consorcios:
+    get:
+      tags: [Consorcios]
+      summary: Listar consorcios de la administración
+      description: |
+        Devuelve todos los consorcios pertenecientes a la administración del
+        usuario admin autenticado. NO requiere `X-Consorcio-Id` (el scope es la
+        administración, no un consorcio específico).
+      operationId: listarConsorciosDelTenant
+      responses:
+        '200':
+          description: Listado.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConsorcioOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+
+    post:
+      tags: [Consorcios]
+      summary: Crear consorcio (wizard 4 pasos) + caja default
+      description: |
+        Alta de un nuevo consorcio dentro de la administración del usuario admin.
+        Body completo del wizard: datos del consorcio, administración, banco y
+        vencimientos. El backend crea el consorcio y en la misma transacción una
+        Caja "Banco principal" (tipo `banco`) apuntada por
+        `caja_default_pagos_id`. No requiere `X-Consorcio-Id`.
+      operationId: crearConsorcio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConsorcioCrear'
+      responses:
+        '201':
+          description: Consorcio creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsorcioOut'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '409':
+          description: CUIT del consorcio ya usado en la misma administración.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /consorcios/{consorcio_id}:
+    get:
+      tags: [Consorcios]
+      summary: Obtener consorcio por id
+      description: |
+        Admin del tenant: puede leer cualquier consorcio de su administración.
+        Representante: solo su propio consorcio.
+        Departamento: el consorcio de su departamento.
+        Reemplaza `GET /configuracion` (deprecated).
+      operationId: obtenerConsorcio
+      parameters:
+        - name: consorcio_id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Consorcio encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsorcioOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          description: Consorcio no encontrado o no accesible.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags: [Consorcios]
+      summary: Editar consorcio (reemplaza PUT /configuracion)
+      description: |
+        Solo el admin de la administración dueña del consorcio puede editar.
+        Incluye `usa_personal_propio` (feature flag que oculta el grupo Personal
+        en el frontend cuando es false).
+      operationId: actualizarConsorcio
+      parameters:
+        - name: consorcio_id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConsorcioActualizar'
+      responses:
+        '200':
+          description: Consorcio editado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsorcioOut'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          description: Consorcio no encontrado o no accesible.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # =========================================================================
+  # SUPER-ADMIN (Plan B)
+  # =========================================================================
+
+  /super-admin/administraciones:
+    get:
+      tags: [SuperAdmin]
+      summary: Listar administraciones (tenants)
+      description: |
+        Devuelve todas las administraciones registradas en la plataforma,
+        ordenadas por razón social. Solo accesible al rol super_admin.
+      operationId: superAdminListarAdministraciones
+      responses:
+        '200':
+          description: Listado de administraciones.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdministracionOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+
+    post:
+      tags: [SuperAdmin]
+      summary: Crear administración + primer usuario admin
+      description: |
+        En una sola transacción crea la Administración, un Usuario con rol
+        `administracion` (con `must_change_password=True`), y devuelve el
+        detalle. Loguea `crear_admin` en el audit log. CUIT único; email del
+        primer admin único a nivel de la tabla `usuarios`.
+      operationId: superAdminCrearAdministracion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdministracionCrear'
+      responses:
+        '201':
+          description: Administración creada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdministracionOut'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '409':
+          description: CUIT o email del admin ya en uso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /super-admin/administraciones/{administracion_id}:
+    get:
+      tags: [SuperAdmin]
+      summary: Obtener administración por id
+      operationId: superAdminObtenerAdministracion
+      parameters:
+        - name: administracion_id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Detalle de la administración.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdministracionOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          description: Administración no encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags: [SuperAdmin]
+      summary: Editar administración
+      description: |
+        Cambia razón social, email de contacto o plan de la administración.
+        Loguea `editar_admin` en el audit log con los cambios aplicados.
+      operationId: superAdminEditarAdministracion
+      parameters:
+        - name: administracion_id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdministracionActualizar'
+      responses:
+        '200':
+          description: Administración editada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdministracionOut'
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          description: Administración no encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /super-admin/administraciones/{administracion_id}/suspender:
+    post:
+      tags: [SuperAdmin]
+      summary: Toggle activa/suspendida
+      description: |
+        Alterna el flag `activa` de la administración. Cuando queda inactiva,
+        `/auth/login` de sus usuarios devuelve 403 `administracion_suspendida`.
+        Loguea `suspender_admin` o `reactivar_admin` según corresponda.
+      operationId: superAdminToggleSuspender
+      parameters:
+        - name: administracion_id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Estado actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdministracionOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          description: Administración no encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /super-admin/administraciones/{administracion_id}/usuarios:
+    get:
+      tags: [SuperAdmin]
+      summary: Listar usuarios de una administración
+      description: |
+        Devuelve los usuarios cuyo `administracion_id` coincide con el path.
+        Se usa para poblar el modal de "Gestionar usuarios" del super-admin
+        (targets de reset-password / impersonate).
+      operationId: superAdminListarUsuariosDeAdministracion
+      parameters:
+        - name: administracion_id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Lista de usuarios.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UsuarioAdminOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          description: Administración no encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /super-admin/administraciones/{administracion_id}/reset-password/{user_id}:
+    post:
+      tags: [SuperAdmin]
+      summary: Reset password de un usuario de la administración
+      description: |
+        Genera una password temporal (token-urlsafe, 12 bytes), la persiste
+        hasheada y setea `must_change_password=True` para forzar cambio en el
+        próximo login. Devuelve la password temporal UNA sola vez. Loguea
+        `reset_password` en audit log sin persistir la password. El usuario
+        debe pertenecer a la administración indicada.
+      operationId: superAdminResetPassword
+      parameters:
+        - name: administracion_id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: user_id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Password temporal generada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResetPasswordOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          description: Administración o usuario no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /super-admin/impersonate/start:
+    post:
+      tags: [SuperAdmin]
+      summary: Iniciar sesión de impersonate
+      description: |
+        Genera un JWT temporal (15 min) con claim `impersonated_by` apuntando al
+        super_admin. Requiere `motivo` de al menos 10 caracteres (queda en el
+        audit log). No se puede impersonar a otro super_admin. El JWT
+        impersonado NO da acceso a rutas `/super-admin/*` (excepto
+        `/impersonate/end`) — usa el rol del usuario impersonado.
+      operationId: superAdminImpersonateStart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImpersonateStartIn'
+      responses:
+        '200':
+          description: JWT temporal generado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImpersonateStartOut'
+        '400':
+          description: |
+            Motivo ausente o menor a 10 caracteres, o target es super_admin.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          description: Usuario a impersonar no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /super-admin/impersonate/end:
+    post:
+      tags: [SuperAdmin]
+      summary: Cerrar sesión de impersonate
+      description: |
+        Revoca el JWT impersonado agregándolo a la blacklist y loguea
+        `impersonate_end` en el audit log. Solo funciona si el token tiene el
+        claim `impersonated_by`.
+      operationId: superAdminImpersonateEnd
+      responses:
+        '204':
+          description: Impersonate cerrado, JWT revocado.
+        '400':
+          description: El token actual no es de impersonate.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+
+  /super-admin/metricas:
+    get:
+      tags: [SuperAdmin]
+      summary: Métricas globales de la plataforma
+      description: |
+        Agregados sin drill-down por tenant: cantidad de administraciones
+        activas/suspendidas, consorcios totales, departamentos totales,
+        expensas emitidas del mes en curso (cantidad y monto total) y
+        cantidad de sesiones de impersonate en los últimos 30 días.
+      operationId: superAdminMetricas
+      responses:
+        '200':
+          description: Métricas agregadas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricasOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+
+  /super-admin/audit-log:
+    get:
+      tags: [SuperAdmin]
+      summary: Listar entradas del audit log
+      description: |
+        Devuelve el audit log paginado y ordenado por fecha descendente. Cada
+        acción del super-admin (crear/editar/suspender admin, reset-password,
+        impersonate start/end) y cada mutación durante impersonate queda
+        registrada. Sin política de purga.
+      operationId: superAdminAuditLog
+      parameters:
+        - name: accion
+          in: query
+          required: false
+          schema: { type: string, maxLength: 80 }
+          description: Filtrar por nombre exacto de acción.
+        - name: administracion_id
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1 }
+          description: Filtrar por administración afectada.
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - name: offset
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        '200':
+          description: Entradas del audit log.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditLogEntryOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+
 # ===========================================================================
 # COMPONENTS
 # ===========================================================================
@@ -3384,6 +3949,20 @@ components:
         type: string
         pattern: '^\d{4}-(0[1-9]|1[0-2])$'
         example: "2026-05"
+
+    xConsorcioIdHeader:
+      name: X-Consorcio-Id
+      in: header
+      required: true
+      description: |
+        ID del consorcio activo sobre el que se opera. Requerido en todo endpoint
+        operacional (fuera de `/auth/*` y `/me/*`). El backend valida contra el
+        JWT que el usuario tenga acceso a ese consorcio; caso contrario devuelve
+        403.
+      schema:
+        type: integer
+        minimum: 1
+        example: 1
 
   responses:
 
@@ -3432,6 +4011,264 @@ components:
           type: string
           description: Descripción legible del error.
           examples: ["No tiene permisos para acceder a este recurso."]
+
+    # ---------------------------- Consorcios (Plan D) ---------------------
+
+    ConsorcioOut:
+      type: object
+      required:
+        - id
+        - administracion_id
+        - nombre
+        - usa_personal_propio
+        - consorcio_domicilio
+        - consorcio_cuit
+        - admin_nombre
+        - admin_domicilio
+        - admin_email
+        - admin_telefono
+        - admin_cuit
+        - admin_rpa
+        - admin_situacion_fiscal
+        - banco_titular
+        - banco_nombre
+        - banco_numero_cuenta
+        - banco_cbu
+        - dia_primer_vencimiento
+        - dias_entre_vencimientos
+        - recargo_segundo_vencimiento_pct
+        - tasa_interes_mensual_pct
+        - reportes_visibles_a_depto
+        - fecha_creacion
+      properties:
+        id: { type: integer }
+        administracion_id: { type: integer }
+        nombre: { type: string }
+        usa_personal_propio:
+          type: boolean
+          description: Feature flag — si false, el frontend oculta el grupo Personal en el sidebar.
+        consorcio_domicilio: { type: string }
+        consorcio_cuit: { type: string }
+        consorcio_convenio_suterh: { type: string, nullable: true }
+        admin_nombre: { type: string }
+        admin_domicilio: { type: string }
+        admin_email: { type: string }
+        admin_telefono: { type: string }
+        admin_cuit: { type: string }
+        admin_rpa: { type: string }
+        admin_situacion_fiscal: { type: string }
+        banco_titular: { type: string }
+        banco_nombre: { type: string }
+        banco_sucursal: { type: string, nullable: true }
+        banco_numero_cuenta: { type: string }
+        banco_cbu: { type: string }
+        banco_alias: { type: string, nullable: true }
+        dia_primer_vencimiento: { type: integer, minimum: 1, maximum: 28 }
+        dias_entre_vencimientos: { type: integer, minimum: 1, maximum: 30 }
+        recargo_segundo_vencimiento_pct: { type: number, format: float }
+        tasa_interes_mensual_pct: { type: number, format: float }
+        caja_default_pagos_id: { type: integer, nullable: true }
+        reportes_visibles_a_depto: { type: boolean }
+        fecha_creacion: { type: string, format: date-time }
+
+    ConsorcioCrear:
+      type: object
+      required:
+        - nombre
+        - consorcio_domicilio
+        - consorcio_cuit
+        - admin_nombre
+        - admin_domicilio
+        - admin_email
+        - admin_telefono
+        - admin_cuit
+        - admin_rpa
+        - admin_situacion_fiscal
+        - banco_titular
+        - banco_nombre
+        - banco_numero_cuenta
+        - banco_cbu
+      properties:
+        nombre: { type: string, minLength: 1, maxLength: 255 }
+        consorcio_domicilio: { type: string, minLength: 1, maxLength: 500 }
+        consorcio_cuit: { type: string, minLength: 1, maxLength: 13 }
+        consorcio_convenio_suterh: { type: string, maxLength: 50, nullable: true }
+        usa_personal_propio: { type: boolean, default: true }
+        admin_nombre: { type: string, minLength: 1, maxLength: 255 }
+        admin_domicilio: { type: string, minLength: 1, maxLength: 500 }
+        admin_email: { type: string, minLength: 3, maxLength: 255 }
+        admin_telefono: { type: string, minLength: 1, maxLength: 50 }
+        admin_cuit: { type: string, minLength: 1, maxLength: 13 }
+        admin_rpa: { type: string, minLength: 1, maxLength: 50 }
+        admin_situacion_fiscal: { type: string, minLength: 1, maxLength: 100 }
+        banco_titular: { type: string, minLength: 1, maxLength: 255 }
+        banco_nombre: { type: string, minLength: 1, maxLength: 100 }
+        banco_sucursal: { type: string, maxLength: 50, nullable: true }
+        banco_numero_cuenta: { type: string, minLength: 1, maxLength: 50 }
+        banco_cbu: { type: string, minLength: 1, maxLength: 22 }
+        banco_alias: { type: string, maxLength: 50, nullable: true }
+        dia_primer_vencimiento: { type: integer, minimum: 1, maximum: 28, default: 10 }
+        dias_entre_vencimientos: { type: integer, minimum: 1, maximum: 30, default: 10 }
+        recargo_segundo_vencimiento_pct: { type: number, minimum: 0, maximum: 100, default: 7.0 }
+        tasa_interes_mensual_pct: { type: number, minimum: 0, maximum: 100, default: 3.0 }
+        reportes_visibles_a_depto: { type: boolean, default: false }
+
+    ConsorcioActualizar:
+      type: object
+      description: Todos los campos son opcionales — solo se actualizan los enviados.
+      properties:
+        nombre: { type: string, minLength: 1, maxLength: 255, nullable: true }
+        usa_personal_propio: { type: boolean, nullable: true }
+        consorcio_domicilio: { type: string, minLength: 1, maxLength: 500, nullable: true }
+        consorcio_cuit: { type: string, minLength: 1, maxLength: 13, nullable: true }
+        consorcio_convenio_suterh: { type: string, maxLength: 50, nullable: true }
+        admin_nombre: { type: string, minLength: 1, maxLength: 255, nullable: true }
+        admin_domicilio: { type: string, minLength: 1, maxLength: 500, nullable: true }
+        admin_email: { type: string, minLength: 3, maxLength: 255, nullable: true }
+        admin_telefono: { type: string, minLength: 1, maxLength: 50, nullable: true }
+        admin_cuit: { type: string, minLength: 1, maxLength: 13, nullable: true }
+        admin_rpa: { type: string, minLength: 1, maxLength: 50, nullable: true }
+        admin_situacion_fiscal: { type: string, minLength: 1, maxLength: 100, nullable: true }
+        banco_titular: { type: string, minLength: 1, maxLength: 255, nullable: true }
+        banco_nombre: { type: string, minLength: 1, maxLength: 100, nullable: true }
+        banco_sucursal: { type: string, maxLength: 50, nullable: true }
+        banco_numero_cuenta: { type: string, minLength: 1, maxLength: 50, nullable: true }
+        banco_cbu: { type: string, minLength: 1, maxLength: 22, nullable: true }
+        banco_alias: { type: string, maxLength: 50, nullable: true }
+        dia_primer_vencimiento: { type: integer, minimum: 1, maximum: 28, nullable: true }
+        dias_entre_vencimientos: { type: integer, minimum: 1, maximum: 30, nullable: true }
+        recargo_segundo_vencimiento_pct: { type: number, minimum: 0, maximum: 100, nullable: true }
+        tasa_interes_mensual_pct: { type: number, minimum: 0, maximum: 100, nullable: true }
+        caja_default_pagos_id: { type: integer, minimum: 1, nullable: true }
+        reportes_visibles_a_depto: { type: boolean, nullable: true }
+
+    # ---------------------------- Super-admin (Plan B) --------------------
+
+    AdministracionOut:
+      type: object
+      required: [id, razon_social, cuit, email_contacto, activa, plan, fecha_creacion]
+      properties:
+        id: { type: integer, example: 1 }
+        razon_social: { type: string, example: "Estudio López" }
+        cuit: { type: string, example: "30-12345678-9" }
+        email_contacto: { type: string, example: "info@estudio-lopez.com" }
+        activa: { type: boolean, example: true }
+        plan: { type: string, example: "free" }
+        fecha_creacion: { type: string, format: date-time }
+
+    AdministracionCrear:
+      type: object
+      required: [razon_social, cuit, email_contacto, admin_email, admin_password_inicial]
+      properties:
+        razon_social: { type: string, minLength: 1, maxLength: 255 }
+        cuit: { type: string, minLength: 1, maxLength: 13 }
+        email_contacto: { type: string, minLength: 3, maxLength: 255 }
+        admin_email:
+          type: string
+          minLength: 3
+          maxLength: 255
+          description: Email del primer usuario admin (rol `administracion`).
+        admin_password_inicial:
+          type: string
+          minLength: 8
+          maxLength: 128
+          description: Password inicial. El usuario deberá cambiarla en el primer login.
+
+    AdministracionActualizar:
+      type: object
+      properties:
+        razon_social: { type: string, minLength: 1, maxLength: 255, nullable: true }
+        email_contacto: { type: string, minLength: 3, maxLength: 255, nullable: true }
+        plan: { type: string, maxLength: 50, nullable: true }
+
+    ResetPasswordOut:
+      type: object
+      required: [password_temporal]
+      properties:
+        password_temporal:
+          type: string
+          description: Password temporal en claro. Solo se devuelve una vez.
+
+    UsuarioAdminOut:
+      type: object
+      required: [id, email, rol, must_change_password]
+      properties:
+        id: { type: integer }
+        email: { type: string, format: email }
+        rol:
+          type: string
+          enum: [administracion, representante, departamento, super_admin]
+        departamento_id: { type: integer, nullable: true }
+        consorcio_id: { type: integer, nullable: true }
+        must_change_password: { type: boolean }
+
+    ImpersonateStartIn:
+      type: object
+      required: [usuario_id, motivo]
+      properties:
+        usuario_id: { type: integer, minimum: 1 }
+        motivo:
+          type: string
+          minLength: 10
+          maxLength: 500
+          description: Motivo del impersonate (queda en el audit log).
+
+    ImpersonateStartOut:
+      type: object
+      required: [access_token, token_type, expires_in, impersonated_user_id]
+      properties:
+        access_token: { type: string }
+        token_type: { type: string, example: "bearer" }
+        expires_in: { type: integer, example: 900 }
+        impersonated_user_id: { type: integer }
+
+    MetricasOut:
+      type: object
+      required: [administraciones, consorcios, departamentos, expensas_ultimo_mes, impersonates_ultimos_30_dias]
+      properties:
+        administraciones:
+          type: object
+          properties:
+            activas: { type: integer }
+            suspendidas: { type: integer }
+            total: { type: integer }
+        consorcios:
+          type: object
+          properties:
+            total: { type: integer }
+        departamentos:
+          type: object
+          properties:
+            total: { type: integer }
+        expensas_ultimo_mes:
+          type: object
+          properties:
+            emitidas: { type: integer }
+            monto_total: { type: number, format: float }
+        impersonates_ultimos_30_dias: { type: integer }
+
+    AuditLogEntryOut:
+      type: object
+      required: [id, super_admin_usuario_id, accion, fecha]
+      properties:
+        id: { type: integer }
+        super_admin_usuario_id: { type: integer }
+        accion:
+          type: string
+          description: |
+            crear_admin, editar_admin, suspender_admin, reactivar_admin,
+            reset_password, impersonate_start, impersonate_end,
+            impersonate_mutacion.
+        administracion_id_afectada: { type: integer, nullable: true }
+        motivo:
+          type: string
+          nullable: true
+          description: Obligatorio para `impersonate_start`.
+        detalles:
+          type: string
+          nullable: true
+          description: JSON serializado con contexto; campos sensibles se redactan.
+        fecha: { type: string, format: date-time }
 
     # ---------------------------- Auth ------------------------------------
 

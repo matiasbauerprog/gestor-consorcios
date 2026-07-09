@@ -156,7 +156,7 @@ def test_delete_clase_con_coeficientes_es_soft_delete(client, headers_admin, db_
     # aislar el test).
     from backend.models import CoeficienteDepartamento
     db_session.add(
-        CoeficienteDepartamento(departamento_id=1, clase_prorrateo_id=500, porcentaje=50.0)
+        CoeficienteDepartamento(consorcio_id=1, departamento_id=1, clase_prorrateo_id=500, porcentaje=50.0)
     )
     db_session.commit()
 

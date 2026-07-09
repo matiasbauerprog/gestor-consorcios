@@ -10,6 +10,7 @@ from ..auth import CurrentUser, get_current_user
 from ..database import get_db
 from ..models import Notificacion
 from ..schemas import NotificacionOut, NotificacionesCountOut
+from ..tenant import get_consorcio_activo
 
 router = APIRouter(prefix="/notificaciones", tags=["Notificaciones"])
 
@@ -23,6 +24,7 @@ def listar_notificaciones(
     limit: int = 50,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[Notificacion]:
     return list(db.scalars(
         select(Notificacion)
@@ -40,6 +42,7 @@ def listar_notificaciones(
 def contar_no_leidas(
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> NotificacionesCountOut:
     count = db.scalar(
         select(func.count(Notificacion.id)).where(

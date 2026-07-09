@@ -19,6 +19,7 @@ from ..models import (
 )
 from ..pdf import generar_pdf_boleta
 from ..schemas import ExpensaCrear, ExpensaOut, LineaDetalleExpensaOut
+from ..tenant import get_consorcio_activo
 
 router = APIRouter(prefix="/expensas", tags=["Expensas"])
 
@@ -60,8 +61,9 @@ def listar_expensas(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.administracion, Rol.departamento)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[ExpensaOut]:
-    stmt = select(Expensa).order_by(Expensa.fecha_primer_vencimiento.desc(), Expensa.id.desc())
+    stmt = select(Expensa).where(Expensa.consorcio_id == cid).order_by(Expensa.fecha_primer_vencimiento.desc(), Expensa.id.desc())
 
     # Aislamiento por unidad: el Departamento solo ve sus propias expensas.
     # El departamento_id se toma del token, nunca del query param.
@@ -103,14 +105,17 @@ def crear_expensa(
     payload: ExpensaCrear,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> ExpensaOut:
-    if db.get(Departamento, payload.departamento_id) is None:
+    depto = db.get(Departamento, payload.departamento_id)
+    if depto is None or depto.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El departamento indicado no existe.",
         )
 
-    if db.get(PeriodoCerrado, payload.periodo) is not None:
+    pc = db.get(PeriodoCerrado, payload.periodo)
+    if pc is not None and pc.consorcio_id == cid:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"El período {payload.periodo} está cerrado y no admite cambios.",
@@ -118,6 +123,7 @@ def crear_expensa(
 
     duplicado = db.scalar(
         select(Expensa.id).where(
+            Expensa.consorcio_id == cid,
             Expensa.departamento_id == payload.departamento_id,
             Expensa.periodo == payload.periodo,
         )
@@ -129,6 +135,7 @@ def crear_expensa(
         )
 
     expensa = Expensa(
+        consorcio_id=cid,
         departamento_id=payload.departamento_id,
         periodo=payload.periodo,
         monto_primer_vencimiento=payload.monto_primer_vencimiento,
@@ -142,6 +149,7 @@ def crear_expensa(
 
     db.add(
         MovimientoCuenta(
+            consorcio_id=cid,
             departamento_id=expensa.departamento_id,
             fecha=date.today(),
             tipo=TipoMovimiento.expensa_emitida,
@@ -167,9 +175,10 @@ def obtener_expensa(
     expensa_id: int,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> ExpensaOut:
     expensa = db.get(Expensa, expensa_id)
-    if expensa is None:
+    if expensa is None or expensa.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La expensa solicitada no existe.",
@@ -199,9 +208,10 @@ def eliminar_expensa(
     expensa_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> None:
     expensa = db.get(Expensa, expensa_id)
-    if expensa is None:
+    if expensa is None or expensa.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La expensa solicitada no existe.",
@@ -242,9 +252,10 @@ def descargar_pdf_expensa(
     expensa_id: int,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Response:
     expensa = db.get(Expensa, expensa_id)
-    if expensa is None:
+    if expensa is None or expensa.consorcio_id != cid:
         raise HTTPException(404, "Expensa no encontrada.")
 
     # Autorización: depto solo ve las propias; admin/representante cualquiera

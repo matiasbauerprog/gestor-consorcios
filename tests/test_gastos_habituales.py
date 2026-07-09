@@ -152,6 +152,7 @@ def test_delete_habitual_con_gastos_es_soft_delete(client, headers_admin, db_ses
     from datetime import date as d
     db_session.add(
         GastoModel(
+            consorcio_id=1,
             periodo="2026-06",
             rubro=R.abonos_y_servicios,
             clase_prorrateo_id=500,

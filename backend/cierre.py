@@ -15,7 +15,7 @@ from .cuenta_corriente import calcular_estado_cuenta
 from .models import (
     ClaseProrrateo,
     CoeficienteDepartamento,
-    ConfiguracionConsorcio,
+    Consorcio,
     Departamento,
     EstadoExpensa,
     Expensa,
@@ -77,7 +77,7 @@ class PreviewCierre:
 
 
 def _calcular_fechas_default(
-    periodo: str, config: ConfiguracionConsorcio
+    periodo: str, config: Consorcio
 ) -> tuple[date, date]:
     """fecha_1 = día N del mes siguiente al período. fecha_2 = fecha_1 + M días."""
     year, month = map(int, periodo.split("-"))
@@ -98,7 +98,7 @@ def calcular_intereses_al_cierre(
 
     Returns (monto_total, descripcion_agregada). Si monto == 0, retorna (0.0, "").
     """
-    config = db.scalar(select(ConfiguracionConsorcio))
+    config = db.scalar(select(Consorcio))
     if config is None:
         return 0.0, ""
 
@@ -139,7 +139,7 @@ def calcular_preview_cierre(
     fecha_segundo_venc: date | None = None,
 ) -> PreviewCierre:
     cerrado = db.get(PeriodoCerrado, periodo) is not None
-    config = db.scalar(select(ConfiguracionConsorcio))
+    config = db.scalar(select(Consorcio))
 
     validaciones: list[Validacion] = []
 
@@ -255,7 +255,7 @@ def _completar_preview(
     fecha_2: date,
     validaciones: list[Validacion],
     gastos_periodo: list[Gasto],
-    config: ConfiguracionConsorcio,
+    config: Consorcio,
 ) -> PreviewCierre:
     """Calcula expensas, intereses y saldo anterior. Si ya está cerrado,
     devuelve preview vacío de expensas."""

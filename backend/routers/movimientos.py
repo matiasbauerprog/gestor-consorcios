@@ -10,6 +10,7 @@ from ..cuenta_corriente import calcular_estado_cuenta
 from ..database import get_db
 from ..models import Departamento, MovimientoCuenta, Rol
 from ..schemas import EstadoCuentaOut, MovimientoCuentaOut, NotaCrear
+from ..tenant import get_consorcio_activo
 
 router = APIRouter(tags=["Movimientos"])
 
@@ -51,6 +52,7 @@ def mi_cuenta(
     hasta: date | None = Query(default=None),
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.departamento)),
+    _cid: int = Depends(get_consorcio_activo),
 ) -> EstadoCuentaOut:
     return _cuenta(db, user.departamento_id, desde, hasta)
 
@@ -67,8 +69,10 @@ def cuenta_departamento(
     hasta: date | None = Query(default=None),
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> EstadoCuentaOut:
-    if db.get(Departamento, departamento_id) is None:
+    d = db.get(Departamento, departamento_id)
+    if d is None or d.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El departamento indicado no existe.",
@@ -86,14 +90,17 @@ def crear_nota(
     payload: NotaCrear,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> MovimientoCuenta:
-    if db.get(Departamento, payload.departamento_id) is None:
+    d = db.get(Departamento, payload.departamento_id)
+    if d is None or d.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El departamento indicado no existe.",
         )
 
     mov = MovimientoCuenta(
+        consorcio_id=cid,
         departamento_id=payload.departamento_id,
         fecha=payload.fecha or date.today(),
         tipo=payload.tipo,

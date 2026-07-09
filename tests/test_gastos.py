@@ -460,7 +460,7 @@ def test_delete_gasto_borra_movimiento(client, headers_admin, db_session):
 def test_crear_gasto_con_trabajo_id_marca_finalizado(client, headers_admin, db_session):
     """POST /gastos con trabajo_id marca el trabajo como finalizado y setea gasto_id."""
     from backend.models import EstadoTrabajo, Trabajo
-    t = Trabajo(descripcion="Trabajo para gasto")
+    t = Trabajo(consorcio_id=1, descripcion="Trabajo para gasto")
     db_session.add(t)
     db_session.commit()
     db_session.refresh(t)

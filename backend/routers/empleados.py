@@ -6,6 +6,7 @@ from ..auth import CurrentUser, require_roles
 from ..database import get_db
 from ..models import Empleado, LiquidacionEmpleado, Proveedor, Rol
 from ..schemas import EmpleadoActualizar, EmpleadoCrear, EmpleadoOut
+from ..tenant import get_consorcio_activo
 
 router = APIRouter(prefix="/empleados", tags=["Personal"])
 
@@ -28,8 +29,9 @@ def listar_empleados(
     activo: bool | None = Query(default=True),
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> list[Empleado]:
-    stmt = select(Empleado).order_by(Empleado.nombre_completo.asc())
+    stmt = select(Empleado).where(Empleado.consorcio_id == cid).order_by(Empleado.nombre_completo.asc())
     if activo is not None:
         stmt = stmt.where(Empleado.activo == activo)
     return list(db.scalars(stmt).all())
@@ -45,6 +47,7 @@ def crear_empleado(
     payload: EmpleadoCrear,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Empleado:
     duplicado = db.scalar(select(Empleado.id).where(Empleado.cuil == payload.cuil))
     if duplicado is not None:
@@ -56,6 +59,7 @@ def crear_empleado(
     _validar_proveedor(db, payload.proveedor_id)
 
     empleado = Empleado(
+        consorcio_id=cid,
         nombre_completo=payload.nombre_completo,
         cuil=payload.cuil,
         categoria=payload.categoria,
@@ -81,9 +85,10 @@ def obtener_empleado(
     empleado_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Empleado:
     empleado = db.get(Empleado, empleado_id)
-    if empleado is None:
+    if empleado is None or empleado.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El empleado solicitado no existe.",
@@ -102,9 +107,10 @@ def actualizar_empleado(
     payload: EmpleadoActualizar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Empleado:
     empleado = db.get(Empleado, empleado_id)
-    if empleado is None:
+    if empleado is None or empleado.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El empleado solicitado no existe.",
@@ -132,9 +138,10 @@ def eliminar_empleado(
     empleado_id: int,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ):
     empleado = db.get(Empleado, empleado_id)
-    if empleado is None:
+    if empleado is None or empleado.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El empleado solicitado no existe.",

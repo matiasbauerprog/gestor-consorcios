@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .models import (
-    ConfiguracionConsorcio,
+    Consorcio,
     Departamento,
     Expensa,
     ExpensaDetalle,
@@ -45,7 +45,7 @@ def _rubro_label(rubro_value: str) -> str:
     return _RUBRO_LABELS.get(rubro_value, rubro_value)
 
 
-def _dibujar_header_consorcio(story, config: ConfiguracionConsorcio, titulo: str, subtitulo: str = "") -> None:
+def _dibujar_header_consorcio(story, config: Consorcio, titulo: str, subtitulo: str = "") -> None:
     """Suma al story el header común a todos los PDFs del consorcio."""
     styles = getSampleStyleSheet()
     h1 = styles["Heading1"]
@@ -53,7 +53,7 @@ def _dibujar_header_consorcio(story, config: ConfiguracionConsorcio, titulo: str
     normal = styles["Normal"]
     small = ParagraphStyle("small_header", parent=normal, fontSize=8, textColor=colors.grey)
 
-    story.append(Paragraph(config.consorcio_nombre, h1))
+    story.append(Paragraph(config.nombre, h1))
     story.append(Paragraph(
         f"{config.consorcio_domicilio} · CUIT {config.consorcio_cuit}", normal
     ))
@@ -70,7 +70,7 @@ def _dibujar_header_consorcio(story, config: ConfiguracionConsorcio, titulo: str
 
 def generar_pdf_boleta(expensa: Expensa, db: Session) -> bytes:
     """Genera el PDF de la boleta. Devuelve bytes."""
-    config = db.get(ConfiguracionConsorcio, 1)
+    config = db.get(Consorcio, 1)
     departamento = db.get(Departamento, expensa.departamento_id)
 
     pagos = list(db.scalars(
@@ -189,7 +189,7 @@ def generar_pdf_boleta(expensa: Expensa, db: Session) -> bytes:
     return buf.getvalue()
 
 
-def generar_pdf_morosos(items, fecha: date, config: ConfiguracionConsorcio) -> bytes:
+def generar_pdf_morosos(items, fecha: date, config: Consorcio) -> bytes:
     """PDF del reporte de morosos."""
     buf = BytesIO()
     doc = SimpleDocTemplate(
@@ -233,7 +233,7 @@ def generar_pdf_morosos(items, fecha: date, config: ConfiguracionConsorcio) -> b
     return buf.getvalue()
 
 
-def generar_pdf_estado_financiero(reporte, config: ConfiguracionConsorcio) -> bytes:
+def generar_pdf_estado_financiero(reporte, config: Consorcio) -> bytes:
     """PDF del estado financiero (activo/pasivo/patrimonio)."""
     buf = BytesIO()
     doc = SimpleDocTemplate(
@@ -297,7 +297,7 @@ def generar_pdf_estado_financiero(reporte, config: ConfiguracionConsorcio) -> by
     return buf.getvalue()
 
 
-def generar_pdf_gastos_periodo(reporte, config: ConfiguracionConsorcio) -> bytes:
+def generar_pdf_gastos_periodo(reporte, config: Consorcio) -> bytes:
     """PDF del detalle de gastos del período."""
     buf = BytesIO()
     doc = SimpleDocTemplate(
@@ -362,7 +362,7 @@ def generar_pdf_gastos_periodo(reporte, config: ConfiguracionConsorcio) -> bytes
     return buf.getvalue()
 
 
-def generar_pdf_lista_proveedores(items, anio: int, config: ConfiguracionConsorcio) -> bytes:
+def generar_pdf_lista_proveedores(items, anio: int, config: Consorcio) -> bytes:
     """PDF del ranking de proveedores."""
     buf = BytesIO()
     doc = SimpleDocTemplate(

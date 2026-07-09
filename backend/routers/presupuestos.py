@@ -17,6 +17,7 @@ from ..config import get_settings
 from ..database import get_db
 from ..models import EstadoPresupuesto, Presupuesto, Proveedor, Rol, Trabajo
 from ..schemas import PresupuestoActualizar, PresupuestoOut
+from ..tenant import get_consorcio_activo
 
 router = APIRouter(prefix="/trabajos", tags=["Presupuestos"])
 
@@ -79,6 +80,7 @@ def crear_presupuesto(
     archivo: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion, Rol.representante)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> PresupuestoOut:
     _validar_trabajo(db, trabajo_id)
     _validar_proveedor(db, proveedor_id)
@@ -87,6 +89,7 @@ def crear_presupuesto(
     archivo_path = _guardar_archivo(archivo) if (archivo and archivo.filename) else None
 
     p = Presupuesto(
+        consorcio_id=cid,
         trabajo_id=trabajo_id,
         proveedor_id=proveedor_id,
         monto=monto,

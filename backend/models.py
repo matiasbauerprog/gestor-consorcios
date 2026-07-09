@@ -22,6 +22,7 @@ class Rol(str, enum.Enum):
     administracion = "administracion"
     representante = "representante"
     departamento = "departamento"
+    super_admin = "super_admin"
 
 
 class EstadoPeticion(str, enum.Enum):
@@ -140,9 +141,16 @@ class TipoHaber(str, enum.Enum):
 
 class Departamento(Base):
     __tablename__ = "departamentos"
+    __table_args__ = (
+        UniqueConstraint("consorcio_id", "codigo", name="uq_depto_consorcio_codigo"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    codigo: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
+    codigo: Mapped[str] = mapped_column(String(32), nullable=False)
     descripcion: Mapped[str | None] = mapped_column(String(255))
 
     usuarios: Mapped[list["Usuario"]] = relationship(back_populates="departamento")
@@ -166,6 +174,15 @@ class Usuario(Base):
         ForeignKey("departamentos.id", ondelete="RESTRICT"),
         nullable=True,
     )
+    administracion_id: Mapped[int | None] = mapped_column(
+        ForeignKey("administraciones.id", ondelete="RESTRICT"),
+        nullable=True, index=True,
+    )
+    consorcio_id: Mapped[int | None] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=True, index=True,
+    )
+    must_change_password: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     departamento: Mapped["Departamento | None"] = relationship(back_populates="usuarios")
 
@@ -174,6 +191,10 @@ class Peticion(Base):
     __tablename__ = "peticiones"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     departamento_id: Mapped[int] = mapped_column(
         ForeignKey("departamentos.id", ondelete="RESTRICT"),
         nullable=False,
@@ -198,6 +219,10 @@ class Trabajo(Base):
     __tablename__ = "trabajos"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     peticion_id: Mapped[int | None] = mapped_column(
         ForeignKey("peticiones.id", ondelete="RESTRICT"),
         nullable=True,
@@ -230,6 +255,10 @@ class Presupuesto(Base):
     __tablename__ = "presupuestos"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     trabajo_id: Mapped[int] = mapped_column(
         ForeignKey("trabajos.id", ondelete="RESTRICT"),
         nullable=False, index=True,
@@ -259,6 +288,10 @@ class Comunicado(Base):
     __tablename__ = "comunicados"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     titulo: Mapped[str] = mapped_column(String(255), nullable=False)
     cuerpo: Mapped[str] = mapped_column(String(5000), nullable=False)
     fecha_publicacion: Mapped[datetime] = mapped_column(
@@ -277,10 +310,15 @@ class Comunicado(Base):
 class Expensa(Base):
     __tablename__ = "expensas"
     __table_args__ = (
-        UniqueConstraint("departamento_id", "periodo", name="uq_expensa_depto_periodo"),
+        UniqueConstraint("consorcio_id", "departamento_id", "periodo",
+                         name="uq_expensa_consorcio_depto_periodo"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     departamento_id: Mapped[int] = mapped_column(
         ForeignKey("departamentos.id", ondelete="RESTRICT"),
         nullable=False,
@@ -307,6 +345,10 @@ class ExpensaDetalle(Base):
     __tablename__ = "expensa_detalle"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     expensa_id: Mapped[int] = mapped_column(
         ForeignKey("expensas.id", ondelete="CASCADE"),
         nullable=False,
@@ -331,6 +373,10 @@ class PeriodoCerrado(Base):
     __tablename__ = "periodos_cerrados"
 
     periodo: Mapped[str] = mapped_column(String(7), primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     fecha_cierre: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -348,6 +394,10 @@ class Comprobante(Base):
     __tablename__ = "comprobantes"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     departamento_id: Mapped[int] = mapped_column(
         ForeignKey("departamentos.id", ondelete="RESTRICT"),
         nullable=False,
@@ -374,9 +424,16 @@ class Comprobante(Base):
 
 class Amenity(Base):
     __tablename__ = "amenities"
+    __table_args__ = (
+        UniqueConstraint("consorcio_id", "nombre", name="uq_amenity_consorcio_nombre"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    nombre: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
+    nombre: Mapped[str] = mapped_column(String(100), nullable=False)
     descripcion: Mapped[str | None] = mapped_column(String(500))
 
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -393,6 +450,10 @@ class Reserva(Base):
     __tablename__ = "reservas"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     amenity_id: Mapped[int] = mapped_column(
         ForeignKey("amenities.id", ondelete="RESTRICT"),
         nullable=False,
@@ -423,9 +484,16 @@ class Reserva(Base):
 
 class ClaseProrrateo(Base):
     __tablename__ = "clases_prorrateo"
+    __table_args__ = (
+        UniqueConstraint("consorcio_id", "codigo", name="uq_clase_consorcio_codigo"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    codigo: Mapped[str] = mapped_column(String(8), unique=True, nullable=False)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
+    codigo: Mapped[str] = mapped_column(String(8), nullable=False)
     nombre: Mapped[str] = mapped_column(String(120), nullable=False)
     descripcion: Mapped[str | None] = mapped_column(String(500))
     activa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -447,6 +515,10 @@ class CoeficienteDepartamento(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     departamento_id: Mapped[int] = mapped_column(
         ForeignKey("departamentos.id", ondelete="CASCADE"),
         index=True,
@@ -465,11 +537,18 @@ class CoeficienteDepartamento(Base):
 
 class Proveedor(Base):
     __tablename__ = "proveedores"
+    __table_args__ = (
+        UniqueConstraint("consorcio_id", "cuit", name="uq_proveedor_consorcio_cuit"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     razon_social: Mapped[str] = mapped_column(String(255), nullable=False)
     nombre_fantasia: Mapped[str | None] = mapped_column(String(255))
-    cuit: Mapped[str] = mapped_column(String(13), unique=True, nullable=False)
+    cuit: Mapped[str] = mapped_column(String(13), nullable=False)
     direccion: Mapped[str | None] = mapped_column(String(500))
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     fecha_creacion: Mapped[datetime] = mapped_column(
@@ -477,47 +556,14 @@ class Proveedor(Base):
     )
 
 
-class ConfiguracionConsorcio(Base):
-    __tablename__ = "configuracion_consorcio"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-
-    # consorcio
-    consorcio_nombre: Mapped[str] = mapped_column(String(255), nullable=False)
-    consorcio_domicilio: Mapped[str] = mapped_column(String(500), nullable=False)
-    consorcio_cuit: Mapped[str] = mapped_column(String(13), nullable=False)
-    consorcio_convenio_suterh: Mapped[str | None] = mapped_column(String(50))
-
-    # administración
-    admin_nombre: Mapped[str] = mapped_column(String(255), nullable=False)
-    admin_domicilio: Mapped[str] = mapped_column(String(500), nullable=False)
-    admin_email: Mapped[str] = mapped_column(String(255), nullable=False)
-    admin_telefono: Mapped[str] = mapped_column(String(50), nullable=False)
-    admin_cuit: Mapped[str] = mapped_column(String(13), nullable=False)
-    admin_rpa: Mapped[str] = mapped_column(String(50), nullable=False)
-    admin_situacion_fiscal: Mapped[str] = mapped_column(String(100), nullable=False)
-
-    # banco
-    banco_titular: Mapped[str] = mapped_column(String(255), nullable=False)
-    banco_nombre: Mapped[str] = mapped_column(String(100), nullable=False)
-    banco_sucursal: Mapped[str | None] = mapped_column(String(50))
-    banco_numero_cuenta: Mapped[str] = mapped_column(String(50), nullable=False)
-    banco_cbu: Mapped[str] = mapped_column(String(22), nullable=False)
-    banco_alias: Mapped[str | None] = mapped_column(String(50))
-
-    # vencimientos e intereses (Fase 4)
-    dia_primer_vencimiento: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
-    dias_entre_vencimientos: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
-    recargo_segundo_vencimiento_pct: Mapped[float] = mapped_column(Float, nullable=False, default=7.0)
-    tasa_interes_mensual_pct: Mapped[float] = mapped_column(Float, nullable=False, default=3.0)
-    caja_default_pagos_id: Mapped[int | None] = mapped_column(ForeignKey("cajas.id"))
-    reportes_visibles_a_depto: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-
-
 class GastoHabitual(Base):
     __tablename__ = "gastos_habituales"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     nombre: Mapped[str] = mapped_column(String(120), nullable=False)
     rubro: Mapped[Rubro] = mapped_column(SqlEnum(Rubro, name="rubro"), nullable=False)
     clase_prorrateo_id: Mapped[int] = mapped_column(
@@ -544,6 +590,10 @@ class Gasto(Base):
     __tablename__ = "gastos"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     periodo: Mapped[str] = mapped_column(String(7), index=True, nullable=False)
     rubro: Mapped[Rubro] = mapped_column(SqlEnum(Rubro, name="rubro"), nullable=False)
 
@@ -591,10 +641,17 @@ class Gasto(Base):
 
 class Empleado(Base):
     __tablename__ = "empleados"
+    __table_args__ = (
+        UniqueConstraint("consorcio_id", "cuil", name="uq_empleado_consorcio_cuil"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     nombre_completo: Mapped[str] = mapped_column(String(255), nullable=False)
-    cuil: Mapped[str] = mapped_column(String(13), unique=True, nullable=False)
+    cuil: Mapped[str] = mapped_column(String(13), nullable=False)
     categoria: Mapped[CategoriaEmpleado] = mapped_column(
         SqlEnum(CategoriaEmpleado, name="categoria_empleado"), nullable=False
     )
@@ -612,9 +669,16 @@ class Empleado(Base):
 
 class Haber(Base):
     __tablename__ = "haberes"
+    __table_args__ = (
+        UniqueConstraint("consorcio_id", "nombre", name="uq_haber_consorcio_nombre"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    nombre: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
+    nombre: Mapped[str] = mapped_column(String(120), nullable=False)
     tipo: Mapped[TipoHaber] = mapped_column(SqlEnum(TipoHaber, name="tipo_haber"), nullable=False)
     valor_default: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     orden: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -623,9 +687,16 @@ class Haber(Base):
 
 class ConceptoLiquidacion(Base):
     __tablename__ = "conceptos_liquidacion"
+    __table_args__ = (
+        UniqueConstraint("consorcio_id", "nombre", name="uq_concepto_consorcio_nombre"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    nombre: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
+    nombre: Mapped[str] = mapped_column(String(120), nullable=False)
     tipo: Mapped[TipoConcepto] = mapped_column(SqlEnum(TipoConcepto, name="tipo_concepto"), nullable=False)
     porcentaje: Mapped[float] = mapped_column(Float, nullable=False)
     proveedor_id: Mapped[int | None] = mapped_column(
@@ -642,6 +713,10 @@ class LiquidacionEmpleado(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     empleado_id: Mapped[int] = mapped_column(
         ForeignKey("empleados.id", ondelete="RESTRICT"), nullable=False, index=True
     )
@@ -670,6 +745,10 @@ class LiquidacionHaber(Base):
     __tablename__ = "liquidaciones_haber"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     liquidacion_id: Mapped[int] = mapped_column(
         ForeignKey("liquidaciones_empleado.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -689,6 +768,10 @@ class LiquidacionDetalle(Base):
     __tablename__ = "liquidaciones_detalle"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     liquidacion_id: Mapped[int] = mapped_column(
         ForeignKey("liquidaciones_empleado.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -710,6 +793,10 @@ class MovimientoCuenta(Base):
     __tablename__ = "movimientos_cuenta"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     departamento_id: Mapped[int] = mapped_column(
         ForeignKey("departamentos.id", ondelete="RESTRICT"),
         nullable=False,
@@ -743,9 +830,16 @@ class MovimientoCuenta(Base):
 
 class Caja(Base):
     __tablename__ = "cajas"
+    __table_args__ = (
+        UniqueConstraint("consorcio_id", "nombre", name="uq_caja_consorcio_nombre"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    nombre: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
+    nombre: Mapped[str] = mapped_column(String(100), nullable=False)
     tipo: Mapped[TipoCaja] = mapped_column(
         SqlEnum(TipoCaja, name="tipo_caja"), nullable=False
     )
@@ -763,6 +857,10 @@ class MovimientoCaja(Base):
     __tablename__ = "movimientos_caja"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     caja_id: Mapped[int] = mapped_column(
         ForeignKey("cajas.id", ondelete="RESTRICT"), nullable=False
     )
@@ -790,6 +888,10 @@ class TransferenciaCaja(Base):
     __tablename__ = "transferencias_caja"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     caja_origen_id: Mapped[int] = mapped_column(
         ForeignKey("cajas.id"), nullable=False
     )
@@ -808,6 +910,10 @@ class TrabajoRecurrente(Base):
     __tablename__ = "trabajos_recurrentes"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     nombre: Mapped[str] = mapped_column(String(255), nullable=False)
     descripcion: Mapped[str] = mapped_column(String(2000), nullable=False)
     periodicidad: Mapped[PeriodicidadRecurrente] = mapped_column(
@@ -828,6 +934,10 @@ class Notificacion(Base):
     __tablename__ = "notificaciones"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    consorcio_id: Mapped[int] = mapped_column(
+        ForeignKey("consorcios.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
     usuario_id: Mapped[int] = mapped_column(
         ForeignKey("usuarios.id", ondelete="CASCADE"),
         nullable=False, index=True,
@@ -837,4 +947,86 @@ class Notificacion(Base):
     leida: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(),
+    )
+
+
+class Administracion(Base):
+    __tablename__ = "administraciones"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    razon_social: Mapped[str] = mapped_column(String(255), nullable=False)
+    cuit: Mapped[str] = mapped_column(String(13), unique=True, nullable=False)
+    email_contacto: Mapped[str] = mapped_column(String(255), nullable=False)
+    activa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    plan: Mapped[str] = mapped_column(String(50), nullable=False, default="free")
+    fecha_creacion: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    consorcios: Mapped[list["Consorcio"]] = relationship(back_populates="administracion")
+
+
+class Consorcio(Base):
+    __tablename__ = "consorcios"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    administracion_id: Mapped[int] = mapped_column(
+        ForeignKey("administraciones.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
+    nombre: Mapped[str] = mapped_column(String(255), nullable=False)
+    usa_personal_propio: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    # Datos del consorcio (heredado de ConfiguracionConsorcio)
+    consorcio_domicilio: Mapped[str] = mapped_column(String(500), nullable=False)
+    consorcio_cuit: Mapped[str] = mapped_column(String(13), nullable=False)
+    consorcio_convenio_suterh: Mapped[str | None] = mapped_column(String(50))
+
+    # Administración
+    admin_nombre: Mapped[str] = mapped_column(String(255), nullable=False)
+    admin_domicilio: Mapped[str] = mapped_column(String(500), nullable=False)
+    admin_email: Mapped[str] = mapped_column(String(255), nullable=False)
+    admin_telefono: Mapped[str] = mapped_column(String(50), nullable=False)
+    admin_cuit: Mapped[str] = mapped_column(String(13), nullable=False)
+    admin_rpa: Mapped[str] = mapped_column(String(50), nullable=False)
+    admin_situacion_fiscal: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    # Banco
+    banco_titular: Mapped[str] = mapped_column(String(255), nullable=False)
+    banco_nombre: Mapped[str] = mapped_column(String(100), nullable=False)
+    banco_sucursal: Mapped[str | None] = mapped_column(String(50))
+    banco_numero_cuenta: Mapped[str] = mapped_column(String(50), nullable=False)
+    banco_cbu: Mapped[str] = mapped_column(String(22), nullable=False)
+    banco_alias: Mapped[str | None] = mapped_column(String(50))
+
+    # Vencimientos
+    dia_primer_vencimiento: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
+    dias_entre_vencimientos: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
+    recargo_segundo_vencimiento_pct: Mapped[float] = mapped_column(Float, nullable=False, default=7.0)
+    tasa_interes_mensual_pct: Mapped[float] = mapped_column(Float, nullable=False, default=3.0)
+    caja_default_pagos_id: Mapped[int | None] = mapped_column(ForeignKey("cajas.id"), nullable=True)
+    reportes_visibles_a_depto: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    fecha_creacion: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    administracion: Mapped["Administracion"] = relationship(back_populates="consorcios")
+
+
+class AuditLogSuperAdmin(Base):
+    __tablename__ = "audit_log_super_admin"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    super_admin_usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="RESTRICT"), nullable=False
+    )
+    accion: Mapped[str] = mapped_column(String(80), nullable=False)
+    administracion_id_afectada: Mapped[int | None] = mapped_column(
+        ForeignKey("administraciones.id", ondelete="SET NULL"), nullable=True
+    )
+    motivo: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    detalles: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    fecha: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
     )

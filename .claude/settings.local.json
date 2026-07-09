@@ -109,7 +109,34 @@
       "Bash(git pull *)",
       "Bash(powershell.exe -Command '.\\\\.venv\\\\Scripts\\\\python.exe -c \"from backend import models; print\\(\\\\\"OK\\\\\"\\)\"')",
       "Bash(python test_smoke.py)",
-      "Bash(./.venv/Scripts/python test_smoke.py)"
+      "Bash(./.venv/Scripts/python test_smoke.py)",
+      "Bash(python -m pytest tests/test_trabajos.py -v --tb=short)",
+      "Bash(awk '/^class Presupuesto/,/^class [A-Z]/' backend/models.py)",
+      "Bash(.venv\\\\Scripts\\\\python.exe -m pytest tests/test_gastos.py -v --tb=short)",
+      "Bash(python -m pytest tests/test_gastos.py -v --tb=short)",
+      "Bash(rm -f consorcio_seed_test.db)",
+      "Skill(superpowers:using-superpowers)",
+      "Bash(python -c \"import yaml; spec = yaml.safe_load\\(open\\('openapi.yaml'\\).read\\(\\)\\); print\\('paths:', list\\(spec['paths'].keys\\(\\)\\)\\)\")",
+      "Bash(python -c \"import yaml; spec = yaml.safe_load\\(open\\('openapi.yaml'\\).read\\(\\)\\); print\\('schemas:', list\\(spec['components']['schemas'].keys\\(\\)\\)\\)\")",
+      "Bash(Remove-Item -Force consorcio_seed_test_f12.db -ErrorAction SilentlyContinue)",
+      "Bash(Write-Host \"cleaned\")",
+      "Bash(C:/Users/matat/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/brainstorming/scripts/start-server.sh *)",
+      "Bash(python3 -)",
+      "Bash(git *)",
+      "Skill(superpowers:receiving-code-review)",
+      "Bash(xargs -I{} sh -c 'grep -q \"\\\\.{}\" frontend/src/index.css || echo \"MISSING: {}\"')",
+      "Skill(superpowers:finishing-a-development-branch)",
+      "Bash(python -m pytest -q)",
+      "Bash(C:\\\\Users\\\\matat\\\\.claude\\\\plugins\\\\cache\\\\claude-plugins-official\\\\superpowers\\\\5.1.0\\\\skills\\\\brainstorming\\\\scripts\\\\start-server.sh *)",
+      "Bash([ -s \"$EV\" ])",
+      "Bash(\"C:\\\\Users\\\\matat\\\\.claude\\\\plugins\\\\cache\\\\claude-plugins-official\\\\superpowers\\\\5.1.0\\\\skills\\\\brainstorming\\\\scripts\\\\stop-server.sh\" \"F:/backup/Command Soluciones/capacitaciones/IISAIA-main/proyecto/PROYECTO FINAL/.superpowers/brainstorm/438-1783182422\")",
+      "Bash(cat frontend/src/api/comprobantes.js)",
+      "Bash(cat frontend/src/api/comprobantes.jsx)",
+      "Bash(cat frontend/src/api/client.js)",
+      "Bash(cat frontend/src/api/client.jsx)",
+      "Bash(pytest -v)",
+      "Bash(npm --prefix frontend run build)"
     ]
-  }
+  },
+  "model": "opus"
 }

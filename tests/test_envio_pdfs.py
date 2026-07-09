@@ -19,14 +19,11 @@ def test_admin_envia_pdfs_periodo_cerrado(client, headers_admin, db_session):
     proveedor_id = 600
     clase_id = 500
 
-    db_session.add(CoeficienteDepartamento(
-        departamento_id=1, clase_prorrateo_id=clase_id, porcentaje=50
+    db_session.add(CoeficienteDepartamento(consorcio_id=1, departamento_id=1, clase_prorrateo_id=clase_id, porcentaje=50
     ))
-    db_session.add(CoeficienteDepartamento(
-        departamento_id=2, clase_prorrateo_id=clase_id, porcentaje=50
+    db_session.add(CoeficienteDepartamento(consorcio_id=1, departamento_id=2, clase_prorrateo_id=clase_id, porcentaje=50
     ))
-    db_session.add(Gasto(
-        periodo="2026-06", monto=1000, rubro=Rubro.servicios_publicos,
+    db_session.add(Gasto(consorcio_id=1, periodo="2026-06", monto=1000, rubro=Rubro.servicios_publicos,
         clase_prorrateo_id=clase_id, departamento_id=None,
         proveedor_id=proveedor_id, concepto="Luz",
         forma_pago=FormaPago.efectivo, caja_id=900,
@@ -54,8 +51,7 @@ def test_admin_envia_pdfs_periodo_cerrado(client, headers_admin, db_session):
 def test_envio_periodo_no_cerrado_devuelve_409(client, headers_admin, db_session):
     """Sin confirmar y período no cerrado → 409."""
     # Crear expensa en período NO cerrado
-    expensa = Expensa(
-        departamento_id=1, periodo="2030-12",
+    expensa = Expensa(consorcio_id=1, departamento_id=1, periodo="2030-12",
         monto_primer_vencimiento=1000, fecha_primer_vencimiento=date(2030, 12, 10),
         monto_segundo_vencimiento=1070, fecha_segundo_vencimiento=date(2030, 12, 20),
         saldo_anterior=0,
@@ -72,8 +68,7 @@ def test_envio_periodo_no_cerrado_devuelve_409(client, headers_admin, db_session
 
 def test_envio_periodo_no_cerrado_con_confirmar_ok(client, headers_admin, db_session):
     """Con confirmar_sin_cerrar=true, envía aunque no esté cerrado."""
-    expensa = Expensa(
-        departamento_id=1, periodo="2031-01",
+    expensa = Expensa(consorcio_id=1, departamento_id=1, periodo="2031-01",
         monto_primer_vencimiento=1000, fecha_primer_vencimiento=date(2031, 1, 10),
         monto_segundo_vencimiento=1070, fecha_segundo_vencimiento=date(2031, 1, 20),
         saldo_anterior=0,

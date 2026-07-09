@@ -12,8 +12,8 @@ from backend.pdf import (
 
 
 def test_pdf_morosos(db):
-    from backend.models import ConfiguracionConsorcio
-    config = db.get(ConfiguracionConsorcio, 1)
+    from backend.models import Consorcio
+    config = db.get(Consorcio, 1)
     items = calcular_morosos(db, solo_deudores=False)
     pdf = generar_pdf_morosos(items, date.today(), config)
     assert pdf.startswith(b"%PDF-")
@@ -21,24 +21,24 @@ def test_pdf_morosos(db):
 
 
 def test_pdf_estado_financiero(db):
-    from backend.models import ConfiguracionConsorcio
-    config = db.get(ConfiguracionConsorcio, 1)
+    from backend.models import Consorcio
+    config = db.get(Consorcio, 1)
     rep = calcular_estado_financiero(db, date.today())
     pdf = generar_pdf_estado_financiero(rep, config)
     assert pdf.startswith(b"%PDF-")
 
 
 def test_pdf_gastos_periodo(db):
-    from backend.models import ConfiguracionConsorcio
-    config = db.get(ConfiguracionConsorcio, 1)
+    from backend.models import Consorcio
+    config = db.get(Consorcio, 1)
     rep = calcular_gastos_del_periodo(db, "2026-06")
     pdf = generar_pdf_gastos_periodo(rep, config)
     assert pdf.startswith(b"%PDF-")
 
 
 def test_pdf_lista_proveedores(db):
-    from backend.models import ConfiguracionConsorcio
-    config = db.get(ConfiguracionConsorcio, 1)
+    from backend.models import Consorcio
+    config = db.get(Consorcio, 1)
     items = calcular_lista_proveedores(db, anio=2026)
     pdf = generar_pdf_lista_proveedores(items, 2026, config)
     assert pdf.startswith(b"%PDF-")

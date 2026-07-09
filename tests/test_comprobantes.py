@@ -9,8 +9,7 @@ from backend.models import Comprobante, EstadoComprobante
 
 
 def _crear_comprobante(db, departamento_id, fecha_pago, monto, estado):
-    c = Comprobante(
-        departamento_id=departamento_id,
+    c = Comprobante(consorcio_id=1, departamento_id=departamento_id,
         fecha_pago=fecha_pago,
         monto=monto,
         archivo_path=None,
