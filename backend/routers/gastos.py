@@ -61,21 +61,27 @@ def _sumar_un_mes_date(fecha: date) -> date:
 
 def _validar_referencias(
     db: Session,
+    cid: int,
     clase_id: int | None,
     depto_id: int | None,
     proveedor_id: int,
 ) -> None:
-    if clase_id is not None and db.get(ClaseProrrateo, clase_id) is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="La clase de prorrateo indicada no existe.",
-        )
-    if depto_id is not None and db.get(Departamento, depto_id) is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="El departamento indicado no existe.",
-        )
-    if db.get(Proveedor, proveedor_id) is None:
+    if clase_id is not None:
+        clase = db.get(ClaseProrrateo, clase_id)
+        if clase is None or clase.consorcio_id != cid:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="La clase de prorrateo indicada no existe.",
+            )
+    if depto_id is not None:
+        depto = db.get(Departamento, depto_id)
+        if depto is None or depto.consorcio_id != cid:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="El departamento indicado no existe.",
+            )
+    prov = db.get(Proveedor, proveedor_id)
+    if prov is None or prov.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El proveedor indicado no existe.",
@@ -85,19 +91,19 @@ def _validar_referencias(
 _PERIODO_PATTERN_GASTO = r"^\d{4}-(0[1-9]|1[0-2])$"
 
 
-def _bloquear_si_periodo_cerrado(db: Session, periodo: str) -> None:
-    """Si el período está cerrado, levanta 409."""
-    if db.get(PeriodoCerrado, periodo) is not None:
+def _bloquear_si_periodo_cerrado(db: Session, cid: int, periodo: str) -> None:
+    """Si el consorcio ya cerró el período, levanta 409."""
+    if db.get(PeriodoCerrado, (periodo, cid)) is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"El período {periodo} está cerrado y no admite cambios.",
         )
 
 
-def _validar_caja_activa(db: Session, caja_id: int) -> Caja:
-    """Valida que la caja exista y esté activa."""
+def _validar_caja_activa(db: Session, cid: int, caja_id: int) -> Caja:
+    """Valida que la caja exista, sea del consorcio y esté activa."""
     caja = db.get(Caja, caja_id)
-    if caja is None:
+    if caja is None or caja.consorcio_id != cid:
         raise HTTPException(404, f"Caja {caja_id} no encontrada.")
     if not caja.activa:
         raise HTTPException(400, f"La caja '{caja.nombre}' está inactiva.")
@@ -118,12 +124,19 @@ def _crear_movimiento_para_gasto(db: Session, gasto: Gasto) -> None:
 
 
 def _borrar_movimiento_de_gasto(db: Session, gasto_id: int) -> None:
-    """Borra el/los MovimientoCaja asociados a un Gasto (si existen)."""
+    """Borra el/los MovimientoCaja asociados a un Gasto.
+
+    Flush explícito: garantiza que el DELETE de MovimientoCaja corra ANTES
+    que el DELETE del Gasto padre. Sin él SQLAlchemy puede reordenarlos y
+    violar la FK movimientos_caja.gasto_id → gastos.id.
+    """
     movs = db.scalars(
         select(MovimientoCaja).where(MovimientoCaja.gasto_id == gasto_id)
     ).all()
     for m in movs:
         db.delete(m)
+    if movs:
+        db.flush()
 
 
 @router.get(
@@ -174,10 +187,10 @@ def crear_gasto(
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
 ) -> Gasto:
-    _bloquear_si_periodo_cerrado(db, payload.periodo)
-    _validar_caja_activa(db, payload.caja_id)
+    _bloquear_si_periodo_cerrado(db, cid, payload.periodo)
+    _validar_caja_activa(db, cid, payload.caja_id)
     _validar_referencias(
-        db,
+        db, cid,
         payload.clase_prorrateo_id,
         payload.departamento_id,
         payload.proveedor_id,
@@ -208,7 +221,7 @@ def crear_gasto(
     if payload.trabajo_id:
         from ..notificaciones import crear_notificacion
         t = db.get(Trabajo, payload.trabajo_id)
-        if t is None:
+        if t is None or t.consorcio_id != cid:
             raise HTTPException(404, f"Trabajo {payload.trabajo_id} no encontrado.")
         t.gasto_id = gasto.id
         t.estado = EstadoTrabajo.finalizado
@@ -279,16 +292,16 @@ def actualizar_gasto(
         )
 
     # Bloquear si el período actual está cerrado
-    _bloquear_si_periodo_cerrado(db, gasto.periodo)
+    _bloquear_si_periodo_cerrado(db, cid, gasto.periodo)
 
     # Si se intenta cambiar el período, también bloquear si el nuevo período está cerrado
     cambios = payload.model_dump(exclude_unset=True)
     if "periodo" in cambios:
-        _bloquear_si_periodo_cerrado(db, cambios["periodo"])
+        _bloquear_si_periodo_cerrado(db, cid, cambios["periodo"])
 
     # Validar caja si cambia
     if payload.caja_id is not None:
-        _validar_caja_activa(db, payload.caja_id)
+        _validar_caja_activa(db, cid, payload.caja_id)
 
     # Validar excluyencia clase/depto si alguno cambia.
     nueva_clase = cambios.get("clase_prorrateo_id", gasto.clase_prorrateo_id)
@@ -319,7 +332,7 @@ def actualizar_gasto(
         or "departamento_id" in cambios
         or "proveedor_id" in cambios
     ):
-        _validar_referencias(db, nueva_clase, nuevo_depto, nuevo_prov)
+        _validar_referencias(db, cid, nueva_clase, nuevo_depto, nuevo_prov)
 
     for campo, valor in cambios.items():
         setattr(gasto, campo, valor)
@@ -349,7 +362,7 @@ def eliminar_gasto(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El gasto solicitado no existe.",
         )
-    _bloquear_si_periodo_cerrado(db, gasto.periodo)
+    _bloquear_si_periodo_cerrado(db, cid, gasto.periodo)
     _borrar_movimiento_de_gasto(db, gasto_id)
     db.delete(gasto)
     db.commit()
@@ -369,13 +382,13 @@ def crear_plan_cuotas(
     cid: int = Depends(get_consorcio_activo),
 ) -> list[Gasto]:
     # Bloquear si el período inicial está cerrado
-    _bloquear_si_periodo_cerrado(db, payload.periodo)
+    _bloquear_si_periodo_cerrado(db, cid, payload.periodo)
 
     # Validar caja una sola vez
-    _validar_caja_activa(db, payload.caja_id)
+    _validar_caja_activa(db, cid, payload.caja_id)
 
     _validar_referencias(
-        db,
+        db, cid,
         payload.clase_prorrateo_id,
         payload.departamento_id,
         payload.proveedor_id,
@@ -404,7 +417,7 @@ def crear_plan_cuotas(
             cuota_total=payload.cuota_total,
         )
         # Bloquear si alguno de los períodos consecutivos está cerrado
-        _bloquear_si_periodo_cerrado(db, periodo_actual)
+        _bloquear_si_periodo_cerrado(db, cid, periodo_actual)
         db.add(gasto)
         db.flush()
         _crear_movimiento_para_gasto(db, gasto)
@@ -432,7 +445,7 @@ def cargar_habituales(
     cid: int = Depends(get_consorcio_activo),
 ) -> list[Gasto]:
     # Bloquear si el período está cerrado
-    _bloquear_si_periodo_cerrado(db, payload.periodo)
+    _bloquear_si_periodo_cerrado(db, cid, payload.periodo)
 
     anio, mes = map(int, payload.periodo.split("-"))
     fecha_pago_default = date(anio, mes, 1)

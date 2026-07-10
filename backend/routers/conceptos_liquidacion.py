@@ -15,10 +15,11 @@ from ..schemas import (
 router = APIRouter(prefix="/conceptos-liquidacion", tags=["Personal"])
 
 
-def _validar_proveedor(db: Session, proveedor_id: int | None) -> None:
+def _validar_proveedor(db: Session, cid: int, proveedor_id: int | None) -> None:
     if proveedor_id is None:
         return
-    if db.get(Proveedor, proveedor_id) is None:
+    p = db.get(Proveedor, proveedor_id)
+    if p is None or p.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El proveedor indicado no existe.",
@@ -58,7 +59,10 @@ def crear_concepto(
     cid: int = Depends(get_consorcio_activo),
 ) -> ConceptoLiquidacion:
     duplicado = db.scalar(
-        select(ConceptoLiquidacion.id).where(ConceptoLiquidacion.nombre == payload.nombre)
+        select(ConceptoLiquidacion.id).where(
+            ConceptoLiquidacion.nombre == payload.nombre,
+            ConceptoLiquidacion.consorcio_id == cid,
+        )
     )
     if duplicado is not None:
         raise HTTPException(
@@ -66,7 +70,7 @@ def crear_concepto(
             detail="Ya existe un concepto con ese nombre.",
         )
 
-    _validar_proveedor(db, payload.proveedor_id)
+    _validar_proveedor(db, cid, payload.proveedor_id)
 
     concepto = ConceptoLiquidacion(
         consorcio_id=cid,
@@ -126,7 +130,7 @@ def actualizar_concepto(
 
     cambios = payload.model_dump(exclude_unset=True)
     if "proveedor_id" in cambios:
-        _validar_proveedor(db, cambios["proveedor_id"])
+        _validar_proveedor(db, cid, cambios["proveedor_id"])
 
     for campo, valor in cambios.items():
         setattr(concepto, campo, valor)

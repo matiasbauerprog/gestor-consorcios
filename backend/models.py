@@ -183,6 +183,7 @@ class Usuario(Base):
         nullable=True, index=True,
     )
     must_change_password: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    activa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
 
     departamento: Mapped["Departamento | None"] = relationship(back_populates="usuarios")
 
@@ -372,10 +373,12 @@ class ExpensaDetalle(Base):
 class PeriodoCerrado(Base):
     __tablename__ = "periodos_cerrados"
 
+    # PK compuesta: cada consorcio cierra sus propios períodos de forma
+    # independiente. Un período cerrado en un consorcio no afecta a los demás.
     periodo: Mapped[str] = mapped_column(String(7), primary_key=True)
     consorcio_id: Mapped[int] = mapped_column(
         ForeignKey("consorcios.id", ondelete="RESTRICT"),
-        nullable=False, index=True,
+        primary_key=True, index=True,
     )
     fecha_cierre: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

@@ -1,5 +1,9 @@
 import { apiFetch } from "./client";
 
+export function listarCuentas() {
+  return apiFetch("/movimientos/cuentas");
+}
+
 export function listarMisMovimientos({ desde, hasta } = {}) {
   const params = new URLSearchParams();
   if (desde) params.set("desde", desde);

@@ -33,6 +33,15 @@ def test_redactar_trunca_a_500_caracteres():
 
 
 def test_crear_audit_log_entry_persiste(db):
+    # Crear el super admin referenciado por la FK.
+    from backend.models import Rol, Usuario
+    from backend.security import hash_password
+    db.add(Usuario(
+        id=5, email="sa-audit@test.local",
+        password_hash=hash_password("x"), rol=Rol.super_admin,
+    ))
+    db.commit()
+
     entry = crear_audit_log_entry(
         db,
         super_admin_usuario_id=5,

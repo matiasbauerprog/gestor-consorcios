@@ -41,7 +41,10 @@ def crear_haber(
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
 ) -> Haber:
-    duplicado = db.scalar(select(Haber.id).where(Haber.nombre == payload.nombre))
+    duplicado = db.scalar(select(Haber.id).where(
+            Haber.nombre == payload.nombre,
+            Haber.consorcio_id == cid,
+        ))
     if duplicado is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

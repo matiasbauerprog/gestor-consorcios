@@ -21,7 +21,7 @@ export default function TarjetaExpensa({
 }) {
   async function handleAbrirPdf() {
     try {
-      await abrirPdfExpensa(expensa.id, token);
+      await abrirPdfExpensa(expensa.id);
     } catch (e) {
       alert(`No se pudo abrir el PDF: ${e.message}`);
     }

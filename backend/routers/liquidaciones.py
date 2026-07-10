@@ -36,34 +36,37 @@ from ..schemas import (
 router = APIRouter(prefix="/liquidaciones", tags=["Personal"])
 
 
-def _bloquear_si_periodo_cerrado(db: Session, periodo: str) -> None:
-    """Si el período está cerrado, levanta 409."""
-    if db.get(PeriodoCerrado, periodo) is not None:
+def _bloquear_si_periodo_cerrado(db: Session, cid: int, periodo: str) -> None:
+    """Si el consorcio ya cerró el período, levanta 409."""
+    if db.get(PeriodoCerrado, (periodo, cid)) is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"El período {periodo} está cerrado y no admite cambios.",
         )
 
 
-def _clase_default(db: Session) -> int:
-    """Primera clase de prorrateo activa por id. Decisión MVP — Fase 4 puede configurarla."""
-    cid = db.scalar(
+def _clase_default(db: Session, cid: int) -> int:
+    """Primera clase de prorrateo activa DEL CONSORCIO. Decisión MVP."""
+    clase_id = db.scalar(
         select(ClaseProrrateo.id)
-        .where(ClaseProrrateo.activa == True)  # noqa: E712
+        .where(
+            ClaseProrrateo.activa == True,  # noqa: E712
+            ClaseProrrateo.consorcio_id == cid,
+        )
         .order_by(ClaseProrrateo.id.asc())
     )
-    if cid is None:
+    if clase_id is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No hay clases de prorrateo activas. Cargá al menos una antes de liquidar.",
         )
-    return cid
+    return clase_id
 
 
-def _validar_caja_activa(db: Session, caja_id: int) -> Caja:
-    """Valida que la caja exista y esté activa."""
+def _validar_caja_activa(db: Session, cid: int, caja_id: int) -> Caja:
+    """Valida que la caja exista, sea del consorcio y esté activa."""
     caja = db.get(Caja, caja_id)
-    if caja is None:
+    if caja is None or caja.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Caja {caja_id} no encontrada.",
@@ -92,7 +95,11 @@ def _crear_movimiento_para_gasto(db: Session, gasto: Gasto) -> None:
 
 
 def _borrar_movimientos_de_gastos(db: Session, gasto_ids: list[int]) -> None:
-    """Borra MovimientoCaja asociados a una lista de gastos."""
+    """Borra MovimientoCaja asociados a una lista de gastos.
+
+    Flush explícito: sin él SQLAlchemy puede reordenar y ejecutar el DELETE
+    del Gasto padre antes que el del MovimientoCaja hijo → viola la FK.
+    """
     if not gasto_ids:
         return
     movs = db.scalars(
@@ -100,6 +107,8 @@ def _borrar_movimientos_de_gastos(db: Session, gasto_ids: list[int]) -> None:
     ).all()
     for m in movs:
         db.delete(m)
+    if movs:
+        db.flush()
 
 
 def _resolver_haberes(
@@ -317,13 +326,13 @@ def crear_liquidacion(
     cid: int = Depends(get_consorcio_activo),
 ) -> LiquidacionEmpleado:
     # Bloquear si el período está cerrado
-    _bloquear_si_periodo_cerrado(db, payload.periodo)
+    _bloquear_si_periodo_cerrado(db, cid, payload.periodo)
 
     # Validar caja
-    _validar_caja_activa(db, payload.caja_id)
+    _validar_caja_activa(db, cid, payload.caja_id)
 
     empleado = db.get(Empleado, payload.empleado_id)
-    if empleado is None:
+    if empleado is None or empleado.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El empleado solicitado no existe.",
@@ -341,7 +350,7 @@ def crear_liquidacion(
             detail="Ya existe una liquidación para ese empleado en ese período.",
         )
 
-    clase_id = _clase_default(db)
+    clase_id = _clase_default(db, cid)
 
     liquidacion = LiquidacionEmpleado(
         consorcio_id=cid,
@@ -404,14 +413,14 @@ def actualizar_liquidacion(
         )
 
     # Bloquear si el período de la liquidación está cerrado
-    _bloquear_si_periodo_cerrado(db, liq.periodo)
+    _bloquear_si_periodo_cerrado(db, cid, liq.periodo)
 
     empleado = db.get(Empleado, liq.empleado_id)
-    clase_id = _clase_default(db)
+    clase_id = _clase_default(db, cid)
 
     # Usar caja_id del payload si viene, sino usar la de la liquidación actual
     caja_id = payload.caja_id if payload.caja_id is not None else liq.caja_id
-    _validar_caja_activa(db, caja_id)
+    _validar_caja_activa(db, cid, caja_id)
 
     # Actualizar caja_id si cambió
     if payload.caja_id is not None:
@@ -457,7 +466,7 @@ def eliminar_liquidacion(
         )
 
     # Bloquear si el período de la liquidación está cerrado
-    _bloquear_si_periodo_cerrado(db, liq.periodo)
+    _bloquear_si_periodo_cerrado(db, cid, liq.periodo)
 
     # Recolectar IDs de gastos asociados
     gastos_ids = db.scalars(

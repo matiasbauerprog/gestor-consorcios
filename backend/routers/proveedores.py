@@ -43,7 +43,10 @@ def crear_proveedor(
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
 ) -> Proveedor:
-    duplicado = db.scalar(select(Proveedor.id).where(Proveedor.cuit == payload.cuit))
+    duplicado = db.scalar(select(Proveedor.id).where(
+            Proveedor.cuit == payload.cuit,
+            Proveedor.consorcio_id == cid,
+        ))
     if duplicado is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

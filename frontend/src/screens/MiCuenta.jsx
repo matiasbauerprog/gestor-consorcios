@@ -205,7 +205,7 @@ function SeccionResumen({ saldo, saldoColor, saldoTexto, expensas, token }) {
   async function handleAbrirPdf() {
     if (!proximaExpensa) return;
     try {
-      await abrirPdfExpensa(proximaExpensa.id, token);
+      await abrirPdfExpensa(proximaExpensa.id);
     } catch (e) {
       alert(`No se pudo abrir el PDF: ${e.message}`);
     }

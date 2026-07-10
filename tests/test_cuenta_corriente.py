@@ -5,6 +5,8 @@ import pytest
 
 from backend.cuenta_corriente import calcular_estado_cuenta
 from backend.models import (
+    Administracion,
+    Consorcio,
     Departamento,
     EstadoExpensa,
     Expensa,
@@ -15,6 +17,21 @@ from backend.models import (
 
 @pytest.fixture
 def depto(db_empty):
+    # Setup mínimo para satisfacer FK con foreign_keys=ON en tests.
+    db_empty.add(Administracion(
+        id=1, razon_social="Admin cta cte", cuit="30-11-1",
+        email_contacto="a@a.com",
+    ))
+    db_empty.flush()
+    db_empty.add(Consorcio(
+        id=1, administracion_id=1, nombre="Cta cte test",
+        consorcio_domicilio="d", consorcio_cuit="c",
+        admin_nombre="n", admin_domicilio="d", admin_email="e@e.com",
+        admin_telefono="t", admin_cuit="c", admin_rpa="0",
+        admin_situacion_fiscal="M", banco_titular="t", banco_nombre="n",
+        banco_numero_cuenta="0", banco_cbu="0" * 22,
+    ))
+    db_empty.flush()
     d = Departamento(consorcio_id=1, id=1, codigo="1A", descripcion="1° A")
     db_empty.add(d)
     db_empty.commit()

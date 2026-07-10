@@ -95,7 +95,7 @@ def estado_periodo(
 ) -> EstadoCierreOut:
     if not re.fullmatch(_PERIODO_PATTERN, periodo):
         raise HTTPException(400, "Período inválido. Use formato YYYY-MM.")
-    preview = calcular_preview_cierre(db, periodo)
+    preview = calcular_preview_cierre(db, _cid, periodo)
     return EstadoCierreOut(
         periodo=preview.periodo,
         cerrado=preview.cerrado,
@@ -115,9 +115,9 @@ def preview_periodo(
 ) -> PreviewCierreOut:
     if not re.fullmatch(_PERIODO_PATTERN, periodo):
         raise HTTPException(400, "Período inválido.")
-    if db.get(PeriodoCerrado, periodo) is not None:
+    if db.get(PeriodoCerrado, (periodo, _cid)) is not None:
         raise HTTPException(409, f"El período {periodo} ya fue cerrado.")
-    preview = calcular_preview_cierre(db, periodo, fecha_1, fecha_2)
+    preview = calcular_preview_cierre(db, _cid, periodo, fecha_1, fecha_2)
     return _preview_to_out(preview)
 
 
@@ -131,11 +131,11 @@ def cerrar_periodo(
 ) -> PeriodoCerrado:
     if not re.fullmatch(_PERIODO_PATTERN, periodo):
         raise HTTPException(400, "Período inválido.")
-    if db.get(PeriodoCerrado, periodo) is not None:
+    if db.get(PeriodoCerrado, (periodo, cid)) is not None:
         raise HTTPException(409, f"El período {periodo} ya fue cerrado.")
 
     preview = calcular_preview_cierre(
-        db, periodo,
+        db, cid, periodo,
         payload.fecha_primer_vencimiento,
         payload.fecha_segundo_vencimiento,
     )
@@ -216,13 +216,16 @@ def enviar_pdfs_periodo(
 ) -> EnviarPdfsOut:
     # 1. Buscar expensas del período
     expensas = list(db.scalars(
-        select(Expensa).where(Expensa.periodo == periodo)
+        select(Expensa).where(
+            Expensa.periodo == periodo,
+            Expensa.consorcio_id == _cid,
+        )
     ).all())
     if not expensas:
         raise HTTPException(404, f"No hay expensas para el período {periodo}.")
 
     # 2. Si NO está cerrado y NO confirmó, 409
-    cerrado = db.get(PeriodoCerrado, periodo) is not None
+    cerrado = db.get(PeriodoCerrado, (periodo, _cid)) is not None
     if not cerrado and not payload.confirmar_sin_cerrar:
         raise HTTPException(
             status_code=409,

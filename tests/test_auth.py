@@ -392,3 +392,18 @@ def test_cambiar_password_body_vacio_devuelve_400(client):
     headers = _login(client)
     r = client.post("/auth/cambiar-password", json={}, headers=headers)
     assert r.status_code == 400
+
+
+def test_login_usuario_suspendido_devuelve_403(client, db_session):
+    # Suspender depto A e intentar loguearse: 403 usuario_suspendido.
+    from backend.models import Usuario
+    u = db_session.query(Usuario).filter(Usuario.email == "a@test.local").first()
+    u.activa = False
+    db_session.commit()
+
+    r = client.post(
+        "/auth/login",
+        json={"email": "a@test.local", "password": TEST_PASSWORD},
+    )
+    assert r.status_code == 403
+    assert r.json()["detail"] == "usuario_suspendido"

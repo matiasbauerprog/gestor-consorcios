@@ -26,21 +26,28 @@ export default function ReporteGastosPeriodo() {
   const [periodo, setPeriodo] = useState(new Date().toISOString().slice(0, 7));
   const [rubro, setRubro] = useState("");
   const [rep, setRep] = useState(null);
+  const [error, setError] = useState(null);
 
   async function cargar() {
     const r = await obtenerGastosDelPeriodo(periodo, { rubro: rubro || undefined });
-    if (r.status === 200) setRep(r.data);
+    if (r.status === 200) {
+      setRep(r.data);
+      setError(null);
+    } else if (r.status !== 401) {
+      setError(r.data?.detail || "No se pudo cargar el reporte.");
+    }
   }
 
   useEffect(() => { cargar(); }, [periodo, rubro]);
 
+  if (error) return <p role="alert" className="error-banner">{error}</p>;
   if (!rep) return <p>Cargando…</p>;
 
   return (
     <section>
       <header className="cabecera-pantalla">
         <h2>Detalle de gastos del período</h2>
-        <button type="button" onClick={() => abrirPdfGastosPeriodo(periodo, { rubro: rubro || undefined }, token)}>
+        <button type="button" onClick={() => abrirPdfGastosPeriodo(periodo, { rubro: rubro || undefined })}>
           📄 Descargar PDF
         </button>
       </header>

@@ -57,8 +57,11 @@ export default function Gastos() {
   const [modal, setModal] = useState(null);
   const [cerrados, setCerrados] = useState(new Set());
 
+  // El período no es un filtro: es el contexto de trabajo (define el cierre).
+  // Siempre hay uno seleccionado; default = mes actual.
+  const [periodo, setPeriodo] = useState(() => new Date().toISOString().slice(0, 7));
+
   const [filtros, setFiltros] = useState({
-    periodo: "",
     rubro: "",
     clase_prorrateo_id: "",
     proveedor_id: "",
@@ -80,7 +83,7 @@ export default function Gastos() {
 
   async function recargar() {
     setCargando(true);
-    const r = await listarGastos(filtros);
+    const r = await listarGastos({ ...filtros, periodo });
     if (r.status === 200) {
       setGastos(r.data);
       setError(null);
@@ -106,7 +109,7 @@ export default function Gastos() {
   useEffect(() => {
     recargar();
   }, [
-    filtros.periodo,
+    periodo,
     filtros.rubro,
     filtros.clase_prorrateo_id,
     filtros.proveedor_id,
@@ -117,12 +120,14 @@ export default function Gastos() {
     setFiltros({ ...filtros, [campo]: valor });
   }
 
+  function moverPeriodo(delta) {
+    const [anio, mes] = periodo.split("-").map(Number);
+    const d = new Date(anio, mes - 1 + delta, 1);
+    setPeriodo(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+
   async function handleCargarHabituales() {
-    if (!filtros.periodo) {
-      setError("Seleccioná un período antes de cargar gastos habituales.");
-      return;
-    }
-    const r = await cargarGastosHabituales(filtros.periodo);
+    const r = await cargarGastosHabituales(periodo);
     if (r.status === 201) {
       recargar();
       const n = r.data.length;
@@ -163,12 +168,62 @@ export default function Gastos() {
       </header>
       <Tabs tabs={TABS} />
 
+      <section className="barra-periodo">
+        <div className="barra-periodo-selector">
+          <button
+            type="button"
+            className="periodo-nav"
+            aria-label="Período anterior"
+            onClick={() => moverPeriodo(-1)}
+          >
+            ‹
+          </button>
+          <input
+            type="month"
+            value={periodo}
+            onChange={(e) => e.target.value && setPeriodo(e.target.value)}
+          />
+          <button
+            type="button"
+            className="periodo-nav"
+            aria-label="Período siguiente"
+            onClick={() => moverPeriodo(1)}
+          >
+            ›
+          </button>
+          {cerrados.has(periodo) ? (
+            <span className="estado-badge" title="Este período ya fue cerrado">
+              <span className="estado-punto" style={{ background: "#6b7280" }} aria-hidden="true" />
+              Cerrado
+            </span>
+          ) : (
+            <span className="estado-badge" title="Los gastos de este período aún se pueden modificar">
+              <span className="estado-punto" style={{ background: "#16a34a" }} aria-hidden="true" />
+              Abierto
+            </span>
+          )}
+        </div>
+        <div className="cabecera-acciones">
+          {!cerrados.has(periodo) && (
+            <>
+              <button type="button" onClick={handleCargarHabituales}>
+                Cargar recurrentes
+              </button>
+              <button type="button" onClick={() => setModal({ tipo: "crear" })}>
+                + Nuevo gasto
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(`/cierre-de-periodo?periodo=${periodo}`)}
+              >
+                Cerrar período
+              </button>
+            </>
+          )}
+        </div>
+      </section>
+
       <section className="filtros-gastos">
-        <label>Período <input
-          type="month"
-          value={filtros.periodo}
-          onChange={(e) => cambiarFiltro("periodo", e.target.value)}
-        /></label>
         <label>Rubro <select
           value={filtros.rubro}
           onChange={(e) => cambiarFiltro("rubro", e.target.value)}
@@ -198,28 +253,6 @@ export default function Gastos() {
           {departamentos.map((d) => <option key={d.id} value={d.id}>{d.codigo}</option>)}
         </select></label>
       </section>
-
-      <div className="cabecera-acciones">
-        {filtros.periodo && !cerrados.has(filtros.periodo) && (
-          <button
-            type="button"
-            onClick={() => navigate(`/cierre-de-periodo?periodo=${filtros.periodo}`)}
-          >
-            🔒 Cerrar período {filtros.periodo}
-          </button>
-        )}
-        {filtros.periodo && cerrados.has(filtros.periodo) && (
-          <span className="badge-periodo-cerrado" title="Este período ya fue cerrado">
-            ⚠ Período {filtros.periodo} cerrado
-          </span>
-        )}
-        <button type="button" onClick={handleCargarHabituales} disabled={!filtros.periodo}>
-          Cargar gastos recurrentes del mes
-        </button>
-        <button type="button" onClick={() => setModal({ tipo: "crear" })}>
-          + Nuevo gasto
-        </button>
-      </div>
 
       {error && <p role="alert" className="error-banner">{error}</p>}
       {cargando && <p>Cargando…</p>}
@@ -265,6 +298,7 @@ export default function Gastos() {
         <ModalGasto
           tipo={modal.tipo}
           gastoInicial={modal.gasto}
+          periodoActivo={periodo}
           clases={clases}
           proveedores={proveedores}
           departamentos={departamentos}
@@ -280,7 +314,7 @@ export default function Gastos() {
   );
 }
 
-function ModalGasto({ tipo, gastoInicial, clases, proveedores, departamentos, cajas, onCerrar, onGuardado }) {
+function ModalGasto({ tipo, gastoInicial, periodoActivo, clases, proveedores, departamentos, cajas, onCerrar, onGuardado }) {
   const esEditar = tipo === "editar";
   const inicial = gastoInicial
     ? {
@@ -303,7 +337,7 @@ function ModalGasto({ tipo, gastoInicial, clases, proveedores, departamentos, ca
         caja_id: gastoInicial.caja_id || "",
       }
     : {
-        periodo: "",
+        periodo: periodoActivo || "",
         rubro: "abonos_y_servicios",
         modo: "clase",
         clase_prorrateo_id: clases[0]?.id ?? "",

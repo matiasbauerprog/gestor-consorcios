@@ -42,6 +42,163 @@ def test_listar_usuarios_no_incluye_password_hash(client, headers_admin):
         assert "password" not in usuario
 
 
+def test_listar_usuarios_scope_multitenant(client, dos_consorcios):
+    # Admin de c1 solo debe ver usuarios de su consorcio (admin1, depto_a, depto_b, repre).
+    # No debe ver admin2 ni depto_c2 aunque estén en la misma DB.
+    r = client.get("/usuarios", headers=dos_consorcios["headers_admin_c1"])
+    assert r.status_code == 200
+    emails = {u["email"] for u in r.json()}
+    assert emails == {
+        "admin@test.local",
+        "a@test.local",
+        "b@test.local",
+        "repre@test.local",
+    }
+    assert "admin_c2@test.local" not in emails
+    assert "depto_c2@test.local" not in emails
+
+
+def test_listar_usuarios_scope_admin_c2(client, dos_consorcios):
+    # Admin de c2 solo ve usuarios de c2: admin2 y depto_c2.
+    r = client.get("/usuarios", headers=dos_consorcios["headers_admin_c2"])
+    assert r.status_code == 200
+    emails = {u["email"] for u in r.json()}
+    assert emails == {"admin_c2@test.local", "depto_c2@test.local"}
+
+
+def test_listar_usuarios_incluye_activa_true_por_default(client, headers_admin):
+    r = client.get("/usuarios", headers=headers_admin)
+    assert r.status_code == 200
+    for u in r.json():
+        assert u["activa"] is True
+
+
+def test_crear_usuario_fuerza_must_change_password(client, headers_admin):
+    payload = {
+        "email": "recien-creado@test.local",
+        "password": "pass-inicial-1234",
+        "rol": "departamento",
+        "departamento_id": 1,
+    }
+    r = client.post("/usuarios", json=payload, headers=headers_admin)
+    assert r.status_code == 201
+    assert r.json()["must_change_password"] is True
+
+
+# ---------------------------------------------------------------------------
+# PATCH /usuarios/{id}/estado — suspender/reactivar
+# ---------------------------------------------------------------------------
+
+
+def test_patch_estado_sin_token_devuelve_401(client):
+    r = client.patch("/usuarios/2/estado", json={"activa": False})
+    assert r.status_code == 401
+
+
+def test_patch_estado_como_departamento_devuelve_403(client, headers_depto_a):
+    r = client.patch("/usuarios/3/estado", json={"activa": False}, headers=headers_depto_a)
+    assert r.status_code == 403
+
+
+def test_patch_estado_como_representante_devuelve_403(client, headers_representante):
+    r = client.patch("/usuarios/2/estado", json={"activa": False}, headers=headers_representante)
+    assert r.status_code == 403
+
+
+def test_patch_estado_suspende_usuario(client, headers_admin):
+    r = client.patch("/usuarios/2/estado", json={"activa": False}, headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json()["activa"] is False
+
+
+def test_patch_estado_reactiva_usuario(client, headers_admin, db_session):
+    from backend.models import Usuario
+    u = db_session.get(Usuario, 2)
+    u.activa = False
+    db_session.commit()
+
+    r = client.patch("/usuarios/2/estado", json={"activa": True}, headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json()["activa"] is True
+
+
+def test_patch_estado_usuario_inexistente_devuelve_404(client, headers_admin):
+    r = client.patch("/usuarios/9999/estado", json={"activa": False}, headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_patch_estado_body_invalido_devuelve_400(client, headers_admin):
+    r = client.patch("/usuarios/2/estado", json={}, headers=headers_admin)
+    assert r.status_code == 400
+
+
+def test_patch_estado_no_puede_cambiar_usuario_de_otro_consorcio(client, dos_consorcios):
+    # Admin de c1 intenta suspender al depto de c2 → 404 (no lo ve).
+    r = client.patch(
+        "/usuarios/7/estado",
+        json={"activa": False},
+        headers=dos_consorcios["headers_admin_c1"],
+    )
+    assert r.status_code == 404
+
+
+def test_patch_estado_admin_no_puede_suspenderse_a_si_mismo(client, headers_admin):
+    r = client.patch("/usuarios/1/estado", json={"activa": False}, headers=headers_admin)
+    assert r.status_code == 400
+    assert r.json()["detail"] == "no_puede_suspenderse_a_si_mismo"
+
+
+# ---------------------------------------------------------------------------
+# DELETE /usuarios/{id}
+# ---------------------------------------------------------------------------
+
+
+def test_delete_sin_token_devuelve_401(client):
+    r = client.delete("/usuarios/2")
+    assert r.status_code == 401
+
+
+def test_delete_como_departamento_devuelve_403(client, headers_depto_a):
+    r = client.delete("/usuarios/3", headers=headers_depto_a)
+    assert r.status_code == 403
+
+
+def test_delete_como_representante_devuelve_403(client, headers_representante):
+    r = client.delete("/usuarios/2", headers=headers_representante)
+    assert r.status_code == 403
+
+
+def test_delete_usuario_inexistente_devuelve_404(client, headers_admin):
+    r = client.delete("/usuarios/9999", headers=headers_admin)
+    assert r.status_code == 404
+
+
+def test_delete_usuario_sin_actividad_devuelve_204(client, headers_admin, db_session):
+    # Depto B (id=3) no tiene reservas en el seed, así que se puede borrar.
+    from backend.models import Usuario
+    r = client.delete("/usuarios/3", headers=headers_admin)
+    assert r.status_code == 204
+    assert db_session.get(Usuario, 3) is None
+
+
+def test_delete_usuario_con_reserva_devuelve_409(client, headers_admin):
+    # Depto A (id=2) tiene la reserva del seed (id=400).
+    r = client.delete("/usuarios/2", headers=headers_admin)
+    assert r.status_code == 409
+    assert r.json()["detail"] == "usuario_con_actividad"
+
+
+def test_delete_admin_no_puede_eliminarse_a_si_mismo(client, headers_admin):
+    r = client.delete("/usuarios/1", headers=headers_admin)
+    assert r.status_code == 400
+    assert r.json()["detail"] == "no_puede_eliminarse_a_si_mismo"
+
+
+def test_delete_no_puede_borrar_usuario_de_otro_consorcio(client, dos_consorcios):
+    r = client.delete("/usuarios/7", headers=dos_consorcios["headers_admin_c1"])
+    assert r.status_code == 404
+
+
 # ---------------------------------------------------------------------------
 # POST /usuarios — happy paths
 # ---------------------------------------------------------------------------

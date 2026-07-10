@@ -46,7 +46,10 @@ def crear_clase(
     cid: int = Depends(get_consorcio_activo),
 ) -> ClaseProrrateo:
     duplicada = db.scalar(
-        select(ClaseProrrateo.id).where(ClaseProrrateo.codigo == payload.codigo)
+        select(ClaseProrrateo.id).where(
+            ClaseProrrateo.codigo == payload.codigo,
+            ClaseProrrateo.consorcio_id == cid,
+        )
     )
     if duplicada is not None:
         raise HTTPException(

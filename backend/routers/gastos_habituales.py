@@ -15,10 +15,10 @@ from ..schemas import (
 router = APIRouter(prefix="/gastos-habituales", tags=["Gastos"])
 
 
-def _validar_caja_activa(db: Session, caja_id: int) -> Caja:
-    """Validar que la caja existe y está activa."""
+def _validar_caja_activa(db: Session, cid: int, caja_id: int) -> Caja:
+    """Validar que la caja existe, es del consorcio y está activa."""
     caja = db.get(Caja, caja_id)
-    if caja is None:
+    if caja is None or caja.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"La caja con ID {caja_id} no existe.",
@@ -31,13 +31,15 @@ def _validar_caja_activa(db: Session, caja_id: int) -> Caja:
     return caja
 
 
-def _validar_referencias(db: Session, clase_id: int, proveedor_id: int) -> None:
-    if db.get(ClaseProrrateo, clase_id) is None:
+def _validar_referencias(db: Session, cid: int, clase_id: int, proveedor_id: int) -> None:
+    clase = db.get(ClaseProrrateo, clase_id)
+    if clase is None or clase.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La clase de prorrateo indicada no existe.",
         )
-    if db.get(Proveedor, proveedor_id) is None:
+    prov = db.get(Proveedor, proveedor_id)
+    if prov is None or prov.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El proveedor indicado no existe.",
@@ -74,8 +76,8 @@ def crear_habitual(
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
 ) -> GastoHabitual:
-    _validar_referencias(db, payload.clase_prorrateo_id, payload.proveedor_id)
-    _validar_caja_activa(db, payload.caja_id)
+    _validar_referencias(db, cid, payload.clase_prorrateo_id, payload.proveedor_id)
+    _validar_caja_activa(db, cid, payload.caja_id)
 
     plantilla = GastoHabitual(
         consorcio_id=cid,
@@ -142,11 +144,11 @@ def actualizar_habitual(
     nueva_clase = cambios.get("clase_prorrateo_id", plantilla.clase_prorrateo_id)
     nuevo_prov = cambios.get("proveedor_id", plantilla.proveedor_id)
     if "clase_prorrateo_id" in cambios or "proveedor_id" in cambios:
-        _validar_referencias(db, nueva_clase, nuevo_prov)
+        _validar_referencias(db, cid, nueva_clase, nuevo_prov)
 
     # Validar caja_id si cambia.
     if "caja_id" in cambios:
-        _validar_caja_activa(db, cambios["caja_id"])
+        _validar_caja_activa(db, cid, cambios["caja_id"])
 
     for campo, valor in cambios.items():
         setattr(plantilla, campo, valor)

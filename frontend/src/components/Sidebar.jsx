@@ -18,7 +18,7 @@ const SECCIONES = [
     ],
   },
   {
-    titulo: "Finanzas",
+    titulo: "Cobranzas y gastos",
     modulos: [
       {
         ruta: "/mi-cuenta",
@@ -31,28 +31,23 @@ const SECCIONES = [
         rolesPermitidos: ["administracion"],
       },
       {
-        ruta: "/periodos",
-        nombre: "Historial de cierres",
-        rolesPermitidos: ["administracion"],
-      },
-      {
         ruta: "/gastos",
         nombre: "Gastos",
         rolesPermitidos: ["administracion"],
       },
+    ],
+  },
+  {
+    titulo: "Finanzas",
+    modulos: [
       {
-        ruta: "/estado-financiero",
-        nombre: "Estado financiero",
+        ruta: "/tesoreria",
+        nombre: "Tesorería",
         rolesPermitidos: ["administracion"],
       },
       {
-        ruta: "/cajas",
-        nombre: "Cajas",
-        rolesPermitidos: ["administracion"],
-      },
-      {
-        ruta: "/transferencias",
-        nombre: "Transferencias",
+        ruta: "/cuentas-corrientes",
+        nombre: "Cuentas corrientes",
         rolesPermitidos: ["administracion"],
       },
     ],
@@ -75,6 +70,11 @@ const SECCIONES = [
         nombre: "Trabajos recurrentes",
         rolesPermitidos: ["administracion", "representante"],
       },
+    ],
+  },
+  {
+    titulo: "Espacios comunes",
+    modulos: [
       {
         ruta: "/reservas",
         nombre: "Reservas",
@@ -130,6 +130,11 @@ const SECCIONES = [
         nombre: "Conceptos de liquidación",
         rolesPermitidos: ["administracion"],
       },
+      {
+        ruta: "/empleados",
+        nombre: "Empleados",
+        rolesPermitidos: ["administracion"],
+      },
     ],
   },
   {
@@ -156,13 +161,8 @@ const SECCIONES = [
         rolesPermitidos: ["administracion"],
       },
       {
-        ruta: "/departamentos",
-        nombre: "Departamentos",
-        rolesPermitidos: ["administracion"],
-      },
-      {
-        ruta: "/empleados",
-        nombre: "Empleados",
+        ruta: "/padron",
+        nombre: "Usuarios y coeficientes",
         rolesPermitidos: ["administracion"],
       },
     ],

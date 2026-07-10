@@ -70,7 +70,7 @@ def _dibujar_header_consorcio(story, config: Consorcio, titulo: str, subtitulo: 
 
 def generar_pdf_boleta(expensa: Expensa, db: Session) -> bytes:
     """Genera el PDF de la boleta. Devuelve bytes."""
-    config = db.get(Consorcio, 1)
+    config = db.get(Consorcio, expensa.consorcio_id)
     departamento = db.get(Departamento, expensa.departamento_id)
 
     pagos = list(db.scalars(

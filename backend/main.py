@@ -9,6 +9,8 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from sqlalchemy import text
+
 from .config import get_settings
 from .database import Base, SessionLocal, engine
 from .middleware.impersonate_audit import ImpersonateAuditMiddleware
@@ -17,6 +19,7 @@ from .routers import (
     auth,
     cajas,
     clases_prorrateo,
+    coeficientes,
     comprobantes,
     comunicados,
     conceptos_liquidacion,
@@ -33,6 +36,7 @@ from .routers import (
     me,
     movimientos,
     notificaciones,
+    padron,
     periodos,
     peticiones,
     presupuestos,
@@ -51,9 +55,58 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def _migrar_usuario_activa() -> None:
+    """ALTER TABLE idempotente para bases existentes que no tienen la columna
+    `activa`. `create_all` solo crea tablas nuevas, no agrega columnas."""
+    with engine.begin() as conn:
+        cols = {r[1] for r in conn.execute(text("PRAGMA table_info(usuarios)"))}
+        if "activa" not in cols:
+            conn.execute(text(
+                "ALTER TABLE usuarios ADD COLUMN activa BOOLEAN NOT NULL DEFAULT 1"
+            ))
+
+
+def _migrar_pk_periodos_cerrados() -> None:
+    """Migra la PK de periodos_cerrados de (periodo) a (periodo, consorcio_id).
+    SQLite no soporta ALTER de PK: se recrea la tabla copiando los datos.
+    Idempotente: si consorcio_id ya es parte de la PK, no hace nada."""
+    with engine.begin() as conn:
+        info = list(conn.execute(text("PRAGMA table_info(periodos_cerrados)")))
+        if not info:
+            return  # la tabla no existe todavía; create_all la crea bien
+        pk_cols = {r[1] for r in info if r[5] > 0}
+        if "consorcio_id" in pk_cols:
+            return  # ya migrada
+        conn.execute(text("ALTER TABLE periodos_cerrados RENAME TO periodos_cerrados_old"))
+        conn.execute(text("""
+            CREATE TABLE periodos_cerrados (
+                periodo VARCHAR(7) NOT NULL,
+                consorcio_id INTEGER NOT NULL,
+                fecha_cierre DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+                cerrado_por_usuario_id INTEGER NOT NULL,
+                total_expensado FLOAT NOT NULL,
+                total_intereses FLOAT NOT NULL,
+                cantidad_expensas INTEGER NOT NULL,
+                PRIMARY KEY (periodo, consorcio_id),
+                FOREIGN KEY(consorcio_id) REFERENCES consorcios (id) ON DELETE RESTRICT,
+                FOREIGN KEY(cerrado_por_usuario_id) REFERENCES usuarios (id) ON DELETE RESTRICT
+            )
+        """))
+        conn.execute(text("""
+            INSERT INTO periodos_cerrados
+            SELECT periodo, consorcio_id, fecha_cierre, cerrado_por_usuario_id,
+                   total_expensado, total_intereses, cantidad_expensas
+            FROM periodos_cerrados_old
+        """))
+        conn.execute(text("DROP TABLE periodos_cerrados_old"))
+        logger.info("Migración PK periodos_cerrados → (periodo, consorcio_id) aplicada")
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
+    _migrar_usuario_activa()
+    _migrar_pk_periodos_cerrados()
     if get_settings().SEED_ENABLED:
         with SessionLocal() as db:
             seed_if_empty(db)
@@ -110,6 +163,7 @@ app.include_router(reservas.router)
 app.include_router(departamentos.router)
 app.include_router(usuarios.router)
 app.include_router(clases_prorrateo.router)
+app.include_router(coeficientes.router)
 app.include_router(proveedores.router)
 app.include_router(configuracion.router)
 app.include_router(consorcios.router)
@@ -124,6 +178,7 @@ app.include_router(periodos.router)
 app.include_router(cajas.router)
 app.include_router(transferencias_caja.router)
 app.include_router(super_admin.router)
+app.include_router(padron.router)
 app.include_router(estado_financiero.router)
 app.include_router(reportes.router)
 

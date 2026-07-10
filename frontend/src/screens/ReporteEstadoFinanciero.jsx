@@ -14,19 +14,26 @@ function fmtMoney(n) {
 export default function ReporteEstadoFinanciero() {
   const { token } = useAuth();
   const [rep, setRep] = useState(null);
+  const [error, setError] = useState(null);
   const [fechaCorte, setFechaCorte] = useState(
     new Date().toISOString().slice(0, 10)
   );
 
   async function cargar() {
     const r = await obtenerEstadoFinanciero(fechaCorte);
-    if (r.status === 200) setRep(r.data);
+    if (r.status === 200) {
+      setRep(r.data);
+      setError(null);
+    } else if (r.status !== 401) {
+      setError(r.data?.detail || "No se pudo cargar el reporte.");
+    }
   }
 
   useEffect(() => {
     cargar();
   }, [fechaCorte]);
 
+  if (error) return <p role="alert" className="error-banner">{error}</p>;
   if (!rep) return <p>Cargando…</p>;
 
   return (
@@ -36,7 +43,7 @@ export default function ReporteEstadoFinanciero() {
           <h2>Estado financiero</h2>
           <button
             type="button"
-            onClick={() => abrirPdfEstadoFinanciero(fechaCorte, token)}
+            onClick={() => abrirPdfEstadoFinanciero(fechaCorte)}
           >
             📄 Descargar PDF
           </button>

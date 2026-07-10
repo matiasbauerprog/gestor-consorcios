@@ -1,23 +1,11 @@
-import { apiFetch, API_BASE } from "./client";
+import { apiFetch, abrirPdf } from "./client";
 
 /**
  * Abre el PDF de una expensa en una nueva pestaña.
- * Fetcha como blob para evitar pasar el token por query string.
- *
- * @param {number} expensaId
- * @param {string} token - JWT del usuario actual
+ * El token y el X-Consorcio-Id los inyecta el helper del client.
  */
-export async function abrirPdfExpensa(expensaId, token) {
-  const res = await fetch(`${API_BASE}/expensas/${expensaId}/pdf`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) {
-    throw new Error(`Error al cargar PDF: HTTP ${res.status}`);
-  }
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+export function abrirPdfExpensa(expensaId) {
+  return abrirPdf(`/expensas/${expensaId}/pdf`);
 }
 
 /**

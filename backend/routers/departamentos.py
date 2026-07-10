@@ -1,10 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, require_roles
 from ..database import get_db
-from ..models import ClaseProrrateo, CoeficienteDepartamento, Departamento, Rol
+from ..models import (
+    ClaseProrrateo,
+    CoeficienteDepartamento,
+    Comprobante,
+    Departamento,
+    Expensa,
+    Gasto,
+    MovimientoCuenta,
+    Peticion,
+    Rol,
+    Usuario,
+)
 from ..tenant import get_consorcio_activo
 from ..schemas import (
     CoeficienteOut,
@@ -183,3 +194,50 @@ def reemplazar_coeficientes(
     db.commit()
 
     return listar_coeficientes(departamento_id, db, _user, cid)
+
+
+def _depto_tiene_actividad(db: Session, departamento_id: int) -> bool:
+    """True si el depto tiene datos que forzarían un FK RESTRICT al borrar."""
+    checks = [
+        db.query(Usuario.id).filter(Usuario.departamento_id == departamento_id),
+        db.query(Peticion.id).filter(Peticion.departamento_id == departamento_id),
+        db.query(Expensa.id).filter(Expensa.departamento_id == departamento_id),
+        db.query(Comprobante.id).filter(Comprobante.departamento_id == departamento_id),
+        db.query(MovimientoCuenta.id).filter(MovimientoCuenta.departamento_id == departamento_id),
+        db.query(Gasto.id).filter(Gasto.departamento_id == departamento_id),
+    ]
+    return any(q.first() is not None for q in checks)
+
+
+@router.delete(
+    "/{departamento_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Eliminar un departamento",
+    response_class=Response,
+)
+def eliminar_departamento(
+    departamento_id: int,
+    db: Session = Depends(get_db),
+    _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
+) -> Response:
+    depto = db.get(Departamento, departamento_id)
+    if depto is None or depto.consorcio_id != cid:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="El departamento solicitado no existe.",
+        )
+    if _depto_tiene_actividad(db, departamento_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="departamento_con_actividad",
+        )
+    # Coeficientes son configuración: cascade manual antes del delete.
+    db.query(CoeficienteDepartamento).filter(
+        CoeficienteDepartamento.departamento_id == departamento_id
+    ).delete(synchronize_session=False)
+    db.delete(depto)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+

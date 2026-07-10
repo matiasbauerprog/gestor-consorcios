@@ -39,7 +39,7 @@ def crear(
     cid: int = Depends(get_consorcio_activo),
 ):
     if payload.proveedor_sugerido_id is not None:
-        if db.get(Proveedor, payload.proveedor_sugerido_id) is None:
+        if (p := db.get(Proveedor, payload.proveedor_sugerido_id)) is None or p.consorcio_id != cid:
             raise HTTPException(404, f"Proveedor {payload.proveedor_sugerido_id} no encontrado.")
     tr = TrabajoRecurrente(consorcio_id=cid, **payload.model_dump())
     db.add(tr); db.commit(); db.refresh(tr)
@@ -58,7 +58,7 @@ def actualizar(
     if tr is None or tr.consorcio_id != cid:
         raise HTTPException(404, "Recurrente no encontrado.")
     if payload.proveedor_sugerido_id is not None:
-        if db.get(Proveedor, payload.proveedor_sugerido_id) is None:
+        if (p := db.get(Proveedor, payload.proveedor_sugerido_id)) is None or p.consorcio_id != cid:
             raise HTTPException(404, f"Proveedor {payload.proveedor_sugerido_id} no encontrado.")
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(tr, k, v)

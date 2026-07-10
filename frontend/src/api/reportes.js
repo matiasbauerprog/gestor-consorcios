@@ -1,4 +1,4 @@
-import { apiFetch, API_BASE } from "./client";
+import { apiFetch, abrirPdf } from "./client";
 
 // JSON endpoints
 export function listarMorosos({ soloDeudores = true } = {}) {
@@ -26,39 +26,28 @@ export function listarProveedores({ anio, periodo } = {}) {
   return apiFetch(`/reportes/proveedores${qs}`);
 }
 
-// PDFs — abren en nueva pestaña con blob URL (mismo patrón que api/pdf.js)
-async function _abrirPdf(path, token) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+// PDFs — abren en nueva pestaña; token y X-Consorcio-Id los inyecta el client.
+export function abrirPdfMorosos({ soloDeudores = true } = {}) {
+  return abrirPdf(`/reportes/morosos/pdf?solo_deudores=${soloDeudores}`);
 }
 
-export function abrirPdfMorosos({ soloDeudores = true }, token) {
-  return _abrirPdf(`/reportes/morosos/pdf?solo_deudores=${soloDeudores}`, token);
-}
-
-export function abrirPdfEstadoFinanciero(fechaCorte, token) {
+export function abrirPdfEstadoFinanciero(fechaCorte) {
   const qs = fechaCorte ? `?fecha_corte=${fechaCorte}` : "";
-  return _abrirPdf(`/reportes/estado-financiero/pdf${qs}`, token);
+  return abrirPdf(`/reportes/estado-financiero/pdf${qs}`);
 }
 
-export function abrirPdfGastosPeriodo(periodo, filtros, token) {
+export function abrirPdfGastosPeriodo(periodo, filtros) {
   const params = new URLSearchParams();
   if (filtros?.rubro) params.set("rubro", filtros.rubro);
   if (filtros?.proveedorId != null) params.set("proveedor_id", filtros.proveedorId);
   const qs = params.toString() ? `?${params}` : "";
-  return _abrirPdf(`/reportes/gastos/${periodo}/pdf${qs}`, token);
+  return abrirPdf(`/reportes/gastos/${periodo}/pdf${qs}`);
 }
 
-export function abrirPdfProveedores({ anio, periodo }, token) {
+export function abrirPdfProveedores({ anio, periodo } = {}) {
   const params = new URLSearchParams();
   if (anio) params.set("anio", anio);
   if (periodo) params.set("periodo", periodo);
   const qs = params.toString() ? `?${params}` : "";
-  return _abrirPdf(`/reportes/proveedores/pdf${qs}`, token);
+  return abrirPdf(`/reportes/proveedores/pdf${qs}`);
 }

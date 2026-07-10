@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, require_roles
 from ..cuenta_corriente import calcular_estado_cuenta
 from ..database import get_db
-from ..models import Departamento, MovimientoCuenta, Rol
-from ..schemas import EstadoCuentaOut, MovimientoCuentaOut, NotaCrear
+from ..models import Departamento, Expensa, MovimientoCuenta, Rol
+from ..schemas import CuentaResumenOut, EstadoCuentaOut, MovimientoCuentaOut, NotaCrear
 from ..tenant import get_consorcio_activo
 
 router = APIRouter(tags=["Movimientos"])
@@ -22,6 +22,7 @@ def _cuenta(
     hasta: date | None,
 ) -> EstadoCuentaOut:
     estado = calcular_estado_cuenta(db, departamento_id)
+    depto = db.get(Departamento, departamento_id)
 
     stmt = (
         select(MovimientoCuenta)
@@ -36,6 +37,8 @@ def _cuenta(
     movs = list(db.scalars(stmt).all())
     return EstadoCuentaOut(
         departamento_id=departamento_id,
+        departamento_codigo=depto.codigo if depto else "",
+        departamento_ubicacion=depto.descripcion if depto else None,
         saldo_total=estado.saldo_total,
         movimientos=[MovimientoCuentaOut.model_validate(m) for m in movs],
     )
@@ -55,6 +58,48 @@ def mi_cuenta(
     _cid: int = Depends(get_consorcio_activo),
 ) -> EstadoCuentaOut:
     return _cuenta(db, user.departamento_id, desde, hasta)
+
+
+@router.get(
+    "/movimientos/cuentas",
+    response_model=list[CuentaResumenOut],
+    status_code=status.HTTP_200_OK,
+    summary="Listado consolidado de saldos por departamento (admin)",
+)
+def listar_cuentas(
+    db: Session = Depends(get_db),
+    _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
+) -> list[CuentaResumenOut]:
+    hoy = date.today()
+    deptos = list(
+        db.scalars(
+            select(Departamento)
+            .where(Departamento.consorcio_id == cid)
+            .order_by(Departamento.codigo.asc())
+        ).all()
+    )
+
+    # Set de depto_ids con al menos una expensa vencida (2do venc pasado).
+    deptos_con_vencida = {
+        r for (r,) in db.query(Expensa.departamento_id).filter(
+            Expensa.consorcio_id == cid,
+            Expensa.fecha_segundo_vencimiento < hoy,
+        ).distinct().all()
+    }
+
+    resultado = []
+    for d in deptos:
+        saldo = calcular_estado_cuenta(db, d.id).saldo_total
+        en_mora = saldo > 0.005 and d.id in deptos_con_vencida
+        resultado.append(CuentaResumenOut(
+            departamento_id=d.id,
+            codigo=d.codigo,
+            ubicacion=d.descripcion,
+            saldo_total=saldo,
+            en_mora=en_mora,
+        ))
+    return resultado
 
 
 @router.get(

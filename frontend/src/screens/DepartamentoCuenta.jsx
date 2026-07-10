@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { crearNota, listarMovimientosDepto } from "../api/movimientos";
 import Modal from "../components/Modal";
 import Tarjeta from "../components/Tarjeta";
@@ -74,8 +74,22 @@ export default function DepartamentoCuenta() {
 
   return (
     <main className="pantalla">
+      <p style={{ marginBottom: "0.5rem" }}>
+        <Link to="/cuentas-corrientes" className="breadcrumb-atras">
+          ← Volver a cuentas corrientes
+        </Link>
+      </p>
       <header className="pantalla-encabezado">
-        <h1>Cuenta corriente — Depto {departamentoId}</h1>
+        <div>
+          <h1 style={{ marginBottom: 0 }}>
+            Cuenta corriente — {data.departamento_codigo || `depto ${departamentoId}`}
+          </h1>
+          {data.departamento_ubicacion && (
+            <p className="meta" style={{ margin: 0 }}>
+              {data.departamento_ubicacion}
+            </p>
+          )}
+        </div>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <button type="button" onClick={() => setShowCredito(true)}>
             + Nota de crédito

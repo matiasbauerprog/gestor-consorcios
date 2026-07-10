@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Literal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .cuenta_corriente import calcular_estado_cuenta
@@ -20,8 +20,10 @@ from .models import (
     EstadoExpensa,
     Expensa,
     Gasto,
+    MovimientoCuenta,
     PeriodoCerrado,
     Rubro,
+    TipoMovimiento,
 )
 
 
@@ -91,19 +93,32 @@ def _calcular_fechas_default(
 
 
 def calcular_intereses_al_cierre(
-    db: Session, depto_id: int, fecha_corte: date
+    db: Session, consorcio_id: int, depto_id: int, fecha_corte: date
 ) -> tuple[float, str]:
     """Suma intereses sobre todas las expensas del depto con saldo > 0 cuyo
-    2° vencimiento ya pasó. Tasa diaria = mensual_pct / 100 / 30.
+    2° vencimiento ya pasó. Tasa diaria = mensual_pct / 100 / 30 (tasa del
+    consorcio del depto).
+
+    Solo se cobra el tramo de mora NO cubierto por cierres anteriores: los
+    intereses ya cobrados llegan hasta la fecha del último movimiento
+    `interes_punitorio` del depto — re-cobrar desde el vencimiento duplicaría
+    el interés en cada cierre subsecuente.
 
     Returns (monto_total, descripcion_agregada). Si monto == 0, retorna (0.0, "").
     """
-    config = db.scalar(select(Consorcio))
+    config = db.get(Consorcio, consorcio_id)
     if config is None:
         return 0.0, ""
 
     estado = calcular_estado_cuenta(db, depto_id, hoy=fecha_corte)
     tasa_diaria = config.tasa_interes_mensual_pct / 100 / 30
+
+    ultima_fecha_interes = db.scalar(
+        select(func.max(MovimientoCuenta.fecha)).where(
+            MovimientoCuenta.departamento_id == depto_id,
+            MovimientoCuenta.tipo == TipoMovimiento.interes_punitorio,
+        )
+    )
 
     intereses_por_expensa: list[tuple[str, float]] = []
     for expensa in db.scalars(
@@ -114,7 +129,10 @@ def calcular_intereses_al_cierre(
             continue
         if expensa.fecha_segundo_vencimiento >= fecha_corte:
             continue
-        dias_mora = (fecha_corte - expensa.fecha_segundo_vencimiento).days
+        desde = expensa.fecha_segundo_vencimiento
+        if ultima_fecha_interes is not None and ultima_fecha_interes > desde:
+            desde = ultima_fecha_interes
+        dias_mora = (fecha_corte - desde).days
         if dias_mora <= 0:
             continue
         interes = round(calc.monto_pendiente * tasa_diaria * dias_mora, 2)
@@ -132,14 +150,20 @@ def calcular_intereses_al_cierre(
     return total, descripcion
 
 
+def periodo_cerrado_en(db: Session, consorcio_id: int, periodo: str) -> bool:
+    """True si el consorcio ya cerró ese período. El cierre es POR consorcio."""
+    return db.get(PeriodoCerrado, (periodo, consorcio_id)) is not None
+
+
 def calcular_preview_cierre(
     db: Session,
+    consorcio_id: int,
     periodo: str,
     fecha_primer_venc: date | None = None,
     fecha_segundo_venc: date | None = None,
 ) -> PreviewCierre:
-    cerrado = db.get(PeriodoCerrado, periodo) is not None
-    config = db.scalar(select(Consorcio))
+    cerrado = periodo_cerrado_en(db, consorcio_id, periodo)
+    config = db.get(Consorcio, consorcio_id)
 
     validaciones: list[Validacion] = []
 
@@ -182,7 +206,10 @@ def calcular_preview_cierre(
 
     # Validar coeficientes y gastos huérfanos.
     gastos_periodo = list(db.scalars(
-        select(Gasto).where(Gasto.periodo == periodo)
+        select(Gasto).where(
+            Gasto.periodo == periodo,
+            Gasto.consorcio_id == consorcio_id,
+        )
     ).all())
 
     huerfanos = [
@@ -205,9 +232,14 @@ def calcular_preview_cierre(
 
     # Clases activas con gastos del período: validar coeficientes.
     clases_activas = list(db.scalars(
-        select(ClaseProrrateo).where(ClaseProrrateo.activa.is_(True))
+        select(ClaseProrrateo).where(
+            ClaseProrrateo.activa.is_(True),
+            ClaseProrrateo.consorcio_id == consorcio_id,
+        )
     ).all())
-    deptos = list(db.scalars(select(Departamento)).all())
+    deptos = list(db.scalars(
+        select(Departamento).where(Departamento.consorcio_id == consorcio_id)
+    ).all())
 
     clases_con_gasto_ids = {
         g.clase_prorrateo_id for g in gastos_periodo if g.clase_prorrateo_id is not None
@@ -242,13 +274,14 @@ def calcular_preview_cierre(
             ))
 
     return _completar_preview(
-        db, periodo, cerrado, fecha_1, fecha_2,
+        db, consorcio_id, periodo, cerrado, fecha_1, fecha_2,
         validaciones, gastos_periodo, config,
     )
 
 
 def _completar_preview(
     db: Session,
+    consorcio_id: int,
     periodo: str,
     cerrado: bool,
     fecha_1: date,
@@ -270,7 +303,9 @@ def _completar_preview(
     if cerrado:
         return preview
 
-    deptos = list(db.scalars(select(Departamento)).all())
+    deptos = list(db.scalars(
+        select(Departamento).where(Departamento.consorcio_id == consorcio_id)
+    ).all())
 
     lineas_por_depto: dict[int, list[LineaDetalleExpensa]] = {d.id: [] for d in deptos}
 
@@ -308,7 +343,7 @@ def _completar_preview(
     fecha_corte = date.today()
     intereses_por_depto: dict[int, float] = {}
     for d in deptos:
-        monto, descripcion = calcular_intereses_al_cierre(db, d.id, fecha_corte)
+        monto, descripcion = calcular_intereses_al_cierre(db, consorcio_id, d.id, fecha_corte)
         if monto > 0:
             preview.intereses.append(InteresACrear(
                 departamento_id=d.id,

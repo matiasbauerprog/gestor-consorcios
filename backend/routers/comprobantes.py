@@ -152,7 +152,7 @@ def actualizar_comprobante(
                 detail="Debe indicar caja_destino_id (no hay default configurada)."
             )
         caja_dst = db.get(Caja, caja_destino_id)
-        if caja_dst is None or not caja_dst.activa:
+        if caja_dst is None or caja_dst.consorcio_id != cid or not caja_dst.activa:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Caja destino inválida o inactiva."
