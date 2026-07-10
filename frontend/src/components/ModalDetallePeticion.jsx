@@ -3,6 +3,7 @@ import Modal from "./Modal";
 import { actualizarPeticion, eliminarPeticion } from "../api/peticiones";
 import { crearTrabajo } from "../api/trabajos";
 import { useAuth } from "../auth/AuthContext";
+import { formatFecha, formatFechaHora } from "../utils/fechas";
 
 const ETIQUETAS_ESTADO = {
   abierta: "Abierta",
@@ -67,7 +68,7 @@ export default function ModalDetallePeticion({
       </p>
       <p>
         <strong>Fecha:</strong>{" "}
-        {new Date(peticion.fecha_creacion).toLocaleString()}
+        {formatFechaHora(peticion.fecha_creacion)}
       </p>
 
       {error && <p className="error">{error}</p>}

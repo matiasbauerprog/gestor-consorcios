@@ -8,6 +8,7 @@ import { API_BASE } from "../api/client";
 import BadgeEstado from "./BadgeEstado";
 import Modal from "./Modal";
 import Tarjeta from "./Tarjeta";
+import { formatFecha } from "../utils/fechas";
 
 function formatMoney(n) {
   return Number(n).toLocaleString("es-AR", {
@@ -93,7 +94,7 @@ export default function ModalComprobantesExpensa({ expensa, onClose }) {
                 <h3>
                   {formatMoney(c.monto)}
                 </h3>
-                <p className="meta">Pagado {c.fecha_pago}</p>
+                <p className="meta">Pagado {formatFecha(c.fecha_pago)}</p>
                 <p><BadgeEstado estado={c.estado} /></p>
                 {c.archivo_path && (
                   <a

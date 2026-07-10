@@ -7,6 +7,7 @@ import {
   borrarComunicado,
 } from "../api/comunicados";
 import Modal from "../components/Modal";
+import { formatFecha } from "../utils/fechas";
 import TabsPanel from "../components/TabsPanel";
 import Tarjeta from "../components/Tarjeta";
 
@@ -16,15 +17,6 @@ const TABS = [
 ];
 
 const TABS_VALIDOS = new Set(TABS.map((t) => t.valor));
-
-function formatearFecha(iso) {
-  const d = new Date(iso);
-  return d.toLocaleDateString("es-AR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
 
 function cuerpoLargo(cuerpo) {
   if (cuerpo.length > 280) return true;
@@ -166,7 +158,7 @@ function SeccionComunicados() {
             <Tarjeta>
               <h3>{c.titulo}</h3>
               <p className="meta">
-                {formatearFecha(c.fecha_publicacion)} · Administración
+                {formatFecha(c.fecha_publicacion)} · Administración
               </p>
               <p className={expandidos.has(c.id) ? "" : "cuerpo-truncado"}>
                 {c.cuerpo}

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { obtenerGastosDelPeriodo, abrirPdfGastosPeriodo } from "../api/reportes";
 import { useAuth } from "../auth/AuthContext";
 import Tarjeta from "../components/Tarjeta";
+import { formatFecha } from "../utils/fechas";
 
 function fmtMoney(n) {
   return Number(n).toLocaleString("es-AR", {
@@ -76,7 +77,7 @@ export default function ReporteGastosPeriodo() {
             <tbody>
               {items.map((it, i) => (
                 <tr key={i}>
-                  <td>{it.fecha}</td><td>{it.concepto}</td><td>{it.proveedor}</td>
+                  <td>{formatFecha(it.fecha)}</td><td>{it.concepto}</td><td>{it.proveedor}</td>
                   <td>{it.caja}</td><td>{it.forma_pago}</td>
                   <td style={{ textAlign: "right" }}>{fmtMoney(it.monto)}</td>
                 </tr>
@@ -94,7 +95,7 @@ export default function ReporteGastosPeriodo() {
             <tbody>
               {rep.particulares.map((it, i) => (
                 <tr key={i}>
-                  <td>{it.fecha}</td><td>{it.concepto}</td><td>{it.proveedor}</td>
+                  <td>{formatFecha(it.fecha)}</td><td>{it.concepto}</td><td>{it.proveedor}</td>
                   <td>{it.caja}</td><td>{it.forma_pago}</td>
                   <td style={{ textAlign: "right" }}>{fmtMoney(it.monto)}</td>
                 </tr>

@@ -10,6 +10,7 @@ import {
 } from "../api/presupuestos";
 import { listarProveedores } from "../api/proveedores";
 import ModalNuevoPresupuesto from "./ModalNuevoPresupuesto";
+import { formatFecha } from "../utils/fechas";
 
 const ETIQUETAS_ESTADO_TRABAJO = {
   en_curso: "En curso",
@@ -159,7 +160,7 @@ export default function ModalDetalleTrabajo({
               >
                 <td>{proveedorNombre(p.proveedor_id)}</td>
                 <td>{fmtMoney(p.monto)}</td>
-                <td>{p.fecha_presentacion}</td>
+                <td>{formatFecha(p.fecha_presentacion)}</td>
                 <td>
                   {p.archivo_path ? (
                     <a

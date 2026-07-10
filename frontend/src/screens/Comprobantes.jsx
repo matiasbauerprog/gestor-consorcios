@@ -13,6 +13,7 @@ import BadgeEstado from "../components/BadgeEstado";
 import Modal from "../components/Modal";
 import SelectorDepartamento from "../components/SelectorDepartamento";
 import Tarjeta from "../components/Tarjeta";
+import { formatFecha } from "../utils/fechas";
 
 const ESTADOS = [
   { value: "", label: "Todos" },
@@ -210,9 +211,9 @@ export default function Comprobantes() {
               <h3>
                 ${c.monto.toLocaleString("es-AR")}
               </h3>
-              <p className="meta">Pagado {c.fecha_pago}</p>
+              <p className="meta">Pagado {formatFecha(c.fecha_pago)}</p>
               {c.departamento_id && (
-                <p className="meta">Departamento: {c.departamento_id}</p>
+                <p className="meta">Departamento: {c.departamento_codigo || `#${c.departamento_id}`}</p>
               )}
               <p><BadgeEstado estado={c.estado} /></p>
               {c.archivo_path && (
@@ -256,7 +257,7 @@ export default function Comprobantes() {
       {modalAprobar && (
         <Modal titulo="Aprobar comprobante" onClose={() => setModalAprobar(null)}>
           <p>
-            Comprobante del <strong>{modalAprobar.comprobante.fecha_pago}</strong> por{" "}
+            Comprobante del <strong>{formatFecha(modalAprobar.comprobante.fecha_pago)}</strong> por{" "}
             <strong>${modalAprobar.comprobante.monto.toLocaleString("es-AR")}</strong>
           </p>
           <label>
@@ -301,7 +302,7 @@ export default function Comprobantes() {
 
       {modalEliminar && (
         <Modal titulo="Eliminar comprobante" onClose={() => setModalEliminar(null)}>
-          <p>¿Eliminar el comprobante del {modalEliminar.fecha_pago}?</p>
+          <p>¿Eliminar el comprobante del {formatFecha(modalEliminar.fecha_pago)}?</p>
           <p className="meta">
             Esta acción lo oculta de la vista. Si ya estaba aprobado, el pago
             sigue contabilizado en la cuenta corriente.

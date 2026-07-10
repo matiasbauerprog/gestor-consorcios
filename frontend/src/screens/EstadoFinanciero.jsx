@@ -1,8 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { obtenerEstadoFinanciero } from "../api/estadoFinanciero";
+import { abrirPdfMovimientos, obtenerEstadoFinanciero } from "../api/estadoFinanciero";
 import Tarjeta from "../components/Tarjeta";
 import ModalNuevaTransferencia from "../components/ModalNuevaTransferencia";
+import { formatFecha } from "../utils/fechas";
+
+function primerDiaDelMes(d = new Date()) {
+  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+}
+
+function hoy() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 function fmtMoney(n) {
   return Number(n).toLocaleString("es-AR", {
@@ -13,6 +22,7 @@ function fmtMoney(n) {
 export default function EstadoFinanciero() {
   const [data, setData] = useState(null);
   const [modalTransfer, setModalTransfer] = useState(false);
+  const [modalPdf, setModalPdf] = useState(false);
 
   async function cargar() {
     const r = await obtenerEstadoFinanciero();
@@ -27,9 +37,14 @@ export default function EstadoFinanciero() {
     <section>
       <header className="cabecera-pantalla">
         <h2>Estado financiero</h2>
-        <button type="button" onClick={() => setModalTransfer(true)}>
-          🔄 Transferir entre cajas
-        </button>
+        <div className="cabecera-acciones">
+          <button type="button" onClick={() => setModalPdf(true)}>
+            📄 Descargar movimientos
+          </button>
+          <button type="button" onClick={() => setModalTransfer(true)}>
+            🔄 Transferir entre cajas
+          </button>
+        </div>
       </header>
 
       <Tarjeta>
@@ -50,7 +65,16 @@ export default function EstadoFinanciero() {
       </div>
 
       <Tarjeta>
-        <h3>Últimos 20 movimientos</h3>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <h3 style={{ margin: 0 }}>Últimos 20 movimientos</h3>
+          <button
+            type="button"
+            className="accion-discreta"
+            onClick={() => setModalPdf(true)}
+          >
+            ver todos por período (PDF)
+          </button>
+        </div>
         {data.ultimos_movimientos.length === 0 ? (
           <p>Sin movimientos.</p>
         ) : (
@@ -65,7 +89,7 @@ export default function EstadoFinanciero() {
                 const caja = data.cajas.find((c) => c.id === m.caja_id);
                 return (
                   <tr key={m.id}>
-                    <td>{m.fecha}</td>
+                    <td>{formatFecha(m.fecha)}</td>
                     <td>{caja?.nombre || m.caja_id}</td>
                     <td>{m.tipo}</td>
                     <td>{fmtMoney(m.monto)}</td>
@@ -85,6 +109,66 @@ export default function EstadoFinanciero() {
           onCreada={() => { setModalTransfer(false); cargar(); }}
         />
       )}
+
+      {modalPdf && (
+        <ModalDescargarMovimientos onCerrar={() => setModalPdf(false)} />
+      )}
     </section>
+  );
+}
+
+function ModalDescargarMovimientos({ onCerrar }) {
+  const [desde, setDesde] = useState(primerDiaDelMes());
+  const [hasta, setHasta] = useState(hoy());
+  const [enviando, setEnviando] = useState(false);
+  const [err, setErr] = useState(null);
+
+  async function descargar(e) {
+    e.preventDefault();
+    if (desde > hasta) {
+      setErr("La fecha 'desde' no puede ser posterior a 'hasta'.");
+      return;
+    }
+    setErr(null);
+    setEnviando(true);
+    try {
+      await abrirPdfMovimientos({ desde, hasta });
+      onCerrar();
+    } catch (e) {
+      setErr("No se pudo generar el PDF.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onCerrar}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>Descargar movimientos de caja</h3>
+        <p className="meta">
+          Genera un PDF con todos los movimientos del rango, agrupados por
+          caja y con totales.
+        </p>
+        <form onSubmit={descargar}>
+          <label>
+            Desde
+            <input type="date" required value={desde}
+                   onChange={(e) => setDesde(e.target.value)} />
+          </label>
+          <label>
+            Hasta
+            <input type="date" required value={hasta}
+                   onChange={(e) => setHasta(e.target.value)} />
+          </label>
+          {err && <p className="error">{err}</p>}
+          <div className="modal-acciones">
+            <button type="button" onClick={onCerrar}>Cancelar</button>
+            <button type="submit" disabled={enviando}>
+              {enviando ? "Generando…" : "Descargar PDF"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }

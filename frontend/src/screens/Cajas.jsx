@@ -4,6 +4,7 @@ import { listarMovimientos } from "../api/movimientosCaja";
 import Tarjeta from "../components/Tarjeta";
 import ModalCaja from "../components/ModalCaja";
 import ModalAjusteCaja from "../components/ModalAjusteCaja";
+import { formatFecha } from "../utils/fechas";
 
 function fmtMoney(n) {
   return Number(n).toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
@@ -76,7 +77,7 @@ export default function Cajas() {
             <tbody>
               {movimientos.map((m) => (
                 <tr key={m.id}>
-                  <td>{m.fecha}</td>
+                  <td>{formatFecha(m.fecha)}</td>
                   <td>{m.tipo}</td>
                   <td>{fmtMoney(m.monto)}</td>
                   <td>{m.descripcion}</td>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { listarTransferencias } from "../api/transferencias";
 import { listarCajas } from "../api/cajas";
 import ModalNuevaTransferencia from "../components/ModalNuevaTransferencia";
+import { formatFecha } from "../utils/fechas";
 
 function fmtMoney(n) {
   return Number(n).toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
@@ -36,7 +37,7 @@ export default function Transferencias() {
           <tbody>
             {transfers.map((t) => (
               <tr key={t.id}>
-                <td>{t.fecha}</td>
+                <td>{formatFecha(t.fecha)}</td>
                 <td>{nombreCaja(t.caja_origen_id)}</td>
                 <td>{nombreCaja(t.caja_destino_id)}</td>
                 <td>{fmtMoney(t.monto)}</td>

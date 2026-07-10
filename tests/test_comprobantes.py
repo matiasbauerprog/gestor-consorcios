@@ -657,3 +657,52 @@ def test_patch_comprobante_eliminado_404(client, headers_admin, headers_depto_a)
         headers=headers_admin,
     )
     assert r.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# UX: descripciones humanas + código de depto en respuestas
+# ---------------------------------------------------------------------------
+
+
+def test_comprobante_out_incluye_departamento_codigo(client, headers_admin, headers_depto_a):
+    """El listado expone el código UF-XX del depto, no solo el id numérico."""
+    r = client.post(
+        "/comprobantes", headers=headers_depto_a,
+        data={"fecha_pago": "2026-05-15", "monto": 500.0},
+        files={"archivo": ("p.png", bytes.fromhex("89504e470d0a1a0a"), "image/png")},
+    )
+    assert r.status_code == 201
+    r2 = client.get("/comprobantes", headers=headers_admin)
+    assert r2.status_code == 200
+    assert len(r2.json()) >= 1
+    comp = r2.json()[0]
+    assert comp["departamento_codigo"] == "UF-1A"
+
+
+def test_aprobar_comprobante_genera_descripcion_humana(client, headers_admin, headers_depto_a, db_session):
+    """Al aprobar, la descripción del movimiento incluye el código del depto y
+    la fecha de pago — no 'Pago comprobante #NNN'."""
+    from backend.models import MovimientoCaja, MovimientoCuenta
+    import io
+    r = client.post(
+        "/comprobantes",
+        headers=headers_depto_a,
+        data={"fecha_pago": "2026-05-15", "monto": 1000.0},
+        files={"archivo": ("p.png", b"\x89PNG\r\n\x1a\n", "image/png")},
+    )
+    assert r.status_code == 201
+    comp_id = r.json()["id"]
+
+    r2 = client.patch(f"/comprobantes/{comp_id}", headers=headers_admin,
+                      json={"estado": "aprobado"})
+    assert r2.status_code == 200
+
+    mov_cuenta = db_session.query(MovimientoCuenta).filter_by(comprobante_id=comp_id).first()
+    mov_caja = db_session.query(MovimientoCaja).filter_by(comprobante_id=comp_id).first()
+    assert mov_cuenta is not None and mov_caja is not None
+    # Debe mencionar el código del depto y la fecha, no "#NNN"
+    assert "UF-1A" in mov_cuenta.descripcion
+    assert "2026-05-15" in mov_cuenta.descripcion
+    assert "#" not in mov_cuenta.descripcion
+    assert "UF-1A" in mov_caja.descripcion
+    assert "#" not in mov_caja.descripcion

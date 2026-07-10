@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { crearNota, listarMovimientosDepto } from "../api/movimientos";
 import Modal from "../components/Modal";
 import Tarjeta from "../components/Tarjeta";
+import { formatFecha } from "../utils/fechas";
 
 const TIPO_LABEL = {
   expensa_emitida: "Expensa emitida",
@@ -123,7 +124,7 @@ export default function DepartamentoCuenta() {
             <tbody>
               {data.movimientos.map((m) => (
                 <tr key={m.id}>
-                  <td>{m.fecha}</td>
+                  <td>{formatFecha(m.fecha)}</td>
                   <td>{TIPO_LABEL[m.tipo] || m.tipo}</td>
                   <td>{m.descripcion}</td>
                   <td>

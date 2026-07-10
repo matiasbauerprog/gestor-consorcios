@@ -15,6 +15,7 @@ import { listarProveedores } from "../api/proveedores";
 import { listarDepartamentos } from "../api/departamentos";
 import { listarPeriodos } from "../api/periodos";
 import { listarCajas } from "../api/cajas";
+import { formatFecha } from "../utils/fechas";
 
 const RUBROS = [
   { value: "sueldos_y_cargas_sociales", label: "Sueldos y cargas sociales" },
@@ -264,7 +265,7 @@ export default function Gastos() {
             <Tarjeta>
               <h3>{labelRubro(g.rubro)} · {g.concepto}</h3>
               <p className="meta">
-                ${g.monto.toLocaleString("es-AR")} · {g.periodo} · pagó {g.fecha_pago}
+                ${g.monto.toLocaleString("es-AR")} · {g.periodo} · pagó {formatFecha(g.fecha_pago)}
               </p>
               <p className="meta">Proveedor: {proveedorPorId(g.proveedor_id)}</p>
               <p className="meta">

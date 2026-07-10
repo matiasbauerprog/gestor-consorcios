@@ -149,6 +149,7 @@ class ComprobanteOut(BaseModel):
 
     id: int
     departamento_id: int
+    departamento_codigo: str
     fecha_pago: date
     monto: float
     archivo_path: str | None
@@ -159,6 +160,17 @@ class ComprobanteOut(BaseModel):
         if v is None:
             return None
         return f"/uploads/{v}"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _inject_depto_codigo(cls, data):
+        # from_attributes: si viene un ORM sin `departamento_codigo`, lo
+        # derivamos de la relación `departamento`.
+        if hasattr(data, "departamento") and not isinstance(data, dict):
+            cols = {c.name: getattr(data, c.name, None) for c in data.__table__.columns}
+            cols["departamento_codigo"] = data.departamento.codigo if data.departamento else "?"
+            return cols
+        return data
 
 
 class ComprobantePresentar(BaseModel):

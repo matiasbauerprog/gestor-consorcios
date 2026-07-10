@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { listarPeticiones, crearPeticion } from "../api/peticiones";
 import { useAuth } from "../auth/AuthContext";
 import ModalDetallePeticion from "../components/ModalDetallePeticion";
+import { formatFecha } from "../utils/fechas";
 
 const ESTADOS = ["abierta", "convertida_en_trabajo", "rechazada", "cancelada"];
 
@@ -142,7 +143,7 @@ export default function Peticiones() {
                 <td>{p.departamento_id}</td>
                 <td>{p.titulo}</td>
                 <td>{ETIQUETAS_ESTADO[p.estado] || p.estado}</td>
-                <td>{new Date(p.fecha_creacion).toLocaleDateString()}</td>
+                <td>{formatFecha(p.fecha_creacion)}</td>
               </tr>
             ))
           )}

@@ -1,12 +1,15 @@
-"""GET /estado-financiero — dashboard de tesorería."""
-from fastapi import APIRouter, Depends
+"""GET /estado-financiero — dashboard de tesorería + PDF de movimientos."""
+from datetime import date
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, require_roles
 from ..caja_saldo import MovimientoSnapshot, calcular_saldo
 from ..database import get_db
-from ..models import Caja, MovimientoCaja, Rol
+from ..models import Caja, Consorcio, MovimientoCaja, Rol
+from ..pdf import generar_pdf_movimientos_caja
 from ..schemas import CajaOut, EstadoFinancieroOut, MovimientoCajaOut
 from ..tenant import get_consorcio_activo
 
@@ -49,4 +52,40 @@ def obtener_estado_financiero(
         cajas=cajas_out,
         total=round(total, 2),
         ultimos_movimientos=[MovimientoCajaOut.model_validate(m) for m in ultimos_movs],
+    )
+
+
+@router.get("/movimientos-pdf")
+def descargar_pdf_movimientos(
+    desde: date = Query(..., description="Fecha inicial (inclusive)"),
+    hasta: date = Query(..., description="Fecha final (inclusive)"),
+    db: Session = Depends(get_db),
+    _u: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
+) -> Response:
+    """PDF con todos los movimientos de caja del consorcio en el rango dado,
+    agrupados por caja y con totales."""
+    if desde > hasta:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="`desde` no puede ser posterior a `hasta`.",
+        )
+    cajas = list(db.scalars(
+        select(Caja).where(Caja.consorcio_id == cid).order_by(Caja.id)
+    ).all())
+    movs = list(db.scalars(
+        select(MovimientoCaja).where(
+            MovimientoCaja.consorcio_id == cid,
+            MovimientoCaja.fecha >= desde,
+            MovimientoCaja.fecha <= hasta,
+        )
+    ).all())
+    config = db.get(Consorcio, cid)
+    pdf = generar_pdf_movimientos_caja(movs, cajas, desde, hasta, config)
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="movimientos-{desde}-a-{hasta}.pdf"',
+        },
     )

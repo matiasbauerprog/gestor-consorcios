@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { listarAuditLog } from "../api/superAdmin";
+import { formatFecha, formatFechaHora } from "../utils/fechas";
 
 const ACCIONES = [
   "",
@@ -98,7 +99,7 @@ export default function SuperAdminAuditLog() {
             {items.map((e) => (
               <tr key={e.id} style={{ borderTop: "1px solid var(--color-border)" }}>
                 <td style={{ padding: "0.5rem", whiteSpace: "nowrap" }}>
-                  {new Date(e.fecha).toLocaleString("es-AR")}
+                  {formatFechaHora(e.fecha)}
                 </td>
                 <td style={{ padding: "0.5rem" }}>{e.accion}</td>
                 <td style={{ padding: "0.5rem" }}>

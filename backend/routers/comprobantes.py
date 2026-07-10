@@ -28,6 +28,13 @@ from ..models import (
 )
 from ..schemas import ComprobanteActualizar, ComprobanteOut
 from ..storage import guardar_imagen_comprobante
+
+
+def _descripcion_pago(comprobante: Comprobante) -> str:
+    """Descripción legible del movimiento generado al aprobar un pago.
+    Prefiere el código del depto (UF-XX) sobre el ID interno del comprobante."""
+    codigo = comprobante.departamento.codigo if comprobante.departamento else "?"
+    return f"Pago {codigo} - {comprobante.fecha_pago.isoformat()}"
 from ..tenant import get_consorcio_activo
 
 router = APIRouter(prefix="/comprobantes", tags=["Expensas"])
@@ -168,7 +175,7 @@ def actualizar_comprobante(
                 departamento_id=comprobante.departamento_id,
                 fecha=comprobante.fecha_pago,
                 tipo=TipoMovimiento.pago_recibido,
-                descripcion=f"Pago comprobante #{comprobante.id}",
+                descripcion=_descripcion_pago(comprobante),
                 monto=comprobante.monto,
                 comprobante_id=comprobante.id,
             )
@@ -182,7 +189,7 @@ def actualizar_comprobante(
                 fecha=comprobante.fecha_pago,
                 tipo=TipoMovimientoCaja.ingreso,
                 monto=comprobante.monto,
-                descripcion=f"Pago comprobante #{comprobante.id}",
+                descripcion=_descripcion_pago(comprobante),
                 comprobante_id=comprobante.id,
             )
         )

@@ -7,6 +7,7 @@ import {
   eliminarEmpleado,
 } from "../api/empleados";
 import { listarProveedores } from "../api/proveedores";
+import { formatFecha } from "../utils/fechas";
 
 const CATEGORIAS = [
   { value: "encargado_permanente_con_vivienda", label: "Encargado permanente con vivienda" },
@@ -97,7 +98,7 @@ export default function Empleados() {
               <p className="meta">CUIL: {e.cuil}</p>
               <p className="meta">Categoría: {labelCategoria(e.categoria)}</p>
               <p className="meta">Sueldo básico: ${e.sueldo_basico.toLocaleString("es-AR")}</p>
-              <p className="meta">Ingresó: {e.fecha_ingreso}</p>
+              <p className="meta">Ingresó: {formatFecha(e.fecha_ingreso)}</p>
               <p className="meta">Proveedor: {proveedorPorId(e.proveedor_id)}</p>
               <p className="meta">Estado: {e.activo ? "Activo" : "Inactivo"}</p>
               <div className="tarjeta-acciones">

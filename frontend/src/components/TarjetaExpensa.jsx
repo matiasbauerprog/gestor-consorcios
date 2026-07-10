@@ -1,6 +1,7 @@
 import { abrirPdfExpensa } from "../api/pdf";
 import BadgeEstado from "./BadgeEstado";
 import Tarjeta from "./Tarjeta";
+import { formatFecha } from "../utils/fechas";
 
 function formatearMonto(v) {
   return Number(v).toLocaleString("es-AR", {
@@ -38,18 +39,18 @@ export default function TarjetaExpensa({
         </p>
       )}
       <p className="meta">
-        1° venc {expensa.fecha_primer_vencimiento}: {formatearMonto(expensa.monto_primer_vencimiento)}
+        1° venc {formatFecha(expensa.fecha_primer_vencimiento)}: {formatearMonto(expensa.monto_primer_vencimiento)}
       </p>
       <p className="meta">
-        2° venc {expensa.fecha_segundo_vencimiento}: {formatearMonto(expensa.monto_segundo_vencimiento)} (+recargo)
+        2° venc {formatFecha(expensa.fecha_segundo_vencimiento)}: {formatearMonto(expensa.monto_segundo_vencimiento)} (+recargo)
       </p>
       {expensa.saldo_anterior > 0 && (
         <p className="meta">Saldo anterior: {formatearMonto(expensa.saldo_anterior)}</p>
       )}
-      <p>
+      <p style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", flexWrap: "wrap" }}>
         <BadgeEstado estado={expensa.estado_calculado} />
-        {expensa.monto_pendiente > 0 && (
-          <span className="meta" style={{ marginLeft: "0.5rem" }}>
+        {expensa.monto_pendiente >= 0.5 && (
+          <span className="meta">
             Pendiente {formatearMonto(expensa.monto_pendiente)}
           </span>
         )}

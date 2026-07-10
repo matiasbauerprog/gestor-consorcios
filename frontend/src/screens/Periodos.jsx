@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listarPeriodos } from "../api/periodos";
 import ModalEnvioPdfs from "../components/ModalEnvioPdfs";
+import { formatFecha, formatFechaHora } from "../utils/fechas";
 
 function formatMoney(n) {
   return Number(n).toLocaleString("es-AR", {
@@ -45,7 +46,7 @@ export default function Periodos() {
             {periodos.map((p) => (
               <tr key={p.periodo}>
                 <td>{p.periodo}</td>
-                <td>{new Date(p.fecha_cierre).toLocaleString("es-AR")}</td>
+                <td>{formatFechaHora(p.fecha_cierre)}</td>
                 <td>{p.cantidad_expensas}</td>
                 <td>{formatMoney(p.total_expensado)}</td>
                 <td>{formatMoney(p.total_intereses)}</td>

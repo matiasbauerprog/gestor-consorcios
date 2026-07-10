@@ -11,6 +11,7 @@ import TabsPanel from "../components/TabsPanel";
 import Tarjeta from "../components/Tarjeta";
 import TarjetaExpensa from "../components/TarjetaExpensa";
 import BadgeEstado from "../components/BadgeEstado";
+import { formatFecha } from "../utils/fechas";
 
 const TIPO_LABEL = {
   expensa_emitida: "Expensa emitida",
@@ -226,17 +227,17 @@ function SeccionResumen({ saldo, saldoColor, saldoTexto, expensas, token }) {
         <Tarjeta>
           <h3>Próximo vencimiento</h3>
           <p>
-            Si pagás hasta el {proximaExpensa.fecha_primer_vencimiento}:{" "}
+            Si pagás hasta el {formatFecha(proximaExpensa.fecha_primer_vencimiento)}:{" "}
             <strong>{formatMoney(proximaExpensa.monto_primer_vencimiento)}</strong>
           </p>
           <p>
-            Del {sumarDias(proximaExpensa.fecha_primer_vencimiento, 1)} al{" "}
-            {proximaExpensa.fecha_segundo_vencimiento}:{" "}
+            Del {formatFecha(sumarDias(proximaExpensa.fecha_primer_vencimiento, 1))} al{" "}
+            {formatFecha(proximaExpensa.fecha_segundo_vencimiento)}:{" "}
             <strong>{formatMoney(proximaExpensa.monto_segundo_vencimiento)}</strong>{" "}
             (+recargo)
           </p>
           <p className="meta">
-            Después del {proximaExpensa.fecha_segundo_vencimiento}: se acumulan
+            Después del {formatFecha(proximaExpensa.fecha_segundo_vencimiento)}: se acumulan
             intereses mensuales.
           </p>
           <div className="tarjeta-acciones">
@@ -285,7 +286,7 @@ function SeccionComprobantes({ comprobantes }) {
         <li key={c.id}>
           <Tarjeta>
             <h3>{formatMoney(c.monto)}</h3>
-            <p className="meta">Pagado {c.fecha_pago}</p>
+            <p className="meta">Pagado {formatFecha(c.fecha_pago)}</p>
             <p><BadgeEstado estado={c.estado} /></p>
             {c.archivo_path && (
               <a
@@ -324,7 +325,7 @@ function SeccionMovimientos({ movimientos }) {
       <tbody>
         {movimientos.map((m) => (
           <tr key={m.id}>
-            <td>{m.fecha}</td>
+            <td>{formatFecha(m.fecha)}</td>
             <td>{TIPO_LABEL[m.tipo] || m.tipo}</td>
             <td>{m.descripcion}</td>
             <td>

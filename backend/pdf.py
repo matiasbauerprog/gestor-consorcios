@@ -403,3 +403,117 @@ def generar_pdf_lista_proveedores(items, anio: int, config: Consorcio) -> bytes:
 
     doc.build(story)
     return buf.getvalue()
+
+
+def generar_pdf_movimientos_caja(
+    movimientos: list,  # list[MovimientoCaja]
+    cajas: list,  # list[Caja]
+    desde: date,
+    hasta: date,
+    config: Consorcio,
+) -> bytes:
+    """Genera el PDF de movimientos de caja de un rango de fechas, agrupado
+    por caja con totales de ingresos, egresos y saldo neto.
+
+    `movimientos` deben venir filtrados por consorcio + rango.
+    `cajas` debe incluir todas las cajas del consorcio (para agrupar aunque
+    no tengan movimientos en el rango).
+    """
+    buf = BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
+        leftMargin=1.5 * cm, rightMargin=1.5 * cm,
+        topMargin=1.5 * cm, bottomMargin=1.5 * cm,
+        title=f"Movimientos de caja {desde} a {hasta}",
+    )
+    styles = getSampleStyleSheet()
+    h3 = styles["Heading3"]
+    normal = styles["Normal"]
+    small = ParagraphStyle("small_mov", parent=normal, fontSize=8, textColor=colors.grey)
+
+    story = []
+    _dibujar_header_consorcio(
+        story, config,
+        titulo="Movimientos de caja",
+        subtitulo=f"Período: {desde.isoformat()} a {hasta.isoformat()}",
+    )
+
+    # Agrupar por caja_id
+    caja_por_id = {c.id: c for c in cajas}
+    movs_por_caja: dict[int, list] = defaultdict(list)
+    for m in movimientos:
+        movs_por_caja[m.caja_id].append(m)
+
+    total_ingresos_gral = 0.0
+    total_egresos_gral = 0.0
+
+    for caja in sorted(cajas, key=lambda c: c.nombre):
+        movs = sorted(
+            movs_por_caja.get(caja.id, []),
+            key=lambda m: (m.fecha, m.id),
+        )
+        if not movs:
+            continue
+
+        story.append(Paragraph(caja.nombre, h3))
+
+        data = [["Fecha", "Tipo", "Descripción", "Monto"]]
+        ingresos_c = egresos_c = 0.0
+        for m in movs:
+            tipo_str = m.tipo.value if hasattr(m.tipo, "value") else str(m.tipo)
+            signo = "+" if tipo_str == "ingreso" else "-"
+            data.append([
+                m.fecha.isoformat(),
+                tipo_str.capitalize(),
+                (m.descripcion or "")[:60],
+                f"{signo}{_money(m.monto)}",
+            ])
+            if tipo_str == "ingreso":
+                ingresos_c += m.monto
+            else:
+                egresos_c += m.monto
+
+        neto = ingresos_c - egresos_c
+        data.append([
+            "", "", "Neto del período",
+            _money(neto),
+        ])
+
+        tbl = Table(data, colWidths=[2.5 * cm, 2.2 * cm, 9 * cm, 3 * cm])
+        tbl.setStyle(TableStyle([
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+            ("ALIGN", (3, 0), (3, -1), "RIGHT"),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+            ("BACKGROUND", (0, -1), (-1, -1), colors.lightgrey),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        story.append(tbl)
+        story.append(Spacer(1, 0.4 * cm))
+
+        total_ingresos_gral += ingresos_c
+        total_egresos_gral += egresos_c
+
+    if not any(movs_por_caja.values()):
+        story.append(Paragraph("Sin movimientos en el período.", normal))
+    else:
+        # Totales generales
+        story.append(Spacer(1, 0.3 * cm))
+        story.append(Paragraph("Totales del período", h3))
+        totales = [
+            ["Ingresos", _money(total_ingresos_gral)],
+            ["Egresos", _money(total_egresos_gral)],
+            ["Neto", _money(total_ingresos_gral - total_egresos_gral)],
+        ]
+        tbl_t = Table(totales, colWidths=[8 * cm, 3 * cm])
+        tbl_t.setStyle(TableStyle([
+            ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+            ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+            ("BACKGROUND", (0, -1), (-1, -1), colors.lightgrey),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ]))
+        story.append(tbl_t)
+
+    doc.build(story)
+    return buf.getvalue()
