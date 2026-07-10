@@ -27,7 +27,7 @@ export default function ReporteProveedores() {
     <section>
       <header className="cabecera-pantalla">
         <h2>Lista de proveedores</h2>
-        <button type="button" onClick={() => abrirPdfProveedores({ anio }, token)}>
+        <button type="button" onClick={() => abrirPdfProveedores({ anio })}>
           📄 Descargar PDF
         </button>
       </header>

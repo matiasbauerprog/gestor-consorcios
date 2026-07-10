@@ -8,6 +8,7 @@ from ..caja_saldo import MovimientoSnapshot, calcular_saldo
 from ..database import get_db
 from ..models import Caja, MovimientoCaja, Rol
 from ..schemas import CajaOut, EstadoFinancieroOut, MovimientoCajaOut
+from ..tenant import get_consorcio_activo
 
 router = APIRouter(prefix="/estado-financiero", tags=["EstadoFinanciero"])
 
@@ -17,9 +18,13 @@ def obtener_estado_financiero(
     ultimos: int = 20,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> EstadoFinancieroOut:
     cajas_activas = list(db.scalars(
-        select(Caja).where(Caja.activa == True).order_by(Caja.id)
+        select(Caja).where(
+            Caja.activa == True,  # noqa: E712
+            Caja.consorcio_id == cid,
+        ).order_by(Caja.id)
     ).all())
     cajas_out = []
     total = 0.0
@@ -36,6 +41,7 @@ def obtener_estado_financiero(
         ))
     ultimos_movs = list(db.scalars(
         select(MovimientoCaja)
+        .where(MovimientoCaja.consorcio_id == cid)
         .order_by(MovimientoCaja.fecha.desc(), MovimientoCaja.id.desc())
         .limit(ultimos)
     ).all())

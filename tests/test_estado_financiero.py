@@ -47,3 +47,20 @@ def test_estado_financiero_total_es_suma_de_saldos(client, headers_admin):
     r = client.get("/estado-financiero", headers=headers_admin).json()
     cajas_propias = [c for c in r["cajas"] if c["id"] in [a["id"], b["id"]]]
     assert sum(c["saldo_actual"] for c in cajas_propias) == 1500
+
+
+def test_estado_financiero_no_mezcla_consorcios(client, dos_consorcios):
+    """El dashboard de tesorería solo muestra cajas y movimientos del
+    consorcio activo — antes juntaba todos los consorcios."""
+    r1 = client.get("/estado-financiero", headers=dos_consorcios["headers_admin_c1"])
+    assert r1.status_code == 200
+    nombres_c1 = {c["nombre"] for c in r1.json()["cajas"]}
+    assert "Banco C2" not in nombres_c1
+
+    r2 = client.get("/estado-financiero", headers=dos_consorcios["headers_admin_c2"])
+    assert r2.status_code == 200
+    nombres_c2 = {c["nombre"] for c in r2.json()["cajas"]}
+    assert nombres_c2 == {"Banco C2"}
+    # Los movimientos también scoped:
+    for m in r2.json()["ultimos_movimientos"]:
+        assert m["caja_id"] == 901

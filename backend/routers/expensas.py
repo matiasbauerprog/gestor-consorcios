@@ -114,8 +114,8 @@ def crear_expensa(
             detail="El departamento indicado no existe.",
         )
 
-    pc = db.get(PeriodoCerrado, payload.periodo)
-    if pc is not None and pc.consorcio_id == cid:
+    pc = db.get(PeriodoCerrado, (payload.periodo, cid))
+    if pc is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"El período {payload.periodo} está cerrado y no admite cambios.",
@@ -217,7 +217,7 @@ def eliminar_expensa(
             detail="La expensa solicitada no existe.",
         )
 
-    if db.get(PeriodoCerrado, expensa.periodo) is not None:
+    if db.get(PeriodoCerrado, (expensa.periodo, cid)) is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"El período {expensa.periodo} está cerrado y no admite cambios.",

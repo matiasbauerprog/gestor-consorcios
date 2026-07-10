@@ -93,9 +93,13 @@ class ItemProveedor:
 
 # === Funciones de cálculo ===
 
-def calcular_morosos(db: Session, solo_deudores: bool = True) -> list[ItemMoroso]:
-    """Calcula la lista de morosos iterando todos los Departamentos."""
-    deptos = list(db.scalars(select(Departamento).order_by(Departamento.id)).all())
+def calcular_morosos(db: Session, consorcio_id: int, solo_deudores: bool = True) -> list[ItemMoroso]:
+    """Calcula la lista de morosos iterando los Departamentos del consorcio."""
+    deptos = list(db.scalars(
+        select(Departamento)
+        .where(Departamento.consorcio_id == consorcio_id)
+        .order_by(Departamento.id)
+    ).all())
     items: list[ItemMoroso] = []
     hoy = date.today()
     for d in deptos:
@@ -127,10 +131,13 @@ def calcular_morosos(db: Session, solo_deudores: bool = True) -> list[ItemMoroso
     return items
 
 
-def calcular_estado_financiero(db: Session, fecha_corte: date) -> EstadoFinancieroReporte:
-    """Snapshot patrimonial a una fecha."""
+def calcular_estado_financiero(db: Session, consorcio_id: int, fecha_corte: date) -> EstadoFinancieroReporte:
+    """Snapshot patrimonial a una fecha, scoped al consorcio."""
     cajas_db = list(db.scalars(
-        select(Caja).where(Caja.activa == True).order_by(Caja.id)
+        select(Caja).where(
+            Caja.activa == True,  # noqa: E712
+            Caja.consorcio_id == consorcio_id,
+        ).order_by(Caja.id)
     ).all())
     cajas_items: list[ItemActivoCaja] = []
     cajas_total = 0.0
@@ -146,11 +153,14 @@ def calcular_estado_financiero(db: Session, fecha_corte: date) -> EstadoFinancie
         cajas_items.append(ItemActivoCaja(caja_id=c.id, nombre=c.nombre, saldo=saldo))
         cajas_total += saldo
 
-    morosos = calcular_morosos(db, solo_deudores=True)
+    morosos = calcular_morosos(db, consorcio_id, solo_deudores=True)
     deudores_total = sum(m.saldo for m in morosos)
 
     gastos_futuros = list(db.scalars(
-        select(Gasto).where(Gasto.fecha_pago > fecha_corte)
+        select(Gasto).where(
+            Gasto.fecha_pago > fecha_corte,
+            Gasto.consorcio_id == consorcio_id,
+        )
     ).all())
     pasivos: list[ItemPasivoGasto] = []
     for g in gastos_futuros:
@@ -180,12 +190,16 @@ def calcular_estado_financiero(db: Session, fecha_corte: date) -> EstadoFinancie
 
 def calcular_gastos_del_periodo(
     db: Session,
+    consorcio_id: int,
     periodo: str,
     rubro: str | None = None,
     proveedor_id: int | None = None,
 ) -> GastosDelPeriodoReporte:
     """Detalle de gastos de un período YYYY-MM, agrupado por rubro y separando particulares."""
-    q = select(Gasto).where(Gasto.periodo == periodo)
+    q = select(Gasto).where(
+        Gasto.periodo == periodo,
+        Gasto.consorcio_id == consorcio_id,
+    )
     if rubro:
         q = q.where(Gasto.rubro == rubro)
     if proveedor_id is not None:
@@ -228,11 +242,15 @@ def calcular_gastos_del_periodo(
 
 def calcular_lista_proveedores(
     db: Session,
+    consorcio_id: int,
     anio: int,
     periodo: str | None = None,
 ) -> list[ItemProveedor]:
     """Ranking de proveedores por monto facturado en un año (opcional restringir a un período)."""
-    q = select(Gasto).where(Gasto.periodo.like(f"{anio}-%"))
+    q = select(Gasto).where(
+        Gasto.periodo.like(f"{anio}-%"),
+        Gasto.consorcio_id == consorcio_id,
+    )
     if periodo:
         q = q.where(Gasto.periodo == periodo)
     gastos = list(db.scalars(q).all())

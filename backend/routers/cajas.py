@@ -27,10 +27,10 @@ def _caja_to_out(caja: Caja, movimientos: list[MovimientoCaja]) -> CajaOut:
     )
 
 
-def _bloquear_si_periodo_cerrado_por_fecha(db: Session, fecha) -> None:
-    """Verifica que el período YYYY-MM de la fecha no esté cerrado."""
+def _bloquear_si_periodo_cerrado_por_fecha(db: Session, cid: int, fecha) -> None:
+    """Verifica que el consorcio no haya cerrado el período YYYY-MM de la fecha."""
     periodo = f"{fecha.year:04d}-{fecha.month:02d}"
-    if db.get(PeriodoCerrado, periodo) is not None:
+    if db.get(PeriodoCerrado, (periodo, cid)) is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"El período {periodo} está cerrado y no admite cambios.",
@@ -118,7 +118,8 @@ def listar_movimientos(
     _u: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
 ) -> list[MovimientoCaja]:
-    if db.get(Caja, caja_id) is None:
+    caja = db.get(Caja, caja_id)
+    if caja is None or caja.consorcio_id != cid:
         raise HTTPException(404, "Caja no encontrada.")
     return list(db.scalars(
         select(MovimientoCaja)
@@ -146,7 +147,7 @@ def crear_ajuste(
         raise HTTPException(404, "Caja no encontrada.")
     if not caja.activa:
         raise HTTPException(400, "La caja está inactiva.")
-    _bloquear_si_periodo_cerrado_por_fecha(db, payload.fecha)
+    _bloquear_si_periodo_cerrado_por_fecha(db, cid, payload.fecha)
     mov = MovimientoCaja(
         consorcio_id=cid,
         caja_id=caja_id,

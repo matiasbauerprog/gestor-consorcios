@@ -37,7 +37,7 @@ export default function ReporteMorosos() {
           <h2>Lista de morosos</h2>
           <button
             type="button"
-            onClick={() => abrirPdfMorosos({ soloDeudores }, token)}
+            onClick={() => abrirPdfMorosos({ soloDeudores })}
           >
             📄 Descargar PDF
           </button>

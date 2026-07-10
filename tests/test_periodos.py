@@ -165,3 +165,80 @@ def test_delete_gasto_periodo_cerrado_409(client, headers_admin, db_lista_para_c
     # Intentar DELETE → 409
     r = client.delete(f"/gastos/{gasto_id}", headers=headers_admin)
     assert r.status_code == 409
+
+
+# ---------------------------------------------------------------------------
+# Multitenant: el cierre es por consorcio, no global
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def c2_lista_para_cierre(db_session, dos_consorcios):
+    """Setup para cerrar 2026-07 en el consorcio 2: clase + coeficiente 100%
+    para el depto 3 + un gasto."""
+    clase_c2 = ClaseProrrateo(
+        id=560, consorcio_id=2, codigo="A", nombre="Ordinarias c2", activa=True
+    )
+    db_session.add(clase_c2)
+    db_session.add(Proveedor(
+        id=660, consorcio_id=2, razon_social="Proveedor C2", cuit="30-66000000-6", activo=True
+    ))
+    db_session.flush()
+    db_session.add(CoeficienteDepartamento(
+        consorcio_id=2, departamento_id=3, clase_prorrateo_id=560, porcentaje=100
+    ))
+    db_session.add(Gasto(
+        consorcio_id=2, periodo="2026-07", monto=2000, rubro=Rubro.servicios_publicos,
+        clase_prorrateo_id=560, departamento_id=None,
+        proveedor_id=660, concepto="Luz c2",
+        forma_pago=FormaPago.efectivo, caja_id=901,
+        fecha_pago=date(2026, 7, 10),
+    ))
+    db_session.commit()
+    return dos_consorcios
+
+
+def test_cierre_de_un_consorcio_no_bloquea_gastos_del_otro(
+    client, headers_admin, db_lista_para_cierre, c2_lista_para_cierre,
+):
+    """c1 cierra 2026-07; el admin de c2 tiene que poder seguir cargando
+    gastos en su propio 2026-07 (el cierre no es global)."""
+    r = client.post("/periodos/2026-07/cerrar", json={}, headers=headers_admin)
+    assert r.status_code == 201
+
+    r2 = client.post("/gastos", json={
+        "periodo": "2026-07", "rubro": "servicios_publicos", "concepto": "Gas c2",
+        "monto": 100, "clase_prorrateo_id": 560, "proveedor_id": 660,
+        "forma_pago": "efectivo", "caja_id": 901, "fecha_pago": "2026-07-12",
+    }, headers=c2_lista_para_cierre["headers_admin_c2"])
+    assert r2.status_code == 201
+
+
+def test_ambos_consorcios_pueden_cerrar_el_mismo_periodo(
+    client, headers_admin, db_lista_para_cierre, c2_lista_para_cierre,
+):
+    r1 = client.post("/periodos/2026-07/cerrar", json={}, headers=headers_admin)
+    assert r1.status_code == 201
+
+    r2 = client.post(
+        "/periodos/2026-07/cerrar", json={},
+        headers=c2_lista_para_cierre["headers_admin_c2"],
+    )
+    assert r2.status_code == 201
+
+    # Cada uno registró SU cierre.
+    l1 = client.get("/periodos", headers=headers_admin).json()
+    l2 = client.get("/periodos", headers=c2_lista_para_cierre["headers_admin_c2"]).json()
+    assert len(l1) == 1 and l1[0]["cantidad_expensas"] == 2
+    assert len(l2) == 1 and l2[0]["cantidad_expensas"] == 1
+
+
+def test_cierre_propio_sigue_bloqueando_gastos(client, headers_admin, db_lista_para_cierre):
+    """Regresión: el cierre del propio consorcio sigue bloqueando con 409."""
+    client.post("/periodos/2026-07/cerrar", json={}, headers=headers_admin)
+    r = client.post("/gastos", json={
+        "periodo": "2026-07", "rubro": "servicios_publicos", "concepto": "Tarde",
+        "monto": 100, "clase_prorrateo_id": 500, "proveedor_id": 600,
+        "forma_pago": "efectivo", "caja_id": 900, "fecha_pago": "2026-07-12",
+    }, headers=headers_admin)
+    assert r.status_code == 409

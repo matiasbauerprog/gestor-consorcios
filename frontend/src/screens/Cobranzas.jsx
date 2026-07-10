@@ -2,10 +2,12 @@ import { useSearchParams } from "react-router-dom";
 import TabsPanel from "../components/TabsPanel";
 import Expensas from "./Expensas";
 import Comprobantes from "./Comprobantes";
+import Periodos from "./Periodos";
 
 const TABS = [
   { valor: "expensas", label: "Expensas" },
   { valor: "comprobantes", label: "Comprobantes" },
+  { valor: "cierres", label: "Historial de cierres" },
 ];
 
 const TABS_VALIDOS = new Set(TABS.map((t) => t.valor));
@@ -36,6 +38,7 @@ export default function Cobranzas() {
 
       {tabActivo === "expensas" && <Expensas />}
       {tabActivo === "comprobantes" && <Comprobantes />}
+      {tabActivo === "cierres" && <Periodos />}
     </main>
   );
 }

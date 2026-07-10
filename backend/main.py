@@ -66,10 +66,47 @@ def _migrar_usuario_activa() -> None:
             ))
 
 
+def _migrar_pk_periodos_cerrados() -> None:
+    """Migra la PK de periodos_cerrados de (periodo) a (periodo, consorcio_id).
+    SQLite no soporta ALTER de PK: se recrea la tabla copiando los datos.
+    Idempotente: si consorcio_id ya es parte de la PK, no hace nada."""
+    with engine.begin() as conn:
+        info = list(conn.execute(text("PRAGMA table_info(periodos_cerrados)")))
+        if not info:
+            return  # la tabla no existe todavía; create_all la crea bien
+        pk_cols = {r[1] for r in info if r[5] > 0}
+        if "consorcio_id" in pk_cols:
+            return  # ya migrada
+        conn.execute(text("ALTER TABLE periodos_cerrados RENAME TO periodos_cerrados_old"))
+        conn.execute(text("""
+            CREATE TABLE periodos_cerrados (
+                periodo VARCHAR(7) NOT NULL,
+                consorcio_id INTEGER NOT NULL,
+                fecha_cierre DATETIME NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+                cerrado_por_usuario_id INTEGER NOT NULL,
+                total_expensado FLOAT NOT NULL,
+                total_intereses FLOAT NOT NULL,
+                cantidad_expensas INTEGER NOT NULL,
+                PRIMARY KEY (periodo, consorcio_id),
+                FOREIGN KEY(consorcio_id) REFERENCES consorcios (id) ON DELETE RESTRICT,
+                FOREIGN KEY(cerrado_por_usuario_id) REFERENCES usuarios (id) ON DELETE RESTRICT
+            )
+        """))
+        conn.execute(text("""
+            INSERT INTO periodos_cerrados
+            SELECT periodo, consorcio_id, fecha_cierre, cerrado_por_usuario_id,
+                   total_expensado, total_intereses, cantidad_expensas
+            FROM periodos_cerrados_old
+        """))
+        conn.execute(text("DROP TABLE periodos_cerrados_old"))
+        logger.info("Migración PK periodos_cerrados → (periodo, consorcio_id) aplicada")
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
     _migrar_usuario_activa()
+    _migrar_pk_periodos_cerrados()
     if get_settings().SEED_ENABLED:
         with SessionLocal() as db:
             seed_if_empty(db)

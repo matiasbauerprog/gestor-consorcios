@@ -31,11 +31,6 @@ const SECCIONES = [
         rolesPermitidos: ["administracion"],
       },
       {
-        ruta: "/periodos",
-        nombre: "Historial de cierres",
-        rolesPermitidos: ["administracion"],
-      },
-      {
         ruta: "/gastos",
         nombre: "Gastos",
         rolesPermitidos: ["administracion"],
@@ -46,18 +41,8 @@ const SECCIONES = [
     titulo: "Finanzas",
     modulos: [
       {
-        ruta: "/estado-financiero",
-        nombre: "Estado financiero",
-        rolesPermitidos: ["administracion"],
-      },
-      {
-        ruta: "/cajas",
-        nombre: "Cajas",
-        rolesPermitidos: ["administracion"],
-      },
-      {
-        ruta: "/transferencias",
-        nombre: "Transferencias",
+        ruta: "/tesoreria",
+        nombre: "Tesorería",
         rolesPermitidos: ["administracion"],
       },
       {

@@ -85,9 +85,11 @@ def crear_usuario(
     payload: UsuarioCrear,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Usuario:
     if payload.departamento_id is not None:
-        if db.get(Departamento, payload.departamento_id) is None:
+        depto = db.get(Departamento, payload.departamento_id)
+        if depto is None or depto.consorcio_id != cid:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="El departamento indicado no existe.",
@@ -124,8 +126,9 @@ def actualizar_usuario(
     payload: UsuarioActualizar,
     db: Session = Depends(get_db),
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Usuario:
-    usuario = db.get(Usuario, usuario_id)
+    usuario = _usuario_scoped(db, usuario_id, cid)
     if usuario is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -148,7 +151,8 @@ def actualizar_usuario(
             )
 
     if "departamento_id" in cambios and cambios["departamento_id"] is not None:
-        if db.get(Departamento, cambios["departamento_id"]) is None:
+        depto = db.get(Departamento, cambios["departamento_id"])
+        if depto is None or depto.consorcio_id != cid:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="El departamento indicado no existe.",

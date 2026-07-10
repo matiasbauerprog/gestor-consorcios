@@ -8,7 +8,7 @@ from collections.abc import Iterator  # noqa: E402
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy import create_engine, text as _text  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
@@ -79,9 +79,20 @@ def db_session() -> Iterator:
     session = TestingSession()
     try:
         _seed(session)
+        # Habilitar FK DESPUÉS del seed: el seed inserta en batch sin ordenar
+        # dependencias, y con FK on eso rompería. Pero los tests reales
+        # (que operan a partir del seed) sí verifican FK — que es lo que
+        # importa: detectar bugs como el DELETE de gastos con MovimientoCaja.
+        session.execute(_text("PRAGMA foreign_keys=ON"))
         yield session
     finally:
         session.close()
+        # Apagar FK antes del drop_all: hay FKs circulares en el modelo
+        # (cajas ↔ consorcios, presupuestos ↔ trabajos) que impiden un drop
+        # ordenado si están habilitadas. El PRAGMA aplica a la conexión que
+        # ejecuta el drop, no a la session del test.
+        with engine.begin() as conn:
+            conn.execute(_text("PRAGMA foreign_keys=OFF"))
         Base.metadata.drop_all(bind=engine)
         engine.dispose()
 
@@ -102,9 +113,17 @@ def db_empty() -> Iterator:
     TestingSession = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     session = TestingSession()
     try:
+        # db_empty: los tests que la usan controlan todo el orden, activar FK.
+        session.execute(_text("PRAGMA foreign_keys=ON"))
         yield session
     finally:
         session.close()
+        # Apagar FK antes del drop_all: hay FKs circulares en el modelo
+        # (cajas ↔ consorcios, presupuestos ↔ trabajos) que impiden un drop
+        # ordenado si están habilitadas. El PRAGMA aplica a la conexión que
+        # ejecuta el drop, no a la session del test.
+        with engine.begin() as conn:
+            conn.execute(_text("PRAGMA foreign_keys=OFF"))
         Base.metadata.drop_all(bind=engine)
         engine.dispose()
 

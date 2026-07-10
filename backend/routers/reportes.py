@@ -1,7 +1,8 @@
 """Router de reportes (lectura) — Fase 6b.
 
 Acceso: admin + representante siempre. Departamento solo si el admin habilitó
-el flag `reportes_visibles_a_depto` en configuración (default: False).
+el flag `reportes_visibles_a_depto` en el consorcio activo (default: False).
+Todo scoped por X-Consorcio-Id via get_consorcio_activo.
 """
 from datetime import date
 
@@ -29,15 +30,17 @@ from ..schemas import (
     ItemMorosoOut,
     ItemProveedorOut,
 )
+from ..tenant import get_consorcio_activo
 
 router = APIRouter(prefix="/reportes", tags=["Reportes"])
 
 
-def _validar_acceso_reportes(db: Session, user: CurrentUser) -> None:
-    """403 si el usuario es departamento y la admin no habilitó la visibilidad."""
+def _validar_acceso_reportes(db: Session, user: CurrentUser, cid: int) -> None:
+    """403 si el usuario es departamento y la admin no habilitó la visibilidad
+    en el consorcio activo."""
     if user.rol != Rol.departamento:
         return
-    config = db.get(Consorcio, 1)
+    config = db.get(Consorcio, cid)
     if config is None or not config.reportes_visibles_a_depto:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -52,9 +55,10 @@ def listar_morosos(
     solo_deudores: bool = True,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ):
-    _validar_acceso_reportes(db, _u)
-    return calcular_morosos(db, solo_deudores=solo_deudores)
+    _validar_acceso_reportes(db, _u, cid)
+    return calcular_morosos(db, cid, solo_deudores=solo_deudores)
 
 
 @router.get("/morosos/pdf")
@@ -62,10 +66,11 @@ def pdf_morosos(
     solo_deudores: bool = True,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Response:
-    _validar_acceso_reportes(db, _u)
-    items = calcular_morosos(db, solo_deudores=solo_deudores)
-    config = db.get(Consorcio, 1)
+    _validar_acceso_reportes(db, _u, cid)
+    items = calcular_morosos(db, cid, solo_deudores=solo_deudores)
+    config = db.get(Consorcio, cid)
     pdf = generar_pdf_morosos(items, date.today(), config)
     return Response(
         content=pdf,
@@ -81,9 +86,10 @@ def obtener_estado_financiero(
     fecha_corte: date | None = None,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ):
-    _validar_acceso_reportes(db, _u)
-    return calcular_estado_financiero(db, fecha_corte or date.today())
+    _validar_acceso_reportes(db, _u, cid)
+    return calcular_estado_financiero(db, cid, fecha_corte or date.today())
 
 
 @router.get("/estado-financiero/pdf")
@@ -91,10 +97,11 @@ def pdf_estado_financiero(
     fecha_corte: date | None = None,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Response:
-    _validar_acceso_reportes(db, _u)
-    rep = calcular_estado_financiero(db, fecha_corte or date.today())
-    config = db.get(Consorcio, 1)
+    _validar_acceso_reportes(db, _u, cid)
+    rep = calcular_estado_financiero(db, cid, fecha_corte or date.today())
+    config = db.get(Consorcio, cid)
     pdf = generar_pdf_estado_financiero(rep, config)
     return Response(
         content=pdf,
@@ -112,9 +119,10 @@ def obtener_gastos_del_periodo(
     proveedor_id: int | None = None,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ):
-    _validar_acceso_reportes(db, _u)
-    return calcular_gastos_del_periodo(db, periodo, rubro=rubro, proveedor_id=proveedor_id)
+    _validar_acceso_reportes(db, _u, cid)
+    return calcular_gastos_del_periodo(db, cid, periodo, rubro=rubro, proveedor_id=proveedor_id)
 
 
 @router.get("/gastos/{periodo}/pdf")
@@ -124,10 +132,11 @@ def pdf_gastos_periodo(
     proveedor_id: int | None = None,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Response:
-    _validar_acceso_reportes(db, _u)
-    rep = calcular_gastos_del_periodo(db, periodo, rubro=rubro, proveedor_id=proveedor_id)
-    config = db.get(Consorcio, 1)
+    _validar_acceso_reportes(db, _u, cid)
+    rep = calcular_gastos_del_periodo(db, cid, periodo, rubro=rubro, proveedor_id=proveedor_id)
+    config = db.get(Consorcio, cid)
     pdf = generar_pdf_gastos_periodo(rep, config)
     return Response(
         content=pdf,
@@ -144,9 +153,10 @@ def listar_proveedores(
     periodo: str | None = None,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ):
-    _validar_acceso_reportes(db, _u)
-    return calcular_lista_proveedores(db, anio=anio, periodo=periodo)
+    _validar_acceso_reportes(db, _u, cid)
+    return calcular_lista_proveedores(db, cid, anio=anio, periodo=periodo)
 
 
 @router.get("/proveedores/pdf")
@@ -155,10 +165,11 @@ def pdf_proveedores(
     periodo: str | None = None,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ) -> Response:
-    _validar_acceso_reportes(db, _u)
-    items = calcular_lista_proveedores(db, anio=anio, periodo=periodo)
-    config = db.get(Consorcio, 1)
+    _validar_acceso_reportes(db, _u, cid)
+    items = calcular_lista_proveedores(db, cid, anio=anio, periodo=periodo)
+    config = db.get(Consorcio, cid)
     pdf = generar_pdf_lista_proveedores(items, anio, config)
     return Response(
         content=pdf,

@@ -11,8 +11,9 @@ from ..tenant import get_consorcio_activo
 router = APIRouter(prefix="/empleados", tags=["Personal"])
 
 
-def _validar_proveedor(db: Session, proveedor_id: int) -> None:
-    if db.get(Proveedor, proveedor_id) is None:
+def _validar_proveedor(db: Session, cid: int, proveedor_id: int) -> None:
+    p = db.get(Proveedor, proveedor_id)
+    if p is None or p.consorcio_id != cid:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El proveedor indicado no existe.",
@@ -49,14 +50,17 @@ def crear_empleado(
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
 ) -> Empleado:
-    duplicado = db.scalar(select(Empleado.id).where(Empleado.cuil == payload.cuil))
+    duplicado = db.scalar(select(Empleado.id).where(
+            Empleado.cuil == payload.cuil,
+            Empleado.consorcio_id == cid,
+        ))
     if duplicado is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Ya existe un empleado con ese CUIL.",
         )
 
-    _validar_proveedor(db, payload.proveedor_id)
+    _validar_proveedor(db, cid, payload.proveedor_id)
 
     empleado = Empleado(
         consorcio_id=cid,
@@ -118,7 +122,7 @@ def actualizar_empleado(
 
     cambios = payload.model_dump(exclude_unset=True)
     if "proveedor_id" in cambios and cambios["proveedor_id"] is not None:
-        _validar_proveedor(db, cambios["proveedor_id"])
+        _validar_proveedor(db, cid, cambios["proveedor_id"])
 
     for campo, valor in cambios.items():
         setattr(empleado, campo, valor)

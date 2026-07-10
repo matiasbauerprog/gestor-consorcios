@@ -15,9 +15,9 @@ from ..tenant import get_consorcio_activo
 router = APIRouter(prefix="/transferencias-caja", tags=["TransferenciasCaja"])
 
 
-def _bloquear_si_periodo_cerrado_por_fecha(db: Session, fecha) -> None:
+def _bloquear_si_periodo_cerrado_por_fecha(db: Session, cid: int, fecha) -> None:
     periodo = f"{fecha.year:04d}-{fecha.month:02d}"
-    if db.get(PeriodoCerrado, periodo) is not None:
+    if db.get(PeriodoCerrado, (periodo, cid)) is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"El período {periodo} está cerrado y no admite cambios.",
@@ -55,7 +55,7 @@ def crear_transferencia(
         raise HTTPException(404, "Caja origen o destino no encontrada.")
     if not origen.activa or not destino.activa:
         raise HTTPException(400, "Las cajas deben estar activas.")
-    _bloquear_si_periodo_cerrado_por_fecha(db, payload.fecha)
+    _bloquear_si_periodo_cerrado_por_fecha(db, cid, payload.fecha)
 
     transf = TransferenciaCaja(consorcio_id=cid, **payload.model_dump())
     db.add(transf)

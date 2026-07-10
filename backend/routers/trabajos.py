@@ -50,7 +50,7 @@ def crear_trabajo(
     # como convertida. Si no, queda como trabajo "desde cero" (peticion_id null).
     if payload.peticion_id is not None:
         peticion = db.get(Peticion, payload.peticion_id)
-        if peticion is None:
+        if peticion is None or peticion.consorcio_id != cid:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="La petición indicada no existe.",

@@ -25,16 +25,16 @@ ALLOWED_EXTS = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
 MAX_ARCHIVO_BYTES = 5 * 1024 * 1024  # 5MB
 
 
-def _validar_trabajo(db: Session, trabajo_id: int) -> Trabajo:
+def _validar_trabajo(db: Session, cid: int, trabajo_id: int) -> Trabajo:
     t = db.get(Trabajo, trabajo_id)
-    if t is None:
+    if t is None or t.consorcio_id != cid:
         raise HTTPException(404, "Trabajo no encontrado.")
     return t
 
 
-def _validar_proveedor(db: Session, proveedor_id: int) -> Proveedor:
+def _validar_proveedor(db: Session, cid: int, proveedor_id: int) -> Proveedor:
     p = db.get(Proveedor, proveedor_id)
-    if p is None:
+    if p is None or p.consorcio_id != cid:
         raise HTTPException(404, f"Proveedor {proveedor_id} no encontrado.")
     return p
 
@@ -61,8 +61,9 @@ def listar_presupuestos(
     trabajo_id: int,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
 ):
-    _validar_trabajo(db, trabajo_id)
+    _validar_trabajo(db, cid, trabajo_id)
     return list(db.scalars(
         select(Presupuesto)
         .where(Presupuesto.trabajo_id == trabajo_id)
@@ -82,8 +83,8 @@ def crear_presupuesto(
     _u: CurrentUser = Depends(require_roles(Rol.administracion, Rol.representante)),
     cid: int = Depends(get_consorcio_activo),
 ) -> PresupuestoOut:
-    _validar_trabajo(db, trabajo_id)
-    _validar_proveedor(db, proveedor_id)
+    _validar_trabajo(db, cid, trabajo_id)
+    _validar_proveedor(db, cid, proveedor_id)
 
     fecha = date.fromisoformat(fecha_presentacion) if fecha_presentacion else date.today()
     archivo_path = _guardar_archivo(archivo) if (archivo and archivo.filename) else None
@@ -117,7 +118,7 @@ def actualizar_presupuesto(
     if p.estado != EstadoPresupuesto.presentado:
         raise HTTPException(409, "Solo se pueden editar presupuestos en estado presentado.")
     if payload.proveedor_id is not None:
-        _validar_proveedor(db, payload.proveedor_id)
+        _validar_proveedor(db, cid, payload.proveedor_id)
     for campo, valor in payload.model_dump(exclude_unset=True).items():
         setattr(p, campo, valor)
     db.commit()

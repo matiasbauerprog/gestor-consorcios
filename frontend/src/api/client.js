@@ -89,3 +89,22 @@ export async function apiFetch(path, { token, body, method = "GET", headers = {}
 
   return { ok: res.ok, status: res.status, data };
 }
+
+/**
+ * Abre un PDF autenticado en una nueva pestaña. Inyecta Authorization y
+ * X-Consorcio-Id igual que apiFetch (los endpoints de PDF están scoped por
+ * consorcio, un fetch sin el header devuelve 400).
+ */
+export async function abrirPdf(path) {
+  const headers = {};
+  if (_authToken) headers["Authorization"] = `Bearer ${_authToken}`;
+  if (_consorcioActivoId && _requiereConsorcio(path)) {
+    headers["X-Consorcio-Id"] = _consorcioActivoId;
+  }
+  const res = await fetch(API_BASE + path, { headers });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}

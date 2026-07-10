@@ -108,7 +108,7 @@ def _gasto(periodo, monto, proveedor_id, *, clase_id=None, depto_id=None, rubro=
 
 
 def test_preview_periodo_vacio_genera_warning_sin_gastos(db, clase_50_50):
-    preview = calcular_preview_cierre(db, "2026-05")
+    preview = calcular_preview_cierre(db, 1, "2026-05")
     codigos = [v.codigo for v in preview.validaciones]
     assert "sin_gastos" in codigos
     assert preview.puede_cerrar  # warnings no bloquean
@@ -119,7 +119,7 @@ def test_preview_un_gasto_clase_se_prorratea_por_coeficientes(db, proveedor, cla
     db.add(_gasto("2026-05", 1000, proveedor.id, clase_id=clase_50_50.id))
     db.commit()
 
-    preview = calcular_preview_cierre(db, "2026-05")
+    preview = calcular_preview_cierre(db, 1, "2026-05")
     assert len(preview.expensas) == 2
     montos = sorted(e.monto_primer_vencimiento for e in preview.expensas)
     assert montos == [500.0, 500.0]
@@ -129,7 +129,7 @@ def test_preview_gasto_particular_va_solo_al_depto_indicado(db, proveedor, clase
     db.add(_gasto("2026-05", 800, proveedor.id, depto_id=1, concepto="Reparación caño 1A"))
     db.commit()
 
-    preview = calcular_preview_cierre(db, "2026-05")
+    preview = calcular_preview_cierre(db, 1, "2026-05")
     deptos_con_expensa = {e.departamento_id for e in preview.expensas}
     assert deptos_con_expensa == {1}
     assert preview.expensas[0].monto_primer_vencimiento == 800.0
@@ -141,14 +141,14 @@ def test_preview_monto_segundo_venc_aplica_recargo_correcto(db, proveedor, clase
     db.add(_gasto("2026-05", 1000, proveedor.id, clase_id=clase_50_50.id))
     db.commit()
 
-    preview = calcular_preview_cierre(db, "2026-05")
+    preview = calcular_preview_cierre(db, 1, "2026-05")
     for e in preview.expensas:
         assert e.monto_primer_vencimiento == 500.0
         assert e.monto_segundo_vencimiento == round(500 * 1.07, 2)
 
 
 def test_preview_fecha_default_por_regla_configurable(db, clase_50_50):
-    preview = calcular_preview_cierre(db, "2026-05")
+    preview = calcular_preview_cierre(db, 1, "2026-05")
     # default: dia=10, dias_entre=10 → 10-jun y 20-jun
     assert preview.fecha_primer_vencimiento == date(2026, 6, 10)
     assert preview.fecha_segundo_vencimiento == date(2026, 6, 20)
@@ -156,7 +156,7 @@ def test_preview_fecha_default_por_regla_configurable(db, clase_50_50):
 
 def test_preview_fecha_explicita_override(db, clase_50_50):
     preview = calcular_preview_cierre(
-        db, "2026-05",
+        db, 1, "2026-05",
         fecha_primer_venc=date(2026, 6, 5),
         fecha_segundo_venc=date(2026, 6, 15),
     )
@@ -172,7 +172,7 @@ def test_preview_validacion_bloqueante_coef_no_suma_100(db, proveedor):
     db.add(_gasto("2026-05", 1000, proveedor.id, clase_id=clase.id))
     db.commit()
 
-    preview = calcular_preview_cierre(db, "2026-05")
+    preview = calcular_preview_cierre(db, 1, "2026-05")
     codigos = [v.codigo for v in preview.validaciones if v.tipo == "bloqueante"]
     assert "coeficientes_no_suman_100" in codigos
     assert not preview.puede_cerrar
@@ -185,14 +185,14 @@ def test_preview_validacion_bloqueante_coef_faltante(db, proveedor):
     db.add(_gasto("2026-05", 1000, proveedor.id, clase_id=clase.id))
     db.commit()
 
-    preview = calcular_preview_cierre(db, "2026-05")
+    preview = calcular_preview_cierre(db, 1, "2026-05")
     codigos = [v.codigo for v in preview.validaciones if v.tipo == "bloqueante"]
     assert "coeficientes_faltantes" in codigos
 
 
 def test_preview_validacion_bloqueante_fechas_invalidas(db, clase_50_50):
     preview = calcular_preview_cierre(
-        db, "2026-05",
+        db, 1, "2026-05",
         fecha_primer_venc=date(2026, 6, 20),
         fecha_segundo_venc=date(2026, 6, 10),
     )
@@ -201,7 +201,7 @@ def test_preview_validacion_bloqueante_fechas_invalidas(db, clase_50_50):
 
 
 def test_intereses_depto_al_dia_devuelve_cero(db):
-    monto, _ = calcular_intereses_al_cierre(db, 1, date(2026, 6, 30))
+    monto, _ = calcular_intereses_al_cierre(db, 1, 1, date(2026, 6, 30))
     assert monto == 0.0
 
 
@@ -221,7 +221,76 @@ def test_intereses_un_mes_de_mora_calcula_correcto(db, proveedor):
     ))
     db.commit()
 
-    monto, descripcion = calcular_intereses_al_cierre(db, 1, date(2026, 5, 30))
+    monto, descripcion = calcular_intereses_al_cierre(db, 1, 1, date(2026, 5, 30))
     # 10 días de mora, tasa 3%/mes → 0.001/día. 1000 × 0.001 × 10 = 10.
     assert monto == 10.0
     assert "2026-04" in descripcion
+
+
+def test_intereses_no_recobra_lo_ya_cobrado(db, proveedor):
+    """Regresión doble cobro: si ya se cobró interés (movimiento previo), el
+    próximo cierre solo cobra el tramo nuevo, no desde el vencimiento otra vez."""
+    expensa = Expensa(consorcio_id=1,
+        departamento_id=1, periodo="2026-04",
+        monto_primer_vencimiento=1000, fecha_primer_vencimiento=date(2026, 5, 10),
+        monto_segundo_vencimiento=1070, fecha_segundo_vencimiento=date(2026, 5, 20),
+        saldo_anterior=0.0,
+    )
+    db.add(expensa); db.flush()
+    db.add(MovimientoCuenta(consorcio_id=1,
+        departamento_id=1, fecha=date(2026, 5, 1),
+        tipo=TipoMovimiento.expensa_emitida, descripcion="Expensa 2026-04",
+        monto=1000, expensa_id=expensa.id,
+    ))
+    # Interés ya cobrado en un cierre anterior, con fecha 30-may (cubre 20→30 may).
+    db.add(MovimientoCuenta(consorcio_id=1,
+        departamento_id=1, fecha=date(2026, 5, 30),
+        tipo=TipoMovimiento.interes_punitorio,
+        descripcion="Intereses al 2026-05-30", monto=10.0,
+    ))
+    db.commit()
+
+    monto, _ = calcular_intereses_al_cierre(db, 1, 1, date(2026, 6, 9))
+    # Solo los 10 días nuevos (30-may → 9-jun): 1000 × 0.001 × 10 = 10.
+    # El cálculo viejo (bug) daba 20 (desde el 20-may, re-cobrando el tramo pago).
+    assert monto == 10.0
+
+
+def test_intereses_usa_tasa_del_consorcio_correcto(db):
+    """La tasa sale del consorcio del depto, no del primer consorcio de la DB."""
+    db.add(Administracion(
+        id=2, razon_social="Admin 2", cuit="30-22-2", email_contacto="b@b.com",
+    ))
+    db.flush()
+    db.add(Consorcio(
+        id=2, administracion_id=2, nombre="Consorcio Caro",
+        consorcio_domicilio="d", consorcio_cuit="30-2", admin_nombre="a",
+        admin_domicilio="d", admin_email="a@b.com", admin_telefono="1",
+        admin_cuit="c", admin_rpa="0", admin_situacion_fiscal="M",
+        banco_titular="t", banco_nombre="n", banco_numero_cuenta="0",
+        banco_cbu="0" * 22,
+        dia_primer_vencimiento=10, dias_entre_vencimientos=10,
+        recargo_segundo_vencimiento_pct=7.0,
+        tasa_interes_mensual_pct=6.0,  # doble que el c1 (3.0)
+    ))
+    db.flush()
+    db.add(Departamento(id=3, consorcio_id=2, codigo="UF-C2", descripcion="d"))
+    db.commit()
+
+    expensa = Expensa(consorcio_id=2,
+        departamento_id=3, periodo="2026-04",
+        monto_primer_vencimiento=1000, fecha_primer_vencimiento=date(2026, 5, 10),
+        monto_segundo_vencimiento=1070, fecha_segundo_vencimiento=date(2026, 5, 20),
+        saldo_anterior=0.0,
+    )
+    db.add(expensa); db.flush()
+    db.add(MovimientoCuenta(consorcio_id=2,
+        departamento_id=3, fecha=date(2026, 5, 1),
+        tipo=TipoMovimiento.expensa_emitida, descripcion="Expensa 2026-04",
+        monto=1000, expensa_id=expensa.id,
+    ))
+    db.commit()
+
+    monto, _ = calcular_intereses_al_cierre(db, 2, 3, date(2026, 5, 30))
+    # 10 días de mora a 6%/mes → 0.002/día. 1000 × 0.002 × 10 = 20.
+    assert monto == 20.0
