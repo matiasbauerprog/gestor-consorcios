@@ -225,6 +225,7 @@ export default function Sidebar({ rol, abierto, onCerrar }) {
 
   useEffect(() => {
     if (!consorcioActivoId) return;
+    setModulosHabilitados(null);
     (async () => {
       // reportes_visibles_a_depto sigue viniendo de /configuracion (compat).
       const r = await obtenerConfiguracion();
