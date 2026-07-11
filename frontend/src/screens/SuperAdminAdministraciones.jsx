@@ -136,8 +136,10 @@ function ModalModulos({ administracion, onCerrar, onFeedback }) {
   const [err, setErr] = useState(null);
 
   useEffect(() => {
+    let ignore = false;
     (async () => {
       const r = await obtenerModulos(administracion.id);
+      if (ignore) return;
       if (r.status === 200) {
         setDisponibles(r.data.disponibles);
         setHabilitados(new Set(r.data.habilitados));
@@ -146,6 +148,7 @@ function ModalModulos({ administracion, onCerrar, onFeedback }) {
       }
       setLoading(false);
     })();
+    return () => { ignore = true; };
   }, [administracion.id]);
 
   function toggle(key) {
