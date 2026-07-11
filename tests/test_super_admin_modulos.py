@@ -133,3 +133,18 @@ def test_rehabilitar_modulo_restaura_acceso(client, headers_admin, headers_super
     assert client.get("/gastos", headers=headers_admin).status_code == 403
     _deshabilitar(client, headers_super_admin, *MODULOS)
     assert client.get("/gastos", headers=headers_admin).status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Task 5: ConsorcioOut expone modulos_habilitados
+# ---------------------------------------------------------------------------
+
+
+def test_consorcio_out_incluye_modulos(client, headers_admin, headers_super_admin):
+    r = client.get("/consorcios/1", headers=headers_admin)
+    assert r.status_code == 200
+    assert set(r.json()["modulos_habilitados"]) == set(MODULOS)
+
+    _deshabilitar(client, headers_super_admin, "comunicacion", "cobranzas")
+    r2 = client.get("/consorcios/1", headers=headers_admin)
+    assert sorted(r2.json()["modulos_habilitados"]) == ["cobranzas", "comunicacion"]

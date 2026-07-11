@@ -1256,6 +1256,20 @@ class ConsorcioOut(BaseModel):
     caja_default_pagos_id: int | None
     reportes_visibles_a_depto: bool
     fecha_creacion: datetime
+    modulos_habilitados: list[str] = []
+
+    @model_validator(mode="before")
+    @classmethod
+    def _inject_modulos(cls, data):
+        # from_attributes: si viene un ORM con la relación `administracion`,
+        # derivamos `modulos_habilitados` desde ella.
+        if hasattr(data, "administracion") and not isinstance(data, dict):
+            from .modulos import modulos_habilitados_de
+            cols = {c.name: getattr(data, c.name, None) for c in data.__table__.columns}
+            admin = data.administracion
+            cols["modulos_habilitados"] = sorted(modulos_habilitados_de(admin)) if admin else []
+            return cols
+        return data
 
 
 class ConsorcioCrear(BaseModel):
