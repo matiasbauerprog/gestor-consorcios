@@ -14,6 +14,7 @@ const SECCIONES = [
         ruta: "/comunicados",
         nombre: "Comunicación",
         rolesPermitidos: ["administracion", "representante", "departamento"],
+        modulo: "comunicacion",
       },
     ],
   },
@@ -24,16 +25,19 @@ const SECCIONES = [
         ruta: "/mi-cuenta",
         nombre: "Mi cuenta",
         rolesPermitidos: ["departamento"],
+        modulo: "cobranzas",
       },
       {
         ruta: "/cobranzas",
         nombre: "Cobranzas",
         rolesPermitidos: ["administracion"],
+        modulo: "cobranzas",
       },
       {
         ruta: "/gastos",
         nombre: "Gastos",
         rolesPermitidos: ["administracion"],
+        modulo: "gastos",
       },
     ],
   },
@@ -44,11 +48,13 @@ const SECCIONES = [
         ruta: "/tesoreria",
         nombre: "Tesorería",
         rolesPermitidos: ["administracion"],
+        modulo: "finanzas",
       },
       {
         ruta: "/cuentas-corrientes",
         nombre: "Cuentas corrientes",
         rolesPermitidos: ["administracion"],
+        modulo: "cobranzas",
       },
     ],
   },
@@ -59,16 +65,19 @@ const SECCIONES = [
         ruta: "/peticiones",
         nombre: "Peticiones",
         rolesPermitidos: ["administracion", "representante", "departamento"],
+        modulo: "operacion",
       },
       {
         ruta: "/trabajos",
         nombre: "Trabajos",
         rolesPermitidos: ["administracion", "representante"],
+        modulo: "operacion",
       },
       {
         ruta: "/trabajos-recurrentes",
         nombre: "Trabajos recurrentes",
         rolesPermitidos: ["administracion", "representante"],
+        modulo: "operacion",
       },
     ],
   },
@@ -79,11 +88,13 @@ const SECCIONES = [
         ruta: "/reservas",
         nombre: "Reservas",
         rolesPermitidos: ["administracion", "departamento"],
+        modulo: "espacios_comunes",
       },
       {
         ruta: "/amenities",
         nombre: "Amenities",
         rolesPermitidos: ["administracion"],
+        modulo: "espacios_comunes",
       },
     ],
   },
@@ -94,21 +105,25 @@ const SECCIONES = [
         ruta: "/reportes/morosos",
         nombre: "Lista de morosos",
         rolesPermitidos: ["administracion", "representante", "departamento"],
+        modulo: "reportes",
       },
       {
         ruta: "/reportes/estado-financiero",
         nombre: "Estado financiero",
         rolesPermitidos: ["administracion", "representante", "departamento"],
+        modulo: "reportes",
       },
       {
         ruta: "/reportes/gastos",
         nombre: "Detalle de gastos",
         rolesPermitidos: ["administracion", "representante", "departamento"],
+        modulo: "reportes",
       },
       {
         ruta: "/reportes/proveedores",
         nombre: "Lista de proveedores",
         rolesPermitidos: ["administracion", "representante", "departamento"],
+        modulo: "reportes",
       },
     ],
   },
@@ -119,21 +134,25 @@ const SECCIONES = [
         ruta: "/liquidaciones",
         nombre: "Liquidaciones",
         rolesPermitidos: ["administracion"],
+        modulo: "personal",
       },
       {
         ruta: "/haberes",
         nombre: "Haberes",
         rolesPermitidos: ["administracion"],
+        modulo: "personal",
       },
       {
         ruta: "/conceptos-liquidacion",
         nombre: "Conceptos de liquidación",
         rolesPermitidos: ["administracion"],
+        modulo: "personal",
       },
       {
         ruta: "/empleados",
         nombre: "Empleados",
         rolesPermitidos: ["administracion"],
+        modulo: "personal",
       },
     ],
   },
@@ -187,6 +206,7 @@ export default function Sidebar({ rol, abierto, onCerrar }) {
   // Otros roles los ven siempre (admin/representante).
   const [reportesVisiblesDepto, setReportesVisiblesDepto] = useState(false);
   const [usaPersonalPropio, setUsaPersonalPropio] = useState(true);
+  const [modulosHabilitados, setModulosHabilitados] = useState(null); // null = cargando → mostrar todo
 
   const { consorcioActivoId } = useAuth();
   const location = useLocation();
@@ -216,6 +236,9 @@ export default function Sidebar({ rol, abierto, onCerrar }) {
       if (c.status === 200 && c.data?.usa_personal_propio !== undefined) {
         setUsaPersonalPropio(!!c.data.usa_personal_propio);
       }
+      if (c.status === 200 && Array.isArray(c.data?.modulos_habilitados)) {
+        setModulosHabilitados(c.data.modulos_habilitados);
+      }
     })();
   }, [rol, consorcioActivoId]);
 
@@ -225,6 +248,10 @@ export default function Sidebar({ rol, abierto, onCerrar }) {
       if (!m.rolesPermitidos.includes(rol)) return false;
       // Ocultar reportes a depto si el admin no los habilitó
       if (rol === "departamento" && m.ruta.startsWith("/reportes/") && !reportesVisiblesDepto) {
+        return false;
+      }
+      // Módulo deshabilitado por super_admin para esta administración.
+      if (m.modulo && modulosHabilitados !== null && !modulosHabilitados.includes(m.modulo)) {
         return false;
       }
       return true;
