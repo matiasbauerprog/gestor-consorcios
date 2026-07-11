@@ -3968,6 +3968,82 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /super-admin/administraciones/{administracion_id}/modulos:
+    get:
+      tags: [SuperAdmin]
+      summary: Obtener módulos habilitados de una administración
+      description: |
+        Devuelve la lista de módulos disponibles en la plataforma y cuáles están
+        habilitados para la administración indicada. NULL en la columna
+        `modulos_habilitados` equivale a todos habilitados.
+      operationId: superAdminGetModulos
+      parameters:
+        - name: administracion_id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Módulos disponibles y habilitados.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModulosAdministracionOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          description: Administración no encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags: [SuperAdmin]
+      summary: Reemplazar módulos habilitados de una administración
+      description: |
+        Reemplaza completamente la lista de módulos habilitados para la
+        administración. Todos los valores deben pertenecer al catálogo conocido
+        (error 400 si alguno es desconocido). Loguea `editar_modulos` en el
+        audit log.
+      operationId: superAdminPutModulos
+      parameters:
+        - name: administracion_id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModulosAdministracionIn'
+      responses:
+        '200':
+          description: Módulos actualizados.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModulosAdministracionOut'
+        '400':
+          description: Módulo desconocido en la lista.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          description: Administración no encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /super-admin/impersonate/start:
     post:
       tags: [SuperAdmin]
@@ -4438,6 +4514,28 @@ components:
           nullable: true
           description: JSON serializado con contexto; campos sensibles se redactan.
         fecha: { type: string, format: date-time }
+
+    ModulosAdministracionIn:
+      type: object
+      required: [habilitados]
+      properties:
+        habilitados:
+          type: array
+          items: { type: string }
+          description: Lista de claves de módulos a habilitar.
+
+    ModulosAdministracionOut:
+      type: object
+      required: [disponibles, habilitados]
+      properties:
+        disponibles:
+          type: array
+          items: { type: string }
+          description: Catálogo completo de módulos de la plataforma.
+        habilitados:
+          type: array
+          items: { type: string }
+          description: Módulos actualmente habilitados para esta administración.
 
     # ---------------------------- Auth ------------------------------------
 

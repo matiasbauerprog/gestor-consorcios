@@ -33,3 +33,61 @@ def test_modulos_habilitados_de_parsea_json(db_session):
     a = db_session.get(Administracion, 1)
     a.modulos_habilitados = '["gastos", "cobranzas"]'
     assert modulos_habilitados_de(a) == {"gastos", "cobranzas"}
+
+
+def test_get_modulos_default_todos(client, headers_super_admin):
+    r = client.get("/super-admin/administraciones/1/modulos", headers=headers_super_admin)
+    assert r.status_code == 200
+    body = r.json()
+    assert set(body["disponibles"]) == set(body["habilitados"])
+    assert "gastos" in body["habilitados"]
+
+
+def test_put_modulos_persiste_subset(client, headers_super_admin):
+    r = client.put(
+        "/super-admin/administraciones/1/modulos",
+        json={"habilitados": ["comunicacion", "cobranzas"]},
+        headers=headers_super_admin,
+    )
+    assert r.status_code == 200
+    assert sorted(r.json()["habilitados"]) == ["cobranzas", "comunicacion"]
+
+    r2 = client.get("/super-admin/administraciones/1/modulos", headers=headers_super_admin)
+    assert sorted(r2.json()["habilitados"]) == ["cobranzas", "comunicacion"]
+
+
+def test_put_modulo_desconocido_devuelve_400(client, headers_super_admin):
+    r = client.put(
+        "/super-admin/administraciones/1/modulos",
+        json={"habilitados": ["inventado"]},
+        headers=headers_super_admin,
+    )
+    assert r.status_code == 400
+
+
+def test_put_modulos_admin_normal_devuelve_403(client, headers_admin):
+    r = client.put(
+        "/super-admin/administraciones/1/modulos",
+        json={"habilitados": ["gastos"]},
+        headers=headers_admin,
+    )
+    assert r.status_code == 403
+
+
+def test_get_modulos_administracion_inexistente_devuelve_404(client, headers_super_admin):
+    r = client.get("/super-admin/administraciones/999/modulos", headers=headers_super_admin)
+    assert r.status_code == 404
+
+
+def test_put_modulos_genera_audit_log(client, headers_super_admin):
+    client.put(
+        "/super-admin/administraciones/1/modulos",
+        json={"habilitados": ["gastos"]},
+        headers=headers_super_admin,
+    )
+    r = client.get(
+        "/super-admin/audit-log?accion=editar_modulos", headers=headers_super_admin
+    )
+    assert r.status_code == 200
+    assert len(r.json()) >= 1
+    assert r.json()[0]["administracion_id_afectada"] == 1

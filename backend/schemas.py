@@ -1165,6 +1165,15 @@ class AdministracionActualizar(BaseModel):
     plan: str | None = Field(default=None, max_length=50)
 
 
+class ModulosAdministracionIn(BaseModel):
+    habilitados: list[str]
+
+
+class ModulosAdministracionOut(BaseModel):
+    disponibles: list[str]
+    habilitados: list[str]
+
+
 class ResetPasswordOut(BaseModel):
     password_temporal: str
 

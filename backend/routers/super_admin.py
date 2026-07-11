@@ -6,6 +6,7 @@ Todos requieren rol super_admin. El JWT impersonado NO da acceso a /super-admin/
 """
 from __future__ import annotations
 
+import json
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -34,9 +35,12 @@ from ..schemas import (
     ImpersonateStartIn,
     ImpersonateStartOut,
     MetricasOut,
+    ModulosAdministracionIn,
+    ModulosAdministracionOut,
     ResetPasswordOut,
     UsuarioAdminOut,
 )
+from ..modulos import MODULOS, modulos_habilitados_de
 from ..security import hash_password
 
 router = APIRouter(prefix="/super-admin", tags=["SuperAdmin"])
@@ -210,6 +214,68 @@ def toggle_suspender_administracion(
     db.commit()
     db.refresh(admin)
     return admin
+
+
+# ---------------------------------------------------------------------------
+# Módulos habilitados
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/administraciones/{administracion_id}/modulos",
+    response_model=ModulosAdministracionOut,
+    status_code=status.HTTP_200_OK,
+    summary="Obtener módulos habilitados de una administración",
+)
+def obtener_modulos_administracion(
+    administracion_id: int,
+    db: Session = Depends(get_db),
+    _sa: CurrentUser = Depends(_bloquear_impersonate_activo),
+) -> ModulosAdministracionOut:
+    admin = db.get(Administracion, administracion_id)
+    if admin is None:
+        raise HTTPException(status_code=404, detail="Administración no encontrada.")
+    return ModulosAdministracionOut(
+        disponibles=list(MODULOS),
+        habilitados=sorted(modulos_habilitados_de(admin)),
+    )
+
+
+@router.put(
+    "/administraciones/{administracion_id}/modulos",
+    response_model=ModulosAdministracionOut,
+    status_code=status.HTTP_200_OK,
+    summary="Reemplazar módulos habilitados de una administración",
+)
+def actualizar_modulos_administracion(
+    administracion_id: int,
+    payload: ModulosAdministracionIn,
+    db: Session = Depends(get_db),
+    sa: CurrentUser = Depends(_bloquear_impersonate_activo),
+) -> ModulosAdministracionOut:
+    admin = db.get(Administracion, administracion_id)
+    if admin is None:
+        raise HTTPException(status_code=404, detail="Administración no encontrada.")
+
+    desconocidos = set(payload.habilitados) - set(MODULOS)
+    if desconocidos:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Módulos desconocidos: {', '.join(sorted(desconocidos))}",
+        )
+
+    habilitados = sorted(set(payload.habilitados))
+    admin.modulos_habilitados = json.dumps(habilitados)
+
+    crear_audit_log_entry(
+        db,
+        super_admin_usuario_id=sa.id,
+        accion="editar_modulos",
+        administracion_id_afectada=admin.id,
+        detalles={"habilitados": habilitados},
+    )
+    db.commit()
+    return ModulosAdministracionOut(disponibles=list(MODULOS), habilitados=habilitados)
 
 
 # ---------------------------------------------------------------------------
