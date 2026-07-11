@@ -473,3 +473,25 @@ def test_listar_amenities_admin_con_incluir_inactivos_ve_todos(client, headers_a
     ids = [x["id"] for x in r.json()]
     assert 300 in ids
     assert 301 in ids
+
+
+def test_reserva_cross_midnight_es_valida(client, headers_admin, db_session):
+    """Reservar el SUM 22:00 → 04:00 del día siguiente debe funcionar.
+    El fin es un datetime completo con la fecha del día siguiente, no un
+    'time' relativo a la misma fecha."""
+    from datetime import datetime, timedelta
+    # SUM (id=300) es el amenity del seed. Uso un horario futuro.
+    inicio = (datetime.now() + timedelta(days=7)).replace(hour=22, minute=0, second=0, microsecond=0)
+    fin = inicio + timedelta(hours=6)  # 04:00 del día siguiente
+    assert fin.date() > inicio.date(), "el fin debe caer al día siguiente"
+
+    r = client.post(
+        "/amenities/300/reservas",
+        json={"inicio": inicio.isoformat(), "fin": fin.isoformat()},
+        headers=headers_admin,
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    # Devuelve el fin al día siguiente
+    assert body["inicio"].startswith(inicio.date().isoformat())
+    assert body["fin"].startswith(fin.date().isoformat())

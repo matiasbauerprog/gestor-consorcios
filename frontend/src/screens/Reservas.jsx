@@ -3,12 +3,21 @@ import { Link } from "react-router-dom";
 import { listarAmenities } from "../api/amenities";
 import { listarReservas, crearReserva, cancelarReserva } from "../api/reservas";
 import { useAuth } from "../auth/AuthContext";
+import { formatFecha } from "../utils/fechas";
 
 function fmtFecha(iso) {
   return new Date(iso).toLocaleString("es-AR", {
     dateStyle: "short",
     timeStyle: "short",
   });
+}
+
+/** Suma N días a "YYYY-MM-DD" y devuelve "YYYY-MM-DD" — evita problemas con
+ *  fusos horarios que introduce `new Date()` con strings ISO cortos. */
+function sumarDias(fecha, dias) {
+  const [y, m, d] = fecha.split("-").map(Number);
+  const dt = new Date(y, m - 1, d + dias);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
 }
 
 export default function Reservas() {
@@ -101,12 +110,15 @@ export default function Reservas() {
       setError("Completá fecha y horarios.");
       return;
     }
-    if (horaFin <= horaInicio) {
-      setError("La hora de fin debe ser posterior al inicio.");
+    if (horaFin === horaInicio) {
+      setError("La hora de fin debe ser distinta al inicio.");
       return;
     }
+    // Cross-midnight: si el fin es menor o igual al inicio, se asume que
+    // termina al día siguiente (típico de reservas nocturnas de SUM/quincho).
     const inicio = `${fecha}T${horaInicio}:00`;
-    const fin = `${fecha}T${horaFin}:00`;
+    const fechaFin = horaFin < horaInicio ? sumarDias(fecha, 1) : fecha;
+    const fin = `${fechaFin}T${horaFin}:00`;
 
     const dur = (new Date(fin) - new Date(inicio)) / 36e5;
     if (
@@ -224,6 +236,11 @@ export default function Reservas() {
               required
             />
           </label>
+          {fecha && horaInicio && horaFin && horaFin < horaInicio && (
+            <p className="meta" style={{ marginTop: "0.25rem" }}>
+              🌙 Termina el día siguiente ({formatFecha(sumarDias(fecha, 1))}) a las {horaFin}.
+            </p>
+          )}
           <div className="cta-sticky">
             <button type="submit" disabled={guardando}>
               {guardando
