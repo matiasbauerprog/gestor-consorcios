@@ -102,11 +102,22 @@ def _migrar_pk_periodos_cerrados() -> None:
         logger.info("Migración PK periodos_cerrados → (periodo, consorcio_id) aplicada")
 
 
+def _migrar_administracion_modulos() -> None:
+    """ALTER TABLE idempotente: agrega modulos_habilitados a administraciones."""
+    with engine.begin() as conn:
+        cols = {r[1] for r in conn.execute(text("PRAGMA table_info(administraciones)"))}
+        if cols and "modulos_habilitados" not in cols:
+            conn.execute(text(
+                "ALTER TABLE administraciones ADD COLUMN modulos_habilitados TEXT"
+            ))
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
     _migrar_usuario_activa()
     _migrar_pk_periodos_cerrados()
+    _migrar_administracion_modulos()
     if get_settings().SEED_ENABLED:
         with SessionLocal() as db:
             seed_if_empty(db)

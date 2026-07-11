@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    Text,
     UniqueConstraint,
     func,
 )
@@ -962,6 +963,8 @@ class Administracion(Base):
     email_contacto: Mapped[str] = mapped_column(String(255), nullable=False)
     activa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     plan: Mapped[str] = mapped_column(String(50), nullable=False, default="free")
+    # JSON array de keys de módulos habilitados; NULL = todos habilitados.
+    modulos_habilitados: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
     fecha_creacion: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
