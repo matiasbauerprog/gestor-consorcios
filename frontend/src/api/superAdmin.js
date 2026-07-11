@@ -47,6 +47,17 @@ export async function impersonateEnd() {
   return apiFetch("/super-admin/impersonate/end", { method: "POST" });
 }
 
+export async function obtenerModulos(administracionId) {
+  return apiFetch(`/super-admin/administraciones/${administracionId}/modulos`);
+}
+
+export async function guardarModulos(administracionId, habilitados) {
+  return apiFetch(`/super-admin/administraciones/${administracionId}/modulos`, {
+    method: "PUT",
+    body: { habilitados },
+  });
+}
+
 export async function obtenerMetricas() {
   return apiFetch("/super-admin/metricas");
 }

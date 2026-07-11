@@ -4,9 +4,11 @@ import { useAuth } from "../auth/AuthContext";
 import {
   crearAdministracion,
   editarAdministracion,
+  guardarModulos,
   impersonateStart,
   listarAdministraciones,
   listarUsuariosDeAdministracion,
+  obtenerModulos,
   resetPasswordUsuario,
   toggleSuspenderAdministracion,
 } from "../api/superAdmin";
@@ -110,6 +112,108 @@ function ModalNueva({ onCerrar, onCreada }) {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+const MODULOS_LABELS = {
+  comunicacion: "Comunicación",
+  cobranzas: "Cobranzas y cuentas corrientes",
+  gastos: "Gastos del consorcio",
+  finanzas: "Tesorería y finanzas",
+  operacion: "Peticiones y trabajos",
+  espacios_comunes: "Espacios comunes (reservas)",
+  reportes: "Reportes",
+  personal: "Personal y liquidaciones",
+};
+
+function ModalModulos({ administracion, onCerrar, onFeedback }) {
+  const [disponibles, setDisponibles] = useState([]);
+  const [habilitados, setHabilitados] = useState(new Set());
+  const [loading, setLoading] = useState(true);
+  const [guardando, setGuardando] = useState(false);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      const r = await obtenerModulos(administracion.id);
+      if (r.status === 200) {
+        setDisponibles(r.data.disponibles);
+        setHabilitados(new Set(r.data.habilitados));
+      } else {
+        setErr(r.data?.detail || "No se pudieron cargar los módulos.");
+      }
+      setLoading(false);
+    })();
+  }, [administracion.id]);
+
+  function toggle(key) {
+    setHabilitados((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  async function guardar(e) {
+    e.preventDefault();
+    setErr(null);
+    setGuardando(true);
+    const r = await guardarModulos(administracion.id, [...habilitados]);
+    setGuardando(false);
+    if (r.status === 200) {
+      onFeedback(`Módulos actualizados para ${administracion.razon_social}.`);
+      onCerrar();
+      return;
+    }
+    setErr(r.data?.detail || "No se pudieron guardar los módulos.");
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onCerrar}>
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header>
+          <h2>Módulos — {administracion.razon_social}</h2>
+          <button type="button" onClick={onCerrar} aria-label="Cerrar">
+            ✕
+          </button>
+        </header>
+        {loading ? (
+          <p>Cargando…</p>
+        ) : (
+          <form onSubmit={guardar}>
+            <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: "0.5rem" }}>
+              {disponibles.map((key) => (
+                <li key={key}>
+                  <label style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                    <input
+                      type="checkbox"
+                      checked={habilitados.has(key)}
+                      onChange={() => toggle(key)}
+                    />
+                    {MODULOS_LABELS[key] || key}
+                  </label>
+                </li>
+              ))}
+            </ul>
+            {err && <p role="alert" className="login-error">{err}</p>}
+            <div className="modal-acciones">
+              <button type="button" onClick={onCerrar}>
+                Cancelar
+              </button>
+              <button type="submit" disabled={guardando}>
+                {guardando ? "Guardando…" : "Guardar"}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
@@ -317,6 +421,7 @@ export default function SuperAdminAdministraciones() {
   const [loading, setLoading] = useState(true);
   const [modalNueva, setModalNueva] = useState(false);
   const [modalUsuariosDe, setModalUsuariosDe] = useState(null);
+  const [modalModulosDe, setModalModulosDe] = useState(null);
   const [feedback, setFeedback] = useState(null);
   const [passwordTemporal, setPasswordTemporal] = useState(null);
 
@@ -435,6 +540,9 @@ export default function SuperAdminAdministraciones() {
                   <button type="button" onClick={() => setModalUsuariosDe(a)}>
                     Gestionar usuarios
                   </button>
+                  <button type="button" onClick={() => setModalModulosDe(a)}>
+                    Módulos
+                  </button>
                 </div>
               </div>
             </li>
@@ -459,6 +567,14 @@ export default function SuperAdminAdministraciones() {
           onCerrar={() => setModalUsuariosDe(null)}
           onFeedback={setFeedback}
           onPasswordTemporal={setPasswordTemporal}
+        />
+      )}
+
+      {modalModulosDe && (
+        <ModalModulos
+          administracion={modalModulosDe}
+          onCerrar={() => setModalModulosDe(null)}
+          onFeedback={setFeedback}
         />
       )}
 
