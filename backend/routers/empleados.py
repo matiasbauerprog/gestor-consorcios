@@ -5,10 +5,15 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, require_roles
 from ..database import get_db
 from ..models import Empleado, LiquidacionEmpleado, Proveedor, Rol
+from ..modulos import require_modulo
 from ..schemas import EmpleadoActualizar, EmpleadoCrear, EmpleadoOut
 from ..tenant import get_consorcio_activo
 
-router = APIRouter(prefix="/empleados", tags=["Personal"])
+router = APIRouter(
+    prefix="/empleados",
+    tags=["Personal"],
+    dependencies=[Depends(require_modulo("personal"))],
+)
 
 
 def _validar_proveedor(db: Session, cid: int, proveedor_id: int) -> None:

@@ -23,6 +23,7 @@ from ..models import (
     Trabajo,
     Usuario,
 )
+from ..modulos import require_modulo
 from ..tenant import get_consorcio_activo
 from ..schemas import (
     CargarHabitualesIn,
@@ -32,7 +33,11 @@ from ..schemas import (
     PlanCuotasCrear,
 )
 
-router = APIRouter(prefix="/gastos", tags=["Gastos"])
+router = APIRouter(
+    prefix="/gastos",
+    tags=["Gastos"],
+    dependencies=[Depends(require_modulo("gastos"))],
+)
 
 
 def _sumar_un_mes(periodo: str) -> str:

@@ -9,10 +9,14 @@ from ..auth import CurrentUser, require_roles
 from ..cuenta_corriente import calcular_estado_cuenta
 from ..database import get_db
 from ..models import Departamento, Expensa, MovimientoCuenta, Rol
+from ..modulos import require_modulo
 from ..schemas import CuentaResumenOut, EstadoCuentaOut, MovimientoCuentaOut, NotaCrear
 from ..tenant import get_consorcio_activo
 
-router = APIRouter(tags=["Movimientos"])
+router = APIRouter(
+    tags=["Movimientos"],
+    dependencies=[Depends(require_modulo("cobranzas"))],
+)
 
 
 def _cuenta(

@@ -5,10 +5,15 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, require_roles
 from ..database import get_db
 from ..models import Haber, Rol
+from ..modulos import require_modulo
 from ..schemas import HaberActualizar, HaberCrear, HaberOut
 from ..tenant import get_consorcio_activo
 
-router = APIRouter(prefix="/haberes", tags=["Personal"])
+router = APIRouter(
+    prefix="/haberes",
+    tags=["Personal"],
+    dependencies=[Depends(require_modulo("personal"))],
+)
 
 
 @router.get(

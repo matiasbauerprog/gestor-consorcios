@@ -9,10 +9,15 @@ from ..database import get_db
 from ..models import (
     Amenity, EstadoReserva, MovimientoCuenta, Reserva, Rol, TipoMovimiento,
 )
+from ..modulos import require_modulo
 from ..schemas import ReservaOut
 from ..tenant import get_consorcio_activo
 
-router = APIRouter(prefix="/reservas", tags=["Amenities"])
+router = APIRouter(
+    prefix="/reservas",
+    tags=["Amenities"],
+    dependencies=[Depends(require_modulo("espacios_comunes"))],
+)
 
 
 @router.get(

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, get_current_user, require_roles
 from ..database import get_db
 from ..models import Amenity, EstadoReserva, MovimientoCuenta, Reserva, Rol, TipoMovimiento
+from ..modulos import require_modulo
 from ..tenant import get_consorcio_activo
 from ..schemas import (
     AmenityActualizar,
@@ -18,7 +19,11 @@ from ..schemas import (
     ReservaOut,
 )
 
-router = APIRouter(prefix="/amenities", tags=["Amenities"])
+router = APIRouter(
+    prefix="/amenities",
+    tags=["Amenities"],
+    dependencies=[Depends(require_modulo("espacios_comunes"))],
+)
 
 
 @router.get(

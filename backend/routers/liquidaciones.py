@@ -26,6 +26,7 @@ from ..models import (
     TipoHaber,
     TipoMovimientoCaja,
 )
+from ..modulos import require_modulo
 from ..tenant import get_consorcio_activo
 from ..schemas import (
     LiquidacionEmpleadoActualizar,
@@ -33,7 +34,11 @@ from ..schemas import (
     LiquidacionEmpleadoOut,
 )
 
-router = APIRouter(prefix="/liquidaciones", tags=["Personal"])
+router = APIRouter(
+    prefix="/liquidaciones",
+    tags=["Personal"],
+    dependencies=[Depends(require_modulo("personal"))],
+)
 
 
 def _bloquear_si_periodo_cerrado(db: Session, cid: int, periodo: str) -> None:

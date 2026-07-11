@@ -9,11 +9,16 @@ from ..auth import CurrentUser, require_roles
 from ..caja_saldo import MovimientoSnapshot, calcular_saldo
 from ..database import get_db
 from ..models import Caja, Consorcio, MovimientoCaja, Rol
+from ..modulos import require_modulo
 from ..pdf import generar_pdf_movimientos_caja
 from ..schemas import CajaOut, EstadoFinancieroOut, MovimientoCajaOut
 from ..tenant import get_consorcio_activo
 
-router = APIRouter(prefix="/estado-financiero", tags=["EstadoFinanciero"])
+router = APIRouter(
+    prefix="/estado-financiero",
+    tags=["EstadoFinanciero"],
+    dependencies=[Depends(require_modulo("finanzas"))],
+)
 
 
 @router.get("", response_model=EstadoFinancieroOut)

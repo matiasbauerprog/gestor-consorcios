@@ -9,10 +9,15 @@ from ..models import (
     Caja, MovimientoCaja, PeriodoCerrado, Rol,
     TipoMovimientoCaja, TransferenciaCaja
 )
+from ..modulos import require_modulo
 from ..schemas import TransferenciaCajaCrear, TransferenciaCajaOut
 from ..tenant import get_consorcio_activo
 
-router = APIRouter(prefix="/transferencias-caja", tags=["TransferenciasCaja"])
+router = APIRouter(
+    prefix="/transferencias-caja",
+    tags=["TransferenciasCaja"],
+    dependencies=[Depends(require_modulo("finanzas"))],
+)
 
 
 def _bloquear_si_periodo_cerrado_por_fecha(db: Session, cid: int, fecha) -> None:

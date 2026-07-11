@@ -7,10 +7,15 @@ from ..auth import CurrentUser, require_roles
 from ..caja_saldo import MovimientoSnapshot, calcular_saldo
 from ..database import get_db
 from ..models import Caja, MovimientoCaja, PeriodoCerrado, Rol, TipoMovimientoCaja
+from ..modulos import require_modulo
 from ..schemas import AjusteCrear, CajaCrear, CajaActualizar, CajaOut, MovimientoCajaOut
 from ..tenant import get_consorcio_activo
 
-router = APIRouter(prefix="/cajas", tags=["Cajas"])
+router = APIRouter(
+    prefix="/cajas",
+    tags=["Cajas"],
+    dependencies=[Depends(require_modulo("finanzas"))],
+)
 
 
 def _caja_to_out(caja: Caja, movimientos: list[MovimientoCaja]) -> CajaOut:

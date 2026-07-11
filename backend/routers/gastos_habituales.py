@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, require_roles
 from ..database import get_db
 from ..models import Caja, ClaseProrrateo, Gasto, GastoHabitual, Proveedor, Rol
+from ..modulos import require_modulo
 from ..tenant import get_consorcio_activo
 from ..schemas import (
     GastoHabitualActualizar,
@@ -12,7 +13,11 @@ from ..schemas import (
     GastoHabitualOut,
 )
 
-router = APIRouter(prefix="/gastos-habituales", tags=["Gastos"])
+router = APIRouter(
+    prefix="/gastos-habituales",
+    tags=["Gastos"],
+    dependencies=[Depends(require_modulo("gastos"))],
+)
 
 
 def _validar_caja_activa(db: Session, cid: int, caja_id: int) -> Caja:

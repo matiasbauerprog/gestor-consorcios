@@ -19,9 +19,14 @@ from ..models import (
 )
 from ..pdf import generar_pdf_boleta
 from ..schemas import ExpensaCrear, ExpensaOut, LineaDetalleExpensaOut
+from ..modulos import require_modulo
 from ..tenant import get_consorcio_activo
 
-router = APIRouter(prefix="/expensas", tags=["Expensas"])
+router = APIRouter(
+    prefix="/expensas",
+    tags=["Expensas"],
+    dependencies=[Depends(require_modulo("cobranzas"))],
+)
 
 _PERIODO_PATTERN = r"^\d{4}-(0[1-9]|1[0-2])$"
 

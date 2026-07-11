@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, require_roles
 from ..database import get_db
 from ..models import ConceptoLiquidacion, Proveedor, Rol
+from ..modulos import require_modulo
 from ..tenant import get_consorcio_activo
 from ..schemas import (
     ConceptoLiquidacionActualizar,
@@ -12,7 +13,11 @@ from ..schemas import (
     ConceptoLiquidacionOut,
 )
 
-router = APIRouter(prefix="/conceptos-liquidacion", tags=["Personal"])
+router = APIRouter(
+    prefix="/conceptos-liquidacion",
+    tags=["Personal"],
+    dependencies=[Depends(require_modulo("personal"))],
+)
 
 
 def _validar_proveedor(db: Session, cid: int, proveedor_id: int | None) -> None:

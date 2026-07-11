@@ -14,6 +14,7 @@ from ..models import (
     Rol,
     Trabajo,
 )
+from ..modulos import require_modulo
 from ..tenant import get_consorcio_activo
 from ..notificaciones import notificar_cambio_estado_peticion
 from ..schemas import (
@@ -25,7 +26,11 @@ from ..schemas import (
     TrabajoOut,
 )
 
-router = APIRouter(prefix="/trabajos", tags=["Tareas"])
+router = APIRouter(
+    prefix="/trabajos",
+    tags=["Tareas"],
+    dependencies=[Depends(require_modulo("operacion"))],
+)
 
 _ADMIN_O_REPRESENTANTE = (Rol.administracion, Rol.representante)
 

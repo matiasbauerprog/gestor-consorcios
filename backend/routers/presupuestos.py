@@ -16,10 +16,15 @@ from ..auth import CurrentUser, get_current_user, require_roles
 from ..config import get_settings
 from ..database import get_db
 from ..models import EstadoPresupuesto, Presupuesto, Proveedor, Rol, Trabajo
+from ..modulos import require_modulo
 from ..schemas import PresupuestoActualizar, PresupuestoOut
 from ..tenant import get_consorcio_activo
 
-router = APIRouter(prefix="/trabajos", tags=["Presupuestos"])
+router = APIRouter(
+    prefix="/trabajos",
+    tags=["Presupuestos"],
+    dependencies=[Depends(require_modulo("operacion"))],
+)
 
 ALLOWED_EXTS = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
 MAX_ARCHIVO_BYTES = 5 * 1024 * 1024  # 5MB

@@ -5,13 +5,18 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, get_current_user, require_roles
 from ..database import get_db
 from ..models import EstadoPeticion, Peticion, Rol
+from ..modulos import require_modulo
 from ..notificaciones import notificar_cambio_estado_peticion
 from ..schemas import PeticionActualizar, PeticionCrear, PeticionOut
 from ..tenant import get_consorcio_activo
 
 _ADMIN_O_REPRESENTANTE = (Rol.administracion, Rol.representante)
 
-router = APIRouter(prefix="/peticiones", tags=["Tareas"])
+router = APIRouter(
+    prefix="/peticiones",
+    tags=["Tareas"],
+    dependencies=[Depends(require_modulo("operacion"))],
+)
 
 
 @router.get(

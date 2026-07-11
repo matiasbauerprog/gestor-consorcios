@@ -7,10 +7,15 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, get_current_user, require_roles
 from ..database import get_db
 from ..models import Comunicado, Rol
+from ..modulos import require_modulo
 from ..schemas import ComunicadoCrear, ComunicadoOut
 from ..tenant import get_consorcio_activo
 
-router = APIRouter(prefix="/comunicados", tags=["Comunicación"])
+router = APIRouter(
+    prefix="/comunicados",
+    tags=["Comunicación"],
+    dependencies=[Depends(require_modulo("comunicacion"))],
+)
 
 
 @router.get(

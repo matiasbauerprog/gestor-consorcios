@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, require_roles
 from ..database import get_db
 from ..models import Proveedor, Rol, Trabajo, TrabajoRecurrente
+from ..modulos import require_modulo
 from ..tenant import get_consorcio_activo
 from ..schemas import (
     TrabajoOut,
@@ -17,7 +18,11 @@ from ..schemas import (
     TrabajoRecurrenteOut,
 )
 
-router = APIRouter(prefix="/trabajos-recurrentes", tags=["TrabajosRecurrentes"])
+router = APIRouter(
+    prefix="/trabajos-recurrentes",
+    tags=["TrabajosRecurrentes"],
+    dependencies=[Depends(require_modulo("operacion"))],
+)
 
 
 @router.get("", response_model=list[TrabajoRecurrenteOut])

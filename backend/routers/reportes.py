@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, get_current_user
 from ..database import get_db
 from ..models import Consorcio, Rol
+from ..modulos import require_modulo
 from ..pdf import (
     generar_pdf_estado_financiero,
     generar_pdf_gastos_periodo,
@@ -32,7 +33,11 @@ from ..schemas import (
 )
 from ..tenant import get_consorcio_activo
 
-router = APIRouter(prefix="/reportes", tags=["Reportes"])
+router = APIRouter(
+    prefix="/reportes",
+    tags=["Reportes"],
+    dependencies=[Depends(require_modulo("reportes"))],
+)
 
 
 def _validar_acceso_reportes(db: Session, user: CurrentUser, cid: int) -> None:

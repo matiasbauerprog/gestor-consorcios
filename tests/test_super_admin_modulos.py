@@ -1,4 +1,5 @@
 """Tests de módulos habilitables por administración (super_admin)."""
+from backend.modulos import MODULOS
 
 
 def test_administracion_tiene_columna_modulos(db_session):
@@ -91,3 +92,44 @@ def test_put_modulos_genera_audit_log(client, headers_super_admin):
     assert r.status_code == 200
     assert len(r.json()) >= 1
     assert r.json()[0]["administracion_id_afectada"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Task 4: Gate 403 modulo_no_habilitado en routers
+# ---------------------------------------------------------------------------
+
+
+def _deshabilitar(client, headers_super_admin, *modulos_activos):
+    r = client.put(
+        "/super-admin/administraciones/1/modulos",
+        json={"habilitados": list(modulos_activos)},
+        headers=headers_super_admin,
+    )
+    assert r.status_code == 200
+
+
+def test_modulo_deshabilitado_devuelve_403(client, headers_admin, headers_super_admin):
+    _deshabilitar(client, headers_super_admin, "comunicacion")  # gastos queda OFF
+    r = client.get("/gastos", headers=headers_admin)
+    assert r.status_code == 403
+    assert r.json()["detail"] == "modulo_no_habilitado"
+
+
+def test_modulo_habilitado_sigue_funcionando(client, headers_admin, headers_super_admin):
+    _deshabilitar(client, headers_super_admin, "comunicacion")
+    r = client.get("/comunicados", headers=headers_admin)
+    assert r.status_code == 200
+
+
+def test_gate_aplica_tambien_a_departamentos(client, headers_depto_a, headers_super_admin):
+    _deshabilitar(client, headers_super_admin, "gastos")  # cobranzas OFF
+    r = client.get("/movimientos/mi-cuenta", headers=headers_depto_a)
+    assert r.status_code == 403
+    assert r.json()["detail"] == "modulo_no_habilitado"
+
+
+def test_rehabilitar_modulo_restaura_acceso(client, headers_admin, headers_super_admin):
+    _deshabilitar(client, headers_super_admin, "comunicacion")
+    assert client.get("/gastos", headers=headers_admin).status_code == 403
+    _deshabilitar(client, headers_super_admin, *MODULOS)
+    assert client.get("/gastos", headers=headers_admin).status_code == 200

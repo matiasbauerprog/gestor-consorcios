@@ -35,9 +35,14 @@ def _descripcion_pago(comprobante: Comprobante) -> str:
     Prefiere el código del depto (UF-XX) sobre el ID interno del comprobante."""
     codigo = comprobante.departamento.codigo if comprobante.departamento else "?"
     return f"Pago {codigo} - {comprobante.fecha_pago.isoformat()}"
+from ..modulos import require_modulo
 from ..tenant import get_consorcio_activo
 
-router = APIRouter(prefix="/comprobantes", tags=["Expensas"])
+router = APIRouter(
+    prefix="/comprobantes",
+    tags=["Expensas"],
+    dependencies=[Depends(require_modulo("cobranzas"))],
+)
 
 
 @router.get(
