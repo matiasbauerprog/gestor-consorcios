@@ -81,6 +81,7 @@ export function AuthProvider({ children }) {
             : r.data[0]?.id ?? null;
         if (idElegido) {
           localStorage.setItem(STORAGE_CONSORCIO_ID, String(idElegido));
+          setClientConsorcioId(idElegido);
           setConsorcioActivoIdState(idElegido);
         }
       }
@@ -99,8 +100,10 @@ export function AuthProvider({ children }) {
   }, [consorcioActivoId]);
 
   const seleccionarConsorcio = useCallback((id) => {
-    localStorage.setItem(STORAGE_CONSORCIO_ID, String(id));
-    setConsorcioActivoIdState(Number(id));
+    const numericId = Number(id);
+    localStorage.setItem(STORAGE_CONSORCIO_ID, String(numericId));
+    setClientConsorcioId(numericId);
+    setConsorcioActivoIdState(numericId);
   }, []);
 
   const cargarConsorciosAccesibles = useCallback(async (rol) => {
@@ -142,6 +145,7 @@ export function AuthProvider({ children }) {
               ? storedId
               : accesibles[0].id;
           localStorage.setItem(STORAGE_CONSORCIO_ID, String(idElegido));
+          setClientConsorcioId(idElegido);
           setConsorcioActivoIdState(idElegido);
         }
       }

@@ -56,7 +56,7 @@ export default function Comunicados() {
 }
 
 function SeccionComunicados() {
-  const { user } = useAuth();
+  const { user, consorcioActivoId, hydrating } = useAuth();
   const [comunicados, setComunicados] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState(null);
@@ -110,6 +110,8 @@ function SeccionComunicados() {
   }
 
   useEffect(() => {
+    if (hydrating || !consorcioActivoId) return;
+
     let cancelado = false;
 
     async function cargar() {
@@ -129,7 +131,7 @@ function SeccionComunicados() {
     return () => {
       cancelado = true;
     };
-  }, []);
+  }, [hydrating, consorcioActivoId]);
 
   return (
     <>
