@@ -2,7 +2,7 @@ import logging
 import secrets
 from datetime import date, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import Session
 
 from .config import get_settings
@@ -518,6 +518,18 @@ def seed_if_empty(db: Session) -> None:
     db.flush()
 
     db.commit()
+
+    # Postgres: resetear las sequences de tablas donde insertamos IDs explícitos.
+    # Sin esto, el próximo INSERT sin ID sale con id=1 y colisiona con el PK
+    # existente (SQLite no tiene sequences separadas, no aplica ahí).
+    if get_settings().DATABASE_URL.startswith("postgresql"):
+        for tabla in inspect(db.bind).get_table_names():
+            db.execute(text(
+                f"SELECT setval(pg_get_serial_sequence('{tabla}', 'id'), "
+                f"COALESCE((SELECT MAX(id) FROM {tabla}), 1), "
+                f"(SELECT MAX(id) FROM {tabla}) IS NOT NULL)"
+            ))
+        db.commit()
 
     logger.warning(
         "Seed completado. Usuarios: admin id=%s, depto-a id=%s, depto-b id=%s",
