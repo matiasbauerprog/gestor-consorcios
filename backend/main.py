@@ -50,6 +50,7 @@ from .routers import (
     usuarios,
 )
 from .seed import seed_if_empty
+from .seed_super_admin import seed as seed_super_admin
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -122,6 +123,8 @@ async def lifespan(_: FastAPI):
     if get_settings().SEED_ENABLED:
         with SessionLocal() as db:
             seed_if_empty(db)
+            if get_settings().SUPER_ADMIN_EMAIL and get_settings().SUPER_ADMIN_PASSWORD:
+                seed_super_admin(db)
     yield
 
 
