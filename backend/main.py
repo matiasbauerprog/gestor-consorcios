@@ -115,9 +115,10 @@ def _migrar_administracion_modulos() -> None:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
-    _migrar_usuario_activa()
-    _migrar_pk_periodos_cerrados()
-    _migrar_administracion_modulos()
+    if get_settings().DATABASE_URL.startswith("sqlite"):
+        _migrar_usuario_activa()
+        _migrar_pk_periodos_cerrados()
+        _migrar_administracion_modulos()
     if get_settings().SEED_ENABLED:
         with SessionLocal() as db:
             seed_if_empty(db)
