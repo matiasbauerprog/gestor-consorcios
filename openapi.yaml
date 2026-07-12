@@ -4314,6 +4314,11 @@ components:
         tasa_interes_mensual_pct: { type: number, format: float }
         caja_default_pagos_id: { type: integer, nullable: true }
         reportes_visibles_a_depto: { type: boolean }
+        modulos_habilitados:
+          type: array
+          items:
+            type: string
+          description: Módulos SaaS habilitados por el super_admin para la administración dueña.
         fecha_creacion: { type: string, format: date-time }
 
     ConsorcioCrear:
