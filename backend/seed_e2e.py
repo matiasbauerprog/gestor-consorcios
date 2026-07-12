@@ -357,6 +357,14 @@ def _caja_default(api, admin_token, cid):
 
 
 def main() -> None:
+    # Cargar .env local si existe (pydantic-settings carga solo cuando se
+    # instancia Settings, pero acá leemos os.environ antes de importar backend).
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass
+
     sa_email = os.environ.get("SUPER_ADMIN_EMAIL", "")
     sa_password = os.environ.get("SUPER_ADMIN_PASSWORD", "")
     seed_password = os.environ.get("SEED_E2E_PASSWORD", "")
