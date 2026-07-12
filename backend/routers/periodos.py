@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, require_roles
 from ..cierre import calcular_preview_cierre
 from ..database import get_db
-from ..email import enviar_email
+from ..mail_service import enviar_email
 from ..models import (
     Departamento,
     Expensa,
