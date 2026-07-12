@@ -136,6 +136,7 @@ app.add_middleware(ImpersonateAuditMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().cors_origins_list,
+    allow_origin_regex=get_settings().CORS_ORIGIN_REGEX or None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
