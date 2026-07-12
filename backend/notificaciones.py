@@ -9,7 +9,7 @@ Helper `crear_notificacion` reusable para cualquier evento futuro.
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .email import enviar_email
+from .mail_service import enviar_email
 from .models import EstadoPeticion, Notificacion, Peticion, Rol, Usuario
 
 
