@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <title>Gestor Consorcios — Software de administración de consorcios y expensas en Argentina</title>
+  <meta name="description" content="Liquidá expensas Ley 941 CABA, imputá cobros automáticamente y dales a los copropietarios su propio portal. Software de gestión de consorcios para administraciones de toda Argentina. Desde USD 1 por departamento.">
+  <meta name="keywords" content="administración de consorcios, software expensas, liquidación expensas Ley 941, gestión consorcios CABA, expensas Argentina, portal copropietarios">
+  <meta property="og:title" content="Gestor Consorcios — Cerrá el mes en una tarde">
+  <meta property="og:description" content="El sistema de gestión de consorcios que te devuelve la tranquilidad: expensas Ley 941, cobros que se imputan solos y un portal para los vecinos.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Lora:ital,wght@0,500;0,600;1,500&amp;display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: "Inter", system-ui, sans-serif; background: #F9F7F2; color: #1c1917; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+    a { color: #3460A8; text-decoration: none; }
+    a:hover { color: #2a4f8c; }
+    input, button, select { font-family: "Inter", system-ui, sans-serif; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* --- Responsive (mobile-first) --- */
+    html, body { overflow-x: hidden; max-width: 100%; }
+    img, svg { max-width: 100%; }
+    img { height: auto; }
+
+    /* Grillas: base = mobile (apilan), enhancement con min-width */
+    .dc-hero-grid   { display: grid; grid-template-columns: 1fr; gap: 32px; align-items: center; }
+
+    /* Permitir que los items del grid encojan por debajo de su min-content
+       (si no, el track se estira y el contenido desborda / se recorta) */
+    .dc-hero-grid > *, .dc-cards > *, .dc-pricing-grid > *, .dc-cta-grid > * { min-width: 0; }
+
+    /* Título del hero: fluido, sin desbordar en pantallas chicas */
+    .dc-hero-grid h1 { font-size: clamp(2rem, 8vw, 3.25rem); }
+
+    /* Widget de demo: el sidebar decorativo se oculta en mobile para dar
+       ancho completo al panel; el panel principal puede encoger */
+    .dc-demo-main  { min-width: 0; }
+    .dc-demo-aside { display: none; }
+    @media (min-width: 600px) { .dc-demo-aside { display: flex; } }
+    .dc-cards       { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    .dc-pricing-grid{ display: grid; grid-template-columns: 1fr; gap: 24px; }
+    .dc-cta-grid    { display: grid; grid-template-columns: 1fr; }
+    .dc-month-step  { display: grid; grid-template-columns: 52px 32px 1fr; gap: 12px; align-items: stretch; }
+
+    /* Links del nav: ocultos en mobile, visibles desde tablet */
+    .dc-nav-link { display: none; }
+
+    @media (min-width: 600px) {
+      .dc-cards        { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+      .dc-cta-grid     { grid-template-columns: 1fr 0.9fr; }
+      .dc-month-step   { grid-template-columns: 120px 44px 1fr; gap: 20px; }
+      .dc-nav-link     { display: inline; }
+    }
+
+    @media (min-width: 960px) {
+      .dc-hero-grid    { grid-template-columns: 1.05fr 0.95fr; gap: 56px; }
+      .dc-cards        { grid-template-columns: repeat(3, 1fr); gap: 24px; }
+      .dc-pricing-grid { grid-template-columns: 1.15fr 0.85fr; gap: 28px; }
+    }
+  </style>
+</helmet>
+
+<!-- NAVBAR -->
+
+
+<!-- HERO -->
+<header style="padding: 14px 0 10px; position: relative; overflow: hidden;">
+  <nav style="background: rgba(249,247,242,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid #eceae4; position: sticky; top: 0; z-index: 100; padding: 14px 0">
+  <div style="max-width: 1140px; margin: 0 auto; padding: 0 24px; display: flex; justify-content: space-between; align-items: center;">
+    <a href="#" style="display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; color: #1c1917;">
+      <img src="uploads/logo-comand.png" alt="Command" style="height: 30px; width: auto; display: block;">
+      <span style="display: none">Software integral para consorcios</span>
+    </a>
+    <div style="display: flex; align-items: center; gap: 22px;">
+      <a href="#un-mes" class="dc-nav-link" style="font-size: 14px; font-weight: 600; color: #78716c;" style-hover="color: #3460A8;">Cómo funciona</a>
+      <a href="#modulos" class="dc-nav-link" style="font-size: 14px; font-weight: 600; color: #78716c;" style-hover="color: #3460A8;">Módulos</a>
+      <a href="#precios" class="dc-nav-link" style="font-size: 14px; font-weight: 600; color: #78716c;" style-hover="color: #3460A8;">Precios</a>
+      <button onClick="{{ openModal }}" style="color: #fff; font-size: 14px; font-weight: 600; padding: 9px 20px; border-radius: 30px; min-height: 38px; display: inline-flex; align-items: center; border: none; cursor: pointer; background-color: #2D8F5E" style-hover="background: #2a4f8c;">Pedir una demo</button>
+    </div>
+  </div>
+</nav>
+  <!-- Franja de confianza -->
+  <div class="dc-hero-grid" style="max-width: 1180px; margin: 0 auto; padding: 0 24px; position: relative;">
+    
+
+    <!-- CARROUSEL DE MINI-DEMOS -->
+    <div style="display: flex; flex-direction: column; gap: 22px; animation: fadeUp 0.6s ease both;">
+      
+      <h1 style="font-family: 'Lora', Georgia, serif; font-weight: 600; line-height: 1.12; letter-spacing: -0.02em; text-wrap: balance; padding-top: 15px">Cerraste el mes,<br><em style="color: rgb(52, 96, 168);">dormí tranquilo</em></h1>
+      
+      <span style="font-size: 20px; font-weight: 800; color: #000000; text-align: left">Software integral para consorcios</span><p style="font-size: 18px; color: #57534e; max-width: 540px; text-wrap: pretty;">Cada expensa liquidada según Ley 941, cada cobro imputado a la deuda correcta, cada vecino mirando su saldo en su propio portal — sin que te suene el teléfono. Eso es administrar con el sistema de tu lado.</p><form onSubmit="{{ sendLead }}" style="background: #ffffff; border: 1px solid #e5e2da; border-radius: 14px; padding: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 10px; max-width: 520px;">
+        <sc-if value="{{ leadPending }}" hint-placeholder-val="{{ true }}">
+          <span style="font-size: 13px; font-weight: 700; color: #1c1917;">Contanos de tu edificio y te pasamos un presupuesto a la medida de tu consorcio</span>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <input value="{{ leadName }}" onChange="{{ setLeadName }}" placeholder="Tu nombre" style="flex: 1; min-width: 130px; border: 1px solid #e5e2da; border-radius: 8px; padding: 10px 12px; font-size: 14px; outline-color: #3460A8;">
+            <input value="{{ leadContact }}" onChange="{{ setLeadContact }}" placeholder="Email o WhatsApp" style="flex: 1.4; min-width: 170px; border: 1px solid #e5e2da; border-radius: 8px; padding: 10px 12px; font-size: 14px; outline-color: #3460A8;">
+          </div>
+          <button type="submit" style="background: #C0443C; color: #fff; border: none; font-size: 15px; font-weight: 600; padding: 12px 24px; border-radius: 30px; cursor: pointer; min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%;" style-hover="background: #a83a33; box-shadow: 0 4px 12px rgba(192,68,60,0.25);">Quiero que me contacten →</button>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="flex: 1; height: 1px; background: #eceae4;"></span>
+            <span style="font-size: 12px; color: #a8a29e; font-weight: 600;">o</span>
+            <span style="flex: 1; height: 1px; background: #eceae4;"></span>
+          </div>
+          <a href="{{ waLink }}" target="_blank" style="color: #ffffff; font-size: 15px; font-weight: 600; padding: 12px 22px; border-radius: 30px; min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; background-color: #2D8F5E" style-hover="background: #24734c; box-shadow: 0 4px 12px rgba(45,143,94,0.25);">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.49s1.07 2.89 1.22 3.09c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.7.63.71.23 1.36.2 1.87.12.57-.08 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.13-.28-.2-.58-.35zM12.05 21.79h-.01a9.8 9.8 0 0 1-5-1.37l-.36-.21-3.72.98.99-3.63-.23-.37a9.77 9.77 0 0 1-1.5-5.21c0-5.4 4.4-9.8 9.82-9.8a9.75 9.75 0 0 1 9.8 9.81c0 5.4-4.4 9.8-9.8 9.8zm8.34-18.14A11.7 11.7 0 0 0 12.04 0C5.46 0 .1 5.35.1 11.93c0 2.1.55 4.16 1.6 5.97L0 24l6.25-1.64a11.93 11.93 0 0 0 5.79 1.47c6.58 0 11.94-5.35 11.94-11.93 0-3.19-1.24-6.19-3.5-8.44z"></path></svg>
+              Escribinos por WhatsApp
+            </a>
+        </sc-if>
+        <sc-if value="{{ leadSent }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 6px 0;">
+            <span style="background: rgba(45,143,94,0.15); color: #2D8F5E; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700;">✓</span>
+            <div>
+              <div style="font-size: 15px; font-weight: 700;">¡Listo, {{ leadNameShown }}!</div>
+              <div style="font-size: 13px; color: #78716c;">Te contactamos en el día para coordinar una demo con tus números reales.</div>
+            </div>
+          </div>
+        </sc-if>
+      </form>
+      <!-- Lead capture -->
+      
+    </div><div style="position: relative; animation: fadeUp 0.6s 0.15s ease both;">
+      
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; position: relative; justify-content: center">
+        
+        
+      </div>
+      
+
+      <div style="display: flex; background: #ffffff; border: 1px solid #e5e2da; border-radius: 12px; padding: 4px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); gap: 2px; flex-wrap: wrap; position: relative;">
+        <sc-for list="{{ demoTabs }}" as="tab" hint-placeholder-count="3">
+          <button onClick="{{ tab.onSelect }}" style="background: {{ tab.bg }}; color: {{ tab.color }}; border: none; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; transition: background 0.15s, color 0.15s;">
+            <span style="display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; background: {{ tab.numBg }}; color: {{ tab.numColor }}; border-radius: 50%; font-size: 10px; font-weight: 700;">{{ tab.num }}</span>
+            {{ tab.label }}
+          </button>
+        </sc-for>
+      </div><div style="background: #ffffff; border-radius: 14px; border: 1px solid #e5e2da; box-shadow: 0 20px 40px rgba(0,0,0,0.08); overflow: hidden; position: relative;">
+        
+        <div style="background: #F9F7F2; min-height: 420px; display: flex; flex-direction: column; text-align: left;">
+          <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; border-bottom: 1px solid #eceae4; padding: 6px 12px; min-height: 38px; font-size: 12px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-weight: 700; color: #3460A8;">Edificio Libertad</span>
+              <span style="color: #e5e2da;">|</span>
+              <span style="font-size: 10px; background: #e9eff8; color: #3460A8; padding: 2px 5px; border-radius: 4px; font-weight: 600;">UF: 6</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; color: #78716c;">
+              
+              <span style="font-size: 10px; background: rgba(45,143,94,0.15); color: #2D8F5E; padding: 2px 5px; border-radius: 4px; font-weight: 600;">Admin</span>
+            </div>
+          </div>
+          <div style="display: flex; flex: 1; min-height: 0;">
+            <aside class="dc-demo-aside" style="width: 138px; background: #F9F7F2; border-right: 1px solid #eceae4; padding: 8px 0; display: flex; flex-direction: column; gap: 7px; flex-shrink: 0;">
+              <span style="font-size: 12px; font-weight: 700; padding: 0 8px 4px;">Gestor Consorcios</span>
+              <sc-for list="{{ sideSections }}" as="sec" hint-placeholder-count="3">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <span style="font-size: 9px; font-weight: 600; text-transform: uppercase; color: #78716c; padding: 4px 8px; letter-spacing: 0.05em;">{{ sec.group }}</span>
+                  <a onClick="{{ sec.onSelect }}" style="font-size: 12px; padding: 5px 8px; color: {{ sec.color }}; background: {{ sec.bg }}; font-weight: {{ sec.weight }}; display: block; cursor: pointer; border-radius: 4px; margin: 0 4px;">{{ sec.label }}</a>
+                </div>
+              </sc-for>
+            </aside>
+            <main class="dc-demo-main" style="flex: 1; padding: 12px; background: #ffffff; display: flex; flex-direction: column;">
+
+              <sc-if value="{{ showSlide0 }}" hint-placeholder-val="{{ true }}">
+                <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; flex-direction: column;">
+                      <span style="font-size: 12px; font-weight: 700;">Cuenta corriente · UF-01A</span>
+                      <span style="font-size: 9px; color: #78716c;">Piso 1, letra A · Carlos G.</span>
+                    </div>
+                    <span style="font-size: 10px; color: #78716c; font-style: italic;">{{ fifoStatus }}</span>
+                  </div>
+                  <div style="background: #fff; border: 1px solid #eceae4; border-left: 3px solid {{ balanceBorder }}; padding: 8px 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; flex-direction: column;">
+                      <span style="font-size: 9px; font-weight: 600; color: #78716c; text-transform: uppercase; letter-spacing: 0.04em;">Saldo</span>
+                      <strong style="font-size: 16px; color: {{ balanceColor }};">{{ balanceText }}</strong>
+                    </div>
+                    <span style="font-size: 9px; padding: 2px 7px; border-radius: 999px; font-weight: 600; background: {{ balanceBadgeBg }}; color: {{ balanceBadgeColor }};">{{ balanceBadge }}</span>
+                  </div>
+                  <div style="display: flex; flex-direction: column; flex: 1; background: #fff; border: 1px solid #eceae4; border-radius: 8px; overflow: hidden;">
+                    <div style="display: grid; grid-template-columns: 50px 1fr 78px; gap: 6px; padding: 5px 8px; background: #F9F7F2; border-bottom: 1px solid #eceae4; font-size: 9px; font-weight: 600; color: #78716c; text-transform: uppercase; letter-spacing: 0.04em;">
+                      <span>Fecha</span><span>Concepto</span><span style="text-align: right;">Monto</span>
+                    </div>
+                    <sc-for list="{{ fifoRows }}" as="row" hint-placeholder-count="3">
+                      <div style="display: grid; grid-template-columns: 50px 1fr 78px; gap: 6px; padding: 7px 8px; border-bottom: 1px solid #eceae4; align-items: center; background: {{ row.bg }}; transition: background 0.4s;">
+                        <span style="font-size: 10px; color: #78716c;">{{ row.fecha }}</span>
+                        <div style="min-width: 0;">
+                          <div style="font-size: 11px; font-weight: 600;">{{ row.concepto }}</div>
+                          <div style="font-size: 9px; color: #78716c;">{{ row.detail }}</div>
+                        </div>
+                        <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
+                          <strong style="font-size: 11px; color: #C0443C;">{{ row.monto }}</strong>
+                          <span style="font-size: 8px; padding: 1px 5px; border-radius: 999px; font-weight: 600; background: {{ row.badgeBg }}; color: {{ row.badgeColor }};">{{ row.badge }}</span>
+                        </div>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <div style="display: flex; gap: 8px; align-items: center; background: #e9eff8; padding: 7px 9px; border-radius: 8px; margin-top: auto;">
+                    <div style="display: flex; flex-direction: column; flex: 1;">
+                      <label style="font-size: 9px; color: #3460A8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;">Registrar pago</label>
+                      <input type="number" value="{{ fifoInput }}" onChange="{{ setFifoInput }}" disabled="{{ fifoRunning }}" style="font-size: 14px; font-weight: 700; border: none; outline: none; background: transparent; width: 100%; color: #3460A8;">
+                    </div>
+                    <sc-if value="{{ fifoIdle }}" hint-placeholder-val="{{ true }}">
+                      <button onClick="{{ runFifo }}" style="min-height: 30px; padding: 0 14px; font-size: 11px; border-radius: 15px; background: #3460A8; color: #fff; border: none; cursor: pointer; font-weight: 600;">Imputar</button>
+                    </sc-if>
+                    <sc-if value="{{ fifoDone }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ resetFifo }}" style="min-height: 30px; padding: 0 14px; font-size: 11px; border-radius: 15px; background: transparent; border: 1px solid #e5e2da; color: #1c1917; cursor: pointer; font-weight: 600;">Reset</button>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ showSlide1 }}" hint-placeholder-val="{{ false }}">
+                <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; flex-direction: column;">
+                      <span style="font-size: 12px; font-weight: 700;">Cierre de período · Julio 2026</span>
+                      <span style="font-size: 9px; color: #78716c;">Vista previa · Ley 941 CABA</span>
+                    </div>
+                    <span style="font-size: 9px; padding: 2px 7px; border-radius: 999px; font-weight: 600; background: rgba(45,143,94,0.15); color: #2D8F5E;">✓ Listo</span>
+                  </div>
+                  <div style="background: #fff; border: 1px solid #eceae4; border-radius: 8px; padding: 7px 9px; display: flex; flex-direction: column; gap: 4px;">
+                    <span style="font-size: 9px; font-weight: 600; color: #78716c; text-transform: uppercase; letter-spacing: 0.04em;">Validaciones</span>
+                    <span style="font-size: 10px;"><strong style="color: #2D8F5E;">✓</strong> Gastos del período cargados (11)</span>
+                    <span style="font-size: 10px;"><strong style="color: #2D8F5E;">✓</strong> Coeficientes de prorrateo suman 100%</span>
+                    <span style="font-size: 10px;"><strong style="color: #2D8F5E;">✓</strong> Sin conflictos con períodos anteriores</span>
+                  </div>
+                  <div style="background: #F9F7F2; border: 1px solid #eceae4; padding: 7px 9px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; flex-direction: column;">
+                      <span style="font-size: 9px; font-weight: 600; color: #78716c; text-transform: uppercase; letter-spacing: 0.04em;">Total a expensar</span>
+                      <input type="number" value="{{ proTotal }}" onChange="{{ setProTotal }}" style="font-size: 15px; font-weight: 700; border: none; outline: none; background: transparent; width: 110px; color: #3460A8;">
+                    </div>
+                    <div style="display: flex; gap: 4px;">
+                      <sc-for list="{{ proPresets }}" as="p" hint-placeholder-count="3">
+                        <button onClick="{{ p.onSet }}" style="padding: 4px 8px; border: 1px solid #e5e2da; background: #fff; border-radius: 4px; cursor: pointer; font-size: 9px; font-weight: 600;">{{ p.label }}</button>
+                      </sc-for>
+                    </div>
+                  </div>
+                  <div style="display: flex; flex-direction: column; flex: 1; background: #fff; border: 1px solid #eceae4; border-radius: 8px; overflow: hidden;">
+                    <div style="display: grid; grid-template-columns: 1fr 60px 86px; gap: 6px; padding: 5px 8px; background: #F9F7F2; border-bottom: 1px solid #eceae4; font-size: 9px; font-weight: 600; color: #78716c; text-transform: uppercase; letter-spacing: 0.04em;">
+                      <span>UF</span><span style="text-align: right;">Coef.</span><span style="text-align: right;">A pagar</span>
+                    </div>
+                    <sc-for list="{{ proRows }}" as="row" hint-placeholder-count="3">
+                      <div style="display: grid; grid-template-columns: 1fr 60px 86px; gap: 6px; padding: 6px 8px; border-bottom: 1px solid #eceae4; align-items: center; font-size: 11px;">
+                        <div>
+                          <div style="font-weight: 600;">{{ row.uf }}</div>
+                          <div style="font-size: 9px; color: #78716c;">{{ row.owner }}</div>
+                        </div>
+                        <span style="text-align: right; color: #78716c; font-size: 10px;">{{ row.coef }}</span>
+                        <strong style="text-align: right; color: #3460A8;">{{ row.amount }}</strong>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <span style="font-size: 9px; color: #78716c; font-style: italic;">Cambiá el total y mirá cómo se recalculan las boletas al instante.</span>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ showSlide2 }}" hint-placeholder-val="{{ false }}">
+                <div style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; flex-direction: column;">
+                      <span style="font-size: 12px; font-weight: 700;">Reservas</span>
+                      <span style="font-size: 9px; color: #78716c;">Portal del copropietario · UF-02A</span>
+                    </div>
+                    <span style="font-size: 10px; color: #78716c;">Sáb 11/07</span>
+                  </div>
+                  <div style="display: flex; gap: 4px;">
+                    <span style="padding: 4px 9px; border: 1px solid #3460A8; background: #e9eff8; color: #3460A8; border-radius: 12px; font-size: 10px; font-weight: 600;">SUM</span>
+                    <span style="padding: 4px 9px; border: 1px solid #e5e2da; background: #fff; color: #78716c; border-radius: 12px; font-size: 10px;">Parrilla</span>
+                    <span style="padding: 4px 9px; border: 1px solid #e5e2da; background: #fff; color: #78716c; border-radius: 12px; font-size: 10px;">Laundry</span>
+                  </div>
+                  <div style="background: #F9F7F2; border: 1px solid #eceae4; border-radius: 8px; padding: 6px 9px; font-size: 10px; color: #78716c; display: flex; justify-content: space-between;">
+                    <span>Capacidad: <strong style="color: #1c1917;">40 personas</strong></span>
+                    <span>Cancel. mín.: <strong style="color: #1c1917;">48 hs</strong></span>
+                  </div>
+                  <div style="display: flex; flex-direction: column; gap: 6px; flex: 1;">
+                    <span style="font-size: 9px; font-weight: 600; color: #78716c; text-transform: uppercase; letter-spacing: 0.04em;">Turnos del sábado</span>
+                    <div style="background: #fff; border: 1px solid #eceae4; border-left: 3px solid #C0443C; padding: 7px 9px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                      <div>
+                        <div style="font-size: 12px; font-weight: 600;">12:00 – 18:00</div>
+                        <div style="font-size: 9px; color: #78716c;">Reservado por UF-03A (Elena R.)</div>
+                      </div>
+                      <span style="font-size: 9px; padding: 2px 7px; border-radius: 999px; font-weight: 600; background: rgba(192,68,60,0.1); color: #C0443C;">Ocupado</span>
+                    </div>
+                    <div style="background: {{ resRowBg }}; border: 1px solid #eceae4; border-left: 3px solid {{ resRowBorder }}; padding: 7px 9px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; transition: all 0.4s;">
+                      <div>
+                        <div style="font-size: 12px; font-weight: 600;">19:00 – 00:00</div>
+                        <div style="font-size: 9px; color: #78716c;">{{ resDetail }}</div>
+                      </div>
+                      <span style="font-size: 9px; padding: 2px 7px; border-radius: 999px; font-weight: 600; background: {{ resBadgeBg }}; color: {{ resBadgeColor }};">{{ resBadge }}</span>
+                    </div>
+                  </div>
+                  <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: auto;">
+                    <sc-if value="{{ resAvailable }}" hint-placeholder-val="{{ true }}">
+                      <button onClick="{{ bookRes }}" style="min-height: 30px; font-size: 11px; padding: 0 14px; border-radius: 15px; background: #3460A8; color: #fff; border: none; cursor: pointer; font-weight: 600;">Reservar 19:00 – 00:00</button>
+                    </sc-if>
+                    <sc-if value="{{ resBooked }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ cancelRes }}" style="min-height: 30px; font-size: 11px; padding: 0 12px; border-radius: 15px; background: transparent; border: 1px solid #e5e2da; color: #1c1917; cursor: pointer; font-weight: 600;">Cancelar</button>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-if>
+
+            </main>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><ul style="list-style: none; border-top: 1px solid #eceae4; border-bottom: 1px solid #eceae4; margin-top: 2.5rem; padding: 20px 24px; display: flex; justify-content: center; align-items: center; gap: 20px 48px; flex-wrap: wrap;">
+      <li style="display: flex; align-items: center; gap: 10px; font-size: 15px;">
+        <span style="background: #e9eff8; color: #3460A8; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; font-size: 12px;">✔</span>
+        <strong>Liquidación Ley 941 CABA</strong>
+      </li>
+      <li style="display: flex; align-items: center; gap: 10px; font-size: 15px;">
+        <span style="background: #e9eff8; color: #3460A8; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; font-size: 12px;">✔</span>
+        <strong>Cobros con cuenta corriente</strong>
+      </li>
+      <li style="display: flex; align-items: center; gap: 10px; font-size: 15px;">
+        <span style="background: #e9eff8; color: #3460A8; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; font-size: 12px;">✔</span>
+        <strong>Portal para copropietarios</strong>
+      </li>
+    </ul><div style="max-width: 1180px; margin: 56px auto 0; padding: 0 24px;">
+    
+  </div>
+</header>
+
+<!-- DOLORES -->
+<section id="dolores" style="padding: 80px 0; background: #ffffff; border-top: 1px solid #eceae4; border-bottom: 1px solid #eceae4;">
+  <div style="max-width: 1140px; margin: 0 auto; padding: 0 24px;">
+    <div style="text-align: center; margin-bottom: 48px; display: flex; flex-direction: column; gap: 10px; align-items: center;">
+
+      <h2 style="font-family: 'Lora', Georgia, serif; font-size: 34px; font-weight: 600; letter-spacing: -0.02em; max-width: 640px; text-wrap: balance;">¿Administrás consorcios?<br><span style="font-size: 12px; font-weight: 700; color: rgb(192, 68, 60); text-transform: uppercase; letter-spacing: 0.09em; font-family: Inter, system-ui, sans-serif;"><i style="font-size: 20px">ESTO TE PUEDE SONAR FAMILIAR</i></span></h2>
+    </div>
+    <div class="dc-cards">
+      <article style="background: #F9F7F2; border: 1px solid #eceae4; padding: 26px; border-radius: 14px; display: flex; flex-direction: column; gap: 10px; align-self: auto; justify-content: space-between">
+        <h3 style="font-size: 16px; font-weight: 700; text-align: center">Cobros que no cuadran</h3>
+        <span style="font-family: 'Lora', Georgia, serif; font-style: italic; font-size: 17px; color: #C0443C; text-align: center">"Me pagó $30.000 a cuenta… ¿de qué mes era?"</span><p style="font-size: 14px; color: #57534e; line-height: 1.55;">Un vecino paga de más, otro la mitad. Imputar a mano genera diferencias que aparecen recién en el cierre — cuando ya es tarde y hay que rehacer todo.</p>
+      </article>
+      <article style="background: #F9F7F2; border: 1px solid #eceae4; padding: 26px; border-radius: 14px; display: flex; flex-direction: column; gap: 10px; align-self: auto; justify-content: space-between">
+        <h3 style="font-size: 16px; font-weight: 700; text-align: center">Cierres y más cierres</h3><span style="font-family: 'Lora', Georgia, serif; font-style: italic; font-size: 17px; color: #C0443C;">"El fin de semana del cierre no existo"</span><p style="font-size: 14px; color: #57534e; line-height: 1.55;">Prorratear por rubro, armar la liquidación de cada UF según Ley 941, generar comprobantes… multiplicalo por cada edificio de tu cartera.</p>
+      </article>
+      <article style="background: #F9F7F2; border: 1px solid #eceae4; padding: 26px; border-radius: 14px; display: flex; flex-direction: column; gap: 10px; align-self: auto">
+        <h3 style="font-size: 16px; font-weight: 700; text-align: center">El teléfono que no para</h3><span style="font-family: 'Lora', Georgia, serif; font-style: italic; font-size: 17px; color: #C0443C; text-align: center">"¿Me pasás mi saldo? ¿Y el comprobante? ¿Está libre el SUM?"</span>
+        <p style="font-size: 14px; color: #57534e; line-height: 1.55;">Cada consulta que hoy te llega por WhatsApp es algo que el vecino podría ver solo, en el momento, desde su portal. Vos no sos la mesa de ayuda.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- UN MES EN LA VIDA -->
+<section id="un-mes" style="padding: 80px 0; background: #F9F7F2;">
+  <div style="max-width: 1000px; margin: 0 auto; padding: 0 24px;">
+    <div style="text-align: center; margin-bottom: 52px; display: flex; flex-direction: column; gap: 10px; align-items: center;">
+      <span style="font-size: 12px; font-weight: 700; color: #3460A8; text-transform: uppercase; letter-spacing: 0.09em;">Un mes en la vida de tu administración</span>
+      <h2 style="font-family: 'Lora', Georgia, serif; font-size: 34px; font-weight: 600; letter-spacing: -0.02em; max-width: 620px; text-wrap: balance;">Así es cuando el sistema trabaja para vos</h2>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 0;">
+      <sc-for list="{{ monthSteps }}" as="step" hint-placeholder-count="4">
+        <div class="dc-month-step">
+          <div style="text-align: right; padding-top: 4px;">
+            <span style="font-size: 12px; font-weight: 700; color: #3460A8; text-transform: uppercase; letter-spacing: 0.06em;">{{ step.when }}</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center;">
+            <span style="width: 40px; height: 40px; border-radius: 50%; background: {{ step.dotBg }}; color: {{ step.dotColor }}; display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; border: 1px solid #e5e2da;">{{ step.icon }}</span>
+            <span style="width: 2px; flex: 1; background: #e5e2da; display: {{ step.lineDisplay }};"></span>
+          </div>
+          <div style="padding-bottom: 36px;">
+            <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 6px;">{{ step.title }}</h3>
+            <p style="font-size: 15px; color: #57534e; line-height: 1.6; max-width: 560px; text-wrap: pretty;">{{ step.text }}</p>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="text-align: center; margin-top: 12px;">
+      
+    <span style="font-family: 'Lora', Georgia, serif; font-style: italic; font-size: 19px; color: #3460A8;">El mes que viene igual. Sin sorpresas&nbsp;</span></div>
+  </div>
+</section>
+
+<!-- MODULOS -->
+<section id="modulos" style="padding: 80px 0; background: #ffffff; border-top: 1px solid #eceae4; border-bottom: 1px solid #eceae4;">
+  <div style="max-width: 1140px; margin: 0 auto; padding: 0 24px;">
+    <div style="text-align: center; margin-bottom: 48px; display: flex; flex-direction: column; gap: 10px; align-items: center;">
+      <span style="font-size: 12px; font-weight: 700; color: #3460A8; text-transform: uppercase; letter-spacing: 0.09em;">Todo en una plataforma</span>
+      <h2 style="font-family: 'Lora', Georgia, serif; font-size: 34px; font-weight: 600; letter-spacing: -0.02em;">Los módulos que una administración moderna necesita.</h2>
+      <p style="font-size: 15px; color: #78716c; max-width: 560px;">Activás solo lo que usás. Cada módulo que no uses se descuenta del precio del servicio.&nbsp;</p>
+    </div>
+    <div class="dc-cards">
+      <sc-for list="{{ modules }}" as="mod" hint-placeholder-count="6">
+        <article style="background: #ffffff; border: 1px solid #eceae4; border-radius: 14px; padding: 28px; display: flex; flex-direction: column; gap: 12px; transition: all 0.25s;" style-hover="border-color: #e9eff8; box-shadow: 0 10px 30px rgba(0,0,0,0.05); transform: translateY(-2px);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <span style="background: #e9eff8; color: #3460A8; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px;">{{ mod.icon }}</span>
+            <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 9px; border-radius: 999px; background: {{ mod.tagBg }}; color: {{ mod.tagColor }};">{{ mod.tag }}</span>
+          </div>
+          <h3 style="font-size: 18px; font-weight: 700; letter-spacing: -0.02em;">{{ mod.title }}</h3>
+          <p style="font-size: 14px; color: #57534e; line-height: 1.55; flex: 1;">{{ mod.text }}</p>
+        </article>
+      </sc-for>
+    </div>
+  </div>
+</section>
+
+<!-- EXCEL VS GESTOR -->
+
+
+<!-- PRICING -->
+<section id="precios" style="padding: 80px 0; background: #ffffff; border-top: 1px solid #eceae4;">
+  <div style="max-width: 1000px; margin: 0 auto; padding: 0 24px;">
+    <div style="text-align: center; margin-bottom: 44px; display: flex; flex-direction: column; gap: 10px; align-items: center;">
+      <span style="font-size: 12px; font-weight: 700; color: #3460A8; text-transform: uppercase; letter-spacing: 0.09em;">PRICING</span>
+      <h2 style="font-family: 'Lora', Georgia, serif; font-size: 34px; font-weight: 600; letter-spacing: -0.02em;">Un servicio a medida</h2>
+      <p style="font-size: 15px; color: #78716c; max-width: 560px;">De USD 1 a USD 2 por departamento/mes, según los módulos que actives.</p>
+    </div>
+    <div class="dc-pricing-grid" style="justify-content: flex-start">
+      <div style="background: #F9F7F2; border: 1px solid #eceae4; border-radius: 14px; padding: 30px; display: flex; flex-direction: column; gap: 22px;">
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <label style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #78716c;">Departamentos en tu cartera</label>
+            <strong style="font-size: 22px; color: #3460A8;">{{ ufs }}</strong>
+          </div>
+          
+          <input type="range" min="10" max="500" step="10" value="{{ ufs }}" onChange="{{ setUfs }}" style="width: 100%; accent-color: #3460A8; cursor: pointer;"><div style="display: flex; justify-content: space-between; font-size: 11px; color: #a8a29e;"><span>10</span><span>500</span></div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #78716c;">Base incluida · USD 1 por depto</label>
+          <span style="font-size: 13px; color: #57534e; line-height: 1.5;">Expensas Ley 941 · Cuentas corrientes con imputación automática · Padrón y coeficientes · Gastos y proveedores</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #78716c;">Módulos opcionales · +USD 0,25 c/u</label>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <sc-for list="{{ addons }}" as="ad" hint-placeholder-count="4">
+              <button onClick="{{ ad.onToggle }}" style="display: flex; justify-content: space-between; align-items: center; background: {{ ad.bg }}; border: 1px solid {{ ad.border }}; border-radius: 10px; padding: 11px 14px; cursor: pointer; text-align: left; transition: all 0.15s; width: 100%; min-height: 44px;">
+                <span style="display: flex; align-items: center; gap: 10px;">
+                  <span style="width: 20px; height: 20px; border-radius: 6px; border: 2px solid {{ ad.checkBorder }}; background: {{ ad.checkBg }}; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0;">{{ ad.check }}</span>
+                  <span style="font-size: 14px; font-weight: 600; color: #1c1917;">{{ ad.label }}</span>
+                </span>
+                <span style="font-size: 12px; color: #78716c; font-weight: 600;">+USD 0,25</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      <div style="background: #3460A8; color: #fff; border-radius: 14px; padding: 32px; display: flex; flex-direction: column; gap: 18px; box-shadow: 0 20px 40px rgba(52,96,168,0.25); position: sticky; top: 90px; text-align: left; justify-content: center; align-items: stretch">
+        <span style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.7);">Tu estimación</span>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <div style="display: flex; align-items: baseline; gap: 8px;">
+            <strong style="font-size: 46px; letter-spacing: -0.03em;">{{ monthlyTotal }}</strong>
+            <span style="font-size: 15px; color: rgba(255,255,255,0.75);">/ mes</span>
+          </div>
+          <span style="font-size: 14px; color: rgba(255,255,255,0.85);">{{ perUfText }} por departamento · {{ ufs }} deptos</span>
+        </div>
+        <div style="height: 1px; background: rgba(255,255,255,0.2);"></div>
+        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: rgba(255,255,255,0.9);">
+          <span>✓ Consorcios y usuarios ilimitados</span>
+          <span>✓ Portal de copropietarios incluido</span>
+          <span>✓ Soporte de persona a persona</span>
+          <span>✓ Sin permanencia mínima</span>
+        </div>
+        <a href="#contacto" style="background: #FFE100; color: #1c1917; font-size: 15px; font-weight: 700; padding: 13px 24px; border-radius: 30px; text-align: center; min-height: 46px; display: inline-flex; align-items: center; justify-content: center;" style-hover="background: #f0d400;">Quiero este precio →</a>
+        
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA FINAL -->
+<section id="contacto" style="padding: 80px 0; background: #F9F7F2;">
+  <div style="max-width: 1000px; margin: 0 auto; padding: 0 24px;">
+    <div class="dc-cta-grid" style="background: #1c1917; color: #fff; border-radius: 18px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.15);">
+      <div style="padding: 48px 44px; display: flex; flex-direction: column; gap: 18px; justify-content: center;">
+        <h2 style="font-family: 'Lora', Georgia, serif; font-size: 32px; font-weight: 600; letter-spacing: -0.02em; text-wrap: balance;">El próximo cierre puede ser distinto.</h2>
+        <p style="font-size: 15px; color: #a8a29e; line-height: 1.6; text-wrap: pretty;">Dejanos tu contacto y coordinamos una demo con un consorcio de prueba: 60 UFs, seis meses de gastos y expensas ya emitidas. En 20 minutos sabés si es para vos.</p>
+        <form onSubmit="{{ sendLead2 }}" style="display: flex; flex-direction: column; gap: 10px;">
+          <sc-if value="{{ lead2Pending }}" hint-placeholder-val="{{ true }}">
+            <input value="{{ lead2Contact }}" onChange="{{ setLead2Contact }}" placeholder="Tu email o WhatsApp" style="border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.08); color: #fff; border-radius: 10px; padding: 13px 16px; font-size: 15px; outline: none;">
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+              <button type="submit" style="background: #C0443C; color: #fff; border: none; font-size: 15px; font-weight: 600; padding: 13px 26px; border-radius: 30px; cursor: pointer; min-height: 48px;" style-hover="background: #a83a33;">Coordinar mi demo</button>
+              <a href="{{ waLink }}" target="_blank" style="background: #2D8F5E; color: #ffffff; font-size: 15px; font-weight: 600; padding: 13px 22px; border-radius: 30px; min-height: 48px; display: inline-flex; align-items: center; gap: 8px;" style-hover="background: #24734c;">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.49s1.07 2.89 1.22 3.09c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.7.63.71.23 1.36.2 1.87.12.57-.08 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.13-.28-.2-.58-.35zM12.05 21.79h-.01a9.8 9.8 0 0 1-5-1.37l-.36-.21-3.72.98.99-3.63-.23-.37a9.77 9.77 0 0 1-1.5-5.21c0-5.4 4.4-9.8 9.82-9.8a9.75 9.75 0 0 1 9.8 9.81c0 5.4-4.4 9.8-9.8 9.8zm8.34-18.14A11.7 11.7 0 0 0 12.04 0C5.46 0 .1 5.35.1 11.93c0 2.1.55 4.16 1.6 5.97L0 24l6.25-1.64a11.93 11.93 0 0 0 5.79 1.47c6.58 0 11.94-5.35 11.94-11.93 0-3.19-1.24-6.19-3.5-8.44z"></path></svg>
+                WhatsApp directo
+              </a>
+            </div>
+          </sc-if>
+          <sc-if value="{{ lead2Sent }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; align-items: center; gap: 12px; background: rgba(45,143,94,0.2); border: 1px solid rgba(45,143,94,0.4); border-radius: 10px; padding: 14px 16px;">
+              <span style="font-size: 18px;">✓</span>
+              <span style="font-size: 14px;">¡Recibido! Te escribimos en el día para coordinar.</span>
+            </div>
+          </sc-if>
+        </form>
+      </div>
+      <div style="position: relative; min-height: 320px;">
+        <img src="assets/consorcio_hero.png" alt="Edificio administrado con Gestor Consorcios" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;">
+        <div style="position: absolute; inset: 0; background: linear-gradient(90deg, #1c1917 0%, rgba(28,25,23,0) 45%);"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer style="background: #1c1917; color: #a8a29e; padding: 56px 0 44px; font-size: 13px;">
+  <div style="max-width: 1140px; margin: 0 auto; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 24px;">
+    <a href="#" style="color: #ffffff; font-weight: 700; font-size: 17px; display: flex; align-items: center; gap: 9px;">
+      <img src="uploads/logo-comand.png" alt="Command" style="height: 24px; width: auto; display: block; filter: brightness(0) invert(1);">
+      <span>Gestor Consorcios</span>
+    </a>
+    <div style="display: flex; gap: 20px;">
+      <a href="#un-mes" style="color: #a8a29e;" style-hover="color: #fff;">Cómo funciona</a>
+      <a href="#precios" style="color: #a8a29e;" style-hover="color: #fff;">Precios</a>
+      <a href="#contacto" style="color: #a8a29e;" style-hover="color: #fff;">Contacto</a>
+    </div>
+    <div><span style="color: rgb(255, 255, 255); font-weight: 500;">© 2024 Gestor Consorcios.</span> Un producto de Command Soluciones.</div>
+  </div>
+</footer>
+
+<!-- MODAL PEDIR DEMO -->
+<sc-if value="{{ showModal }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeModal }}" style="position: fixed; inset: 0; background: rgba(28,25,23,0.5); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px;">
+    <div onClick="{{ stopClick }}" style="background: #ffffff; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); max-width: 440px; width: 100%; padding: 32px; position: relative; display: flex; flex-direction: column; gap: 16px; animation: fadeUp 0.25s ease both;">
+      <button onClick="{{ closeModal }}" aria-label="Cerrar" style="position: absolute; top: 14px; right: 14px; background: transparent; border: none; font-size: 20px; color: #78716c; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;" style-hover="background: #F9F7F2; color: #1c1917;">×</button>
+      <sc-if value="{{ modalPending }}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <h3 style="font-family: 'Lora', Georgia, serif; font-size: 24px; font-weight: 600; letter-spacing: -0.02em;">Coordinemos una demo</h3>
+          <p style="font-size: 14px; color: #78716c;">Dejanos tu contacto y te escribimos en el día — o hablemos directamente por WhatsApp.</p>
+        </div>
+        <form onSubmit="{{ sendModal }}" style="display: flex; flex-direction: column; gap: 10px;">
+          <input value="{{ modalName }}" onChange="{{ setModalName }}" placeholder="Tu nombre" style="border: 1px solid #e5e2da; border-radius: 8px; padding: 12px 14px; font-size: 14px; outline-color: #3460A8;">
+          <input value="{{ modalContact }}" onChange="{{ setModalContact }}" placeholder="Email o WhatsApp" style="border: 1px solid #e5e2da; border-radius: 8px; padding: 12px 14px; font-size: 14px; outline-color: #3460A8;">
+          <button type="submit" style="background: #C0443C; color: #fff; border: none; font-size: 15px; font-weight: 600; padding: 13px 24px; border-radius: 30px; cursor: pointer; min-height: 48px;" style-hover="background: #a83a33; box-shadow: 0 4px 12px rgba(192,68,60,0.25);">Quiero que me contacten →</button>
+        </form>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="flex: 1; height: 1px; background: #eceae4;"></span>
+          <span style="font-size: 12px; color: #a8a29e; font-weight: 600;">o</span>
+          <span style="flex: 1; height: 1px; background: #eceae4;"></span>
+        </div>
+        <a href="{{ waLink }}" target="_blank" style="background: #2D8F5E; color: #ffffff; font-size: 15px; font-weight: 600; padding: 13px 24px; border-radius: 30px; min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;" style-hover="background: #24734c; box-shadow: 0 4px 12px rgba(45,143,94,0.25);">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.49s1.07 2.89 1.22 3.09c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.7.63.71.23 1.36.2 1.87.12.57-.08 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.13-.28-.2-.58-.35zM12.05 21.79h-.01a9.8 9.8 0 0 1-5-1.37l-.36-.21-3.72.98.99-3.63-.23-.37a9.77 9.77 0 0 1-1.5-5.21c0-5.4 4.4-9.8 9.82-9.8a9.75 9.75 0 0 1 9.8 9.81c0 5.4-4.4 9.8-9.8 9.8zm8.34-18.14A11.7 11.7 0 0 0 12.04 0C5.46 0 .1 5.35.1 11.93c0 2.1.55 4.16 1.6 5.97L0 24l6.25-1.64a11.93 11.93 0 0 0 5.79 1.47c6.58 0 11.94-5.35 11.94-11.93 0-3.19-1.24-6.19-3.5-8.44z"></path></svg>
+          Escribinos por WhatsApp
+        </a>
+      </sc-if>
+      <sc-if value="{{ modalSent }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 18px 0; text-align: center;">
+          <span style="background: rgba(45,143,94,0.15); color: #2D8F5E; width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700;">✓</span>
+          <h3 style="font-family: 'Lora', Georgia, serif; font-size: 22px; font-weight: 600;">¡Listo, {{ modalNameShown }}!</h3>
+          <p style="font-size: 14px; color: #78716c;">Te contactamos en el día para coordinar una demo con tus números reales.</p>
+          <button onClick="{{ closeModal }}" style="background: #3460A8; color: #fff; border: none; font-size: 14px; font-weight: 600; padding: 10px 24px; border-radius: 30px; cursor: pointer; min-height: 42px;" style-hover="background: #2a4f8c;">Cerrar</button>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;whatsappNumber&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;5491100000000&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Contacto&quot;}, &quot;autoRotate&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Demo&quot;}}">
+class Component extends DCLogic {
+  state = {
+    slide: 0, auto: true,
+    leadName: "", leadContact: "", leadSent: false,
+    lead2Contact: "", lead2Sent: false,
+    showModal: false, modalName: "", modalContact: "", modalSent: false,
+    fifoInput: 30000, fifoPhase: "idle", fifoStep: 0, alloc: [0, 0, 0],
+    proTotal: 300000,
+    resBooked: false,
+    ufs: 30, addonsOn: { sueldos: false, amenities: false, comunicados: false, reportes: false }
+  };
+  componentDidMount() {
+    this._timer = setInterval(() => {
+      if ((this.props.autoRotate ?? true) && this.state.auto && this.state.fifoPhase === "idle") {
+        this.setState(s => ({ slide: (s.slide + 1) % 3 }));
+      }
+    }, 6000);
+  }
+  componentWillUnmount() { clearInterval(this._timer); clearTimeout(this._fifoT); }
+  fmt(n) { return "$ " + Number(n).toLocaleString("es-AR"); }
+  pick(i) { this.setState({ slide: i, auto: false }); }
+  runFifo() {
+    const debts = [15000, 20000, 18000];
+    let rem = parseFloat(this.state.fifoInput) || 0;
+    if (rem <= 0) return;
+    const alloc = debts.map(d => { const a = Math.min(rem, d); rem -= a; return a; });
+    this.setState({ fifoPhase: "running", fifoStep: 0, alloc, auto: false });
+    const advance = (n) => {
+      this._fifoT = setTimeout(() => {
+        if (n <= 3) { this.setState({ fifoStep: n }); advance(n + 1); }
+        else this.setState({ fifoPhase: "done" });
+      }, 650);
+    };
+    advance(1);
+  }
+  renderVals() {
+    const s = this.state;
+    const p = this.props;
+    const wa = (p.whatsappNumber ?? "5491100000000").replace(/[^0-9]/g, "");
+    const waLink = "https://wa.me/" + wa + "?text=" + encodeURIComponent("Hola! Quiero una demo de Gestor Consorcios.");
+    const debts = [15000, 20000, 18000];
+    const labels = [["05/01", "Expensa Ene 2026", "Vencida hace 12 días"], ["05/02", "Expensa Feb 2026", "Vencida hace 5 días"], ["05/03", "Expensa Mar 2026", "Vence en 3 días"]];
+    const fifoRows = debts.map((d, i) => {
+      const base = { fecha: labels[i][0], concepto: labels[i][1], monto: "+ " + this.fmt(d) };
+      const resolved = (s.fifoPhase === "running" && s.fifoStep > i) || s.fifoPhase === "done";
+      const processing = s.fifoPhase === "running" && s.fifoStep === i;
+      if (processing) return { ...base, detail: "Procesando…", badge: "…", badgeBg: "rgba(255,225,0,0.3)", badgeColor: "#7a6e00", bg: "#fffdeb" };
+      if (resolved) {
+        const a = s.alloc[i];
+        const detail = "Abonado: " + this.fmt(a) + " / " + this.fmt(d);
+        if (a === d) return { ...base, detail, badge: "Confirmada", badgeBg: "rgba(45,143,94,0.15)", badgeColor: "#2D8F5E", bg: "rgba(45,143,94,0.08)" };
+        if (a > 0) return { ...base, detail, badge: "Parcial", badgeBg: "rgba(255,225,0,0.3)", badgeColor: "#7a6e00", bg: "#fffdeb" };
+        return { ...base, detail: labels[i][2], badge: "Vencida", badgeBg: "rgba(192,68,60,0.15)", badgeColor: "#C0443C", bg: "#ffffff" };
+      }
+      return { ...base, detail: labels[i][2], badge: "Vencida", badgeBg: "rgba(192,68,60,0.15)", badgeColor: "#C0443C", bg: "#ffffff" };
+    });
+    const paid = s.fifoPhase === "done" ? (parseFloat(s.fifoInput) || 0) : 0;
+    const bal = 53000 - paid;
+    const balanceText = bal > 0 ? this.fmt(bal) : bal < 0 ? "A favor: " + this.fmt(-bal) : "$ 0";
+    const balanceColor = bal > 0 ? "#C0443C" : bal < 0 ? "#2D8F5E" : "#1c1917";
+    const total = parseFloat(s.proTotal) || 0;
+    const coefs = [[".UF-01A", "Carlos G.", 0.15], ["UF-02A", "Daniel P.", 0.20], ["UF-03A", "Elena R.", 0.15]];
+    const tabNames = ["Cuentas corrientes", "Cierre de período", "Reservas"];
+    const groups = ["Finanzas", "Configuración", "Espacios comunes"];
+    const addonDefs = [["sueldos", "Sueldos y cargas sociales del encargado"], ["amenities", "Amenities y reservas (SUM, parrilla)"], ["comunicados", "Comunicados y notificaciones por email"], ["reportes", "Reportes y estado financiero"]];
+    const nAddons = addonDefs.filter(([k]) => s.addonsOn[k]).length;
+    const perUf = 1 + nAddons * 0.25;
+    const monthly = perUf * s.ufs;
+    return {
+      waLink,
+      leadName: s.leadName, leadContact: s.leadContact, leadSent: s.leadSent, leadPending: !s.leadSent,
+      leadNameShown: (s.leadName || "gracias").split(" ")[0],
+      setLeadName: e => this.setState({ leadName: e.target.value }),
+      setLeadContact: e => this.setState({ leadContact: e.target.value }),
+      sendLead: e => { e.preventDefault(); if (s.leadContact.trim()) this.setState({ leadSent: true }); },
+      showModal: s.showModal,
+      openModal: () => this.setState({ showModal: true, modalSent: false }),
+      closeModal: () => this.setState({ showModal: false }),
+      stopClick: e => e.stopPropagation(),
+      modalPending: !s.modalSent, modalSent: s.modalSent,
+      modalName: s.modalName, modalContact: s.modalContact,
+      modalNameShown: (s.modalName || "gracias").split(" ")[0],
+      setModalName: e => this.setState({ modalName: e.target.value }),
+      setModalContact: e => this.setState({ modalContact: e.target.value }),
+      sendModal: e => { e.preventDefault(); if (s.modalContact.trim()) this.setState({ modalSent: true }); },
+      lead2Contact: s.lead2Contact, lead2Sent: s.lead2Sent, lead2Pending: !s.lead2Sent,
+      setLead2Contact: e => this.setState({ lead2Contact: e.target.value }),
+      sendLead2: e => { e.preventDefault(); if (s.lead2Contact.trim()) this.setState({ lead2Sent: true }); },
+      demoTabs: tabNames.map((label, i) => ({
+        label, num: i + 1, onSelect: () => this.pick(i),
+        bg: s.slide === i ? "#3460A8" : "transparent", color: s.slide === i ? "#fff" : "#78716c",
+        numBg: s.slide === i ? "rgba(255,255,255,0.22)" : "#e9eff8", numColor: s.slide === i ? "#fff" : "#3460A8"
+      })),
+      sideSections: [
+        { group: "Finanzas", label: "Cuentas corrientes", slide: 0 },
+        { group: "Espacios comunes", label: "Reservas", slide: 2 },
+        { group: "Configuración", label: "Cierre de período", slide: 1 }
+      ].map(o => ({
+        group: o.group, label: o.label, onSelect: () => this.pick(o.slide),
+        color: s.slide === o.slide ? "#3460A8" : "#1c1917",
+        bg: s.slide === o.slide ? "#e9eff8" : "transparent",
+        weight: s.slide === o.slide ? 600 : 500
+      })),
+      showSlide0: s.slide === 0, showSlide1: s.slide === 1, showSlide2: s.slide === 2,
+      fifoStatus: s.fifoPhase === "idle" ? "Listo" : s.fifoPhase === "running" ? "Imputando por antigüedad…" : "Pago imputado ✓",
+      fifoRows,
+      fifoInput: s.fifoInput, fifoRunning: s.fifoPhase === "running",
+      fifoIdle: s.fifoPhase === "idle", fifoDone: s.fifoPhase === "done",
+      setFifoInput: e => this.setState({ fifoInput: e.target.value }),
+      runFifo: () => this.runFifo(),
+      resetFifo: () => this.setState({ fifoPhase: "idle", fifoStep: 0, alloc: [0, 0, 0], fifoInput: 30000 }),
+      balanceText, balanceColor, balanceBorder: balanceColor,
+      balanceBadge: bal > 0 ? "En mora" : "Al día",
+      balanceBadgeBg: bal > 0 ? "rgba(192,68,60,0.15)" : "rgba(45,143,94,0.15)",
+      balanceBadgeColor: bal > 0 ? "#C0443C" : "#2D8F5E",
+      proTotal: s.proTotal,
+      setProTotal: e => this.setState({ proTotal: e.target.value, auto: false }),
+      proPresets: [200000, 300000, 450000].map(v => ({ label: (v / 1000) + "k", onSet: () => this.setState({ proTotal: v, auto: false }) })),
+      proRows: coefs.map(([uf, owner, c]) => ({ uf: uf.replace(".", ""), owner, coef: (c * 100).toFixed(2).replace(".", ",") + " %", amount: this.fmt(Math.round(total * c)) })),
+      resAvailable: !s.resBooked, resBooked: s.resBooked,
+      resDetail: s.resBooked ? "Reservado por UF-02A (vos)" : "Disponible · $ 8.500 por turno",
+      resBadge: s.resBooked ? "Confirmada" : "Disponible",
+      resBadgeBg: s.resBooked ? "rgba(45,143,94,0.15)" : "#e9eff8",
+      resBadgeColor: s.resBooked ? "#2D8F5E" : "#3460A8",
+      resRowBg: s.resBooked ? "rgba(45,143,94,0.08)" : "#ffffff",
+      resRowBorder: s.resBooked ? "#2D8F5E" : "#3460A8",
+      bookRes: () => this.setState({ resBooked: true, auto: false }),
+      cancelRes: () => this.setState({ resBooked: false }),
+      monthSteps: [
+        { when: "Todo el mes", icon: "🧾", title: "Cargás gastos a medida que llegan", text: "La factura del ascensor, el abono de limpieza, el seguro. Cada gasto entra con su rubro y su proveedor en el momento — dos minutos, y no se toca más." },
+        { when: "Día 26", icon: "⚖", title: "Cerrás el período con validaciones", text: "El sistema chequea que los coeficientes sumen 100%, que no falten gastos y que no haya conflictos con períodos anteriores. Un clic y cada UF tiene su boleta Ley 941 con los rubros oficiales. Lo que antes era un fin de semana, ahora es una tarde — ¡con margen para el café!" },
+        { when: "Día 1", icon: "📬", title: "Las boletas llegan solas", text: "Cada copropietario recibe su expensa por email y la ve en su portal, junto con el detalle de gastos del mes. Transparencia total sin imprimir, sin ensobrar, sin repartir." },
+        { when: "Días 1 al 10", icon: "💸", title: "Los cobros se imputan automáticamente", text: "Cada pago que registrás va directo a la deuda más antigua de esa UF. Pagos parciales, pagos de más, todo queda prolijo en la cuenta corriente. Y el que quiere saber su saldo, lo mira en el portal para que te puedas dedicar a lo que importa." }
+      ].map((o, i, arr) => ({ ...o, dotBg: "#e9eff8", dotColor: "#3460A8", lineDisplay: i === arr.length - 1 ? "none" : "block" })),
+      modules: [
+        { icon: "⇄", tag: "Base", title: "Cuentas corrientes por UF", text: "Historial contable individual con saldo consolidado. Los cobros a cuenta se imputan automáticamente a las expensas más antiguas — el fin de los descuadres." },
+        { icon: "⚖", tag: "Base", title: "Liquidación Ley 941", text: "Prorrateo mensual por coeficiente y comprobantes con el formato que exige la Ley 941 CABA. Rubros oficiales configurables para cualquier jurisdicción." },
+        { icon: "👥", tag: "Base", title: "Padrón del edificio", text: "Unidades funcionales, coeficientes, propietarios, inquilinos y representantes. Cada UF con su usuario de acceso al portal." },
+        { icon: "💸", tag: "Base", title: "Egresos y proveedores", text: "Facturas, abonos, seguros, gastos habituales y planes en cuotas. Cada gasto clasificado por rubro, a prorrateo o a un depto puntual." },
+        { icon: "💼", tag: "Opcional", title: "Sueldos y cargas sociales", text: "Liquidación mensual del encargado con haberes, horas extras y adicionales. Genera automáticamente los gastos del rubro sueldos." },
+        { icon: "📅", tag: "Opcional", title: "Amenities y reservas", text: "SUM, parrilla, laundry. Los vecinos reservan desde el portal, con control de disponibilidad y bloqueo automático a UFs en mora." }
+      ].map(m => ({ ...m, tagBg: m.tag === "Base" ? "#e9eff8" : "rgba(255,225,0,0.3)", tagColor: m.tag === "Base" ? "#3460A8" : "#7a6e00" })),
+      vsRows: [
+        { task: "Cierre mensual de expensas", excel: "Un fin de semana entero copiando fórmulas y rezando que nada se haya roto.", gestor: "Una tarde. Validaciones automáticas y boletas Ley 941 generadas en un clic." },
+        { task: "Un vecino paga $30.000 a cuenta", excel: "Anotás en una celda \"a cuenta\" y lo resolvés (o no) en el cierre.", gestor: "Se imputa solo a la deuda más antigua. La cuenta corriente queda prolija al instante." },
+        { task: "\"¿Me pasás mi saldo?\"", excel: "Buscás la planilla, filtrás, hacés captura, respondés el WhatsApp.", gestor: "El vecino lo ve solo en su portal, con comprobantes incluidos." },
+        { task: "Reserva del SUM", excel: "Un cuaderno en portería o un grupo de WhatsApp con peleas por turnos.", gestor: "Reserva online con disponibilidad en vivo y reglas de cancelación." },
+        { task: "Auditoría o reclamo de un consorcista", excel: "Reconstruir la historia celda por celda, versión por versión del archivo.", gestor: "Todo movimiento queda registrado y trazable. Historial completo por UF." }
+      ],
+      ufs: s.ufs,
+      setUfs: e => this.setState({ ufs: parseInt(e.target.value, 10) }),
+      addons: addonDefs.map(([key, label]) => {
+        const on = s.addonsOn[key];
+        return {
+          label, check: on ? "✓" : "",
+          bg: on ? "#e9eff8" : "#ffffff", border: on ? "#3460A8" : "#e5e2da",
+          checkBg: on ? "#3460A8" : "transparent", checkBorder: on ? "#3460A8" : "#d6d3d1",
+          onToggle: () => this.setState(st => ({ addonsOn: { ...st.addonsOn, [key]: !st.addonsOn[key] } }))
+        };
+      }),
+      monthlyTotal: "USD " + monthly.toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 2 }),
+      perUfText: "USD " + perUf.toLocaleString("es-AR", { minimumFractionDigits: 2 })
+    };
+  }
+}
+</script>
+</body>
+</html>

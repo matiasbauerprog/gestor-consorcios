@@ -48,6 +48,13 @@ class Settings(BaseSettings):
             )
         return v
 
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def _fix_postgres_prefix(cls, v: str) -> str:
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql://", 1)
+        return v
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

@@ -368,6 +368,63 @@
       border: 1px solid var(--color-border);
     }
 
+    /* Tabs de mini-demo — el selector mismo es la señal de interactividad */
+    .demo-tabs {
+      display: inline-flex;
+      align-items: stretch;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-strong);
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 0.75rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      gap: 2px;
+      flex-wrap: wrap;
+    }
+    .demo-tab {
+      background: transparent;
+      border: none;
+      color: var(--color-text-muted);
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 0.45rem 0.85rem;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .demo-tab:hover {
+      background: var(--color-bg);
+      color: var(--color-text);
+    }
+    .demo-tab.activo {
+      background: var(--color-primary);
+      color: #fff;
+    }
+    .demo-tab-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      background: var(--color-primary-soft);
+      color: var(--color-primary);
+      border-radius: 50%;
+      font-size: 0.62rem;
+      font-weight: 700;
+    }
+    .demo-tab.activo .demo-tab-num {
+      background: rgba(255, 255, 255, 0.22);
+      color: #fff;
+    }
+    @media (max-width: 991px) {
+      .demo-tabs { justify-content: center; }
+    }
+
     /* Badges */
     .badge {
       display: inline-block;
@@ -724,30 +781,30 @@
         <span class="hero-tag">SISTEMA INTEGRAL DE ADMINISTRACIÓN DE EDIFICIOS</span>
         
         <h1 class="hero-heading">
-          Sistema de <br>
+          La gestión de tu <br>
           <div class="hero-change-tag-holder">
-            <span id="hero-change-tag">Gestión</span>
+            <span id="hero-change-tag">consorcio</span>
           </div><br>
-          para tu consorcio
+          sin planillas ni descuadres.
         </h1>
-        
+
         <p class="hero-subheader">
-          Lleva la administración de tu edificio al siguiente nivel. Liquidaciones exactas, control de deudas y comunicación transparente con los consorcistas.
+          Liquidá expensas, imputá cobros por antigüedad y publicá comunicados para los propietarios desde un solo lugar. Diseñado para administraciones porteñas.
         </p>
 
         <!-- Checklist de Características Hero -->
         <div class="hero-list">
           <div class="hero-list-item">
             <div class="hero-list-icon">✔</div>
-            <div class="hero-list-text"><strong>Cumplimiento legal Ley 941 CABA</strong> (evita multas y dolores de cabeza)</div>
+            <div class="hero-list-text"><strong>Liquidación Ley 941 CABA</strong> con rubros oficiales y comprobantes por UF</div>
           </div>
           <div class="hero-list-item">
             <div class="hero-list-icon">✔</div>
-            <div class="hero-list-text"><strong>Conciliación contable sin fallas (Cuenta Corriente Individual)</strong> (cuentas corrientes 100% claras)</div>
+            <div class="hero-list-text"><strong>Imputación automática por antigüedad</strong> — se acaban los cobros a cuenta que descuadran</div>
           </div>
           <div class="hero-list-item">
             <div class="hero-list-icon">✔</div>
-            <div class="hero-list-text"><strong>Portal de amenities e incidencias</strong> (SUM, parrilla y solicitudes online)</div>
+            <div class="hero-list-text"><strong>Portal para copropietarios</strong> con expensas, comprobantes y reservas del SUM</div>
           </div>
         </div>
 
@@ -767,6 +824,20 @@
       
       <!-- Carrousel de Mini Demos Interactivas en la Hero -->
       <div class="hero-right">
+        <div class="demo-tabs" role="tablist" aria-label="Mini-demos del sistema">
+          <button type="button" class="demo-tab activo" id="demo-tab-0" role="tab" onclick="switchSlide(0)">
+            <span class="demo-tab-num">1</span>
+            Cuentas corrientes
+          </button>
+          <button type="button" class="demo-tab" id="demo-tab-1" role="tab" onclick="switchSlide(1)">
+            <span class="demo-tab-num">2</span>
+            Cierre de período
+          </button>
+          <button type="button" class="demo-tab" id="demo-tab-2" role="tab" onclick="switchSlide(2)">
+            <span class="demo-tab-num">3</span>
+            Reservas
+          </button>
+        </div>
         <div class="browser-frame">
           <div class="browser-bar">
             <div class="browser-dot red"></div>
@@ -824,152 +895,219 @@
                   <!-- SLIDE 0: CUENTA CORRIENTE (Imputación por Antigüedad) -->
                   <div class="carousel-slide" id="slide-0" style="display: flex; flex-direction: column; gap: 0.5rem; flex: 1;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                      <span style="font-size:0.7rem; font-weight:700; color:var(--color-primary); text-transform:uppercase;">Imputación por Antigüedad</span>
-                      <span style="font-size:0.65rem; color:var(--color-text-muted);" id="mini-cuentas-status">Listo</span>
+                      <div style="display:flex; flex-direction:column; gap:0.05rem;">
+                        <span style="font-size:0.7rem; font-weight:700; color:var(--color-text);">Cuenta corriente · UF-01A</span>
+                        <span style="font-size:0.55rem; color:var(--color-text-muted);">Piso 1, letra A · Carlos G.</span>
+                      </div>
+                      <span style="font-size:0.6rem; color:var(--color-text-muted); font-style:italic;" id="mini-cuentas-status">Listo</span>
                     </div>
 
                     <!-- Balance Card -->
-                    <div style="background:var(--color-bg); border:1px solid var(--color-border); padding: 0.4rem 0.5rem; border-radius: var(--radius-sm); display:flex; justify-content:space-between; align-items:center;">
-                      <span style="font-size:0.7rem; font-weight:600; color:var(--color-text-muted);">Saldo Deudor Total:</span>
-                      <strong id="mini-balance" style="font-size:0.85rem; color:var(--color-coral); transition: color 0.3s;">$ 53.000</strong>
+                    <div style="background:var(--color-surface); border:1px solid var(--color-border); border-left:3px solid var(--color-coral); padding: 0.5rem 0.6rem; border-radius: var(--radius-sm); display:flex; justify-content:space-between; align-items:center;">
+                      <div style="display:flex; flex-direction:column; gap:0.05rem;">
+                        <span style="font-size:0.55rem; font-weight:600; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.04em;">Saldo</span>
+                        <strong id="mini-balance" style="font-size:1rem; color:var(--color-coral); transition: color 0.3s; letter-spacing:-0.01em;">$ 53.000</strong>
+                      </div>
+                      <span class="badge badge--alerta" style="font-size:0.55rem; padding:0.15rem 0.4rem;">En mora</span>
                     </div>
 
-                    <!-- List of expensas -->
-                    <div style="display:flex; flex-direction:column; gap:0.35rem; flex:1;">
+                    <!-- Tabla de movimientos -->
+                    <div style="display:flex; flex-direction:column; gap:0; flex:1; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); overflow:hidden;">
+                      <!-- Header de tabla -->
+                      <div style="display:grid; grid-template-columns: 55px 1fr 70px; gap:0.4rem; padding:0.3rem 0.5rem; background:var(--color-bg); border-bottom:1px solid var(--color-border); font-size:0.55rem; font-weight:600; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.04em;">
+                        <span>Fecha</span>
+                        <span>Concepto</span>
+                        <span style="text-align:right;">Monto</span>
+                      </div>
+
                       <!-- Enero -->
-                      <div id="mini-row-1" style="background:var(--color-surface); border:1px solid var(--color-border); border-left: 3px solid var(--color-coral); padding:0.4rem 0.5rem; border-radius:var(--radius-sm); display:flex; justify-content:space-between; align-items:center; transition: all 0.4s;">
-                        <div>
-                          <div style="font-size:0.7rem; font-weight:600;">Enero 2026</div>
-                          <div style="font-size:0.6rem; color:var(--color-text-muted);" id="mini-detail-1">Deuda: $ 15.000</div>
+                      <div id="mini-row-1" style="display:grid; grid-template-columns: 55px 1fr 70px; gap:0.4rem; padding:0.4rem 0.5rem; border-bottom:1px solid var(--color-border); align-items:center; transition: background 0.4s;">
+                        <span style="font-size:0.6rem; color:var(--color-text-muted);">05/01</span>
+                        <div style="min-width:0;">
+                          <div style="font-size:0.68rem; font-weight:600;">Expensa Ene 2026</div>
+                          <div style="font-size:0.55rem; color:var(--color-text-muted);" id="mini-detail-1">Vencida hace 12 días</div>
                         </div>
-                        <span class="badge badge--alerta" id="mini-badge-1" style="font-size:0.55rem; padding:0.1rem 0.35rem;">Vencida</span>
+                        <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:0.1rem;">
+                          <strong style="font-size:0.7rem; color:var(--color-coral);">+ $ 15.000</strong>
+                          <span class="badge badge--alerta" id="mini-badge-1" style="font-size:0.5rem; padding:0.08rem 0.3rem;">Vencida</span>
+                        </div>
                       </div>
 
                       <!-- Febrero -->
-                      <div id="mini-row-2" style="background:var(--color-surface); border:1px solid var(--color-border); border-left: 3px solid var(--color-coral); padding:0.4rem 0.5rem; border-radius:var(--radius-sm); display:flex; justify-content:space-between; align-items:center; transition: all 0.4s;">
-                        <div>
-                          <div style="font-size:0.7rem; font-weight:600;">Febrero 2026</div>
-                          <div style="font-size:0.6rem; color:var(--color-text-muted);" id="mini-detail-2">Deuda: $ 20.000</div>
+                      <div id="mini-row-2" style="display:grid; grid-template-columns: 55px 1fr 70px; gap:0.4rem; padding:0.4rem 0.5rem; border-bottom:1px solid var(--color-border); align-items:center; transition: background 0.4s;">
+                        <span style="font-size:0.6rem; color:var(--color-text-muted);">05/02</span>
+                        <div style="min-width:0;">
+                          <div style="font-size:0.68rem; font-weight:600;">Expensa Feb 2026</div>
+                          <div style="font-size:0.55rem; color:var(--color-text-muted);" id="mini-detail-2">Vencida hace 5 días</div>
                         </div>
-                        <span class="badge badge--alerta" id="mini-badge-2" style="font-size:0.55rem; padding:0.1rem 0.35rem;">Vencida</span>
+                        <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:0.1rem;">
+                          <strong style="font-size:0.7rem; color:var(--color-coral);">+ $ 20.000</strong>
+                          <span class="badge badge--alerta" id="mini-badge-2" style="font-size:0.5rem; padding:0.08rem 0.3rem;">Vencida</span>
+                        </div>
                       </div>
 
                       <!-- Marzo -->
-                      <div id="mini-row-3" style="background:var(--color-surface); border:1px solid var(--color-border); border-left: 3px solid var(--color-coral); padding:0.4rem 0.5rem; border-radius:var(--radius-sm); display:flex; justify-content:space-between; align-items:center; transition: all 0.4s;">
-                        <div>
-                          <div style="font-size:0.7rem; font-weight:600;">Marzo 2026</div>
-                          <div style="font-size:0.6rem; color:var(--color-text-muted);" id="mini-detail-3">Deuda: $ 18.000</div>
+                      <div id="mini-row-3" style="display:grid; grid-template-columns: 55px 1fr 70px; gap:0.4rem; padding:0.4rem 0.5rem; align-items:center; transition: background 0.4s;">
+                        <span style="font-size:0.6rem; color:var(--color-text-muted);">05/03</span>
+                        <div style="min-width:0;">
+                          <div style="font-size:0.68rem; font-weight:600;">Expensa Mar 2026</div>
+                          <div style="font-size:0.55rem; color:var(--color-text-muted);" id="mini-detail-3">Vence en 3 días</div>
                         </div>
-                        <span class="badge badge--alerta" id="mini-badge-3" style="font-size:0.55rem; padding:0.1rem 0.35rem;">Vencida</span>
+                        <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:0.1rem;">
+                          <strong style="font-size:0.7rem; color:var(--color-coral);">+ $ 18.000</strong>
+                          <span class="badge badge--alerta" id="mini-badge-3" style="font-size:0.5rem; padding:0.08rem 0.3rem;">Vencida</span>
+                        </div>
                       </div>
                     </div>
 
-                    <!-- Interactive simulation bar -->
-                    <div style="display:flex; gap:0.4rem; align-items:center; background: var(--color-bg); padding: 0.35rem; border-radius:var(--radius-sm); border: 1px solid var(--color-border); margin-top: auto;">
+                    <!-- Simulación de cobro -->
+                    <div style="display:flex; gap:0.4rem; align-items:center; background: var(--color-primary-soft); padding: 0.4rem 0.5rem; border-radius:var(--radius-sm); margin-top: auto;">
                       <div style="display:flex; flex-direction:column; gap:0.1rem; flex:1;">
-                        <label style="font-size:0.55rem; color:var(--color-text-muted); font-weight:600;">Simular pago:</label>
-                        <input type="number" id="mini-input-payment" value="30000" style="font-size:0.75rem; font-weight:700; border:none; outline:none; background:transparent; padding:0; width:100%; color:var(--color-primary);" min="1000" max="60000" step="5000">
+                        <label style="font-size:0.55rem; color:var(--color-primary); font-weight:700; text-transform:uppercase; letter-spacing:0.04em;">Registrar pago</label>
+                        <input type="number" id="mini-input-payment" value="30000" style="font-size:0.85rem; font-weight:700; border:none; outline:none; background:transparent; padding:0; width:100%; color:var(--color-primary);" min="1000" max="60000" step="5000">
                       </div>
-                      <button class="btn btn-primary" onclick="runMiniFifo()" id="mini-btn-run" style="min-height:28px; height:28px; padding: 0 0.6rem; font-size:0.65rem; border-radius:15px; background:var(--color-primary); color:#fff; border:none; cursor:pointer;">
+                      <button class="btn btn-primary" onclick="runMiniFifo()" id="mini-btn-run" style="min-height:30px; height:30px; padding: 0 0.75rem; font-size:0.65rem; border-radius:15px; background:var(--color-primary); color:#fff; border:none; cursor:pointer; font-weight:600;">
                         Imputar
                       </button>
-                      <button class="btn btn-secondary" onclick="resetMiniFifo()" id="mini-btn-reset" style="min-height:28px; height:28px; padding: 0 0.6rem; font-size:0.65rem; border-radius:15px; background:transparent; border:1px solid var(--color-border-strong); color:var(--color-text); cursor:pointer; display:none;">
+                      <button class="btn btn-secondary" onclick="resetMiniFifo()" id="mini-btn-reset" style="min-height:30px; height:30px; padding: 0 0.75rem; font-size:0.65rem; border-radius:15px; background:transparent; border:1px solid var(--color-border-strong); color:var(--color-text); cursor:pointer; display:none; font-weight:600;">
                         Reset
                       </button>
                     </div>
                   </div>
 
-                  <!-- SLIDE 1: LIQUIDACIÓN / PRORRATEO -->
+                  <!-- SLIDE 1: CIERRE DE PERÍODO (Vista previa) -->
                   <div class="carousel-slide" id="slide-1" style="display: none; flex-direction: column; gap: 0.5rem; flex: 1;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                      <span style="font-size:0.7rem; font-weight:700; color:var(--color-primary); text-transform:uppercase;">Prorrateo de Expensas</span>
-                      <span style="font-size:0.65rem; color:var(--color-text-muted);">Ley 941 CABA</span>
+                      <div style="display:flex; flex-direction:column; gap:0.05rem;">
+                        <span style="font-size:0.7rem; font-weight:700; color:var(--color-text);">Cierre de período · Julio 2026</span>
+                        <span style="font-size:0.55rem; color:var(--color-text-muted);">Vista previa · Ley 941 CABA</span>
+                      </div>
+                      <span class="badge badge--ok" style="font-size:0.55rem; padding:0.15rem 0.4rem;">✓ Listo</span>
                     </div>
 
-                    <!-- Input de gastos del consorcio -->
+                    <!-- Validaciones -->
+                    <div style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:0.4rem 0.5rem; display:flex; flex-direction:column; gap:0.2rem;">
+                      <span style="font-size:0.55rem; font-weight:600; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.1rem;">Validaciones</span>
+                      <div style="display:flex; gap:0.35rem; align-items:center; font-size:0.62rem;">
+                        <span style="color:var(--color-green); font-weight:700;">✓</span>
+                        <span style="color:var(--color-text);">Gastos del período cargados (11)</span>
+                      </div>
+                      <div style="display:flex; gap:0.35rem; align-items:center; font-size:0.62rem;">
+                        <span style="color:var(--color-green); font-weight:700;">✓</span>
+                        <span style="color:var(--color-text);">Coeficientes de prorrateo suman 100%</span>
+                      </div>
+                      <div style="display:flex; gap:0.35rem; align-items:center; font-size:0.62rem;">
+                        <span style="color:var(--color-green); font-weight:700;">✓</span>
+                        <span style="color:var(--color-text);">Sin conflictos con períodos anteriores</span>
+                      </div>
+                    </div>
+
+                    <!-- Input total + selector -->
                     <div style="background:var(--color-bg); border:1px solid var(--color-border); padding: 0.4rem 0.5rem; border-radius: var(--radius-sm); display:flex; justify-content:space-between; align-items:center;">
-                      <div style="display:flex; flex-direction:column; gap:0.1rem; text-align:left;">
-                        <span style="font-size:0.55rem; font-weight:600; color:var(--color-text-muted);">Gasto total del mes:</span>
-                        <input type="number" id="prorrateo-input-total" value="300000" oninput="runProrrateo(this.value)" style="font-size:0.8rem; font-weight:700; border:none; outline:none; background:transparent; padding:0; width:100%; color:var(--color-primary);">
+                      <div style="display:flex; flex-direction:column; gap:0.05rem; text-align:left;">
+                        <span style="font-size:0.55rem; font-weight:600; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.04em;">Total a expensar</span>
+                        <input type="number" id="prorrateo-input-total" value="300000" oninput="runProrrateo(this.value)" style="font-size:0.9rem; font-weight:700; border:none; outline:none; background:transparent; padding:0; width:100%; color:var(--color-primary); letter-spacing:-0.01em;">
                       </div>
-                      <span class="badge badge--ok" style="font-size:0.55rem; padding:0.15rem 0.35rem;">Julio 2026</span>
-                    </div>
-
-                    <!-- Listado de cuotas por UF -->
-                    <div style="display:flex; flex-direction:column; gap:0.35rem; flex:1;">
-                      <div style="background:var(--color-surface); border:1px solid var(--color-border); padding:0.35rem 0.5rem; border-radius:var(--radius-sm); display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                          <div style="font-size:0.7rem; font-weight:600;">UF 1A (Carlos G.)</div>
-                          <div style="font-size:0.6rem; color:var(--color-text-muted);">Coeficiente: 15.00%</div>
-                        </div>
-                        <strong style="font-size:0.75rem; color:var(--color-primary);" id="prorrateo-uf-1">$ 45.000</strong>
-                      </div>
-
-                      <div style="background:var(--color-surface); border:1px solid var(--color-border); padding:0.35rem 0.5rem; border-radius:var(--radius-sm); display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                          <div style="font-size:0.7rem; font-weight:600;">UF 2A (Daniel P.)</div>
-                          <div style="font-size:0.6rem; color:var(--color-text-muted);">Coeficiente: 20.00%</div>
-                        </div>
-                        <strong style="font-size:0.75rem; color:var(--color-primary);" id="prorrateo-uf-2">$ 60.000</strong>
-                      </div>
-
-                      <div style="background:var(--color-surface); border:1px solid var(--color-border); padding:0.35rem 0.5rem; border-radius:var(--radius-sm); display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                          <div style="font-size:0.7rem; font-weight:600;">UF 3A (Elena R.)</div>
-                          <div style="font-size:0.6rem; color:var(--color-text-muted);">Coeficiente: 15.00%</div>
-                        </div>
-                        <strong style="font-size:0.75rem; color:var(--color-primary);" id="prorrateo-uf-3">$ 45.000</strong>
+                      <div style="display:flex; gap:0.2rem;">
+                        <button onclick="changeProrrateoTotal(200000)" style="padding:0.2rem 0.4rem; border:1px solid var(--color-border-strong); background:var(--color-surface); border-radius:4px; cursor:pointer; font-size:0.55rem; font-weight:600;">200k</button>
+                        <button onclick="changeProrrateoTotal(300000)" style="padding:0.2rem 0.4rem; border:1px solid var(--color-border-strong); background:var(--color-surface); border-radius:4px; cursor:pointer; font-size:0.55rem; font-weight:600;">300k</button>
+                        <button onclick="changeProrrateoTotal(450000)" style="padding:0.2rem 0.4rem; border:1px solid var(--color-border-strong); background:var(--color-surface); border-radius:4px; cursor:pointer; font-size:0.55rem; font-weight:600;">450k</button>
                       </div>
                     </div>
 
-                    <!-- Quick selectors -->
-                    <div style="display:flex; gap:0.25rem; justify-content:flex-end; align-items:center; font-size:0.55rem; color:var(--color-text-muted); margin-top: auto;">
-                      <span>Cambiar total:</span>
-                      <div style="display:flex; gap:0.25rem;">
-                        <button onclick="changeProrrateoTotal(200000)" style="padding:0.15rem 0.35rem; border:1px solid var(--color-border-strong); background:var(--color-surface); border-radius:4px; cursor:pointer; font-size:0.55rem; font-weight:600;">200k</button>
-                        <button onclick="changeProrrateoTotal(300000)" style="padding:0.15rem 0.35rem; border:1px solid var(--color-border-strong); background:var(--color-surface); border-radius:4px; cursor:pointer; font-size:0.55rem; font-weight:600;">300k</button>
-                        <button onclick="changeProrrateoTotal(450000)" style="padding:0.15rem 0.35rem; border:1px solid var(--color-border-strong); background:var(--color-surface); border-radius:4px; cursor:pointer; font-size:0.55rem; font-weight:600;">450k</button>
+                    <!-- Boletas por UF (preview) -->
+                    <div style="display:flex; flex-direction:column; gap:0; flex:1; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); overflow:hidden;">
+                      <div style="display:grid; grid-template-columns: 1fr 60px 80px; gap:0.4rem; padding:0.3rem 0.5rem; background:var(--color-bg); border-bottom:1px solid var(--color-border); font-size:0.55rem; font-weight:600; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.04em;">
+                        <span>UF</span>
+                        <span style="text-align:right;">Coef.</span>
+                        <span style="text-align:right;">A pagar</span>
+                      </div>
+                      <div style="display:grid; grid-template-columns: 1fr 60px 80px; gap:0.4rem; padding:0.35rem 0.5rem; border-bottom:1px solid var(--color-border); align-items:center; font-size:0.65rem;">
+                        <div>
+                          <div style="font-weight:600;">UF-01A</div>
+                          <div style="font-size:0.55rem; color:var(--color-text-muted);">Carlos G.</div>
+                        </div>
+                        <span style="text-align:right; color:var(--color-text-muted); font-size:0.6rem;">15,00 %</span>
+                        <strong id="prorrateo-uf-1" style="text-align:right; color:var(--color-primary);">$ 45.000</strong>
+                      </div>
+                      <div style="display:grid; grid-template-columns: 1fr 60px 80px; gap:0.4rem; padding:0.35rem 0.5rem; border-bottom:1px solid var(--color-border); align-items:center; font-size:0.65rem;">
+                        <div>
+                          <div style="font-weight:600;">UF-02A</div>
+                          <div style="font-size:0.55rem; color:var(--color-text-muted);">Daniel P.</div>
+                        </div>
+                        <span style="text-align:right; color:var(--color-text-muted); font-size:0.6rem;">20,00 %</span>
+                        <strong id="prorrateo-uf-2" style="text-align:right; color:var(--color-primary);">$ 60.000</strong>
+                      </div>
+                      <div style="display:grid; grid-template-columns: 1fr 60px 80px; gap:0.4rem; padding:0.35rem 0.5rem; align-items:center; font-size:0.65rem;">
+                        <div>
+                          <div style="font-weight:600;">UF-03A</div>
+                          <div style="font-size:0.55rem; color:var(--color-text-muted);">Elena R.</div>
+                        </div>
+                        <span style="text-align:right; color:var(--color-text-muted); font-size:0.6rem;">15,00 %</span>
+                        <strong id="prorrateo-uf-3" style="text-align:right; color:var(--color-primary);">$ 45.000</strong>
                       </div>
                     </div>
                   </div>
 
-                  <!-- SLIDE 2: AMENITIES / RESERVAS -->
+                  <!-- SLIDE 2: RESERVAS DE AMENITIES -->
                   <div class="carousel-slide" id="slide-2" style="display: none; flex-direction: column; gap: 0.5rem; flex: 1;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                      <span style="font-size:0.7rem; font-weight:700; color:var(--color-primary); text-transform:uppercase;">Reserva de SUM</span>
-                      <span style="font-size:0.65rem; color:var(--color-text-muted);">Sábado 11/07</span>
+                      <div style="display:flex; flex-direction:column; gap:0.05rem;">
+                        <span style="font-size:0.7rem; font-weight:700; color:var(--color-text);">Reservas</span>
+                        <span style="font-size:0.55rem; color:var(--color-text-muted);">Portal del copropietario · UF-02A</span>
+                      </div>
+                      <span style="font-size:0.6rem; color:var(--color-text-muted);">Sáb 11/07</span>
                     </div>
 
-                    <!-- Slot Tarde -->
-                    <div style="background:var(--color-surface); border:1px solid var(--color-border); border-left:3px solid var(--color-green); padding:0.4rem 0.5rem; border-radius:var(--radius-sm); display:flex; justify-content:space-between; align-items:center;">
-                      <div>
-                        <div style="font-size:0.7rem; font-weight:600;">Turno Tarde (12:00 a 18:00)</div>
-                        <div style="font-size:0.6rem; color:var(--color-text-muted);">Reservado: UF 3A (Elena R.)</div>
-                      </div>
-                      <span class="badge badge--ok" style="font-size:0.55rem; padding:0.15rem 0.35rem;">Reservado</span>
+                    <!-- Selector de amenity (chips) -->
+                    <div style="display:flex; gap:0.25rem; align-items:center;">
+                      <button style="padding:0.25rem 0.55rem; border:1px solid var(--color-primary); background:var(--color-primary-soft); color:var(--color-primary); border-radius:12px; cursor:pointer; font-size:0.6rem; font-weight:600;">SUM</button>
+                      <button style="padding:0.25rem 0.55rem; border:1px solid var(--color-border-strong); background:var(--color-surface); color:var(--color-text-muted); border-radius:12px; cursor:pointer; font-size:0.6rem; font-weight:500;">Parrilla</button>
+                      <button style="padding:0.25rem 0.55rem; border:1px solid var(--color-border-strong); background:var(--color-surface); color:var(--color-text-muted); border-radius:12px; cursor:pointer; font-size:0.6rem; font-weight:500;">Laundry</button>
                     </div>
 
-                    <!-- Slot Noche -->
-                    <div id="mini-reserva-row-2" style="background:var(--color-surface); border:1px solid var(--color-border); border-left:3px solid var(--color-primary); padding:0.4rem 0.5rem; border-radius:var(--radius-sm); display:flex; justify-content:space-between; align-items:center; transition: all 0.4s;">
-                      <div>
-                        <div style="font-size:0.7rem; font-weight:600;">Turno Noche (19:00 a 00:00)</div>
-                        <div style="font-size:0.6rem; color:var(--color-text-muted);" id="mini-reserva-detail-2">Estado: Disponible para reservas</div>
+                    <!-- Info del amenity -->
+                    <div style="background:var(--color-bg); border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:0.35rem 0.5rem; font-size:0.58rem; color:var(--color-text-muted); display:flex; justify-content:space-between;">
+                      <span>Capacidad: <strong style="color:var(--color-text);">40 personas</strong></span>
+                      <span>Cancel. mín.: <strong style="color:var(--color-text);">48 hs</strong></span>
+                    </div>
+
+                    <!-- Slots del día -->
+                    <div style="display:flex; flex-direction:column; gap:0.35rem; flex:1;">
+                      <span style="font-size:0.55rem; font-weight:600; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.04em;">Turnos del sábado</span>
+
+                      <!-- Slot Tarde -->
+                      <div style="background:var(--color-surface); border:1px solid var(--color-border); border-left:3px solid var(--color-coral); padding:0.4rem 0.5rem; border-radius:var(--radius-sm); display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                          <div style="font-size:0.7rem; font-weight:600;">12:00 – 18:00</div>
+                          <div style="font-size:0.55rem; color:var(--color-text-muted);">Reservado por UF-03A (Elena R.)</div>
+                        </div>
+                        <span class="badge badge--alerta" style="font-size:0.55rem; padding:0.15rem 0.4rem; background:rgba(192,68,60,0.1); color:var(--color-coral);">Ocupado</span>
                       </div>
-                      <span class="badge badge--neutro" id="mini-reserva-badge-2" style="font-size:0.55rem; padding:0.15rem 0.35rem; background:var(--color-primary-soft); color:var(--color-primary);">Disponible</span>
+
+                      <!-- Slot Noche (jugable) -->
+                      <div id="mini-reserva-row-2" style="background:var(--color-surface); border:1px solid var(--color-border); border-left:3px solid var(--color-primary); padding:0.4rem 0.5rem; border-radius:var(--radius-sm); display:flex; justify-content:space-between; align-items:center; transition: all 0.4s;">
+                        <div>
+                          <div style="font-size:0.7rem; font-weight:600;">19:00 – 00:00</div>
+                          <div style="font-size:0.55rem; color:var(--color-text-muted);" id="mini-reserva-detail-2">Disponible · $ 8.500 por turno</div>
+                        </div>
+                        <span class="badge badge--neutro" id="mini-reserva-badge-2" style="font-size:0.55rem; padding:0.15rem 0.4rem; background:var(--color-primary-soft); color:var(--color-primary);">Disponible</span>
+                      </div>
                     </div>
 
                     <div style="display:flex; justify-content:flex-end; gap:0.4rem; margin-top: auto;">
-                      <button class="btn btn-primary" id="mini-reserva-btn-run" onclick="runMiniReserva()" style="min-height:28px; height:28px; font-size:0.65rem; padding: 0 0.75rem; border-radius:15px; background:var(--color-primary); color:#fff; border:none; cursor:pointer;">
-                        Reservar Turno Noche (UF 2A)
+                      <button class="btn btn-primary" id="mini-reserva-btn-run" onclick="runMiniReserva()" style="min-height:30px; height:30px; font-size:0.65rem; padding: 0 0.85rem; border-radius:15px; background:var(--color-primary); color:#fff; border:none; cursor:pointer; font-weight:600;">
+                        Reservar 19:00 – 00:00
                       </button>
-                      <button class="btn btn-secondary" id="mini-reserva-btn-reset" onclick="resetMiniReserva()" style="min-height:28px; height:28px; font-size:0.65rem; padding: 0 0.75rem; border-radius:15px; background:transparent; border:1px solid var(--color-border-strong); color:var(--color-text); cursor:pointer; display:none;">
-                        Liberar Turno
+                      <button class="btn btn-secondary" id="mini-reserva-btn-reset" onclick="resetMiniReserva()" style="min-height:30px; height:30px; font-size:0.65rem; padding: 0 0.75rem; border-radius:15px; background:transparent; border:1px solid var(--color-border-strong); color:var(--color-text); cursor:pointer; display:none; font-weight:600;">
+                        Cancelar
                       </button>
                     </div>
                   </div>
 
                 </main>
               </div>
+        </div>
         </div>
       </div>
 
@@ -980,30 +1118,30 @@
   <section class="what-to-do-section" id="dolores" style="background:#faf9f6;">
     <div class="container">
       <div class="section-title-holder" style="margin-bottom: 2.5rem;">
-        <span class="hero-tag">EL APRENDIZAJE ADMINISTRATIVO</span>
-        <h2 class="section-heading" style="margin-top: 0.5rem;">¿Por qué los métodos manuales fallan?</h2>
+        <span class="hero-tag">POR QUÉ EXCEL YA NO ALCANZA</span>
+        <h2 class="section-heading" style="margin-top: 0.5rem;">Administrar un edificio no debería ser un caos contable.</h2>
       </div>
-      
+
       <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; text-align: left;">
         <div style="background:var(--color-surface); border:1px solid var(--color-border); padding: 1.5rem; border-radius: var(--radius); box-shadow: var(--shadow-md);">
           <div style="color:var(--color-coral); font-size:1.5rem; margin-bottom:0.5rem;">⚠</div>
-          <h4 style="font-size:1rem; font-weight:700; margin-bottom:0.5rem;">Descuadres por pagos parciales</h4>
+          <h4 style="font-size:1rem; font-weight:700; margin-bottom:0.5rem;">Cobros a cuenta que descuadran</h4>
           <p style="font-size:0.85rem; color:var(--color-text-muted); line-height:1.5;">
-            Asociar cobros a boletas específicas de forma manual crea problemas contables cuando los propietarios pagan de más, de menos o a cuenta, produciendo ruidos en el balance.
+            Un propietario paga de más, otro paga la mitad. Imputar a mano genera errores contables que aparecen recién en el cierre, cuando ya es tarde.
           </p>
         </div>
         <div style="background:var(--color-surface); border:1px solid var(--color-border); padding: 1.5rem; border-radius: var(--radius); box-shadow: var(--shadow-md);">
           <div style="color:var(--color-coral); font-size:1.5rem; margin-bottom:0.5rem;">⚠</div>
-          <h4 style="font-size:1rem; font-weight:700; margin-bottom:0.5rem;">Reclamaciones constantes</h4>
+          <h4 style="font-size:1rem; font-weight:700; margin-bottom:0.5rem;">Cierres manuales de horas</h4>
           <p style="font-size:0.85rem; color:var(--color-text-muted); line-height:1.5;">
-            La falta de un portal online de autogestión para copropietarios satura los correos de la administración con pedidos de comprobantes, resúmenes de deuda y reservas de SUM.
+            Prorratear gastos por rubro y armar la liquidación de cada UF según Ley 941 se lleva días de trabajo administrativo cada mes.
           </p>
         </div>
         <div style="background:var(--color-surface); border:1px solid var(--color-border); padding: 1.5rem; border-radius: var(--radius); box-shadow: var(--shadow-md);">
           <div style="color:var(--color-coral); font-size:1.5rem; margin-bottom:0.5rem;">⚠</div>
-          <h4 style="font-size:1rem; font-weight:700; margin-bottom:0.5rem;">Presión y deudas vencidas</h4>
+          <h4 style="font-size:1rem; font-weight:700; margin-bottom:0.5rem;">Copropietarios sin visibilidad</h4>
           <p style="font-size:0.85rem; color:var(--color-text-muted); line-height:1.5;">
-            Modelar la expensa mensual según el formato de la Ley 941 CABA de forma artesanal insume días de trabajo administrativo y expone a multas por fallas de agrupación.
+            El mail del administrador se satura con pedidos de saldos, comprobantes y reservas del SUM. Todo por no tener un portal online.
           </p>
         </div>
       </div>
@@ -1015,8 +1153,8 @@
     <div class="container">
       
       <div class="section-title-holder">
-        <span class="hero-tag">MÓDULOS DEL SISTEMA DE GESTIÓN</span>
-        <h2 class="section-heading" style="margin-top: 0.5rem;">Funcionalidades Reales de la Plataforma</h2>
+        <span class="hero-tag">TODO EN UNA PLATAFORMA</span>
+        <h2 class="section-heading" style="margin-top: 0.5rem;">Los módulos que una administración moderna necesita.</h2>
       </div>
 
       <div class="what-to-do-grid">
@@ -1024,9 +1162,9 @@
         <!-- Card 1: Imputación de pagos por antigüedad -->
         <div class="what-card">
           <div class="what-icon">⇄</div>
-          <h3 class="what-title">Cuentas Corrientes e Imputación de Pagos</h3>
+          <h3 class="what-title">Cuentas corrientes por UF</h3>
           <p class="what-text">
-            Historial contable unificado por copropietario. Control de deuda consolidada e imputación automática de cobros a las expensas más antiguas.
+            Historial contable individual con saldo consolidado. Los cobros a cuenta se imputan automáticamente a las expensas más antiguas (FIFO).
           </p>
           <a class="what-more-link" onclick="openDetailsModal('fifo')">
             Ver más
@@ -1037,9 +1175,9 @@
         <!-- Card 2: Ley 941 -->
         <div class="what-card">
           <div class="what-icon">⚖</div>
-          <h3 class="what-title">Liquidación de Expensas CABA</h3>
+          <h3 class="what-title">Liquidación Ley 941</h3>
           <p class="what-text">
-            Cálculo mensual de prorrateo y emisión de comprobantes oficiales CABA bajo los rubros específicos y lineamientos de la Ley 941.
+            Prorrateo mensual por coeficiente y comprobantes con el formato que exige la Ley 941 CABA. Rubros oficiales configurables.
           </p>
           <a class="what-more-link" onclick="openDetailsModal('ley941')">
             Ver más
@@ -1050,9 +1188,9 @@
         <!-- Card 3: Padrón -->
         <div class="what-card">
           <div class="what-icon">👥</div>
-          <h3 class="what-title">Padrón de Copropietarios</h3>
+          <h3 class="what-title">Padrón del edificio</h3>
           <p class="what-text">
-            Registro detallado de unidades funcionales (UF), coeficientes de prorrateo e información de contacto de inquilinos y propietarios.
+            Unidades funcionales, coeficientes de prorrateo, propietarios, inquilinos y representantes. Usuarios de acceso al portal por UF.
           </p>
           <a class="what-more-link" onclick="openDetailsModal('padron')">
             Ver más
@@ -1063,9 +1201,9 @@
         <!-- Card 4: Gastos y Mantenimiento -->
         <div class="what-card">
           <div class="what-icon">💸</div>
-          <h3 class="what-title">Egresos y Trabajos</h3>
+          <h3 class="what-title">Egresos y proveedores</h3>
           <p class="what-text">
-            Registro y control de gastos del consorcio (facturas de proveedores, abonos, seguros) y asignación a tareas de mantenimiento de partes comunes.
+            Facturas, abonos, seguros, gastos habituales y planes en cuotas. Cada gasto se clasifica por rubro y va a prorrateo o a un depto puntual.
           </p>
           <a class="what-more-link" onclick="openDetailsModal('gastos')">
             Ver más
@@ -1076,9 +1214,9 @@
         <!-- Card 5: Liquidación de Haberes -->
         <div class="what-card">
           <div class="what-icon">💼</div>
-          <h3 class="what-title">Haberes y Cargas Sociales</h3>
+          <h3 class="what-title">Sueldos y cargas sociales</h3>
           <p class="what-text">
-            Módulo contable para la liquidación de sueldos y aportes de seguridad social del encargado del edificio y personal del consorcio.
+            Liquidación mensual del encargado con haberes y conceptos snapshot. Genera automáticamente los gastos del rubro sueldos.
           </p>
           <a class="what-more-link" onclick="openDetailsModal('haberes')">
             Ver más
@@ -1089,9 +1227,9 @@
         <!-- Card 6: Amenities y Reservas -->
         <div class="what-card">
           <div class="what-icon">📅</div>
-          <h3 class="what-title">Amenities y Reservas</h3>
+          <h3 class="what-title">Amenities y reservas</h3>
           <p class="what-text">
-            Agenda interactiva y control de ocupación en vivo para el SUM, parrilla y otros espacios comunes desde el portal del consorcista.
+            SUM, parrilla, laundry. Los copropietarios reservan desde el portal, con control de disponibilidad y anticipación mínima de cancelación.
           </p>
           <a class="what-more-link" onclick="openDetailsModal('amenities')">
             Ver más
@@ -1107,10 +1245,10 @@
   <!-- Section de imagen de la ciudad en la zona intermedia -->
   <section style="padding: 4rem 0; background: var(--color-surface); text-align: center; border-bottom: 1px solid var(--color-border);">
     <div class="container" style="max-width: 800px; display:flex; flex-direction:column; gap:1.5rem; align-items:center;">
-      <span class="hero-tag">CONVIVENCIA Y EFICIENCIA</span>
-      <h3 style="font-size:1.8rem; font-weight:700; letter-spacing:-0.02em;">Moderniza la comunicación del consorcio</h3>
+      <span class="hero-tag">CONVIVENCIA Y TRANSPARENCIA</span>
+      <h3 style="font-size:1.8rem; font-weight:700; letter-spacing:-0.02em;">Menos morosidad. Asambleas más cortas.</h3>
       <p style="font-size:0.95rem; color:var(--color-text-muted); max-width:600px;">
-        La transparencia es la clave para reducir la morosidad y mejorar las asambleas. Con nuestro portal, cada copropietario tiene control y visibilidad sobre los gastos reales del edificio Libertad.
+        Cuando cada copropietario ve en su portal la deuda, los gastos del mes y los comprobantes de pago, las discusiones sobre las expensas cambian de tono. La transparencia es la mejor cobranza.
       </p>
       <div style="border-radius:var(--radius); overflow:hidden; border:1px solid var(--color-border); box-shadow:var(--shadow-md); width:100%;">
         <img src="consorcio_hero.png" alt="Fachada del edificio administrado" style="width:100%; display:block;">
@@ -1123,12 +1261,12 @@
     <div class="container">
       
       <div class="cta-card">
-        <h2 class="cta-title">Prueba el sistema en vivo ahora mismo</h2>
+        <h2 class="cta-title">Probá la plataforma en vivo.</h2>
         <p class="cta-text">
-          Hemos cargado un consorcio de prueba con gastos y deudas ficticias para que puedas experimentar la simplicidad de la imputación de cobros y los cierres mensuales en 5 sencillos pasos.
+          Cargamos un consorcio de demostración con 60 UFs, seis meses de gastos y expensas ya emitidas. En 5 minutos ves si te sirve — sin instalar nada, sin dar tu tarjeta.
         </p>
         <a href="./tutorial.html" class="btn btn-accent" style="font-size: 1rem; padding: 0.8rem 2rem; min-height: 48px; position:relative; z-index:2;">
-          Ingresar al simulador
+          Entrar al demo
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </a>
       </div>
@@ -1183,7 +1321,7 @@
     }
 
     // 1. Lógica del tag dinámico de la Hero Section
-    const words = ["Gestión", "Cuentas", "Liquidación", "Reservas", "Mantenimiento"];
+    const words = ["consorcio", "edificio", "administración"];
     let index = 0;
     const changeTag = document.getElementById("hero-change-tag");
 
@@ -1287,18 +1425,27 @@
         t.style.background = "transparent";
         t.style.color = "var(--color-text)";
         t.style.fontWeight = "500";
+        t.classList.remove("activo");
       });
+
+      // Desactivar todos los tabs externos
+      const externalTabs = document.querySelectorAll(".demo-tab");
+      externalTabs.forEach(t => t.classList.remove("activo"));
 
       // Mostrar slide y pestaña seleccionada
       const targetSlide = document.getElementById(`slide-${slideIndex}`);
       if (targetSlide) targetSlide.style.display = "flex";
-      
+
       const activeTab = document.getElementById(`tab-${slideIndex}`);
       if (activeTab) {
         activeTab.style.background = "var(--color-primary-soft)";
         activeTab.style.color = "var(--color-primary)";
         activeTab.style.fontWeight = "600";
+        activeTab.classList.add("activo");
       }
+
+      const activeExternalTab = document.getElementById(`demo-tab-${slideIndex}`);
+      if (activeExternalTab) activeExternalTab.classList.add("activo");
     }
 
     // Inicializar visualmente en el primer slide al cargar
@@ -1504,13 +1651,15 @@
       const row = document.getElementById("mini-reserva-row-2");
       row.style.borderLeftColor = "var(--color-green)";
       row.style.background = "rgba(45, 143, 94, 0.08)";
-      
+
       const detail = document.getElementById("mini-reserva-detail-2");
-      detail.innerText = "Reservado: UF 2A (Sánchez, J.)";
+      detail.innerText = "Reservado por UF-02A (vos)";
 
       const badge = document.getElementById("mini-reserva-badge-2");
       badge.className = "badge badge--ok";
-      badge.innerText = "Reservado";
+      badge.style.background = "rgba(45, 143, 94, 0.15)";
+      badge.style.color = "var(--color-green)";
+      badge.innerText = "Confirmada";
 
       document.getElementById("mini-reserva-btn-run").style.display = "none";
       document.getElementById("mini-reserva-btn-reset").style.display = "inline-flex";
@@ -1520,12 +1669,14 @@
       const row = document.getElementById("mini-reserva-row-2");
       row.style.borderLeftColor = "var(--color-primary)";
       row.style.background = "var(--color-surface)";
-      
+
       const detail = document.getElementById("mini-reserva-detail-2");
-      detail.innerText = "Estado: Disponible para reservas";
+      detail.innerText = "Disponible · $ 8.500 por turno";
 
       const badge = document.getElementById("mini-reserva-badge-2");
       badge.className = "badge badge--neutro";
+      badge.style.background = "var(--color-primary-soft)";
+      badge.style.color = "var(--color-primary)";
       badge.innerText = "Disponible";
 
       document.getElementById("mini-reserva-btn-run").style.display = "inline-flex";

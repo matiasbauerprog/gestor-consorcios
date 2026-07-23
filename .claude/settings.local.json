@@ -135,7 +135,14 @@
       "Bash(cat frontend/src/api/client.js)",
       "Bash(cat frontend/src/api/client.jsx)",
       "Bash(pytest -v)",
-      "Bash(npm --prefix frontend run build)"
+      "Bash(npm --prefix frontend run build)",
+      "Bash(./.venv/Scripts/pip.exe show *)",
+      "Bash(python\")",
+      "Bash(claude *)",
+      "Bash(python -m http.server 8791)",
+      "Bash(kill %1)",
+      "Bash(taskkill //F //IM python.exe)",
+      "Bash(curl -s -o /dev/null -w \"server:%{http_code}\\\\n\" \"http://localhost:8791/Landing%20Gestor%20Consorcios.dc.html\")"
     ]
   },
   "model": "opus"
