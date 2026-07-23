@@ -146,6 +146,12 @@ app.add_middleware(
 )
 
 
+@app.get("/")
+def root():
+    return {"status": "ok", "message": "Gestor de Consorcios API"}
+
+
+
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(_: Request, exc: StarletteHTTPException) -> JSONResponse:
     detail = exc.detail if isinstance(exc.detail, str) else "Error"
