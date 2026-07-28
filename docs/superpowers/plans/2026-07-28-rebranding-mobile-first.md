@@ -719,7 +719,7 @@ const inicial = (user.email?.[0] ?? "?").toUpperCase();
     aria-label="Tu cuenta"
     onClick={() => setSheetCuenta(true)}
   >
-    {inicial}
+    <span aria-hidden="true">{inicial}</span>
   </button>
 </header>
 ```
@@ -795,12 +795,26 @@ Reemplazar `.app-header` y sus reglas asociadas (262-330):
   text-overflow: ellipsis;
 }
 
+/* El círculo se ve de 32px (mockup) pero el área cliqueable es de 44px
+   (Global Constraint de targets táctiles). El padding transparente es lo
+   que sostiene las dos cosas a la vez — no reducir a 32px el botón. */
 .avatar-boton {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+  padding: 6px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-boton span {
   width: 32px;
   height: 32px;
-  min-height: 32px;
-  flex-shrink: 0;
-  padding: 0;
   border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.25);
@@ -808,8 +822,10 @@ Reemplazar `.app-header` y sus reglas asociadas (262-330):
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 0.75rem;
-  box-shadow: none;
   letter-spacing: normal;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 ```
 
@@ -1051,9 +1067,16 @@ function InicioRoute() {
   const { user } = useAuth();
   if (user.rol === "departamento") return <Navigate to="/mi-cuenta" replace />;
   if (user.rol === "representante") return <Navigate to="/comunicados" replace />;
+  // super_admin no tiene consorcio activo: Inicio dispararía endpoints
+  // admin-only contra 403. Va a su propia pantalla.
+  if (user.rol === "super_admin") {
+    return <Navigate to="/super-admin/administraciones" replace />;
+  }
   return <Inicio />;
 }
 ```
+
+`Inicio` solo se renderiza para `administracion`. Cualquier rol futuro que no matchee cae también en `Inicio`, así que si se agrega uno hay que sumarlo acá.
 
 - [ ] **Step 2: Crear `Inicio.jsx` — carga de datos**
 
