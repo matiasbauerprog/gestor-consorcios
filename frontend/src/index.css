@@ -93,15 +93,19 @@ p {
 
 button {
   font-family: inherit;
-  font-size: 0.95rem;
-  font-weight: 500;
-  padding: 0.6em 1.2em;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  width: 100%;
   min-height: 44px;
+  padding: 0.6em 1.2em;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: var(--color-primary);
   color: #fff;
   cursor: pointer;
+  box-shadow: 0 4px 10px rgb(from var(--color-primary) r g b / 0.25);
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
@@ -653,6 +657,28 @@ td button {
   margin-bottom: 1.5rem;
 }
 
+.regla-seccion {
+  border-top: 2px solid var(--color-text);
+  padding-top: 0.75rem;
+  margin-bottom: 1.4rem;
+}
+
+.micro-label {
+  margin: 0 0 2px;
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* Todo lo monetario alinea por dígito */
+.monto,
+td.monto {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .error-banner {
   color: var(--color-danger);
   background: var(--color-danger-bg);
@@ -1169,7 +1195,7 @@ td button {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  padding: 1rem;
+  padding: 0.9rem;
 }
 
 .tarjeta h3 {
@@ -1398,12 +1424,28 @@ td button {
 /* ---------- Badges ---------- */
 
 .badge {
-  display: inline-block;
-  padding: 0.25em 0.7em;
-  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
   border: none;
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: normal;
+  width: auto;
+  min-height: 0;
+  box-shadow: none;
+}
+
+.badge::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+  flex-shrink: 0;
 }
 
 .badge--neutro {
@@ -1520,6 +1562,16 @@ td button {
 /* Tablet (>=600px)                                              */
 /* ============================================================ */
 @media (min-width: 600px) {
+  button {
+    width: fit-content;
+    min-height: 36px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: normal;
+    box-shadow: none;
+  }
+
   .login-card {
     padding: 2rem;
   }
@@ -1909,13 +1961,20 @@ td button {
   min-height: 48px;
 }
 
-@media (max-width: 599px) {
+.cta-sticky {
+  position: sticky;
+  bottom: calc(var(--altura-tabbar) + env(safe-area-inset-bottom));
+  background: var(--color-surface);
+  padding: 0.5rem 0;
+  box-shadow: 0 -2px 8px rgba(18, 18, 18, 0.06);
+}
+
+@media (min-width: 960px) {
   .cta-sticky {
-    position: sticky;
-    bottom: 0;
-    background: var(--color-surface);
-    padding: 0.5rem 0;
-    box-shadow: 0 -2px 8px rgba(28, 25, 23, 0.06);
+    position: static;
+    bottom: auto;
+    background: transparent;
+    box-shadow: none;
   }
 }
 
