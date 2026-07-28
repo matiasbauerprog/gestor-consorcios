@@ -6,31 +6,45 @@
    ===================================================================== */
 
 :root {
-  /* Paleta */
-  --color-bg: #faf9f6;
+  /* Paleta — mockup mobile-first (2026-07) */
+  --color-bg: #f4f0e6;
   --color-surface: #ffffff;
-  --color-text: #1c1917;
-  --color-text-muted: #78716c;
-  --color-border: #eceae4;
-  --color-border-strong: #e5e2da;
-  --color-primary: #3460a8;
-  --color-primary-hover: #2a4f8c;
-  --color-primary-soft: #e9eff8;
+  --color-text: #121212;
+  --color-text-muted: #757168;
+  --color-border: #e3ded2;
+  --color-border-strong: #d6d0c4;
+  --color-primary: #2c6473;
+  --color-primary-hover: #24525e;
+  --color-primary-soft: #e7f0f3;
   --color-danger: #c0443c;
-  --color-danger-bg: #f9e9e8;
+  --color-danger-bg: #f7e0de;
   --color-danger-hover: #a93b34;
-  --color-success: #24734c;
-  --color-success-bg: #e7f4ec;
-  --color-warning: #8a6d1a;
-  --color-warning-bg: #fdf3d7;
+  --color-success: #2d8f5e;
+  --color-success-bg: #e3efe7;
+  --color-warning: #8a6d1c;
+  --color-warning-bg: #f7efd4;
+
+  /* Color por módulo — lo aplica [data-modulo] más abajo */
+  --color-mod-inicio: #1b3a4b;
+  --color-mod-cobranzas: #305d4a;
+  --color-mod-gastos: #c0443c;
+  --color-mod-finanzas: #8a6d1c;
+  --color-mod-expensas: #2c6473;
+  --color-mod-operacion: #5b36b8;
+  --color-modulo: var(--color-mod-inicio);
+  --color-tab-inactivo: #9b968a;
 
   /* Geometría y elevación */
-  --radius: 10px;
-  --radius-sm: 8px;
-  --shadow-md: 0 8px 24px rgba(28, 25, 23, 0.1);
+  --radius-sm: 12px;
+  --radius: 16px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+  --shadow-md: 0 8px 24px rgba(18, 18, 18, 0.1);
+  --altura-tabbar: 62px;
 
   /* Tipografía */
-  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Montserrat", var(--font-sans);
 
   font-family: var(--font-sans);
   font-size: 16px;
@@ -39,6 +53,14 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Cada ruta pinta su módulo; el default de :root cubre las rutas no mapeadas. */
+[data-modulo="inicio"]     { --color-modulo: var(--color-mod-inicio); }
+[data-modulo="cobranzas"]  { --color-modulo: var(--color-mod-cobranzas); }
+[data-modulo="gastos"]     { --color-modulo: var(--color-mod-gastos); }
+[data-modulo="finanzas"]   { --color-modulo: var(--color-mod-finanzas); }
+[data-modulo="expensas"]   { --color-modulo: var(--color-mod-expensas); }
+[data-modulo="operacion"]  { --color-modulo: var(--color-mod-operacion); }
 
 * {
   box-sizing: border-box;
@@ -51,9 +73,10 @@ body {
 
 h1, h2, h3 {
   margin: 0 0 0.5em;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
   color: var(--color-text);
-  letter-spacing: -0.01em;
 }
 
 h4 {
