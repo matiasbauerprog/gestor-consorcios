@@ -37,7 +37,7 @@ export default function AppLayout() {
   }, [drawerAbierto]);
 
   const esSuperAdmin = user?.rol === "super_admin";
-  const { seccionesMas } = useNavegacionVisible(user.rol);
+  const { secciones, seccionesMas, tabsVisibles } = useNavegacionVisible(user.rol);
   const modulo = moduloDeRuta(location.pathname);
   const inicial = (user.email?.[0] ?? "?").toUpperCase();
   const nombreConsorcio = consorciosAccesibles.find(
@@ -87,13 +87,18 @@ export default function AppLayout() {
         {esSuperAdmin ? (
           <SidebarSuperAdmin abierto={drawerAbierto} onCerrar={cerrarDrawer} />
         ) : (
-          <Sidebar rol={user.rol} abierto={drawerAbierto} onCerrar={cerrarDrawer} />
+          <Sidebar
+            rol={user.rol}
+            secciones={secciones}
+            abierto={drawerAbierto}
+            onCerrar={cerrarDrawer}
+          />
         )}
         <main className="app-content">
           <Outlet />
         </main>
       </div>
-      {!esSuperAdmin && <TabBar rol={user.rol} seccionesMas={seccionesMas} />}
+      {!esSuperAdmin && <TabBar tabs={tabsVisibles} seccionesMas={seccionesMas} />}
       <SheetCuenta abierta={sheetCuenta} onCerrar={() => setSheetCuenta(false)} />
     </div>
   );

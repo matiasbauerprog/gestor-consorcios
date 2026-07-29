@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import Modal from "./Modal";
-import { TABS_POR_ROL } from "../navegacion";
 
 const ICONOS = {
   casa: "m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10",
@@ -35,9 +34,8 @@ function Icono({ nombre }) {
   );
 }
 
-export default function TabBar({ rol, seccionesMas }) {
+export default function TabBar({ tabs, seccionesMas }) {
   const [sheetMas, setSheetMas] = useState(false);
-  const tabs = TABS_POR_ROL[rol];
 
   if (!tabs) return null; // super_admin conserva su drawer
 
@@ -49,7 +47,6 @@ export default function TabBar({ rol, seccionesMas }) {
             key={t.ruta}
             to={t.ruta}
             end={t.ruta === "/"}
-            data-modulo={t.modulo}
             className={({ isActive }) =>
               isActive ? "tabbar-item activo" : "tabbar-item"
             }

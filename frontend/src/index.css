@@ -146,6 +146,7 @@ button {
 .tabla-coeficientes .col-acciones button,
 td button,
 .menu-kebab-trigger,
+.modal-cerrar,
 .boton-link {
   width: auto;
 }
@@ -160,6 +161,8 @@ td button,
 .modal-acciones button[type="button"],
 .padron-paginacion button,
 .menu-kebab-trigger,
+.modal-cerrar,
+.boton-secundario,
 .boton-link {
   text-transform: none;
   font-weight: 600;
@@ -644,7 +647,7 @@ td button {
 .drawer-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(28, 25, 23, 0.45);
+  background: rgba(14, 31, 41, 0.45);
   z-index: 1050;
 }
 
@@ -2407,9 +2410,13 @@ td.monto {
   color: #fff;
 }
 
-/* Cifra no disponible (fuente con 403/404) — distinta de un valor en $0 */
+/* Cifra no disponible (fuente con 403/404) — distinta de un valor en $0.
+   --color-text-muted está calibrado para el fondo claro; acá va sobre
+   .inicio-hero (fondo oscuro), así que usa blanco translúcido, igual que
+   el resto del texto secundario del hero (.inicio-hero .micro-label).
+   rgba(255,255,255,0.65) sobre #1b3a4b da ~6.06:1 (AA). */
 .inicio-dato-ausente {
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.65);
   font-weight: 400;
 }
 

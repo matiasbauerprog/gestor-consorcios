@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { grupoDeRuta, ORDEN_DEPTO } from "../navegacion";
-import { useNavegacionVisible } from "../hooks/useNavegacionVisible";
 
-export default function Sidebar({ rol, abierto, onCerrar }) {
+export default function Sidebar({ rol, secciones: seccionesVisibles, abierto, onCerrar }) {
   const location = useLocation();
   const [grupoAbierto, setGrupoAbierto] = useState(() =>
     grupoDeRuta(location.pathname)
@@ -17,8 +16,6 @@ export default function Sidebar({ rol, abierto, onCerrar }) {
   function toggleGrupo(titulo) {
     setGrupoAbierto((actual) => (actual === titulo ? null : titulo));
   }
-
-  const { secciones: seccionesVisibles } = useNavegacionVisible(rol);
 
   return (
     <aside className={abierto ? "app-sidebar abierto" : "app-sidebar"}>

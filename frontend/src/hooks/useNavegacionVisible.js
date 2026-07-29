@@ -43,5 +43,13 @@ export function useNavegacionVisible(rol) {
     .map((s) => ({ ...s, modulos: s.modulos.filter((m) => !rutasEnTabs.has(m.ruta)) }))
     .filter((s) => s.modulos.length > 0);
 
-  return { secciones, seccionesMas, cargando };
+  // Tabs de la tab bar mobile cuya ruta sigue habilitada según las secciones ya
+  // filtradas (respeta modulosHabilitados). "/" (Inicio) no tiene entrada en
+  // SECCIONES y siempre se muestra para los roles que la tienen en su tab list.
+  const rutasVisibles = new Set(secciones.flatMap((s) => s.modulos.map((m) => m.ruta)));
+  const tabsVisibles = (TABS_POR_ROL[rol] ?? []).filter(
+    (t) => t.ruta === "/" || rutasVisibles.has(t.ruta)
+  );
+
+  return { secciones, seccionesMas, tabsVisibles, cargando };
 }
