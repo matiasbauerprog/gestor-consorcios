@@ -7,6 +7,8 @@ import SidebarSuperAdmin from "./SidebarSuperAdmin";
 import SelectorConsorcio from "./SelectorConsorcio";
 import Campanita from "./Campanita";
 import SheetCuenta from "./SheetCuenta";
+import TabBar from "./TabBar";
+import { useNavegacionVisible } from "../hooks/useNavegacionVisible";
 import { grupoDeRuta, moduloDeRuta, TABS_POR_ROL } from "../navegacion";
 
 function etiquetaModulo(pathname, rol, nombreConsorcio) {
@@ -35,6 +37,7 @@ export default function AppLayout() {
   }, [drawerAbierto]);
 
   const esSuperAdmin = user?.rol === "super_admin";
+  const { seccionesMas } = useNavegacionVisible(user.rol);
   const modulo = moduloDeRuta(location.pathname);
   const inicial = (user.email?.[0] ?? "?").toUpperCase();
   const nombreConsorcio = consorciosAccesibles.find(
@@ -90,6 +93,7 @@ export default function AppLayout() {
           <Outlet />
         </main>
       </div>
+      {!esSuperAdmin && <TabBar rol={user.rol} seccionesMas={seccionesMas} />}
       <SheetCuenta abierta={sheetCuenta} onCerrar={() => setSheetCuenta(false)} />
     </div>
   );

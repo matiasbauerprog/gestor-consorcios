@@ -728,7 +728,7 @@ td button {
 
 .app-content {
   flex: 1;
-  padding: 1rem;
+  padding: 1rem 1rem calc(var(--altura-tabbar) + 1.5rem);
   width: 100%;
   margin: 0;
 }
@@ -1665,6 +1665,46 @@ td.monto {
   flex-wrap: wrap;
 }
 
+/* ---------- Tab bar inferior (mobile) ---------- */
+
+.tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  padding: 6px 8px calc(10px + env(safe-area-inset-bottom));
+  z-index: 900;
+}
+
+.tabbar-item {
+  flex: 1;
+  min-height: 48px;
+  width: auto;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-family: inherit;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--color-tab-inactivo);
+  text-decoration: none;
+}
+
+.tabbar-item.activo {
+  color: var(--color-modulo);
+}
+
 /* ============================================================ */
 /* Tablet (>=600px)                                              */
 /* ============================================================ */
@@ -1741,6 +1781,10 @@ td.monto {
 /* Desktop (>=960px) — sidebar vertical a la izquierda           */
 /* ============================================================ */
 @media (min-width: 960px) {
+  .tabbar {
+    display: none;
+  }
+
   .app-body {
     flex-direction: row;
   }
