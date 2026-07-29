@@ -165,7 +165,15 @@ button {
 td button,
 .menu-kebab-trigger,
 .modal-cerrar,
-.boton-link {
+.boton-link,
+.periodo-nav,
+.campanita-boton,
+.campanita-marcar-todas,
+.sidebar-cerrar,
+.cerrar-modal,
+.accion-discreta,
+.tab-panel,
+.selector-consorcio-boton {
   width: auto;
 }
 
@@ -181,7 +189,17 @@ td button,
 .menu-kebab-trigger,
 .modal-cerrar,
 .boton-secundario,
-.boton-link {
+.boton-link,
+.periodo-nav,
+.campanita-boton,
+.campanita-marcar-todas,
+.sidebar-cerrar,
+.cerrar-modal,
+.accion-discreta,
+.tab-panel,
+.selector-consorcio-boton,
+.selector-consorcio-item button,
+.menu-kebab-item {
   text-transform: none;
   font-weight: 600;
   letter-spacing: normal;
@@ -692,6 +710,7 @@ td button {
   background: transparent;
   border: none;
   border-radius: var(--radius-sm);
+  box-shadow: none;
   font-family: inherit;
   font-size: 0.625rem;
   font-weight: 800;
@@ -1101,16 +1120,23 @@ td.monto {
 .periodo-nav {
   background: transparent;
   border: 1px solid var(--color-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 0.2rem 0.6rem;
   font-size: 1rem;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
   cursor: pointer;
-  min-height: unset;
+  /* Glifo "‹"/"›" a tamaño visual sin cambios; el hit area se agranda a
+     44px con min-width/height + centrado flex, misma técnica que
+     .menu-kebab-trigger, en vez del min-height:44px "musculoso". */
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .periodo-nav:hover {
-  color: var(--color-text, #1f2937);
+  color: var(--color-text);
   background: var(--color-hover, #f8fafc);
 }
 
@@ -1157,15 +1183,21 @@ td.monto {
 .cerrar-modal {
   background: transparent;
   border: none;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
   font-size: 1.5rem;
   padding: 0 0.25rem;
   cursor: pointer;
   line-height: 1;
-  min-height: unset;
+  /* Glifo "×" a tamaño visual sin cambios; hit area de 44px vía
+     min-width/height + centrado flex, misma técnica que .menu-kebab-trigger. */
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   align-self: flex-start;
 }
-.cerrar-modal:hover { color: var(--color-text, #1f2937); }
+.cerrar-modal:hover { color: var(--color-text); }
 
 .detalle-depto-seccion {
   padding: 1rem 1.5rem 1.25rem;
@@ -1258,12 +1290,17 @@ td.monto {
   background: none;
   border: none;
   padding: 0;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
   font-size: 0.6875rem;
   font-weight: 600;
   text-decoration: underline;
   cursor: pointer;
-  min-height: unset;
+  /* Link de texto inline: mantiene su tamaño visual (sin padding), pero
+     gana un hit area de 44px de alto centrado, misma técnica que
+     .menu-kebab-trigger / .periodo-nav. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
 }
 
 .accion-discreta:hover:not(:disabled) {
@@ -1927,8 +1964,9 @@ td.monto {
   .sidebar-logo {
     display: block;
     padding: 0 1.25rem 1rem;
+    font-family: var(--font-display);
     font-size: 1.05rem;
-    font-weight: 700;
+    font-weight: 800;
     letter-spacing: -0.02em;
     color: var(--color-text);
   }
