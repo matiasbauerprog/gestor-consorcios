@@ -276,6 +276,7 @@ th {
 }
 
 td {
+  font-weight: 700;
   padding: 0.6rem 0.8rem;
   border-bottom: 1px solid var(--color-border);
 }
@@ -1303,6 +1304,8 @@ td.monto {
 .tabla-coeficientes tfoot th {
   background: var(--color-surface);
   font-size: 0.8125rem;
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .tabla-coeficientes input[type="number"] {
@@ -2183,7 +2186,8 @@ td.monto {
 
 .banner-politicas ul {
   margin: 0.5rem 0 0 1rem;
-  font-size: 0.6875rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
 }
 
 .form-reserva {
