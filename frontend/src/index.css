@@ -384,19 +384,29 @@ td button {
   display: none;
 }
 
+/* Sólo super_admin la ve (TABS_POR_ROL no tiene entrada para ese rol, así
+   que es su único disparador de navegación en <960px) — mismo tratamiento
+   blanco-sobre-color que .avatar-boton, no el borde/fondo claro anterior. */
 .hamburguesa {
-  background: transparent;
-  color: var(--color-text);
-  border: 1px solid var(--color-border-strong);
-  padding: 0.4em 0.7em;
+  width: 44px;
+  height: 44px;
   min-height: 44px;
   min-width: 44px;
+  flex-shrink: 0;
+  padding: 0;
+  background: transparent;
+  color: #fff;
+  border: none;
+  box-shadow: none;
   font-size: 1.3rem;
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .hamburguesa:hover:not(:disabled) {
-  background: var(--color-surface);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 /* El círculo se ve de 32px (mockup) pero el área cliqueable es de 44px

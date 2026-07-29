@@ -46,6 +46,17 @@ export default function AppLayout() {
     <div className="app-shell" data-modulo={modulo}>
       <BannerImpersonate />
       <header className="app-header">
+        {esSuperAdmin && (
+          <button
+            type="button"
+            className="hamburguesa"
+            aria-label="Abrir menú"
+            aria-expanded={drawerAbierto}
+            onClick={() => setDrawerAbierto(true)}
+          >
+            ☰
+          </button>
+        )}
         <div className="app-header-titulo">
           <img className="app-logo" src="/logo-comand.png" alt="COMMAND" />
           <span className="app-modulo-label">{moduloLabel}</span>
