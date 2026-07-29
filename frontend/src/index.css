@@ -112,9 +112,19 @@ button {
 /* Contextos densos: el botón full-width del mockup (CTAs de hero/sheet/form)
    no aplica dentro de filas de tabla, tarjetas, barras de filtros y pies de
    modal — ahí varios botones conviven en una línea, así que vuelven a
-   ocupar solo su contenido. Únicamente se toca `width`; el resto de las
-   propiedades (uppercase, weight, min-height táctil) las sigue fijando la
-   regla base de `button` de arriba. */
+   ocupar solo su contenido (`width: auto`).
+   Dentro de este grupo conviven dos familias visuales:
+   - CTA primaria rellena (.acciones-modal, .cabecera-acciones,
+     .seccion-acciones, .filtros/.filtros-barra, el submit implícito de
+     .modal-acciones): sin fondo/borde propio, heredan el tratamiento
+     "hero" completo de la regla base de `button` de arriba (uppercase,
+     weight 800, halo de sombra) — acá solo cambia el ancho.
+   - Ghost / secundaria / link (fondo transparente o var(--color-surface)):
+     ver la regla siguiente, que además les apaga uppercase/weight/
+     letter-spacing/shadow — si no, a <600px (antes del
+     @media(min-width:600px) que limpia esas mismas cuatro propiedades)
+     se ven "fantasmas" con mayúsculas en negrita 800 y un halo de sombra
+     de color primario alrededor de un fondo transparente. */
 .tarjeta .acciones button,
 .tarjeta-acciones button,
 .modal-acciones button,
@@ -129,6 +139,23 @@ td button,
 .menu-kebab-trigger,
 .boton-link {
   width: auto;
+}
+
+/* Subconjunto ghost/secundario/link del grupo de arriba (fondo transparente
+   o var(--color-surface), nunca var(--color-primary) relleno): apaga el
+   resto del tratamiento "hero CTA" que la regla base de `button` les
+   contagia en mobile. NO incluye .acciones-modal, .cabecera-acciones,
+   .seccion-acciones, .filtros/.filtros-barra ni el submit genérico de
+   .modal-acciones — esos sí quedan como CTA primaria rellena. */
+:where(td, .tarjeta, .tarjeta-acciones) button,
+.modal-acciones button[type="button"],
+.padron-paginacion button,
+.menu-kebab-trigger,
+.boton-link {
+  text-transform: none;
+  font-weight: 600;
+  letter-spacing: normal;
+  box-shadow: none;
 }
 
 button:hover:not(:disabled) {
