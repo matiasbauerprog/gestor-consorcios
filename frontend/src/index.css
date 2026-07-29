@@ -62,6 +62,11 @@
 [data-modulo="expensas"]   { --color-modulo: var(--color-mod-expensas); }
 [data-modulo="operacion"]  { --color-modulo: var(--color-mod-operacion); }
 
+@keyframes sheetIn {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -1353,28 +1358,41 @@ td.monto {
   background: var(--color-danger-bg);
 }
 
-/* ---------- Modal — mobile-first (full screen en mobile) ---------- */
+/* ---------- Modal — mobile-first (bottom sheet en mobile) ---------- */
 
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(28, 25, 23, 0.45);
+  background: rgba(14, 31, 41, 0.45);
   display: flex;
-  align-items: stretch;
-  justify-content: stretch;
+  align-items: flex-end;
+  justify-content: center;
   z-index: 1000;
   padding: 0;
 }
 
 .modal {
-  background: var(--color-surface);
-  border-radius: 0;
+  background: var(--color-bg);
+  border-radius: 24px 24px 0 0;
   box-shadow: var(--shadow-md);
   width: 100%;
   max-width: 100%;
-  max-height: 100vh;
+  max-height: 88%;
   display: flex;
   flex-direction: column;
+  animation: sheetIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Grab handle */
+.modal::before {
+  content: "";
+  width: 40px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--color-border-strong);
+  margin: 10px auto 4px;
+  flex-shrink: 0;
 }
 
 .modal-header {
@@ -1657,15 +1675,20 @@ td.monto {
   }
 
   .modal-backdrop {
-    padding: 1rem;
     align-items: center;
-    justify-content: center;
+    padding: 1.5rem;
   }
 
   .modal {
-    max-width: 520px;
-    max-height: 90vh;
     border-radius: var(--radius);
+    max-width: 560px;
+    max-height: 90%;
+    animation: none;
+    padding-bottom: 0;
+  }
+
+  .modal::before {
+    display: none;
   }
 
   .filtros,
