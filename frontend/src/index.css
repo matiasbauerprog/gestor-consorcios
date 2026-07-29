@@ -1,6 +1,11 @@
 /* =====================================================================
-   Design system "Aire" + paleta Command
-   Spec: docs/superpowers/specs/2026-07-03-rediseno-visual-design.md
+   Design system del rebranding mobile-first + paleta Command
+   Spec: docs/superpowers/specs/2026-07-28-rebranding-mobile-first-design.md
+   Tipografía: Montserrat (display: h1-h3, cifras hero, headers de sheet/modal,
+   weight 800) + Plus Jakarta Sans (body). Escala densa/editorial: micro-labels
+   uppercase a 0.2em de tracking, texto de UI casi siempre en 600-800 de peso
+   (600 es el piso, no el default). Excepción dura: inputs/selects/textareas
+   se quedan en 16px para no disparar el auto-zoom de iOS Safari.
    Los componentes consumen colores SIEMPRE vía var(--color-...).
    Sombras solo en elevaciones reales (modal, drawer, dropdown).
    ===================================================================== */
@@ -86,6 +91,19 @@ h1, h2, h3 {
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--color-text);
+}
+
+/* Título de pantalla (la mayoría de las screens usa h1 o h2 indistintamente
+   para su título principal) — mockup: 1.25rem/800. El saludo de Inicio
+   (única "Greeting h1") se overridea aparte en .inicio > h1. */
+h1, h2 {
+  font-size: 1.25rem;
+}
+
+/* Fallback para h3 sueltos sin clase específica (la mayoría de los h3 de
+   cards/modales ya tienen su propio override más abajo). */
+h3 {
+  font-size: 0.8125rem;
 }
 
 h4 {
@@ -236,7 +254,7 @@ table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 0.9rem;
+  font-size: 0.8125rem;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
@@ -248,10 +266,10 @@ table {
 
 th {
   text-align: left;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.625rem;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.2em;
   color: var(--color-text-muted);
   padding: 0.6rem 0.8rem;
   border-bottom: 1px solid var(--color-border);
@@ -272,7 +290,7 @@ tr:last-child td {
   background: transparent;
   color: var(--color-primary);
   border-color: var(--color-border-strong);
-  font-size: 0.85rem;
+  font-size: 0.6875rem;
   padding: 0.35em 0.9em;
   min-height: 36px;
 }
@@ -335,7 +353,8 @@ td button {
   background: var(--color-danger-bg);
   padding: 0.6em 0.8em;
   border-radius: var(--radius-sm);
-  font-size: 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
   margin: 0;
 }
 
@@ -375,7 +394,7 @@ td button {
 .app-modulo-label {
   font-size: 0.5625rem;
   font-weight: 800;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.75);
   border-left: 2px solid rgba(255, 255, 255, 0.3);
@@ -480,7 +499,7 @@ td button {
   color: var(--color-surface);
   border-radius: 50%;
   padding: 0 0.35rem;
-  font-size: 0.65rem;
+  font-size: 0.625rem;
   font-weight: 700;
   min-width: 1.1rem;
   line-height: 1.1rem;
@@ -514,7 +533,7 @@ td button {
   background: transparent;
   border: 1px solid var(--color-border-strong);
   color: var(--color-primary);
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   padding: 0.25rem 0.5rem;
   cursor: pointer;
   min-height: 44px;
@@ -558,13 +577,15 @@ td button {
 
 .campanita-item-mensaje {
   margin: 0 0 0.25rem 0;
-  font-size: 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
   color: var(--color-text);
 }
 
 .campanita-item-fecha {
   margin: 0;
-  font-size: 0.7rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
   color: var(--color-text-muted);
 }
 
@@ -622,10 +643,11 @@ td button {
 }
 
 .sidebar-cabecera-titulo {
-  font-size: 0.85rem;
+  font-size: 0.625rem;
+  font-weight: 800;
   color: var(--color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.2em;
 }
 
 .sidebar-cerrar {
@@ -670,10 +692,10 @@ td button {
   border: none;
   border-radius: var(--radius-sm);
   font-family: inherit;
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-size: 0.625rem;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.2em;
   color: var(--color-text-muted);
   cursor: pointer;
   text-align: left;
@@ -717,8 +739,8 @@ td button {
   min-height: 44px;
   color: var(--color-text);
   text-decoration: none;
-  font-size: 0.95rem;
-  font-weight: 500;
+  font-size: 0.8125rem;
+  font-weight: 700;
   border-radius: var(--radius-sm);
 }
 
@@ -730,7 +752,7 @@ td button {
 .sidebar-link.activo {
   background: var(--color-primary-soft);
   color: var(--color-primary);
-  font-weight: 600;
+  font-weight: 800;
 }
 
 .app-content {
@@ -778,7 +800,8 @@ td.monto {
   border: 1px solid var(--color-danger);
   padding: 0.6em 0.8em;
   border-radius: var(--radius-sm);
-  font-size: 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .success-banner {
@@ -787,7 +810,8 @@ td.monto {
   border: 1px solid #196c2e;
   padding: 0.6em 0.8em;
   border-radius: var(--radius-sm);
-  font-size: 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 /* ---------- Padrón: tabla densa ---------- */
@@ -807,7 +831,8 @@ td.monto {
 
 .padron-contador {
   color: var(--color-text-muted, #6b7280);
-  font-size: 0.9rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
   margin: 0;
 }
 
@@ -833,7 +858,8 @@ td.monto {
 .padron-filtros .spacer { flex: 1; }
 
 .padron-atajo {
-  font-size: 0.9rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
   color: var(--color-text-muted, #6b7280);
 }
 
@@ -848,14 +874,14 @@ td.monto {
 .tabla-padron {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
+  font-size: 0.8125rem;
 }
 
 .tabla-padron thead th {
   text-align: left;
   padding: 0.5rem 0.75rem;
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
+  font-size: 0.625rem;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--color-text-muted, #6b7280);
   border-bottom: 1px solid var(--color-border);
@@ -877,7 +903,7 @@ td.monto {
 }
 
 .tabla-padron .col-unidad {
-  font-weight: 600;
+  font-weight: 700;
   width: 8rem;
 }
 
@@ -893,7 +919,8 @@ td.monto {
   color: var(--color-text-muted, #6b7280);
   padding: 0.1rem 0.4rem;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: 0.625rem;
+  font-weight: 700;
   margin-left: 0.35rem;
 }
 
@@ -910,7 +937,8 @@ td.monto {
   align-items: center;
   margin-top: 1rem;
   color: var(--color-text-muted, #6b7280);
-  font-size: 0.85rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
 }
 
 .padron-paginacion .pagers {
@@ -925,7 +953,7 @@ td.monto {
   padding: 0.15rem 0.4rem;
   min-width: 1.5rem;
   min-height: unset;
-  font-size: 0.85rem;
+  font-size: 0.6875rem;
   color: var(--color-text-muted, #6b7280);
   cursor: pointer;
   border-radius: 3px;
@@ -943,7 +971,7 @@ td.monto {
 
 .padron-paginacion button.activo {
   color: var(--color-text, #1f2937);
-  font-weight: 600;
+  font-weight: 700;
   background: transparent;
 }
 
@@ -954,7 +982,7 @@ td.monto {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-text, #1f2937);
   flex-shrink: 0;
 }
@@ -965,7 +993,8 @@ td.monto {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.85rem;
+  font-size: 0.625rem;
+  font-weight: 700;
 }
 
 .estado-punto {
@@ -1026,7 +1055,8 @@ td.monto {
   background: transparent;
   border: none;
   padding: 0.5rem 0.85rem;
-  font-size: 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
   color: var(--color-text, #1f2937);
   cursor: pointer;
   min-height: unset;
@@ -1087,7 +1117,8 @@ td.monto {
 
 .breadcrumb-atras {
   color: var(--color-text-muted, #6b7280);
-  font-size: 0.9rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
   text-decoration: none;
 }
 
@@ -1115,7 +1146,7 @@ td.monto {
 
 .detalle-depto-header h3 {
   margin: 0 0 0.15rem;
-  font-size: 1.35rem;
+  font-size: 1.125rem;
 }
 
 .detalle-depto-header .meta {
@@ -1149,15 +1180,17 @@ td.monto {
 
 .detalle-depto-subheader h4 {
   margin: 0 0 0.15rem;
-  font-size: 0.9rem;
+  font-size: 0.625rem;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.2em;
   color: var(--color-text-muted, #6b7280);
 }
 
 .detalle-depto-subheader .meta {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
 }
 
 .detalle-depto-usuarios {
@@ -1182,7 +1215,7 @@ td.monto {
 }
 
 .detalle-usuario-email {
-  font-weight: 500;
+  font-weight: 700;
   color: var(--color-text, #1f2937);
   word-break: break-all;
 }
@@ -1225,7 +1258,8 @@ td.monto {
   border: none;
   padding: 0;
   color: var(--color-text-muted, #6b7280);
-  font-size: 0.85rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
   text-decoration: underline;
   cursor: pointer;
   min-height: unset;
@@ -1262,13 +1296,13 @@ td.monto {
 
 .tabla-coeficientes thead th {
   background: var(--color-surface);
-  font-size: 0.85rem;
+  font-size: 0.6875rem;
   min-width: 10rem;
 }
 
 .tabla-coeficientes tfoot th {
   background: var(--color-surface);
-  font-size: 0.9rem;
+  font-size: 0.8125rem;
 }
 
 .tabla-coeficientes input[type="number"] {
@@ -1301,18 +1335,19 @@ td.monto {
 
 .tarjeta h3 {
   margin: 0 0 0.25rem;
-  font-size: 1.05rem;
+  font-size: 0.8125rem;
   overflow-wrap: anywhere;
 }
 
 .tarjeta h4 {
   margin: 0 0 0.25rem;
-  font-size: 0.95rem;
+  font-size: 0.6875rem;
 }
 
 .tarjeta .meta {
   color: var(--color-text-muted);
-  font-size: 0.85rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
   margin: 0 0 0.5rem;
 }
 
@@ -1376,7 +1411,7 @@ td.monto {
   padding: 0.3em 0.5em;
   min-height: 44px;
   border: none;
-  font-size: 0.9rem;
+  font-size: 0.6875rem;
 }
 
 .boton-link:hover:not(:disabled) {
@@ -1390,7 +1425,7 @@ td.monto {
   padding: 0.3em 0.5em;
   min-height: 44px;
   border: 1px solid var(--color-danger);
-  font-size: 0.9rem;
+  font-size: 0.6875rem;
 }
 
 .boton-borrar:hover:not(:disabled) {
@@ -1444,7 +1479,7 @@ td.monto {
 
 .modal-header h3 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.125rem;
 }
 
 .modal-cerrar {
@@ -1483,7 +1518,7 @@ td.monto {
 .modal > h3 {
   margin: 0;
   padding: 1rem 1.25rem;
-  font-size: 1.1rem;
+  font-size: 1.125rem;
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -1587,7 +1622,8 @@ td.monto {
 
 .leyenda {
   color: var(--color-text-muted);
-  font-size: 0.85rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
   margin: 0.25rem 0 0.5rem;
 }
 
@@ -1736,7 +1772,7 @@ td.monto {
   padding: 0.6rem 0.5rem;
   border-radius: var(--radius-sm);
   color: var(--color-text);
-  font-weight: 600;
+  font-weight: 700;
   text-decoration: none;
 }
 
@@ -1756,7 +1792,7 @@ td.monto {
 .sheet-cuenta-nombre {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.05rem;
+  font-size: 1.125rem;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--color-text);
@@ -1764,7 +1800,7 @@ td.monto {
 
 .sheet-cuenta-meta {
   margin: 0 0 0.25rem;
-  font-size: 0.8rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   color: var(--color-text-muted);
   overflow-wrap: anywhere;
@@ -1994,7 +2030,8 @@ td.monto {
 }
 
 .lista-coeficientes li {
-  font-size: 0.95rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
 }
 
 /* ---------- Tabs reutilizables (pills, mobile-first) ---------- */
@@ -2013,7 +2050,7 @@ td.monto {
   text-align: center;
   text-decoration: none;
   color: var(--color-text-muted);
-  font-weight: 500;
+  font-weight: 600;
   border-radius: 999px;
   display: flex;
   align-items: center;
@@ -2028,7 +2065,7 @@ td.monto {
 .tab.activo {
   background: var(--color-primary-soft);
   color: var(--color-primary);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 @media (min-width: 600px) {
@@ -2094,7 +2131,7 @@ td.monto {
 
 .amenity-policies {
   margin: 0.5rem 0;
-  font-size: 0.85rem;
+  font-size: 0.6875rem;
 }
 
 .amenity-policies > div {
@@ -2146,7 +2183,7 @@ td.monto {
 
 .banner-politicas ul {
   margin: 0.5rem 0 0 1rem;
-  font-size: 0.85rem;
+  font-size: 0.6875rem;
 }
 
 .form-reserva {
@@ -2163,6 +2200,7 @@ td.monto {
 
 .form-reserva h3 {
   margin: 0;
+  font-size: 0.8125rem;
 }
 
 .cta-sticky button {
@@ -2209,8 +2247,8 @@ td.monto {
   padding: 0.5em 1em;
   min-height: 44px;
   font-family: inherit;
-  font-size: 0.9rem;
-  font-weight: 500;
+  font-size: 0.8125rem;
+  font-weight: 600;
   color: var(--color-text-muted);
   cursor: pointer;
 }
@@ -2228,7 +2266,7 @@ td.monto {
 .tab-panel.activo {
   background: var(--color-primary-soft);
   color: var(--color-primary);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 /* ---------------------------------------------------------------------------
@@ -2247,7 +2285,8 @@ td.monto {
   border: 1px solid var(--color-border-strong);
   padding: 0.4em 0.7em;
   min-height: 40px;
-  font-size: 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -2283,7 +2322,8 @@ td.monto {
   color: var(--color-text);
   border: none;
   padding: 0.5rem 0.75rem;
-  font-size: 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
   min-height: 40px;
 }
 
@@ -2292,7 +2332,7 @@ td.monto {
 }
 
 .selector-consorcio-item.activo button {
-  font-weight: 600;
+  font-weight: 800;
   color: var(--color-primary);
 }
 
@@ -2304,7 +2344,8 @@ td.monto {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  font-size: 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
   flex-wrap: wrap;
 }
 
@@ -2352,16 +2393,17 @@ td.monto {
 }
 
 .super-admin-metric-card h3 {
-  font-size: 0.85rem;
+  font-size: 0.625rem;
   margin: 0 0 0.5rem;
   color: var(--color-text-muted, #666);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.2em;
 }
 
 .super-admin-metric-card .valor {
-  font-size: 1.8rem;
-  font-weight: 700;
+  font-size: 1.875rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
   color: var(--color-primary);
 }
 
@@ -2376,12 +2418,14 @@ td.monto {
 .inicio-fecha {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 0.85rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
   text-transform: capitalize;
 }
 
 .inicio > h1 {
   margin: 0;
+  font-size: 1.5rem;
 }
 
 .inicio-hero {
@@ -2407,6 +2451,7 @@ td.monto {
   font-family: var(--font-display);
   font-size: 2rem;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
   color: #fff;
 }
 
@@ -2431,15 +2476,16 @@ td.monto {
 
 .inicio-hero-grid dt {
   margin: 0 0 0.15rem;
-  font-size: 0.65rem;
+  font-size: 0.625rem;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.2em;
   color: rgba(255, 255, 255, 0.65);
 }
 
 .inicio-hero-grid dd {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   color: #fff;
 }
@@ -2520,7 +2566,8 @@ td.monto {
 
 .inicio-lista-detalle {
   color: var(--color-text-muted);
-  font-size: 0.8rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
 }
 
 .inicio-chevron {
@@ -2533,7 +2580,7 @@ td.monto {
   flex-shrink: 0;
   width: 3.1rem;
   color: var(--color-text-muted);
-  font-size: 0.75rem;
+  font-size: 0.625rem;
   font-weight: 700;
   text-transform: uppercase;
 }
