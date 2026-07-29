@@ -37,6 +37,7 @@ import TrabajosRecurrentes from "./screens/TrabajosRecurrentes";
 import Amenities from "./screens/Amenities";
 import Cobranzas from "./screens/Cobranzas";
 import Reservas from "./screens/Reservas";
+import Inicio from "./screens/Inicio";
 import NotFound from "./screens/NotFound";
 
 function ExpensasRoute() {
@@ -80,6 +81,18 @@ function MiCuentaRoute() {
   return <MiCuenta />;
 }
 
+function InicioRoute() {
+  const { user } = useAuth();
+  if (user.rol === "departamento") return <Navigate to="/mi-cuenta" replace />;
+  if (user.rol === "representante") return <Navigate to="/comunicados" replace />;
+  // super_admin no tiene consorcio activo: Inicio dispararía endpoints
+  // admin-only contra 403. Va a su propia pantalla.
+  if (user.rol === "super_admin") {
+    return <Navigate to="/super-admin/administraciones" replace />;
+  }
+  return <Inicio />;
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -94,7 +107,7 @@ export default function App() {
               </RequireAuth>
             }
           >
-            <Route index element={<Navigate to="/comunicados" replace />} />
+            <Route index element={<InicioRoute />} />
             <Route path="comunicados" element={<Comunicados />} />
             <Route path="expensas" element={<ExpensasRoute />} />
             <Route path="mi-cuenta" element={<MiCuentaRoute />} />

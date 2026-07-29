@@ -2337,3 +2337,213 @@ td.monto {
   font-weight: 700;
   color: var(--color-primary);
 }
+
+/* ---------- Pantalla Inicio (dashboard admin) ---------- */
+
+.inicio {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.inicio-fecha {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  text-transform: capitalize;
+}
+
+.inicio > h1 {
+  margin: 0;
+}
+
+.inicio-hero {
+  background: var(--color-mod-inicio);
+  color: #fff;
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+}
+
+.inicio-hero header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.inicio-hero .micro-label {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.inicio-hero-cifra {
+  margin: 0.35rem 0 1rem;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.inicio-hero-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.inicio-hero-grid dt {
+  margin: 0 0 0.15rem;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.inicio-hero-grid dd {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.inicio-hero-grid .negativo {
+  color: color-mix(in srgb, var(--color-danger) 55%, white);
+}
+
+/* ---------- Acciones rápidas ---------- */
+
+.inicio-acciones {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.inicio-acciones a {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.6em 1em;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+}
+
+.inicio-acciones a:hover {
+  background: var(--color-primary-hover);
+}
+
+/* ---------- Listas de la pantalla Inicio ---------- */
+
+.inicio-lista {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.inicio-lista li {
+  border-top: 1px solid var(--color-border);
+}
+
+.inicio-lista li:first-child {
+  border-top: none;
+}
+
+.inicio-lista li,
+.inicio-lista a {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 44px;
+  padding: 0.5rem 0.15rem;
+}
+
+.inicio-lista a {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.inicio-lista a:hover {
+  background: var(--color-bg);
+}
+
+.inicio-lista-texto {
+  flex: 1;
+  min-width: 0;
+}
+
+.inicio-lista-texto p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.inicio-lista-detalle {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.inicio-chevron {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-size: 1.1rem;
+}
+
+.inicio-fecha-corta {
+  flex-shrink: 0;
+  width: 3.1rem;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.negativo {
+  color: var(--color-danger);
+}
+
+/* Punto de color usado en "Requiere tu atención" */
+.punto {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
+
+.punto--alerta {
+  color: var(--color-danger);
+}
+
+.punto--operacion {
+  color: var(--color-mod-operacion);
+}
+
+.punto--warning {
+  color: var(--color-warning);
+}
+
+@media (min-width: 600px) {
+  .inicio-acciones a {
+    flex: 0 0 auto;
+  }
+}
+
+@media (min-width: 960px) {
+  .inicio {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem 2rem;
+    align-items: start;
+  }
+
+  .inicio-fecha,
+  .inicio > h1,
+  .inicio-hero,
+  .inicio-acciones {
+    grid-column: 1 / -1;
+  }
+}
