@@ -109,6 +109,28 @@ button {
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
+/* Contextos densos: el botón full-width del mockup (CTAs de hero/sheet/form)
+   no aplica dentro de filas de tabla, tarjetas, barras de filtros y pies de
+   modal — ahí varios botones conviven en una línea, así que vuelven a
+   ocupar solo su contenido. Únicamente se toca `width`; el resto de las
+   propiedades (uppercase, weight, min-height táctil) las sigue fijando la
+   regla base de `button` de arriba. */
+.tarjeta .acciones button,
+.tarjeta-acciones button,
+.modal-acciones button,
+.acciones-modal button,
+.cabecera-acciones button,
+.seccion-acciones button,
+.filtros button,
+.filtros-barra button,
+.padron-paginacion button,
+.tabla-coeficientes .col-acciones button,
+td button,
+.menu-kebab-trigger,
+.boton-link {
+  width: auto;
+}
+
 button:hover:not(:disabled) {
   background: var(--color-primary-hover);
 }
@@ -897,7 +919,15 @@ td.monto {
   padding: 0.15rem 0.5rem;
   cursor: pointer;
   border-radius: 4px;
-  min-height: unset;
+  /* El glifo "⋮" se queda en 1.25rem (tamaño visual sin cambios); el hit
+     area se agranda a 44px con padding transparente vía min-width/height +
+     centrado flex, en vez del min-height:44px "musculoso" que usa el resto
+     de los botones. */
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .menu-kebab-trigger:hover {
