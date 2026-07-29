@@ -6,22 +6,26 @@
    ===================================================================== */
 
 :root {
-  /* Paleta — mockup mobile-first (2026-07) */
+  /* Paleta — mockup mobile-first (2026-07).
+     Varios tonos del mockup se oscurecieron lo mínimo necesario para llegar a
+     4.5:1 (WCAG AA, texto normal). El hue se mantiene; el valor de origen del
+     mockup queda anotado al lado de cada uno. */
   --color-bg: #f4f0e6;
   --color-surface: #ffffff;
   --color-text: #121212;
-  --color-text-muted: #757168;
+  --color-text-muted: #706c64;        /* mockup #757168 — 4.27:1 sobre bg */
+  --color-text-muted-strong: #66625a; /* para texto sobre --color-border */
   --color-border: #e3ded2;
   --color-border-strong: #d6d0c4;
   --color-primary: #2c6473;
   --color-primary-hover: #24525e;
   --color-primary-soft: #e7f0f3;
-  --color-danger: #c0443c;
+  --color-danger: #b33f38;            /* mockup #c0443c — 4.03:1 sobre danger-bg */
   --color-danger-bg: #f7e0de;
   --color-danger-hover: #a93b34;
-  --color-success: #2d8f5e;
+  --color-success: #26784f;           /* mockup #2d8f5e — 3.42:1 sobre success-bg */
   --color-success-bg: #e3efe7;
-  --color-warning: #8a6d1c;
+  --color-warning: #84691b;           /* mockup #8a6d1c — 4.26:1 sobre warning-bg */
   --color-warning-bg: #f7efd4;
 
   /* Color por módulo — lo aplica [data-modulo] más abajo */
@@ -32,7 +36,7 @@
   --color-mod-expensas: #2c6473;
   --color-mod-operacion: #5b36b8;
   --color-modulo: var(--color-mod-inicio);
-  --color-tab-inactivo: #9b968a;
+  --color-tab-inactivo: #79756c;      /* mockup #9b968a — 2.95:1, ilegible en labels de 9px */
 
   /* Geometría y elevación */
   --radius-sm: 12px;
@@ -1555,9 +1559,10 @@ td.monto {
   flex-shrink: 0;
 }
 
+/* Sobre --color-border el muted normal queda en 3.89:1; usa el tono reforzado. */
 .badge--neutro {
   background: var(--color-border);
-  color: var(--color-text-muted);
+  color: var(--color-text-muted-strong);
 }
 
 .badge--ok {
@@ -1737,6 +1742,31 @@ td.monto {
   background: var(--color-bg);
 }
 
+/* ---------- Sheet "Tu cuenta" ---------- */
+
+.sheet-cuenta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sheet-cuenta-nombre {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
+.sheet-cuenta-meta {
+  margin: 0 0 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
 /* ============================================================ */
 /* Tablet (>=600px)                                              */
 /* ============================================================ */
@@ -1760,12 +1790,6 @@ td.monto {
     align-items: center;
     justify-content: space-between;
     padding: 1rem 1.5rem;
-  }
-
-  .app-user {
-    flex-wrap: nowrap;
-    justify-content: flex-end;
-    font-size: 0.9rem;
   }
 
   .app-content {
