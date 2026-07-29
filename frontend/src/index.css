@@ -2383,6 +2383,12 @@ td.monto {
   color: #fff;
 }
 
+/* Cifra no disponible (fuente con 403/404) — distinta de un valor en $0 */
+.inicio-dato-ausente {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
 .inicio-hero-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

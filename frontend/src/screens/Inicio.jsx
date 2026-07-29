@@ -25,6 +25,12 @@ function money(n) {
   });
 }
 
+/** Cifra del hero: el valor formateado si la fuente respondió OK, o un
+ * em-dash muted si no — para que "no disponible" nunca se lea como "$0". */
+function cifra(disponible, valorFormateado) {
+  return disponible ? valorFormateado : <span className="inicio-dato-ausente">—</span>;
+}
+
 /** "2026-08-05" → "05 ago". Fija el mediodía para evitar el corrimiento de
  * un día que provocan las fechas ISO sin hora al parsearlas como UTC. */
 function fechaCorta(iso) {
@@ -35,9 +41,28 @@ function fechaCorta(iso) {
   return d.toLocaleDateString("es-AR", { day: "2-digit", month: "short" });
 }
 
+/** YYYY-MM del calendario LOCAL. `toISOString()` opera en UTC: en Argentina
+ * (UTC-3) las últimas ~3 horas de un día de fin de mes ya caen en el mes
+ * siguiente en UTC, lo que devolvería el período equivocado. */
+function periodoActual() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** Días transcurridos entre hoy (calendario local) y una fecha "YYYY-MM-DD",
+ * comparando ambas como fechas de calendario puras (sin componente horario
+ * ni corrimiento de huso) para que el corte de 60 días sea exacto. */
+function diasDesde(fechaISO) {
+  const hoy = new Date();
+  const hoyUTC = Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  const [anio, mes, dia] = fechaISO.split("-").map(Number);
+  const fechaUTC = Date.UTC(anio, mes - 1, dia);
+  return (hoyUTC - fechaUTC) / 86400000;
+}
+
 export default function Inicio() {
   const { user, consorciosAccesibles, consorcioActivoId } = useAuth();
-  const periodo = new Date().toISOString().slice(0, 7);
+  const periodo = periodoActual();
 
   const [respuestas, setRespuestas] = useState(null);
   const [cargando, setCargando] = useState(true);
@@ -99,16 +124,20 @@ export default function Inicio() {
   const totalGastos = datos(gastosRep, { total_general: 0 }).total_general;
   const cierrePendiente = cierre?.ok ? !cierre.data.cerrado : false;
 
+  // Disponibilidad real de cada fuente del hero — un 403 (módulo deshabilitado
+  // para el consorcio) no es lo mismo que "el mes dio $0": el hero tiene que
+  // distinguir "no disponible" de "genuinamente cero".
+  const expensasOk = expensas?.ok === true;
+  const gastosOk = gastosRep?.ok === true;
+
   const liquidado = expensasData.reduce((a, e) => a + e.monto_primer_vencimiento, 0);
   const pendiente = expensasData.reduce((a, e) => a + e.monto_pendiente, 0);
   const cobrado = liquidado - pendiente;
   const pctCobrado = liquidado > 0 ? Math.round((cobrado / liquidado) * 100) : 0;
 
-  const hoy = new Date();
   const morososViejos = morososData.filter((m) => {
     if (!m.primer_vencimiento_impago) return false;
-    const dias = (hoy - new Date(m.primer_vencimiento_impago)) / 86400000;
-    return dias > 60;
+    return diasDesde(m.primer_vencimiento_impago) > 60;
   });
 
   const peticionesAbiertas = peticionesData.filter((p) => p.estado === "abierta");
@@ -179,7 +208,7 @@ export default function Inicio() {
   ].filter(Boolean);
 
   const nombreConsorcio = consorciosAccesibles.find((c) => c.id === consorcioActivoId)?.nombre;
-  const fechaLarga = hoy.toLocaleDateString("es-AR", {
+  const fechaLarga = new Date().toLocaleDateString("es-AR", {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -193,27 +222,29 @@ export default function Inicio() {
       </p>
       <h1>Hola, {nombreDeUsuario(user.email)}</h1>
 
-      <section className="inicio-hero">
-        <header>
-          <p className="micro-label">Recaudación · {periodo}</p>
-          <span className="badge badge--ok">{pctCobrado}% cobrado</span>
-        </header>
-        <p className="inicio-hero-cifra monto">{money(cobrado)}</p>
-        <dl className="inicio-hero-grid">
-          <div>
-            <dt>Liquidado</dt>
-            <dd className="monto">{money(liquidado)}</dd>
-          </div>
-          <div>
-            <dt>Pendiente</dt>
-            <dd className="monto">{money(pendiente)}</dd>
-          </div>
-          <div>
-            <dt>Gastos</dt>
-            <dd className="monto negativo">−{money(totalGastos)}</dd>
-          </div>
-        </dl>
-      </section>
+      {(expensasOk || gastosOk) && (
+        <section className="inicio-hero">
+          <header>
+            <p className="micro-label">Recaudación · {periodo}</p>
+            {expensasOk && <span className="badge badge--ok">{pctCobrado}% cobrado</span>}
+          </header>
+          <p className="inicio-hero-cifra monto">{cifra(expensasOk, money(cobrado))}</p>
+          <dl className="inicio-hero-grid">
+            <div>
+              <dt>Liquidado</dt>
+              <dd className="monto">{cifra(expensasOk, money(liquidado))}</dd>
+            </div>
+            <div>
+              <dt>Pendiente</dt>
+              <dd className="monto">{cifra(expensasOk, money(pendiente))}</dd>
+            </div>
+            <div>
+              <dt>Gastos</dt>
+              <dd className="monto negativo">{cifra(gastosOk, `−${money(totalGastos)}`)}</dd>
+            </div>
+          </dl>
+        </section>
+      )}
 
       <div className="inicio-acciones">
         <Link to="/cobranzas">Registrar pago</Link>
