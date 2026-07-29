@@ -66,7 +66,7 @@ export default function TabBar({ rol, seccionesMas }) {
 
       {sheetMas && (
         <Modal titulo="Más" onClose={() => setSheetMas(false)}>
-          <nav className="sheet-mas">
+          <nav className="sheet-mas" aria-label="Más secciones">
             {seccionesMas.map((s) => (
               <section key={s.titulo}>
                 <p className="micro-label">{s.titulo}</p>
