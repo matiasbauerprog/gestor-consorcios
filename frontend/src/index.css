@@ -850,7 +850,7 @@ td.monto {
 }
 
 .padron-contador {
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
   font-size: 0.6875rem;
   font-weight: 600;
   margin: 0;
@@ -880,11 +880,11 @@ td.monto {
 .padron-atajo {
   font-size: 0.6875rem;
   font-weight: 600;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
 }
 
 .padron-atajo a {
-  color: var(--color-primary, #2563eb);
+  color: var(--color-primary);
   text-decoration: none;
   margin-left: 0.25rem;
   cursor: pointer;
@@ -903,13 +903,13 @@ td.monto {
   font-size: 0.625rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
   border-bottom: 1px solid var(--color-border);
   background: transparent;
 }
 
 .tabla-padron tbody tr {
-  border-bottom: 1px solid var(--color-border-light, #f1f5f9);
+  border-bottom: 1px solid var(--color-border);
   cursor: pointer;
 }
 
@@ -935,8 +935,8 @@ td.monto {
 
 .tabla-padron .chip-mas {
   display: inline-block;
-  background: var(--color-border-light, #f1f5f9);
-  color: var(--color-text-muted, #6b7280);
+  background: var(--color-border);
+  color: var(--color-text-muted);
   padding: 0.1rem 0.4rem;
   border-radius: 999px;
   font-size: 0.625rem;
@@ -945,7 +945,7 @@ td.monto {
 }
 
 .tabla-padron .sin-usuarios {
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -956,7 +956,7 @@ td.monto {
   justify-content: space-between;
   align-items: center;
   margin-top: 1rem;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
   font-size: 0.6875rem;
   font-weight: 600;
 }
@@ -974,13 +974,13 @@ td.monto {
   min-width: 1.5rem;
   min-height: unset;
   font-size: 0.6875rem;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
   cursor: pointer;
   border-radius: 3px;
 }
 
 .padron-paginacion button:hover:not(:disabled):not(.activo) {
-  color: var(--color-text, #1f2937);
+  color: var(--color-text);
   background: var(--color-bg);
 }
 
@@ -990,7 +990,7 @@ td.monto {
 }
 
 .padron-paginacion button.activo {
-  color: var(--color-text, #1f2937);
+  color: var(--color-text);
   font-weight: 700;
   background: transparent;
 }
@@ -1003,7 +1003,7 @@ td.monto {
   justify-content: center;
   border-radius: 50%;
   font-weight: 700;
-  color: var(--color-text, #1f2937);
+  color: var(--color-text);
   flex-shrink: 0;
 }
 
@@ -1034,7 +1034,7 @@ td.monto {
 .menu-kebab-trigger {
   background: transparent;
   border: none;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
   font-size: 1.25rem;
   padding: 0.15rem 0.5rem;
   cursor: pointer;
@@ -1059,7 +1059,7 @@ td.monto {
   right: 0;
   top: calc(100% + 2px);
   min-width: 12rem;
-  background: var(--color-surface, #fff);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -1077,7 +1077,7 @@ td.monto {
   padding: 0.5rem 0.85rem;
   font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--color-text, #1f2937);
+  color: var(--color-text);
   cursor: pointer;
   min-height: 44px;
   display: flex;
@@ -1089,7 +1089,7 @@ td.monto {
 }
 
 .menu-kebab-item.peligro {
-  color: var(--color-danger, #b3261e);
+  color: var(--color-danger);
 }
 
 /* ---------- Barra de período (Gastos) ---------- */
@@ -1102,7 +1102,7 @@ td.monto {
   gap: 0.75rem;
   padding: 0.6rem 0.9rem;
   margin: 0.75rem 0 1rem;
-  background: var(--color-surface, #fff);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius, 8px);
 }
@@ -1145,14 +1145,14 @@ td.monto {
 /* ---------- Breadcrumb "atrás" ---------- */
 
 .breadcrumb-atras {
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
   font-size: 0.6875rem;
   font-weight: 600;
   text-decoration: none;
 }
 
 .breadcrumb-atras:hover {
-  color: var(--color-primary, #2563eb);
+  color: var(--color-primary);
   text-decoration: underline;
 }
 
@@ -1170,7 +1170,7 @@ td.monto {
   justify-content: space-between;
   align-items: flex-start;
   padding: 1.25rem 1.5rem 1rem;
-  border-bottom: 1px solid var(--color-border-light, #f1f5f9);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .detalle-depto-header h3 {
@@ -1219,7 +1219,7 @@ td.monto {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.2em;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted);
 }
 
 .detalle-depto-subheader .meta {
@@ -1232,7 +1232,7 @@ td.monto {
   list-style: none;
   padding: 0;
   margin: 0;
-  border: 1px solid var(--color-border-light, #f1f5f9);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -1246,12 +1246,12 @@ td.monto {
 }
 
 .detalle-depto-usuarios li + li {
-  border-top: 1px solid var(--color-border-light, #f1f5f9);
+  border-top: 1px solid var(--color-border);
 }
 
 .detalle-usuario-email {
   font-weight: 700;
-  color: var(--color-text, #1f2937);
+  color: var(--color-text);
   word-break: break-all;
 }
 
@@ -1274,8 +1274,8 @@ td.monto {
   justify-content: space-between;
   align-items: center;
   padding: 0.9rem 1.5rem;
-  background: var(--color-surface-alt, #fafbfc);
-  border-top: 1px solid var(--color-border-light, #f1f5f9);
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-border);
   gap: 0.75rem;
   flex-wrap: wrap;
 }
@@ -1306,12 +1306,12 @@ td.monto {
 }
 
 .accion-discreta:hover:not(:disabled) {
-  color: var(--color-text, #111);
+  color: var(--color-text);
   background: none;
 }
 
 .accion-discreta.peligro:hover:not(:disabled) {
-  color: var(--color-danger, #b3261e);
+  color: var(--color-danger);
 }
 
 /* ---------- Matriz de coeficientes ---------- */
@@ -2441,7 +2441,7 @@ td.monto {
 .super-admin-metric-card h3 {
   font-size: 0.625rem;
   margin: 0 0 0.5rem;
-  color: var(--color-text-muted, #666);
+  color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.2em;
 }
