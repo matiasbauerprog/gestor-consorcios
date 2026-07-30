@@ -775,6 +775,30 @@ td button {
   font-weight: 800;
 }
 
+.sidebar-subgrupo {
+  margin: 0.5rem 0.5rem 0.15rem;
+  padding: 0 0.75em;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sidebar-subgrupo::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.sidebar-link.en-subgrupo {
+  padding-left: 1.5em;
+}
+
 .app-content {
   flex: 1;
   padding: 1rem 1rem calc(var(--altura-tabbar) + 1.5rem);
