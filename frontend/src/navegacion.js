@@ -119,7 +119,7 @@ export function filtrarArbol({
     // Regla 2: categoría con un único sub-grupo y ningún item directo → promover
     const soloSubgrupos = hijos.every((h) => !h.ruta);
     if (hijos.length === 1 && soloSubgrupos) {
-      resultado.push(hijos[0]); // el sub-grupo pasa a ser categoría nivel 1
+      resultado.push({ ...hijos[0], promovido: true }); // el sub-grupo pasa a ser categoría nivel 1
     } else {
       resultado.push({ ...nodo, hijos });
     }
@@ -158,7 +158,12 @@ export function aplanarParaDepto(arbol) {
       items.push(nodo);
       continue;
     }
-    // categoría nivel 1: aplanar sus hijos
+    if (nodo.promovido) {
+      // sub-grupo promovido por Regla 2: sigue siendo un cluster
+      subgrupos.push({ ...nodo, hijos: nodo.hijos.filter((h) => h.ruta) });
+      continue;
+    }
+    // categoría nivel 1 genuina: aplanar sus hijos
     for (const hijo of nodo.hijos) {
       if (hijo.ruta) {
         items.push(hijo);
