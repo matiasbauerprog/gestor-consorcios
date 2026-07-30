@@ -153,17 +153,22 @@ export function categoriaDeRuta(pathname) {
 export function aplanarParaDepto(arbol) {
   const items = [];
   const subgrupos = [];
-  const recorrer = (nodos) => {
-    for (const n of nodos) {
-      if (n.ruta) items.push(n);
-      else if (n.hijos) {
-        const soloItems = n.hijos.filter((h) => h.ruta);
-        if (soloItems.length > 1) subgrupos.push({ ...n, hijos: soloItems });
-        else recorrer(n.hijos);
+  for (const nodo of arbol) {
+    if (nodo.ruta) {
+      items.push(nodo);
+      continue;
+    }
+    // categoría nivel 1: aplanar sus hijos
+    for (const hijo of nodo.hijos) {
+      if (hijo.ruta) {
+        items.push(hijo);
+      } else {
+        const soloItems = hijo.hijos.filter((h) => h.ruta);
+        if (soloItems.length > 1) subgrupos.push({ ...hijo, hijos: soloItems });
+        else items.push(...soloItems);
       }
     }
-  };
-  recorrer(arbol);
+  }
   items.sort((a, b) => {
     const ia = ORDEN_DEPTO.indexOf(a.ruta);
     const ib = ORDEN_DEPTO.indexOf(b.ruta);
