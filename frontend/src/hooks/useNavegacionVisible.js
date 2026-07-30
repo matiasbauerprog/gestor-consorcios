@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { obtenerConfiguracion } from "../api/configuracion";
 import { obtenerConsorcio } from "../api/consorcios";
 import { useAuth } from "../auth/AuthContext";
-import { filtrarArbol, TABS_POR_ROL } from "../navegacion";
+import { aplanarParaDepto, filtrarArbol, TABS_POR_ROL } from "../navegacion";
 
 export function useNavegacionVisible(rol) {
   const { consorcioActivoId } = useAuth();
@@ -67,9 +67,24 @@ export function useNavegacionVisible(rol) {
     return { titulo, modulos };
   }
 
-  const seccionesMas = secciones
-    .map(aplanarCategoria)
-    .filter((s) => s.modulos.length > 0);
+  const noEnTabs = (m) => !rutasEnTabs.has(m.ruta);
+
+  let seccionesMas;
+  if (rol === "departamento") {
+    // El depto navega en lista plana; el sheet "Más" debe rotular el cluster con su
+    // nombre real ("Reportes"), no con el título de la categoría de admin ("Finanzas").
+    // Los items planos del depto (mi-cuenta, peticiones, reservas, comunicados) están
+    // siempre en la tab bar, así que solo los sub-grupos generan sección en "Más".
+    const { subgrupos } = aplanarParaDepto(secciones);
+    seccionesMas = subgrupos
+      .map((sg) => ({
+        titulo: sg.titulo,
+        modulos: sg.hijos.filter(noEnTabs).map((m) => ({ ruta: m.ruta, nombre: m.nombre })),
+      }))
+      .filter((s) => s.modulos.length > 0);
+  } else {
+    seccionesMas = secciones.map(aplanarCategoria).filter((s) => s.modulos.length > 0);
+  }
 
   // Tabs de la tab bar mobile cuya ruta sigue habilitada según las secciones ya
   // filtradas (respeta modulosHabilitados). "/" (Inicio) es un nodo item-suelto
