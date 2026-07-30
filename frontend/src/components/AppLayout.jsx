@@ -9,14 +9,14 @@ import Campanita from "./Campanita";
 import SheetCuenta from "./SheetCuenta";
 import TabBar from "./TabBar";
 import { useNavegacionVisible } from "../hooks/useNavegacionVisible";
-import { grupoDeRuta, moduloDeRuta, TABS_POR_ROL } from "../navegacion";
+import { categoriaDeRuta, moduloDeRuta, TABS_POR_ROL } from "../navegacion";
 
 function etiquetaModulo(pathname, rol, nombreConsorcio) {
   const tab = (TABS_POR_ROL[rol] ?? []).find(
     (t) => pathname === t.ruta || (t.ruta !== "/" && pathname.startsWith(t.ruta + "/"))
   );
   if (tab) return tab.nombre;
-  return grupoDeRuta(pathname) ?? nombreConsorcio ?? "Consorcios";
+  return categoriaDeRuta(pathname) ?? nombreConsorcio ?? "Consorcios";
 }
 
 export default function AppLayout() {
