@@ -127,29 +127,6 @@ export function filtrarArbol({
   return resultado;
 }
 
-export function categoriaDeRuta(pathname) {
-  const matchea = (hoja) => {
-    const rutas = [hoja.ruta, ...(hoja.rutasRelacionadas ?? [])];
-    return rutas.some(
-      (r) => pathname === r || pathname.startsWith(r + "/")
-    );
-  };
-  for (const nodo of CATEGORIAS) {
-    if (nodo.ruta) {
-      if (matchea(nodo)) return nodo.titulo ?? nodo.nombre;
-      continue;
-    }
-    for (const hijo of nodo.hijos) {
-      if (hijo.ruta) {
-        if (matchea(hijo)) return nodo.titulo;
-      } else if (hijo.hijos.some(matchea)) {
-        return nodo.titulo;
-      }
-    }
-  }
-  return null;
-}
-
 // ¿alguna hoja de este nodo (incluyendo rutasRelacionadas) coincide con pathname?
 // Opera sobre el árbol YA filtrado (nodos que Sidebar renderiza), por eso maneja
 // tanto categorías genuinas como sub-grupos promovidos por Regla 2.

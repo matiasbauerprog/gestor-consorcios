@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { obtenerConfiguracion } from "../api/configuracion";
 import { obtenerConsorcio } from "../api/consorcios";
 import { useAuth } from "../auth/AuthContext";
@@ -31,12 +31,16 @@ export function useNavegacionVisible(rol) {
     })();
   }, [rol, consorcioActivoId]);
 
-  const secciones = filtrarArbol({
-    rol,
-    modulosHabilitados,
-    usaPersonalPropio,
-    reportesVisiblesDepto,
-  });
+  const secciones = useMemo(
+    () =>
+      filtrarArbol({
+        rol,
+        modulosHabilitados,
+        usaPersonalPropio,
+        reportesVisiblesDepto,
+      }),
+    [rol, modulosHabilitados, usaPersonalPropio, reportesVisiblesDepto]
+  );
 
   const rutasEnTabs = new Set((TABS_POR_ROL[rol] ?? []).map((t) => t.ruta));
 
