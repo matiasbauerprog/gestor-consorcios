@@ -111,7 +111,7 @@ export default function Liquidaciones({ vistaHistorial = false }) {
   }
 
   return (
-    <main className="app-content">
+    <section>
       <header className="cabecera-pantalla">
         <h2>Liquidaciones de personal</h2>
         <div className="cabecera-acciones">
@@ -221,7 +221,7 @@ export default function Liquidaciones({ vistaHistorial = false }) {
           esEdicion
         />
       )}
-    </main>
+    </section>
   );
 }
 

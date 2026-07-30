@@ -49,10 +49,10 @@ export default function Haberes() {
     else if (r.status !== 401) setError(r.data?.detail || "Error al actualizar.");
   }
 
-  if (cargando) return <main className="app-content"><p>Cargando…</p></main>;
+  if (cargando) return <section><p>Cargando…</p></section>;
 
   return (
-    <main className="app-content">
+    <section>
       <header className="cabecera-pantalla">
         <h2>Haberes</h2>
         <div className="cabecera-acciones">
@@ -127,7 +127,7 @@ export default function Haberes() {
           }}
         />
       )}
-    </main>
+    </section>
   );
 }
 

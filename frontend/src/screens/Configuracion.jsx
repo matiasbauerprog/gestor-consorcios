@@ -92,10 +92,10 @@ export default function Configuracion() {
     setGuardando(false);
   }
 
-  if (cargando) return <main className="app-content"><p>Cargando…</p></main>;
+  if (cargando) return <section><p>Cargando…</p></section>;
 
   return (
-    <main className="app-content">
+    <section>
       <header className="cabecera-pantalla">
         <h2>Datos del consorcio</h2>
       </header>
@@ -173,6 +173,6 @@ export default function Configuracion() {
           {guardando ? "Guardando…" : "Guardar"}
         </button>
       </form>
-    </main>
+    </section>
   );
 }

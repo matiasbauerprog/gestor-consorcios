@@ -64,10 +64,10 @@ export default function ConceptosLiquidacion() {
     return proveedores.find((p) => p.id === id)?.razon_social || "—";
   }
 
-  if (cargando) return <main className="app-content"><p>Cargando…</p></main>;
+  if (cargando) return <section><p>Cargando…</p></section>;
 
   return (
-    <main className="app-content">
+    <section>
       <header className="cabecera-pantalla">
         <h2>Conceptos de liquidación</h2>
         <div className="cabecera-acciones">
@@ -144,7 +144,7 @@ export default function ConceptosLiquidacion() {
           }}
         />
       )}
-    </main>
+    </section>
   );
 }
 

@@ -1135,12 +1135,15 @@ td.monto {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .barra-periodo-selector input[type="month"] {
   font-size: 1rem;
   font-weight: 600;
   padding: 0.3rem 0.5rem;
+  width: 9.5rem;
+  min-width: 0;
 }
 
 .periodo-nav {
@@ -1600,8 +1603,13 @@ td.monto {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
-  margin-top: 0.5rem;
   flex-wrap: wrap;
+  position: sticky;
+  bottom: -1.25rem;
+  margin: 0.5rem -1.25rem -1.25rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-border);
 }
 
 /* En modal-acciones, todos los type="button" son Cancelar/Cerrar → secundario */

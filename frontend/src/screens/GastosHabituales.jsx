@@ -108,7 +108,7 @@ export default function GastosHabituales() {
   }
 
   return (
-    <main className="app-content">
+    <section>
       <header className="cabecera-pantalla">
         <h2>Gastos</h2>
       </header>
@@ -172,7 +172,7 @@ export default function GastosHabituales() {
           }}
         />
       )}
-    </main>
+    </section>
   );
 }
 

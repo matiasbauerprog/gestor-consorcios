@@ -42,10 +42,10 @@ export default function ClasesProrrateo() {
     else if (r.status !== 401) setError(r.data?.detail || "Error al eliminar.");
   }
 
-  if (cargando) return <main className="app-content"><p>Cargando…</p></main>;
+  if (cargando) return <section><p>Cargando…</p></section>;
 
   return (
-    <main className="app-content">
+    <section>
       <header className="cabecera-pantalla">
         <h2>Clases de prorrateo</h2>
         <button type="button" onClick={() => setModal({ tipo: "crear" })}>
@@ -121,7 +121,7 @@ export default function ClasesProrrateo() {
           }}
         />
       )}
-    </main>
+    </section>
   );
 }
 
