@@ -1,20 +1,30 @@
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { categoriaDeRuta, aplanarParaDepto } from "../navegacion";
+import { nodoContieneRuta, aplanarParaDepto } from "../navegacion";
+
+// Id de la categoría renderizada (posiblemente promovida por Regla 2) que
+// contiene la ruta actual, o null si ninguna la contiene.
+function idCategoriaActiva(secciones, pathname) {
+  for (const nodo of secciones) {
+    if (nodo.ruta) continue; // item suelto (Inicio) no es acordeón
+    if (nodoContieneRuta(nodo, pathname)) return nodo.id;
+  }
+  return null;
+}
 
 export default function Sidebar({ rol, secciones: seccionesVisibles, abierto, onCerrar }) {
   const location = useLocation();
   const [grupoAbierto, setGrupoAbierto] = useState(() =>
-    categoriaDeRuta(location.pathname)
+    idCategoriaActiva(seccionesVisibles, location.pathname)
   );
 
   useEffect(() => {
-    const grupo = categoriaDeRuta(location.pathname);
-    if (grupo) setGrupoAbierto(grupo);
-  }, [location.pathname]);
+    const id = idCategoriaActiva(seccionesVisibles, location.pathname);
+    if (id) setGrupoAbierto(id);
+  }, [location.pathname, seccionesVisibles]);
 
-  function toggleGrupo(titulo) {
-    setGrupoAbierto((actual) => (actual === titulo ? null : titulo));
+  function toggleGrupo(id) {
+    setGrupoAbierto((actual) => (actual === id ? null : id));
   }
 
   return (
@@ -79,14 +89,14 @@ export default function Sidebar({ rol, secciones: seccionesVisibles, abierto, on
               );
             }
             // 2. Categoria acordeon
-            const expandido = grupoAbierto === nodo.titulo;
-            const categoriaActiva = categoriaDeRuta(location.pathname) === nodo.titulo;
+            const expandido = grupoAbierto === nodo.id;
+            const categoriaActiva = nodoContieneRuta(nodo, location.pathname);
             return (
               <div key={nodo.id} className="sidebar-section">
                 <button type="button"
                   className={categoriaActiva ? "sidebar-section-titulo activo" : "sidebar-section-titulo"}
                   aria-expanded={expandido}
-                  onClick={() => toggleGrupo(nodo.titulo)}>
+                  onClick={() => toggleGrupo(nodo.id)}>
                   <span>{nodo.titulo}</span>
                   <span className="sidebar-chevron" aria-hidden="true">▸</span>
                 </button>

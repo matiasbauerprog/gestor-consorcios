@@ -68,8 +68,9 @@ export function useNavegacionVisible(rol) {
     .filter((s) => s.modulos.length > 0);
 
   // Tabs de la tab bar mobile cuya ruta sigue habilitada según las secciones ya
-  // filtradas (respeta modulosHabilitados). "/" (Inicio) no tiene entrada en
-  // SECCIONES y siempre se muestra para los roles que la tienen en su tab list.
+  // filtradas (respeta modulosHabilitados). "/" (Inicio) es un nodo item-suelto
+  // del árbol CATEGORIAS solo para los roles que lo tienen; el fallback
+  // `t.ruta === "/"` asegura que siga en tabsVisibles aunque no aparezca ahí.
   const rutasVisibles = new Set();
   const juntarRutas = (nodos) => {
     for (const n of nodos) {

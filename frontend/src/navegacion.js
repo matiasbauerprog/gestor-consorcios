@@ -150,6 +150,18 @@ export function categoriaDeRuta(pathname) {
   return null;
 }
 
+// ¿alguna hoja de este nodo (incluyendo rutasRelacionadas) coincide con pathname?
+// Opera sobre el árbol YA filtrado (nodos que Sidebar renderiza), por eso maneja
+// tanto categorías genuinas como sub-grupos promovidos por Regla 2.
+export function nodoContieneRuta(nodo, pathname) {
+  const matchea = (hoja) => {
+    const rutas = [hoja.ruta, ...(hoja.rutasRelacionadas ?? [])];
+    return rutas.some((r) => pathname === r || pathname.startsWith(r + "/"));
+  };
+  if (nodo.ruta) return matchea(nodo);
+  return nodo.hijos.some((h) => (h.ruta ? matchea(h) : h.hijos.some(matchea)));
+}
+
 export function aplanarParaDepto(arbol) {
   const items = [];
   const subgrupos = [];

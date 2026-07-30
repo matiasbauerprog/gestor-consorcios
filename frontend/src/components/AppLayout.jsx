@@ -9,14 +9,16 @@ import Campanita from "./Campanita";
 import SheetCuenta from "./SheetCuenta";
 import TabBar from "./TabBar";
 import { useNavegacionVisible } from "../hooks/useNavegacionVisible";
-import { categoriaDeRuta, moduloDeRuta, TABS_POR_ROL } from "../navegacion";
+import { nodoContieneRuta, moduloDeRuta, TABS_POR_ROL } from "../navegacion";
 
-function etiquetaModulo(pathname, rol, nombreConsorcio) {
+function etiquetaModulo(pathname, rol, nombreConsorcio, secciones) {
   const tab = (TABS_POR_ROL[rol] ?? []).find(
     (t) => pathname === t.ruta || (t.ruta !== "/" && pathname.startsWith(t.ruta + "/"))
   );
   if (tab) return tab.nombre;
-  return categoriaDeRuta(pathname) ?? nombreConsorcio ?? "Consorcios";
+  const nodo = secciones.find((s) => !s.ruta && nodoContieneRuta(s, pathname));
+  if (nodo) return nodo.titulo;
+  return nombreConsorcio ?? "Consorcios";
 }
 
 export default function AppLayout() {
@@ -43,7 +45,7 @@ export default function AppLayout() {
   const nombreConsorcio = consorciosAccesibles.find(
     (c) => c.id === consorcioActivoId
   )?.nombre;
-  const moduloLabel = etiquetaModulo(location.pathname, user.rol, nombreConsorcio);
+  const moduloLabel = etiquetaModulo(location.pathname, user.rol, nombreConsorcio, secciones);
 
   return (
     <div className="app-shell" data-modulo={modulo}>
