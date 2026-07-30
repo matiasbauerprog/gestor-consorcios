@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { obtenerConfiguracion } from "../api/configuracion";
 import { obtenerConsorcio } from "../api/consorcios";
 import { useAuth } from "../auth/AuthContext";
-import { filtrarSecciones, TABS_POR_ROL } from "../navegacion";
+import { filtrarArbol, TABS_POR_ROL } from "../navegacion";
 
 export function useNavegacionVisible(rol) {
   const { consorcioActivoId } = useAuth();
@@ -31,7 +31,7 @@ export function useNavegacionVisible(rol) {
     })();
   }, [rol, consorcioActivoId]);
 
-  const secciones = filtrarSecciones({
+  const secciones = filtrarArbol({
     rol,
     modulosHabilitados,
     usaPersonalPropio,
@@ -39,14 +39,46 @@ export function useNavegacionVisible(rol) {
   });
 
   const rutasEnTabs = new Set((TABS_POR_ROL[rol] ?? []).map((t) => t.ruta));
+
+  // Aplana una categoria del arbol a { titulo, modulos: [{ruta, nombre}] }
+  // disolviendo sub-grupos y quitando rutas presentes en la tabbar.
+  function aplanarCategoria(nodo) {
+    const titulo = nodo.titulo ?? nodo.nombre;
+    const modulos = [];
+    const juntar = (hijos) => {
+      for (const h of hijos) {
+        if (h.ruta) {
+          if (!rutasEnTabs.has(h.ruta)) modulos.push({ ruta: h.ruta, nombre: h.nombre });
+        } else if (h.hijos) {
+          juntar(h.hijos);
+        }
+      }
+    };
+    if (nodo.ruta) {
+      // item suelto (Inicio): se ignora en "Más" si esta en tabs
+      if (!rutasEnTabs.has(nodo.ruta)) modulos.push({ ruta: nodo.ruta, nombre: nodo.nombre });
+    } else {
+      juntar(nodo.hijos);
+    }
+    return { titulo, modulos };
+  }
+
   const seccionesMas = secciones
-    .map((s) => ({ ...s, modulos: s.modulos.filter((m) => !rutasEnTabs.has(m.ruta)) }))
+    .map(aplanarCategoria)
     .filter((s) => s.modulos.length > 0);
 
   // Tabs de la tab bar mobile cuya ruta sigue habilitada según las secciones ya
   // filtradas (respeta modulosHabilitados). "/" (Inicio) no tiene entrada en
   // SECCIONES y siempre se muestra para los roles que la tienen en su tab list.
-  const rutasVisibles = new Set(secciones.flatMap((s) => s.modulos.map((m) => m.ruta)));
+  const rutasVisibles = new Set();
+  const juntarRutas = (nodos) => {
+    for (const n of nodos) {
+      if (n.ruta) rutasVisibles.add(n.ruta);
+      else if (n.hijos) juntarRutas(n.hijos);
+    }
+  };
+  juntarRutas(secciones);
+
   const tabsVisibles = (TABS_POR_ROL[rol] ?? []).filter(
     (t) => t.ruta === "/" || rutasVisibles.has(t.ruta)
   );
