@@ -173,28 +173,34 @@ export function aplanarParaDepto(arbol) {
   return { items, subgrupos };
 }
 
-// Prefijo de ruta → clave de data-modulo. Se evalúa en orden; el primero que
-// matchea gana, así que los prefijos más específicos van primero.
+// Prefijo de ruta → clave de data-modulo (una de las 6 de index.css). Se evalúa
+// en orden; el primero que matchea gana. Configuración queda fuera a propósito:
+// cae al default "inicio" (navy), su zona de setup neutral.
 const MODULO_POR_RUTA = [
   ["/cobranzas", "cobranzas"],
   ["/cuentas-corrientes", "cobranzas"],
   ["/comprobantes", "cobranzas"],
   ["/gastos", "gastos"],
+  ["/liquidaciones", "gastos"],
+  ["/haberes", "gastos"],
+  ["/empleados", "gastos"],
+  ["/conceptos-liquidacion", "gastos"],
   ["/tesoreria", "finanzas"],
   ["/estado-financiero", "finanzas"],
   ["/cajas", "finanzas"],
   ["/transferencias", "finanzas"],
-  ["/comunicados", "finanzas"],
+  ["/reportes", "finanzas"],
   ["/expensas", "expensas"],
   ["/mi-cuenta", "expensas"],
   ["/departamentos", "expensas"],
   ["/cierre-de-periodo", "expensas"],
   ["/periodos", "expensas"],
-  ["/liquidaciones", "expensas"],
   ["/peticiones", "operacion"],
   ["/trabajos", "operacion"],
+  ["/trabajos-recurrentes", "operacion"],
   ["/amenities", "operacion"],
-  ["/reservas", "cobranzas"],
+  ["/reservas", "operacion"],
+  ["/comunicados", "operacion"],
 ];
 
 export function moduloDeRuta(pathname) {
@@ -207,21 +213,21 @@ export function moduloDeRuta(pathname) {
 
 export const TABS_POR_ROL = {
   administracion: [
-    { ruta: "/", nombre: "Inicio", modulo: "inicio", icono: "casa" },
-    { ruta: "/cobranzas", nombre: "Cobranzas", modulo: "cobranzas", icono: "moneda" },
-    { ruta: "/gastos", nombre: "Gastos", modulo: "gastos", icono: "documento" },
-    { ruta: "/tesoreria", nombre: "Finanzas", modulo: "finanzas", icono: "billetera" },
-    { ruta: "/peticiones", nombre: "Operación", modulo: "operacion", icono: "llave" },
+    { ruta: "/", nombre: "Inicio", icono: "casa" },
+    { ruta: "/cobranzas", nombre: "Cobranzas", icono: "moneda" },
+    { ruta: "/gastos", nombre: "Gastos", icono: "documento" },
+    { ruta: "/tesoreria", nombre: "Finanzas", icono: "billetera" },
+    { ruta: "/peticiones", nombre: "Operación", icono: "llave" },
   ],
   departamento: [
-    { ruta: "/mi-cuenta", nombre: "Mi cuenta", modulo: "expensas", icono: "casa" },
-    { ruta: "/peticiones", nombre: "Peticiones", modulo: "operacion", icono: "chat" },
-    { ruta: "/reservas", nombre: "Reservas", modulo: "cobranzas", icono: "calendario" },
-    { ruta: "/comunicados", nombre: "Comunicados", modulo: "finanzas", icono: "campana" },
+    { ruta: "/mi-cuenta", nombre: "Mi cuenta", icono: "casa" },
+    { ruta: "/peticiones", nombre: "Peticiones", icono: "chat" },
+    { ruta: "/reservas", nombre: "Reservas", icono: "calendario" },
+    { ruta: "/comunicados", nombre: "Comunicados", icono: "campana" },
   ],
   representante: [
-    { ruta: "/comunicados", nombre: "Comunicados", modulo: "finanzas", icono: "campana" },
-    { ruta: "/peticiones", nombre: "Peticiones", modulo: "operacion", icono: "chat" },
-    { ruta: "/trabajos", nombre: "Trabajos", modulo: "operacion", icono: "llave" },
+    { ruta: "/comunicados", nombre: "Comunicados", icono: "campana" },
+    { ruta: "/peticiones", nombre: "Peticiones", icono: "chat" },
+    { ruta: "/trabajos", nombre: "Trabajos", icono: "llave" },
   ],
 };
