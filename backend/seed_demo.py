@@ -109,6 +109,62 @@ def perfiles_deterministas(
     return puntuales, irregulares, morosos
 
 
+def crear_catalogo_personal(api, admin_token, cid, proveedor_id: int) -> dict:
+    """Empleado + haberes + conceptos de liquidación del encargado.
+
+    Sin esto el módulo Personal queda vacío en el demo, que es justo uno de
+    los diferenciales frente a llevar el consorcio en una planilla.
+
+    Los payloads siguen EmpleadoCrear (backend/schemas.py:666), HaberCrear
+    (:701) y ConceptoLiquidacionCrear (:727). Ojo con los enums: `categoria`
+    es CategoriaEmpleado, `tipo` de haber es TipoHaber y `tipo` de concepto es
+    TipoConcepto (backend/models.py:125-140).
+    """
+    r = api.req("POST", "/empleados", token=admin_token, cid=cid, json={
+        "nombre_completo": "Ramón Gutiérrez",
+        "cuil": "20-14555666-3",
+        "categoria": "encargado_permanente_con_vivienda",
+        "fecha_ingreso": "2019-03-01",
+        "sueldo_basico": 950_000.0,
+        "proveedor_id": proveedor_id,
+    }, expect=201)
+    empleado_id = r.json()["id"]
+
+    # El sueldo básico va en el empleado; estos son los haberes adicionales.
+    # "Horas extra" es cantidad_x_valor: el último de la lista, a propósito,
+    # porque poblar_demo necesita saber cuál de los ids requiere `cantidad`
+    # al armar la liquidación (LiquidacionHaberItem, schemas.py:756).
+    haberes = []
+    for orden, (nombre, tipo, valor) in enumerate([
+        ("Antigüedad", "porcentaje_sobre_basico", 20.0),
+        ("Presentismo", "monto_fijo", 95_000.0),
+        ("Plus por limpieza", "monto_fijo", 60_000.0),
+        ("Horas extra", "cantidad_x_valor", 6_500.0),
+    ]):
+        r = api.req("POST", "/haberes", token=admin_token, cid=cid, json={
+            "nombre": nombre, "tipo": tipo,
+            "valor_default": valor, "orden": orden,
+        }, expect=201)
+        haberes.append(r.json()["id"])
+
+    conceptos = []
+    for orden, (nombre, tipo, porcentaje) in enumerate([
+        ("Jubilación", "descuento", 11.0),
+        ("Ley 19.032", "descuento", 3.0),
+        ("Obra social FATERYH", "descuento", 3.0),
+        ("Sindicato SUTERH", "descuento", 2.0),
+        ("Contribuciones patronales", "contribucion", 17.0),
+        ("ART", "contribucion", 5.0),
+    ]):
+        r = api.req("POST", "/conceptos-liquidacion", token=admin_token, cid=cid, json={
+            "nombre": nombre, "tipo": tipo,
+            "porcentaje": porcentaje, "orden": orden,
+        }, expect=201)
+        conceptos.append(r.json()["id"])
+
+    return {"empleado_id": empleado_id, "haberes": haberes, "conceptos": conceptos}
+
+
 def poblar_demo(api, admin_token, seed_password: str) -> dict:
     """Crea el consorcio demo y lo puebla con 6 meses de operación."""
     t0 = time.monotonic()
@@ -158,6 +214,10 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
     api.req("PUT", "/coeficientes", token=admin_token, cid=cid,
             json={"coeficientes": coefs}, expect=200)
 
+    # El encargado necesita un proveedor (le paga la administración); usamos
+    # el primero de la lista ya creada arriba.
+    personal = crear_catalogo_personal(api, admin_token, cid, proveedores[0])
+
     puntuales, irregulares, morosos = perfiles_deterministas(deptos)
 
     email_de = {d["id"]: f"uf{d['codigo'][3:].lower()}@{DOMINIO_DEMO}" for d in deptos}
@@ -169,8 +229,11 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
         tokens_depto[depto["id"]] = token
 
     comprobantes = 0
+    liquidaciones = 0
     for periodo in meses:
         for rubro, concepto, lo, hi in RUBROS_COMUNES:
+            if rubro == "sueldos_y_cargas_sociales":
+                continue  # ahora los genera la liquidación, ver más abajo
             api.req("POST", "/gastos", token=admin_token, cid=cid, json={
                 "periodo": periodo, "rubro": rubro,
                 "clase_prorrateo_id": clase_a,
@@ -194,6 +257,22 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
                 "caja_id": _caja_default(api, admin_token, cid),
                 "fecha_pago": _dia_del_periodo(periodo, RNG.randint(5, 25)).isoformat(),
             }, expect=201)
+
+        # Liquidación del encargado: genera gastos del rubro
+        # sueldos_y_cargas_sociales que tienen que entrar al prorrateo de
+        # este período, por eso se carga antes del cierre.
+        haberes_payload = [{"haber_id": h} for h in personal["haberes"]]
+        # El último haber del catálogo (Horas extra) es cantidad_x_valor: sin
+        # `cantidad` el endpoint devuelve 400 "requiere `cantidad`"
+        # (backend/routers/liquidaciones.py:148).
+        haberes_payload[-1]["cantidad"] = 8.0
+        api.req("POST", "/liquidaciones", token=admin_token, cid=cid, json={
+            "empleado_id": personal["empleado_id"],
+            "periodo": periodo,
+            "caja_id": _caja_default(api, admin_token, cid),
+            "haberes": haberes_payload,
+        }, expect=201)
+        liquidaciones += 1
 
         f1, f2 = _fechas_del_periodo(periodo)
         api.req("POST", f"/periodos/{periodo}/cerrar", token=admin_token, cid=cid, json={
@@ -233,6 +312,7 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
         "deptos": n,
         "meses": meses,
         "comprobantes": comprobantes,
+        "liquidaciones": liquidaciones,
         "amenities": amenities,
         "proveedores": proveedores,
         "tokens_depto": tokens_depto,

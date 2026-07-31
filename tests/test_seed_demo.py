@@ -151,6 +151,12 @@ def test_resetear_esquema_no_deja_las_fks_apagadas_en_el_proceso(engine_demo):
     assert _fk_de_una_conexion_nueva(engine_demo) == 1
 
 
+def test_crear_catalogo_personal_esta_exportado():
+    # Contrato con la Task 6: el catalogo se crea antes del loop de meses.
+    from backend.seed_demo import crear_catalogo_personal
+    assert callable(crear_catalogo_personal)
+
+
 def test_resetear_esquema_restaura_las_fks_aunque_el_drop_falle(engine_demo,
                                                                monkeypatch):
     # El dispose() va en `finally` justamente por esto: si el drop explota a
