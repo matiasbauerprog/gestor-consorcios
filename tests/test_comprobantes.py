@@ -6,6 +6,7 @@
 import pathlib
 from datetime import date, timedelta
 from backend.models import Comprobante, EstadoComprobante
+from tests.conftest import VENC_1, VENC_2
 
 
 def _crear_comprobante(db, departamento_id, fecha_pago, monto, estado):
@@ -178,11 +179,11 @@ def test_listar_expensas_limit_fuera_de_rango_devuelve_400(client, headers_admin
 
 _EXPENSA_NUEVA = {
     "departamento_id": 1,
-    "periodo": "2026-06",
+    "periodo": VENC_1.strftime("%Y-%m"),
     "monto_primer_vencimiento": 87000.00,
-    "fecha_primer_vencimiento": "2026-07-10",
+    "fecha_primer_vencimiento": VENC_1.isoformat(),
     "monto_segundo_vencimiento": 93090.00,
-    "fecha_segundo_vencimiento": "2026-07-20",
+    "fecha_segundo_vencimiento": VENC_2.isoformat(),
 }
 
 
@@ -206,12 +207,12 @@ def test_crear_expensa_como_admin_devuelve_201(client, headers_admin):
     assert r.status_code == 201
     body = r.json()
     assert body["departamento_id"] == 1
-    assert body["periodo"] == "2026-06"
+    assert body["periodo"] == VENC_1.strftime("%Y-%m")
     assert body["monto_primer_vencimiento"] == 87000.00
-    assert body["fecha_primer_vencimiento"] == "2026-07-10"
+    assert body["fecha_primer_vencimiento"] == VENC_1.isoformat()
     assert body["monto_segundo_vencimiento"] == 93090.00
-    assert body["fecha_segundo_vencimiento"] == "2026-07-20"
-    # Sin pagos todavía, FIFO calcula "pendiente".
+    assert body["fecha_segundo_vencimiento"] == VENC_2.isoformat()
+    # Sin pagos todavía y con vencimiento futuro, FIFO calcula "pendiente".
     assert body["estado_calculado"] == "pendiente"
     assert body["monto_pendiente"] == 87000.00
     assert isinstance(body["id"], int)
