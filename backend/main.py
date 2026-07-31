@@ -2,7 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -133,6 +133,23 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+@app.get(
+    "/health",
+    tags=["Salud"],
+    status_code=status.HTTP_200_OK,
+    summary="Chequeo de vida del servicio",
+)
+def health() -> dict[str, str]:
+    """Público y sin tocar la base, a propósito.
+
+    Un monitor externo lo pingea cada pocos minutos: en hostings que duermen los
+    servicios por inactividad ese ping mantiene el demo despierto, y de paso
+    avisa cuando el servicio se cae. Si consultara la base, un problema de la
+    base haría fallar el chequeo de "el proceso está vivo", que es otra cosa.
+    """
+    return {"status": "ok"}
+
 
 app.add_middleware(ImpersonateAuditMiddleware)
 

@@ -74,6 +74,32 @@ security:
 paths:
 
   # =========================================================================
+  # 0. SALUD
+  # =========================================================================
+
+  /health:
+    get:
+      tags: [Salud]
+      summary: Chequeo de vida del servicio
+      description: >
+        Endpoint público y liviano, sin acceso a base de datos. Existe para que
+        un monitor externo pueda pingearlo con frecuencia sin costo: en hostings
+        que duermen los servicios por inactividad, ese ping es lo que mantiene
+        el demo despierto, y de paso avisa cuando el servicio se cae.
+      responses:
+        '200':
+          description: El servicio está vivo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  # =========================================================================
   # 0. AUTH
   # =========================================================================
 

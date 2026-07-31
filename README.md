@@ -342,6 +342,41 @@ El primer arranque necesita una corrida manual del cron (o esperar hasta 6 h):
 como no hay seed-on-boot, la base arranca vacía y `/auth/demo-login` devuelve
 503 hasta que el generador corra por primera vez.
 
+### Mantener el demo despierto (cold start)
+
+En el plan gratuito de Render el servicio web **se duerme tras ~15 min sin
+tráfico** y el primer request paga el arranque en frío. Para un demo linkeado
+desde una web de ventas eso es caro: el visitante ve una pantalla en blanco y
+asume que el producto está roto.
+
+La solución es un **monitor de uptime externo** pingeando `GET /health` cada
+**10 minutos** (Render duerme a los 15; 10 deja margen sin desperdiciar
+llamadas). Sirve UptimeRobot, Better Stack o similar.
+
+Se eligió un monitor externo y no un cron dentro del repo por tres razones:
+
+- **GitHub Actions desactiva los workflows programados** en repos sin actividad
+  por 60 días. El demo dejaría de despertarse en silencio, y el síntoma sería
+  "a veces está lento".
+- Un monitor **avisa cuando el servicio se cae**, cosa que un cron genérico no
+  hace. Es vigilancia gratis que hoy no existe.
+- Un cron dentro de Render gasta cuota de Render para algo que un servicio
+  externo hace mejor y sin costo.
+
+`GET /health` es público y no toca la base a propósito: así el ping es barato, y
+un problema de base de datos no hace fallar un chequeo que mide si el proceso
+está vivo (son dos cosas distintas).
+
+> **El costo real de esta decisión:** Render da **750 horas-instancia por mes**
+> en el plan gratuito y un mes tiene ~730 horas. Mantener este servicio despierto
+> 24/7 consume prácticamente toda la cuota gratuita de la cuenta. Si hay otro
+> servicio gratuito en la misma cuenta, se va a quedar sin horas. La alternativa
+> es el plan pago del web service (~7 USD/mes), que no duerme.
+
+> **Otro vencimiento a tener en el calendario:** el Postgres gratuito de Render
+> **expira a los 90 días**. Si la base del demo está en ese plan, hay que migrarla
+> antes o el demo queda vacío.
+
 ### ⚠️ Verificar antes de confiar en el cron: ownership del esquema `public`
 
 El reset ejecuta `DROP SCHEMA public CASCADE`, que **exige que el rol de conexión
