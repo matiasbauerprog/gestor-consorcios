@@ -3,6 +3,12 @@ import os
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-pytest-only-32-bytes-minimum")
 os.environ.setdefault("SEED_ENABLED", "false")
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+# Asignación dura (no setdefault): si quien corre el suite tiene DEMO_MODE=true
+# en su .env -precisamente para levantar el demo local, el caso de uso que
+# motiva este flag- el suite entero no debe volverse inarrancable. DATABASE_URL
+# de arriba no contiene "demo", así que con DEMO_MODE=true el validator de
+# Settings tira ValidationError al importar backend.main más abajo.
+os.environ["DEMO_MODE"] = "false"
 
 from collections.abc import Iterator  # noqa: E402
 

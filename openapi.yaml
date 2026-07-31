@@ -265,8 +265,20 @@ paths:
                 $ref: '#/components/schemas/TokenOut'
         '400':
           description: Rol fuera de la lista blanca
+        '403':
+          description: |
+            Mismos gates que `/auth/login`: el usuario demo está suspendido
+            (`usuario_suspendido`) o su administración está inactiva
+            (`administracion_suspendida`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '503':
-          description: El dataset demo todavía no fue generado
+          description: >
+            El dataset demo todavía no fue generado, o el usuario demo existe
+            pero no tiene el rol esperado para ese selector (mismo mensaje
+            para no diferenciar los dos casos).
 
   # =========================================================================
   # 1. EXPENSAS
