@@ -170,3 +170,12 @@ def test_resetear_esquema_restaura_las_fks_aunque_el_drop_falle(engine_demo,
         _resetear_esquema(engine_demo)
 
     assert _fk_de_una_conexion_nueva(engine_demo) == 1
+
+
+def test_comunicados_demo_tiene_contenido_variado():
+    from backend.seed_demo import COMUNICADOS_DEMO
+    assert len(COMUNICADOS_DEMO) >= 10
+    # Titulo y cuerpo no vacios en todos.
+    assert all(t.strip() and c.strip() for t, c in COMUNICADOS_DEMO)
+    # Sin titulos repetidos: un demo con 12 avisos iguales se ve falso.
+    assert len({t for t, _ in COMUNICADOS_DEMO}) == len(COMUNICADOS_DEMO)

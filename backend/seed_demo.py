@@ -22,7 +22,7 @@ visitante junto al demo real.
 import os
 import sys
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from .seed_e2e import (
     RNG,
@@ -44,6 +44,47 @@ NOMBRE_CONSORCIO = "Edificio Libertador"
 # Deptos pinneados: son los destinos del selector de rol de /auth/demo-login.
 CODIGO_PUNTUAL_FIJO = "UF-01A"
 CODIGO_MOROSO_FIJO = "UF-03C"
+
+# 12 comunicados con registro de administrador real (no "Comunicado de prueba
+# N"): el demo es de venta y lo lee gente que evalúa comprar el sistema. Se
+# reparten de a dos por período a lo largo de los 6 meses (ver poblar_demo).
+COMUNICADOS_DEMO: list[tuple[str, str]] = [
+    ("Corte programado de agua",
+     "El martes de 9 a 14 h se corta el suministro por reparación del tanque "
+     "de reserva. Les pedimos juntar agua la noche anterior."),
+    ("Convocatoria a asamblea ordinaria",
+     "Se convoca a asamblea ordinaria para tratar el presupuesto anual, la "
+     "rendición de cuentas y la obra de frente. Quórum a las 19 h."),
+    ("Nuevo reglamento del SUM",
+     "A partir de este mes la reserva del SUM se hace desde el sistema. "
+     "Cancelaciones con menos de 48 h de aviso no tienen reintegro."),
+    ("Mantenimiento de ascensores",
+     "El service mensual pasa a los primeros lunes. El ascensor B queda fuera "
+     "de servicio de 8 a 12 h."),
+    ("Recordatorio de vencimiento de expensas",
+     "El primer vencimiento opera el día 10. Pasada esa fecha se aplica el "
+     "recargo previsto por reglamento."),
+    ("Obra de frente: inicio de los trabajos",
+     "Comienza la reparación del frente del edificio. Se financia en 6 cuotas "
+     "por expensas extraordinarias, prorrateadas por la clase B."),
+    ("Fumigación general",
+     "El jueves se fumigan palieres, sótano y espacios comunes. Les pedimos no "
+     "dejar mascotas en zonas comunes ese día."),
+    ("Cambio de horario del encargado",
+     "Durante enero el encargado cumple horario de verano: de 7 a 15 h."),
+    ("Uso de la parrilla y limpieza",
+     "Se recuerda dejar la parrilla limpia después de cada uso. El costo de "
+     "limpieza extra se carga a la unidad responsable."),
+    ("Instalación de medidores individuales",
+     "Se evalúa instalar medidores de agua por unidad. Se tratará en la "
+     "próxima asamblea con tres presupuestos a la vista."),
+    ("Reclamos por filtraciones",
+     "Quien tenga filtraciones en el último piso debe cargar la petición por "
+     "el sistema para que quede registrada con fecha."),
+    ("Cierre de ejercicio",
+     "Queda disponible la rendición del ejercicio en la sección Reportes, "
+     "junto con el detalle de gastos por período."),
+]
 
 
 def meses_demo(hoy: date, cantidad: int = 6) -> list[str]:
@@ -259,8 +300,15 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
     coefs = [{"departamento_id": d["id"], "clase_prorrateo_id": clase_a,
               "porcentaje": base} for d in deptos]
     coefs[-1]["porcentaje"] = round(100.0 - base * (n - 1), 4)
+
+    # La clase B (obra en cuotas, más abajo) necesita coeficientes propios o
+    # el cierre puede rechazar el prorrateo: se mandan las dos clases juntas
+    # en una sola llamada a PUT /coeficientes.
+    coefs_b = [{"departamento_id": d["id"], "clase_prorrateo_id": clase_b,
+                "porcentaje": base} for d in deptos]
+    coefs_b[-1]["porcentaje"] = round(100.0 - base * (n - 1), 4)
     api.req("PUT", "/coeficientes", token=admin_token, cid=cid,
-            json={"coeficientes": coefs}, expect=200)
+            json={"coeficientes": coefs + coefs_b}, expect=200)
 
     # El encargado necesita un proveedor (le paga la administración); usamos
     # el primero de la lista ya creada arriba.
@@ -278,7 +326,33 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
 
     comprobantes = 0
     liquidaciones = 0
-    for periodo in meses:
+    comunicados = 0
+    cuotas_obra = 0
+    for i, periodo in enumerate(meses):
+        for titulo, cuerpo in COMUNICADOS_DEMO[i * 2: i * 2 + 2]:
+            api.req("POST", "/comunicados", token=admin_token, cid=cid,
+                    json={"titulo": titulo, "cuerpo": cuerpo}, expect=201)
+            comunicados += 1
+
+        # Obra extraordinaria financiada en 6 cuotas por la clase B. Es lo que
+        # le da sentido a tener varias clases de prorrateo: sin esto todo va
+        # por la clase A y el sistema parece más simple de lo que es. Se
+        # carga una sola vez, en el primer período, antes de su cierre.
+        if periodo == meses[0]:
+            api.req("POST", "/gastos/plan-cuotas", token=admin_token, cid=cid, json={
+                "periodo": periodo,
+                "rubro": "mantenimiento_partes_comunes",
+                "clase_prorrateo_id": clase_b,
+                "proveedor_id": proveedores[0],
+                "concepto": "Reparación integral del frente del edificio",
+                "monto": 7_200_000.0,
+                "forma_pago": "transferencia",
+                "caja_id": _caja_default(api, admin_token, cid),
+                "fecha_pago": _dia_del_periodo(periodo, 5).isoformat(),
+                "cuota_total": 6,
+            }, expect=201)
+            cuotas_obra = 6
+
         for rubro, concepto, lo, hi in RUBROS_COMUNES:
             if rubro == "sueldos_y_cargas_sociales":
                 continue  # ahora los genera la liquidación, ver más abajo
@@ -352,6 +426,75 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
             comprobantes += 1
         print(f"[demo] {periodo}: cerrado · {len(pagan)} pagos")
 
+    # --- Reservas de amenities (fechas futuras, relativas a "ahora") ---
+    # Portado de seed_e2e.py:286-305 con la escala ajustada de 180 deptos a 18
+    # (k=8 en vez de k=25). El POST deliberadamente NO lleva expect=201: hay
+    # reservas random que chocan con la política del amenity y dan 409
+    # legítimo, y eso no debe hacer explotar el generador.
+    reservantes = RNG.sample(sorted(tokens_depto), k=min(8, len(tokens_depto)))
+    reservas = 0
+    for depto_id in reservantes:
+        amenity = RNG.choice(list(amenities.values()))
+        inicio = datetime.now().replace(minute=0, second=0, microsecond=0) + timedelta(
+            days=RNG.randint(2, 40), hours=RNG.randint(1, 5)
+        )
+        r = api.req("POST", f"/amenities/{amenity}/reservas", token=tokens_depto[depto_id],
+                    cid=cid, json={
+                        "inicio": inicio.isoformat(),
+                        "fin": (inicio + timedelta(hours=RNG.randint(1, 3))).isoformat(),
+                    })
+        if r.status_code == 201:
+            reservas += 1
+            # 20% cancela — es lo que ejercita la reversa del cargo en cuenta
+            # corriente, que es justamente lo que hace interesante al módulo.
+            if RNG.random() < 0.2:
+                api.req("DELETE", f"/reservas/{r.json()['id']}",
+                        token=tokens_depto[depto_id], cid=cid)
+    print(f"[demo] reservas: {reservas}")
+
+    # --- Peticiones → trabajos → presupuestos ---
+    # Portado de seed_e2e.py:307-351 con la escala ajustada (k=6 en vez de
+    # k=12), para que el módulo de Tareas y Presupuestos quede con contenido
+    # en los 4 estados: petición abierta, trabajo sin presupuestos, trabajo
+    # con presupuestos pendientes y trabajo con presupuesto aprobado.
+    peticionantes = RNG.sample(sorted(tokens_depto), k=min(6, len(tokens_depto)))
+    peticiones = 0
+    trabajos_creados = 0
+    for depto_id in peticionantes:
+        r = api.req("POST", "/peticiones", token=tokens_depto[depto_id], cid=cid, json={
+            "titulo": RNG.choice([
+                "Pérdida de agua en baño", "Humedad en pared del dormitorio",
+                "Portero eléctrico sin audio", "Luz de pasillo quemada",
+                "Filtración en balcón", "Ascensor hace ruido",
+            ]),
+            "descripcion": "Solicito revisión y reparación a la brevedad. Gracias.",
+        }, expect=201)
+        peticion_id = r.json()["id"]
+        peticiones += 1
+
+        if RNG.random() < 0.6:  # el resto queda abierta (realista)
+            r = api.req("POST", "/trabajos", token=admin_token, cid=cid, json={
+                "peticion_id": peticion_id,
+                "descripcion": "Trabajo generado a partir del reclamo del depto.",
+            }, expect=201)
+            trabajo_id = r.json()["id"]
+            trabajos_creados += 1
+
+            elegido = None
+            for prov in RNG.sample(proveedores, k=RNG.randint(1, 3)):
+                # El endpoint de presupuestos recibe multipart/form-data.
+                r = api.req("POST", f"/trabajos/{trabajo_id}/presupuestos",
+                            token=admin_token, cid=cid,
+                            data={"proveedor_id": str(prov),
+                                  "monto": str(round(RNG.uniform(20_000, 150_000), 2))},
+                            expect=201)
+                elegido = r.json()
+            if elegido is not None:
+                api.req("POST",
+                        f"/trabajos/{trabajo_id}/presupuestos/{elegido['id']}/aprobar",
+                        token=admin_token, cid=cid, expect=200)
+    print(f"[demo] peticiones: {peticiones} · trabajos: {trabajos_creados}")
+
     dt = time.monotonic() - t0
     return {
         "consorcio_id": cid,
@@ -361,6 +504,10 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
         "meses": meses,
         "comprobantes": comprobantes,
         "liquidaciones": liquidaciones,
+        "comunicados": comunicados,
+        "cuotas_obra": cuotas_obra,
+        "reservas": reservas,
+        "peticiones": peticiones,
         "amenities": amenities,
         "proveedores": proveedores,
         "tokens_depto": tokens_depto,
