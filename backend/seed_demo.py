@@ -252,23 +252,45 @@ def _resetear_esquema(engine) -> None:
     """Borra todas las tablas para regenerar el dataset desde cero.
 
     En SQLite no alcanza con `drop_all`: backend/database.py activa
-    `PRAGMA foreign_keys=ON` en cada conexión, así que al soltar la primera
+    `PRAGMA foreign_keys=ON` en cada conexión, y el modelo tiene un ciclo de FK
+    (cajas → consorcios → presupuestos → trabajos), así que al soltar la primera
     tabla referenciada por otra con filas cargadas SQLite tira
     `IntegrityError: FOREIGN KEY constraint failed`. El pragma es *por
-    conexión*, por eso lo apagamos en la misma conexión donde corre el DROP en
-    vez de tocar la configuración global del engine.
+    conexión*, por eso lo apagamos en la conexión donde corre el DROP en vez de
+    tocar la configuración global del engine.
     """
     from sqlalchemy import text
 
     from .models import Base
 
-    if engine.url.get_backend_name() == "sqlite":
+    if engine.url.get_backend_name() != "sqlite":
+        Base.metadata.drop_all(bind=engine)
+        return
+
+    try:
         with engine.connect() as conn:
             conn.execute(text("PRAGMA foreign_keys=OFF"))
             Base.metadata.drop_all(bind=conn)
             conn.commit()
-    else:
-        Base.metadata.drop_all(bind=engine)
+    finally:
+        # Salir del `with` NO cierra la conexión física: la devuelve al
+        # QueuePool con foreign_keys todavía en OFF. El listener de
+        # backend/database.py:19 sólo corre al abrir conexiones *nuevas*, no en
+        # los checkouts reciclados, y el pool es LIFO — así que el próximo
+        # SessionLocal() del proceso se lleva justo esa conexión y opera sin
+        # integridad referencial, en silencio y para siempre. Acá pasa de
+        # verdad: generar_dataset_demo() sigue con TestClient(app), cuyo
+        # lifespan hace create_all sobre este mismo engine, y la Task 7 va a
+        # llamar a todo esto desde el proceso del servidor vivo en cada corrida
+        # del cron.
+        #
+        # dispose() descarta el pool entero, así que la siguiente conexión es
+        # física y nueva y el listener vuelve a poner foreign_keys=ON. Se
+        # prefiere a un `PRAGMA foreign_keys=ON` de cierre porque va en
+        # `finally`: si el drop falla a mitad de camino, la conexión vuelve al
+        # pool igual de envenenada, y un pragma de reparación tendría que correr
+        # sobre una conexión que quizás ya está en estado inválido.
+        engine.dispose()
 
 
 def generar_dataset_demo(*, seed_password: str, sa_email: str, sa_password: str,
