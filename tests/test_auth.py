@@ -407,3 +407,17 @@ def test_login_usuario_suspendido_devuelve_403(client, db_session):
     )
     assert r.status_code == 403
     assert r.json()["detail"] == "usuario_suspendido"
+
+
+def test_cors_preflight_login_desde_puerto_5179_devuelve_200_con_headers_cors(client):
+    r = client.options(
+        "/auth/login",
+        headers={
+            "Origin": "http://localhost:5179",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert r.status_code == 200
+    assert r.headers.get("access-control-allow-origin") == "http://localhost:5179"
+

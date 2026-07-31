@@ -33,7 +33,7 @@ class Settings(BaseSettings):
         "http://localhost:5174,http://127.0.0.1:5174,"
         "http://localhost:5175,http://127.0.0.1:5175"
     )
-    CORS_ORIGIN_REGEX: str = ""
+    CORS_ORIGIN_REGEX: str = r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
 
     @property
     def cors_origins_list(self) -> list[str]:
