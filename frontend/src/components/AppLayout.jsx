@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { ES_DEMO } from "../api/demo";
+import BannerDemo from "./BannerDemo";
 import BannerImpersonate from "./BannerImpersonate";
 import Sidebar from "./Sidebar";
 import SidebarSuperAdmin from "./SidebarSuperAdmin";
@@ -49,6 +51,7 @@ export default function AppLayout() {
 
   return (
     <div className="app-shell" data-modulo={modulo}>
+      {ES_DEMO && <BannerDemo />}
       <BannerImpersonate />
       <header className="app-header">
         {esSuperAdmin && (
