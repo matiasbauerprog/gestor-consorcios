@@ -69,21 +69,30 @@ def calcular_estado_cuenta(
             saldo_total -= m.monto
             credito_disponible += m.monto
 
+    saldo_total = round(saldo_total, 2)
+    credito_disponible = round(credito_disponible, 2)
+    if abs(saldo_total) < 0.005:
+        saldo_total = 0.0
+    if abs(credito_disponible) < 0.005:
+        credito_disponible = 0.0
+
     # FIFO: el crédito acumulado se aplica a las expensas más viejas.
     for e in expensas:
-        if credito_disponible <= 0:
+        if credito_disponible <= 0.005:
             break
         cubierto = min(credito_disponible, pendientes[e.id])
-        pagado_por_expensa[e.id] = cubierto
-        pendientes[e.id] -= cubierto
-        credito_disponible -= cubierto
+        cubierto = round(cubierto, 2)
+        pagado_por_expensa[e.id] = round(pagado_por_expensa[e.id] + cubierto, 2)
+        pendientes[e.id] = round(pendientes[e.id] - cubierto, 2)
+        credito_disponible = round(credito_disponible - cubierto, 2)
 
     por_expensa: dict[int, EstadoExpensaCalculado] = {}
     for e in expensas:
-        pagado = pagado_por_expensa[e.id]
-        pendiente = pendientes[e.id]
-        if pendiente <= 0.001:
+        pagado = round(pagado_por_expensa[e.id], 2)
+        pendiente = round(pendientes[e.id], 2)
+        if pendiente <= 0.005:
             estado = EstadoExpensa.pagada
+            pendiente = 0.0
         elif pagado > 0:
             estado = EstadoExpensa.parcial
         elif e.fecha_primer_vencimiento < hoy:

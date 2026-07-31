@@ -104,8 +104,8 @@ def calcular_morosos(db: Session, consorcio_id: int, solo_deudores: bool = True)
     hoy = date.today()
     for d in deptos:
         estado = calcular_estado_cuenta(db, d.id)
-        saldo = estado.saldo_total
-        if solo_deudores and saldo <= 0:
+        saldo = round(estado.saldo_total, 2)
+        if solo_deudores and saldo <= 0.01:
             continue
 
         expensas_vencidas = list(db.scalars(
@@ -116,8 +116,8 @@ def calcular_morosos(db: Session, consorcio_id: int, solo_deudores: bool = True)
             )
             .order_by(Expensa.fecha_primer_vencimiento)
         ).all())
-        periodos_vencidos = len(expensas_vencidas) if saldo > 0 else 0
-        primer_imp = expensas_vencidas[0].fecha_primer_vencimiento if expensas_vencidas and saldo > 0 else None
+        periodos_vencidos = len(expensas_vencidas) if saldo > 0.01 else 0
+        primer_imp = expensas_vencidas[0].fecha_primer_vencimiento if (expensas_vencidas and saldo > 0.01) else None
 
         items.append(ItemMoroso(
             departamento_id=d.id,
