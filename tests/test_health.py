@@ -6,6 +6,17 @@ def test_health_devuelve_200_sin_token(client):
     assert r.json() == {"status": "ok"}
 
 
+def test_health_responde_head(client):
+    """Los planes gratuitos de varios monitores de uptime solo mandan HEAD.
+
+    FastAPI, a diferencia de Starlette pelado, no agrega HEAD automaticamente a
+    las rutas GET: declarado con @app.get esto daria 405 y el monitor lo
+    reportaria como caida.
+    """
+    r = client.head("/health")
+    assert r.status_code == 200
+
+
 def test_health_no_toca_la_base(client, monkeypatch):
     """No debe abrir sesion de DB.
 

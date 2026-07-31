@@ -98,6 +98,18 @@ paths:
                   status:
                     type: string
                     example: ok
+    head:
+      tags: [Salud]
+      summary: Chequeo de vida del servicio (sin cuerpo)
+      description: >
+        Mismo chequeo que el GET, sin cuerpo de respuesta. Se declara explícito
+        porque los planes gratuitos de varios monitores de uptime solo mandan
+        HEAD, y FastAPI —a diferencia de Starlette pelado— no agrega HEAD
+        automáticamente a las rutas GET: sin esto devolvería 405 y el monitor
+        lo reportaría como caída.
+      responses:
+        '200':
+          description: El servicio está vivo
 
   # =========================================================================
   # 0. AUTH

@@ -134,8 +134,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-@app.get(
+@app.api_route(
     "/health",
+    methods=["GET", "HEAD"],
     tags=["Salud"],
     status_code=status.HTTP_200_OK,
     summary="Chequeo de vida del servicio",
@@ -147,6 +148,11 @@ def health() -> dict[str, str]:
     servicios por inactividad ese ping mantiene el demo despierto, y de paso
     avisa cuando el servicio se cae. Si consultara la base, un problema de la
     base haría fallar el chequeo de "el proceso está vivo", que es otra cosa.
+
+    Acepta HEAD además de GET: los planes gratuitos de varios monitores de uptime
+    solo mandan HEAD. Y FastAPI, a diferencia de Starlette pelado, NO agrega HEAD
+    automáticamente a las rutas GET — declarado con `@app.get` responde 405 y el
+    monitor lo reporta como caída.
     """
     return {"status": "ok"}
 
