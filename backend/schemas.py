@@ -32,6 +32,15 @@ class LoginIn(BaseModel):
     password: str = Field(..., min_length=1, max_length=255)
 
 
+class DemoLoginIn(BaseModel):
+    """Body de POST /auth/demo-login.
+
+    `Literal` cierra la lista blanca a nivel schema: cualquier otro valor lo
+    rechaza Pydantic con 400 antes de llegar al router.
+    """
+    rol: Literal["administracion", "propietario_al_dia", "propietario_moroso"]
+
+
 class CambiarPasswordIn(BaseModel):
     current_password: str = Field(..., min_length=1, max_length=255)
     new_password: str = Field(..., min_length=8, max_length=255)

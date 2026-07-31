@@ -204,6 +204,12 @@ app.include_router(padron.router)
 app.include_router(estado_financiero.router)
 app.include_router(reportes.router)
 
+# Candado 2: la ruta del demo no se registra fuera del modo demo. No es un 403
+# —el endpoint literalmente no existe— así que un 404 no filtra que exista.
+if get_settings().DEMO_MODE:
+    from .routers import demo as demo_router
+    app.include_router(demo_router.router)
+
 _uploads_path = Path(get_settings().UPLOAD_DIR)
 _uploads_path.mkdir(parents=True, exist_ok=True)
 (_uploads_path / "comprobantes").mkdir(parents=True, exist_ok=True)
