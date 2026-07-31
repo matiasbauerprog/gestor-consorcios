@@ -130,17 +130,31 @@ def crear_catalogo_personal(api, admin_token, cid, proveedor_id: int) -> dict:
     }, expect=201)
     empleado_id = r.json()["id"]
 
-    # Proveedores institucionales para las contribuciones (AFIP, ART). Se
-    # crean acá — no se reusan los proveedores comerciales del consorcio
-    # (limpieza, ascensores, etc.) porque no representan a quién se le paga
-    # una contribución patronal real — siguiendo el mismo patrón que
+    # Proveedores institucionales para descuentos y contribuciones. Se crean
+    # acá — no se reusan los proveedores comerciales del consorcio (limpieza,
+    # ascensores, etc.) porque no representan a quién se le paga de verdad
+    # una retención o contribución — siguiendo el mismo patrón que
     # backend/seed.py (Fase 3: AFIP/ARCA/FATERYH/SUTERH como Proveedor).
+    # "AFIP", "FATERYH" y "SUTERH" son nombres genérico-institucionales del
+    # rubro (como "AFIP" en cualquier software de administración argentino);
+    # para el proveedor de ART usamos una etiqueta obviamente ficticia
+    # ("ART Demo SA") en vez del nombre de una aseguradora real — este
+    # dataset se publica en un demo público y una razón social real con un
+    # CUIT inventado se leería como un dato genuino.
     r = api.req("POST", "/proveedores", token=admin_token, cid=cid, json={
-        "razon_social": "AFIP", "cuit": "30-00000001-7",
+        "razon_social": "AFIP", "cuit": "30-00000101-1",
     }, expect=201)
     proveedor_afip = r.json()["id"]
     r = api.req("POST", "/proveedores", token=admin_token, cid=cid, json={
-        "razon_social": "ART Interacción SA", "cuit": "30-00000002-5",
+        "razon_social": "FATERYH", "cuit": "30-00000102-2",
+    }, expect=201)
+    proveedor_fateryh = r.json()["id"]
+    r = api.req("POST", "/proveedores", token=admin_token, cid=cid, json={
+        "razon_social": "SUTERH", "cuit": "30-00000103-3",
+    }, expect=201)
+    proveedor_suterh = r.json()["id"]
+    r = api.req("POST", "/proveedores", token=admin_token, cid=cid, json={
+        "razon_social": "ART Demo SA", "cuit": "30-00000104-4",
     }, expect=201)
     proveedor_art = r.json()["id"]
 
@@ -167,18 +181,25 @@ def crear_catalogo_personal(api, admin_token, cid, proveedor_id: int) -> dict:
         }, expect=201)
         haberes.append(r.json()["id"])
 
-    # Las contribuciones llevan `proveedor_id`: _generar_gastos
-    # (backend/routers/liquidaciones.py:252-276) sólo materializa un Gasto por
-    # cada proveedor con detalle asociado — sin proveedor_id el monto se
-    # calcula y queda en liquidacion.detalle, pero nunca entra al prorrateo.
-    # Los descuentos no lo necesitan: ya restan del bruto sin generar gasto
-    # propio (los cobra el empleado neto, no el consorcio aparte).
+    # Todos los conceptos llevan `proveedor_id`, descuentos incluidos.
+    # _generar_gastos (backend/routers/liquidaciones.py:252-276) sólo
+    # materializa un Gasto por cada proveedor con detalle asociado — sin
+    # proveedor_id el monto se calcula y queda en liquidacion.detalle, pero
+    # nunca entra al prorrateo. Los descuentos NO son un pago que el empleado
+    # hace por su cuenta: el empleador los retiene del bruto y los deposita
+    # él mismo en AFIP, la obra social y el sindicato — por eso también
+    # necesitan generar su propio Gasto, igual que backend/seed.py:349-355
+    # (que le asigna proveedor_id a los 4 conceptos `descuento`, no sólo a
+    # las contribuciones). Esto no duplica el descuento del neto:
+    # `descuentos_total` en _generar_gastos se calcula por `concepto_tipo`,
+    # sin importar si el concepto tiene proveedor — el Gasto por-proveedor es
+    # un agrupado aparte sobre `liquidacion.detalle`.
     conceptos = []
     for orden, (nombre, tipo, porcentaje, prov) in enumerate([
-        ("Jubilación", "descuento", 11.0, None),
-        ("Ley 19.032", "descuento", 3.0, None),
-        ("Obra social FATERYH", "descuento", 3.0, None),
-        ("Sindicato SUTERH", "descuento", 2.0, None),
+        ("Jubilación", "descuento", 11.0, proveedor_afip),
+        ("Ley 19.032", "descuento", 3.0, proveedor_afip),
+        ("Obra social FATERYH", "descuento", 3.0, proveedor_fateryh),
+        ("Sindicato SUTERH", "descuento", 2.0, proveedor_suterh),
         ("Contribuciones patronales", "contribucion", 17.0, proveedor_afip),
         ("ART", "contribucion", 5.0, proveedor_art),
     ]):
