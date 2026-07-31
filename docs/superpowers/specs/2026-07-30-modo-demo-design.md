@@ -199,12 +199,11 @@ mantenimiento), el filesystem efímero se lleva la base SQLite y el demo queda
 vacío hasta el próximo cron. Para eso, **seed automático al bootear si la base
 está vacía** — el restart se auto-cura.
 
-**Riesgo abierto:** eso depende de cuánto tarde el generador. Con 180 deptos el
-script imprime el tiempo en minutos (`seed_e2e.py:415`). A 18 UF debería caer
-mucho, pero no está medido, y si supera ~60 s el healthcheck de Railway puede
-fallar durante el arranque. **La primera tarea de implementación es medir el
-runtime real.** Si se pasa de 60 s, la alternativa es un volumen persistente con
-solo cron, sin seed-on-boot.
+**Riesgo cerrado (2026-07-31):** el runtime medido con 18 UF es **67 s** (66.6
+base vacía / 68.1 con `--reset`), por encima del umbral de 60 s. Se adoptó la
+alternativa: **volumen persistente + cron cada 6 h, sin seed-on-boot.** El grueso
+del tiempo es bcrypt (hashing de contraseñas); en Railway con menos CPU por core
+el margen es aun peor.
 
 ## Repo público
 
@@ -244,7 +243,7 @@ no sirve para nada.
 | Riesgo | Mitigación |
 |---|---|
 | `DEMO_MODE=true` en producción → bypass de auth | Tres candados en capas (ruta ausente, validator de boot, lista blanca) |
-| Seed-on-boot lento → healthcheck falla | Medir runtime como primera tarea; si >60 s, volumen persistente + solo cron |
+| Seed-on-boot lento → healthcheck falla | ✅ Medido: 67 s → cron + volumen persistente, sin seed-on-boot |
 | Dos visitantes simultáneos se pisan | Aceptado explícitamente. El banner avisa que es un demo compartido |
 | Mirror publica el historial con `consorcio.db.corrupta` | Snapshot huérfano force-pusheado, nunca historial |
 | Un visitante deja el demo feo por hasta 6 h | Aceptado. Si molesta, bajar el intervalo del cron |
