@@ -43,5 +43,5 @@ jobs:
           git add -A
           git commit -q -m "snapshot: $GITHUB_SHA"
           git branch -M master
-          git push -q --force \
-            "https://x-access-token:${MIRROR_TOKEN}@github.com/${MIRROR_REPO}.git" master
+          git push --force \
+            "https://${MIRROR_TOKEN}@github.com/${MIRROR_REPO}.git" master
