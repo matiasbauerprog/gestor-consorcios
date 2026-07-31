@@ -553,13 +553,6 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
     }
 
 
-# Guard de reentrada. generar_dataset_demo levanta la app con TestClient, lo
-# que vuelve a correr el lifespan de backend/main.py — y ese lifespan, en modo
-# demo, llama a generar_dataset_demo si la base está vacía. Sin este flag la
-# generación se invocaría a sí misma sin fin al bootear.
-GENERANDO = False
-
-
 def _resetear_esquema(engine) -> None:
     """Borra todas las tablas para regenerar el dataset desde cero.
 
@@ -576,7 +569,14 @@ def _resetear_esquema(engine) -> None:
     from .models import Base
 
     if engine.url.get_backend_name() != "sqlite":
-        Base.metadata.drop_all(bind=engine)
+        # drop_all no sirve aca: ordena las tablas topologicamente y el modelo
+        # tiene un ciclo de FK (cajas -> consorcios -> presupuestos ->
+        # trabajos), asi que no puede resolver el orden y falla al soltar una
+        # tabla todavia referenciada. DROP SCHEMA ... CASCADE no depende del
+        # orden: se lleva todo el esquema de una, constraints incluidas.
+        with engine.begin() as conn:
+            conn.execute(text("DROP SCHEMA public CASCADE"))
+            conn.execute(text("CREATE SCHEMA public"))
         return
 
     try:
@@ -588,13 +588,14 @@ def _resetear_esquema(engine) -> None:
         # Salir del `with` NO cierra la conexión física: la devuelve al
         # QueuePool con foreign_keys todavía en OFF. El listener de
         # backend/database.py:19 sólo corre al abrir conexiones *nuevas*, no en
-        # los checkouts reciclados, y el pool es LIFO — así que el próximo
-        # SessionLocal() del proceso se lleva justo esa conexión y opera sin
-        # integridad referencial, en silencio y para siempre. Acá pasa de
-        # verdad: generar_dataset_demo() sigue con TestClient(app), cuyo
-        # lifespan hace create_all sobre este mismo engine, y la Task 7 va a
-        # llamar a todo esto desde el proceso del servidor vivo en cada corrida
-        # del cron.
+        # los checkouts reciclados — así que cualquier próximo SessionLocal()
+        # del proceso puede llevarse esa misma conexión reciclada (sin importar
+        # el orden de entrega del pool) y operar sin integridad referencial, en
+        # silencio y para siempre. Acá pasa de verdad: generar_dataset_demo()
+        # sigue con TestClient(app), cuyo lifespan hace create_all sobre este
+        # mismo engine — y esto sólo corre para SQLite, que es el motor de
+        # desarrollo y de los tests; en producción el demo resetea sobre
+        # Postgres desde un proceso de cron aparte, sin este camino.
         #
         # dispose() descarta el pool entero, así que la siguiente conexión es
         # física y nueva y el listener vuelve a poner foreign_keys=ON. Se
@@ -609,11 +610,11 @@ def generar_dataset_demo(*, seed_password: str, sa_email: str, sa_password: str,
                          reset: bool = False) -> dict:
     """Genera el dataset demo completo. Núcleo reusable.
 
-    No lee sys.argv ni llama a sys.exit: la Task 7 lo invoca desde el lifespan
-    del servidor, donde un exit abrupto dejaría la app muerta. Ante un problema
-    levanta la excepción para que el llamador decida.
+    No lee sys.argv ni llama a sys.exit: lo invoca `main()` de este mismo
+    módulo desde el proceso de cron (`python -m backend.seed_demo --reset`),
+    aparte del servidor web. Ante un problema levanta la excepción para que el
+    llamador decida — un exit abrupto acá no tiene servidor que proteger.
     """
-    global GENERANDO
     from fastapi.testclient import TestClient
 
     from .database import SessionLocal, engine
@@ -625,12 +626,8 @@ def generar_dataset_demo(*, seed_password: str, sa_email: str, sa_password: str,
         _resetear_esquema(engine)
 
     t0 = time.monotonic()
-    GENERANDO = True
-    try:
-        return _generar(seed_password, sa_email, sa_password, t0, TestClient,
-                        app, SessionLocal, seed_super_admin)
-    finally:
-        GENERANDO = False
+    return _generar(seed_password, sa_email, sa_password, t0, TestClient,
+                    app, SessionLocal, seed_super_admin)
 
 
 def _generar(seed_password, sa_email, sa_password, t0, TestClient, app,

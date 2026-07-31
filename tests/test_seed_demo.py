@@ -179,3 +179,33 @@ def test_comunicados_demo_tiene_contenido_variado():
     assert all(t.strip() and c.strip() for t, c in COMUNICADOS_DEMO)
     # Sin titulos repetidos: un demo con 12 avisos iguales se ve falso.
     assert len({t for t, _ in COMUNICADOS_DEMO}) == len(COMUNICADOS_DEMO)
+
+
+def test_resetear_esquema_en_postgres_no_usa_drop_all():
+    """En Postgres, drop_all choca con el mismo ciclo de FK que en SQLite.
+
+    El modelo tiene un ciclo cajas -> consorcios -> presupuestos -> trabajos, y
+    drop_all ordena las tablas topologicamente: con un ciclo no puede, avisa por
+    SAWarning y falla al soltar una tabla todavia referenciada. En Postgres la
+    salida limpia es DROP SCHEMA ... CASCADE, que no depende del orden.
+    """
+    import inspect
+
+    from backend import seed_demo
+
+    fuente = inspect.getsource(seed_demo._resetear_esquema)
+    rama_pg = fuente.split('!= "sqlite"')[1].split("try:")[0]
+    assert "DROP SCHEMA" in rama_pg.upper()
+    assert "CASCADE" in rama_pg.upper()
+
+
+def test_seed_demo_no_expone_guard_de_reentrada():
+    """El guard GENERANDO se elimino junto con el seed-on-boot.
+
+    Existia para cortar la recursion lifespan -> generar -> TestClient ->
+    lifespan. Sin seed-on-boot ese camino no existe y la constante quedaba
+    escrita pero nunca leida.
+    """
+    from backend import seed_demo
+
+    assert not hasattr(seed_demo, "GENERANDO")
