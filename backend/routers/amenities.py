@@ -69,10 +69,16 @@ def crear_amenity(
             detail="Ya existe un amenity con ese nombre.",
         )
 
+    # model_dump(exclude={"nombre"}) porque nombre ya se valida arriba (chequeo
+    # de duplicado) y se pasa aparte; el resto de los campos opcionales
+    # (precio_reserva, duracion_maxima_horas, etc.) antes se perdían acá: el
+    # constructor solo copiaba nombre/descripcion y el resto quedaba en None
+    # sin importar lo que mandara el cliente — sin que ningún 400/409 lo
+    # delatara, porque el schema los valida bien.
     amenity = Amenity(
         consorcio_id=cid,
         nombre=payload.nombre,
-        descripcion=payload.descripcion,
+        **payload.model_dump(exclude={"nombre"}),
     )
     db.add(amenity)
     db.commit()

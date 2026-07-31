@@ -231,9 +231,8 @@ def test_get_cuentas_incluye_flag_en_mora(client, headers_admin, db_session):
     r = client.get("/movimientos/cuentas", headers=headers_admin)
     assert r.status_code == 200
     por_codigo = {item["codigo"]: item for item in r.json()}
-    # El seed pone las expensas con fecha_segundo_vencimiento en 2026-07-20,
-    # o sea futuro (hoy es 2026-07-09 según el CLAUDE.md context). No debería
-    # estar en mora aunque tenga saldo positivo.
+    # El seed pone las expensas con segundo vencimiento en VENC_2, siempre
+    # futuro respecto de hoy. No debería estar en mora aunque tenga saldo.
     assert por_codigo["UF-1A"]["saldo_total"] > 0
     assert por_codigo["UF-1A"]["en_mora"] is False
 

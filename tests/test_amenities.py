@@ -1,16 +1,20 @@
+from datetime import timedelta
+
+from tests.conftest import RESERVA_DESDE, RESERVA_HASTA, RESERVA_INICIO
+
 # ---------------------------------------------------------------------------
 # GET /amenities/{id}/disponibilidad
 # ---------------------------------------------------------------------------
 
 
 def test_disponibilidad_sin_token_devuelve_401(client):
-    r = client.get("/amenities/300/disponibilidad?desde=2026-07-01&hasta=2026-07-31")
+    r = client.get(f"/amenities/300/disponibilidad?desde={RESERVA_DESDE}&hasta={RESERVA_HASTA}")
     assert r.status_code == 401
 
 
 def test_disponibilidad_amenity_inexistente_devuelve_404(client, headers_admin):
     r = client.get(
-        "/amenities/9999/disponibilidad?desde=2026-07-01&hasta=2026-07-31",
+        f"/amenities/9999/disponibilidad?desde={RESERVA_DESDE}&hasta={RESERVA_HASTA}",
         headers=headers_admin,
     )
     assert r.status_code == 404
@@ -38,9 +42,9 @@ def test_disponibilidad_sin_parametros_obligatorios_devuelve_400(client, headers
 
 
 def test_disponibilidad_admin_ve_reservas_en_rango(client, headers_admin):
-    # Seed: SUM tiene una reserva el 2026-07-15 14:00–17:00.
+    # Seed: SUM tiene una reserva RESERVA_INICIO 14:00–17:00.
     r = client.get(
-        "/amenities/300/disponibilidad?desde=2026-07-01&hasta=2026-07-31",
+        f"/amenities/300/disponibilidad?desde={RESERVA_DESDE}&hasta={RESERVA_HASTA}",
         headers=headers_admin,
     )
     assert r.status_code == 200
@@ -49,13 +53,13 @@ def test_disponibilidad_admin_ve_reservas_en_rango(client, headers_admin):
     assert len(body["bloques"]) == 1
     bloque = body["bloques"][0]
     assert bloque["disponible"] is False
-    assert bloque["inicio"].startswith("2026-07-15T14:00")
-    assert bloque["fin"].startswith("2026-07-15T17:00")
+    assert bloque["inicio"].startswith(RESERVA_INICIO.strftime("%Y-%m-%dT14:00"))
+    assert bloque["fin"].startswith(RESERVA_INICIO.strftime("%Y-%m-%dT17:00"))
 
 
 def test_disponibilidad_departamento_puede_consultar(client, headers_depto_b):
     r = client.get(
-        "/amenities/300/disponibilidad?desde=2026-07-01&hasta=2026-07-31",
+        f"/amenities/300/disponibilidad?desde={RESERVA_DESDE}&hasta={RESERVA_HASTA}",
         headers=headers_depto_b,
     )
     assert r.status_code == 200
@@ -64,7 +68,7 @@ def test_disponibilidad_departamento_puede_consultar(client, headers_depto_b):
 
 def test_disponibilidad_representante_puede_consultar(client, headers_representante):
     r = client.get(
-        "/amenities/300/disponibilidad?desde=2026-07-01&hasta=2026-07-31",
+        f"/amenities/300/disponibilidad?desde={RESERVA_DESDE}&hasta={RESERVA_HASTA}",
         headers=headers_representante,
     )
     assert r.status_code == 200
@@ -73,7 +77,7 @@ def test_disponibilidad_representante_puede_consultar(client, headers_representa
 def test_disponibilidad_sin_reservas_devuelve_lista_vacia(client, headers_admin):
     # Laundry no tiene reservas.
     r = client.get(
-        "/amenities/301/disponibilidad?desde=2026-07-01&hasta=2026-07-31",
+        f"/amenities/301/disponibilidad?desde={RESERVA_DESDE}&hasta={RESERVA_HASTA}",
         headers=headers_admin,
     )
     assert r.status_code == 200
@@ -190,13 +194,18 @@ def test_reserva_body_incompleto_devuelve_400(client, headers_admin):
     assert r.status_code == 400
 
 
-# ---- Anti-solapamiento (409). Reserva existente en SUM: 2026-07-15 14:00–17:00 ----
+# ---- Anti-solapamiento (409). Reserva existente en SUM: RESERVA_INICIO 14:00–17:00 ----
+
+
+def _hora(offset_horas):
+    """Horario absoluto derivado del ancla de la reserva sembrada (14:00)."""
+    return (RESERVA_INICIO + timedelta(hours=offset_horas)).isoformat()
 
 
 def test_reserva_solape_total_devuelve_409(client, headers_admin):
     r = client.post(
         "/amenities/300/reservas",
-        json={"inicio": "2026-07-15T14:00:00", "fin": "2026-07-15T17:00:00"},
+        json={"inicio": _hora(0), "fin": _hora(3)},
         headers=headers_admin,
     )
     assert r.status_code == 409
@@ -206,7 +215,7 @@ def test_reserva_solape_parcial_inicio_devuelve_409(client, headers_admin):
     # Nueva 13–15 choca con 14–17.
     r = client.post(
         "/amenities/300/reservas",
-        json={"inicio": "2026-07-15T13:00:00", "fin": "2026-07-15T15:00:00"},
+        json={"inicio": _hora(-1), "fin": _hora(1)},
         headers=headers_admin,
     )
     assert r.status_code == 409
@@ -216,7 +225,7 @@ def test_reserva_solape_parcial_fin_devuelve_409(client, headers_admin):
     # Nueva 16–18 choca con 14–17.
     r = client.post(
         "/amenities/300/reservas",
-        json={"inicio": "2026-07-15T16:00:00", "fin": "2026-07-15T18:00:00"},
+        json={"inicio": _hora(2), "fin": _hora(4)},
         headers=headers_admin,
     )
     assert r.status_code == 409
@@ -226,7 +235,7 @@ def test_reserva_contenida_dentro_de_existente_devuelve_409(client, headers_admi
     # Nueva 15–16 está dentro de 14–17.
     r = client.post(
         "/amenities/300/reservas",
-        json={"inicio": "2026-07-15T15:00:00", "fin": "2026-07-15T16:00:00"},
+        json={"inicio": _hora(1), "fin": _hora(2)},
         headers=headers_admin,
     )
     assert r.status_code == 409
@@ -236,7 +245,7 @@ def test_reserva_contiene_a_existente_devuelve_409(client, headers_admin):
     # Nueva 13–18 contiene a 14–17.
     r = client.post(
         "/amenities/300/reservas",
-        json={"inicio": "2026-07-15T13:00:00", "fin": "2026-07-15T18:00:00"},
+        json={"inicio": _hora(-1), "fin": _hora(4)},
         headers=headers_admin,
     )
     assert r.status_code == 409
@@ -246,7 +255,7 @@ def test_reserva_adyacente_antes_devuelve_201(client, headers_admin):
     # Nueva 11–14 termina justo cuando empieza la existente — no solapa.
     r = client.post(
         "/amenities/300/reservas",
-        json={"inicio": "2026-07-15T11:00:00", "fin": "2026-07-15T14:00:00"},
+        json={"inicio": _hora(-3), "fin": _hora(0)},
         headers=headers_admin,
     )
     assert r.status_code == 201
@@ -256,7 +265,7 @@ def test_reserva_adyacente_despues_devuelve_201(client, headers_admin):
     # Nueva 17–20 empieza justo cuando termina la existente — no solapa.
     r = client.post(
         "/amenities/300/reservas",
-        json={"inicio": "2026-07-15T17:00:00", "fin": "2026-07-15T20:00:00"},
+        json={"inicio": _hora(3), "fin": _hora(6)},
         headers=headers_admin,
     )
     assert r.status_code == 201
@@ -266,7 +275,7 @@ def test_reserva_mismo_horario_otro_amenity_no_solapa(client, headers_admin):
     # Mismo horario que la reserva existente, pero amenity distinto.
     r = client.post(
         "/amenities/301/reservas",
-        json={"inicio": "2026-07-15T14:00:00", "fin": "2026-07-15T17:00:00"},
+        json={"inicio": _hora(0), "fin": _hora(3)},
         headers=headers_admin,
     )
     assert r.status_code == 201
@@ -347,6 +356,30 @@ def test_crear_amenity_sin_descripcion_es_201(client, headers_admin):
     r = client.post("/amenities", json={"nombre": "Bicicletero"}, headers=headers_admin)
     assert r.status_code == 201
     assert r.json()["descripcion"] is None
+
+
+def test_crear_amenity_persiste_precio_reserva_y_reglas(client, headers_admin):
+    # Regresion: crear_amenity solo copiaba nombre/descripcion del payload al
+    # modelo, así que precio_reserva (y el resto de las reglas) quedaban en
+    # None sin importar lo que mandara el cliente — silencioso, sin 400/409,
+    # porque el schema los valida bien; el bug estaba en el mapeo al modelo.
+    # Con precio_reserva en None, una reserva de depto nunca genera cargo en
+    # cuenta corriente (backend/routers/amenities.py:280).
+    r = client.post("/amenities", json={
+        "nombre": "Quincho",
+        "precio_reserva": 15_000.0,
+        "duracion_maxima_horas": 4,
+        "anticipacion_maxima_dias": 30,
+        "max_reservas_activas_por_depto": 2,
+        "horas_minimas_cancelacion": 48,
+    }, headers=headers_admin)
+    assert r.status_code == 201
+    body = r.json()
+    assert body["precio_reserva"] == 15_000.0
+    assert body["duracion_maxima_horas"] == 4
+    assert body["anticipacion_maxima_dias"] == 30
+    assert body["max_reservas_activas_por_depto"] == 2
+    assert body["horas_minimas_cancelacion"] == 48
 
 
 def test_crear_amenity_sin_nombre_devuelve_400(client, headers_admin):

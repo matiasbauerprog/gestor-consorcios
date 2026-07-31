@@ -237,6 +237,49 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /auth/demo-login:
+    post:
+      tags: [Auth]
+      summary: Emitir token de un usuario demo sin credenciales
+      description: >
+        Solo existe cuando el servidor corre con DEMO_MODE=true. En producción
+        la ruta no está registrada y devuelve 404. Acepta únicamente uno de tres
+        roles de una lista blanca cerrada.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rol]
+              properties:
+                rol:
+                  type: string
+                  enum: [administracion, propietario_al_dia, propietario_moroso]
+      responses:
+        '200':
+          description: Token emitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenOut'
+        '400':
+          description: Rol fuera de la lista blanca
+        '403':
+          description: |
+            Mismos gates que `/auth/login`: el usuario demo está suspendido
+            (`usuario_suspendido`) o su administración está inactiva
+            (`administracion_suspendida`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: >
+            El dataset demo todavía no fue generado, o el usuario demo existe
+            pero no tiene el rol esperado para ese selector (mismo mensaje
+            para no diferenciar los dos casos).
+
   # =========================================================================
   # 1. EXPENSAS
   # =========================================================================

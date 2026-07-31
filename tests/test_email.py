@@ -34,6 +34,10 @@ def test_modo_smtp_llama_send_message():
         mock_settings.return_value.SMTP_PASSWORD = "pass"
         mock_settings.return_value.SMTP_FROM_EMAIL = "from@local"
         mock_settings.return_value.SMTP_FROM_NAME = "Test"
+        # DEMO_MODE fuerza consola (ver mail_service.py); sin fijarlo explícito
+        # el MagicMock devuelve un atributo truthy y este test de modo SMTP
+        # caería por error en modo consola.
+        mock_settings.return_value.DEMO_MODE = False
 
         mock_smtp_instance = MagicMock()
         mock_smtp_cls.return_value.__enter__.return_value = mock_smtp_instance

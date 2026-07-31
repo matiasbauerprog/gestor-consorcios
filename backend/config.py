@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./consorcio.db"
     SEED_ENABLED: bool = True
     SEED_DEFAULT_PASSWORD: str = ""
+    DEMO_MODE: bool = False
     UPLOAD_DIR: str = "backend/uploads"
     MAX_UPLOAD_SIZE_BYTES: int = 5 * 1024 * 1024
     SMTP_HOST: str = ""
@@ -33,7 +34,7 @@ class Settings(BaseSettings):
         "http://localhost:5174,http://127.0.0.1:5174,"
         "http://localhost:5175,http://127.0.0.1:5175"
     )
-    CORS_ORIGIN_REGEX: str = ""
+    CORS_ORIGIN_REGEX: str = r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
 
     @property
     def cors_origins_list(self) -> list[str]:
@@ -54,6 +55,24 @@ class Settings(BaseSettings):
         if v.startswith("postgres://"):
             return v.replace("postgres://", "postgresql://", 1)
         return v
+
+    @model_validator(mode="after")
+    def _demo_mode_requiere_db_demo(self) -> "Settings":
+        """Candado anti-producción.
+
+        Con DEMO_MODE=true se registra POST /auth/demo-login, que emite tokens
+        sin pedir credenciales. Si ese flag se activara por error contra la base
+        de producción sería un bypass total de autenticación, así que exigimos
+        que la DATABASE_URL sea explícitamente una base demo y, si no, no
+        arrancamos.
+        """
+        if self.DEMO_MODE and "demo" not in self.DATABASE_URL.lower():
+            raise ValueError(
+                "DEMO_MODE=true exige una DATABASE_URL que contenga 'demo' "
+                f"(recibida: {self.DATABASE_URL!r}). Es un candado "
+                "anti-producción: el modo demo emite tokens sin credenciales."
+            )
+        return self
 
 
 @lru_cache(maxsize=1)

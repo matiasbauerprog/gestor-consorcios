@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
+import { ES_DEMO } from "./api/demo";
 import AppLayout from "./components/AppLayout";
 import RequireAuth from "./components/RequireAuth";
 import Login from "./screens/Login";
+import DemoLogin from "./screens/DemoLogin";
 import CambiarPassword from "./screens/CambiarPassword";
 import AdministracionConsorcios from "./screens/AdministracionConsorcios";
 import WizardNuevoConsorcio from "./screens/WizardNuevoConsorcio";
@@ -81,6 +84,14 @@ function MiCuentaRoute() {
   return <MiCuenta />;
 }
 
+function PantallaLogin() {
+  const [forzarLoginNormal, setForzarLoginNormal] = useState(false);
+  if (ES_DEMO && !forzarLoginNormal) {
+    return <DemoLogin onSinDemo={() => setForzarLoginNormal(true)} />;
+  }
+  return <Login />;
+}
+
 function InicioRoute() {
   const { user } = useAuth();
   if (user.rol === "departamento") return <Navigate to="/mi-cuenta" replace />;
@@ -98,7 +109,7 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<Login />} />
+          <Route path="/login" element={<PantallaLogin />} />
           <Route
             path="/"
             element={

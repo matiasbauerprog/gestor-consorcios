@@ -3,6 +3,12 @@ import os
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-pytest-only-32-bytes-minimum")
 os.environ.setdefault("SEED_ENABLED", "false")
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+# Asignación dura (no setdefault): si quien corre el suite tiene DEMO_MODE=true
+# en su .env -precisamente para levantar el demo local, el caso de uso que
+# motiva este flag- el suite entero no debe volverse inarrancable. DATABASE_URL
+# de arriba no contiene "demo", así que con DEMO_MODE=true el validator de
+# Settings tira ValidationError al importar backend.main más abajo.
+os.environ["DEMO_MODE"] = "false"
 
 from collections.abc import Iterator  # noqa: E402
 
@@ -23,7 +29,22 @@ from backend.security import hash_password  # noqa: E402
 # y reusamos el mismo hash en todos los usuarios sembrados.
 TEST_PASSWORD = "test-pass-1234"
 _PASSWORD_HASH = hash_password(TEST_PASSWORD)
-from datetime import date, datetime, timedelta  # noqa: E402
+from datetime import date, datetime, time, timedelta  # noqa: E402
+
+# --- Anclas de fecha del suite -------------------------------------------
+# Antes eran absolutas (date(2026, 7, 10), datetime(2026, 7, 15, 14, 0)) y el
+# suite se pudría al pasar esas fechas: 12 tests fallaban porque los
+# vencimientos quedaban en el pasado y las reservas se volvían imposibles de
+# crear (400 por anticipación mínima en vez del 409 de solape que testean).
+# Todo lo que dependa de "futuro" o "presente" debe derivar de acá.
+HOY = date.today()
+VENC_1 = HOY + timedelta(days=10)          # primer vencimiento: siempre futuro
+VENC_2 = VENC_1 + timedelta(days=10)       # segundo vencimiento
+RESERVA_INICIO = datetime.combine(HOY + timedelta(days=15), time(14, 0))
+RESERVA_FIN = RESERVA_INICIO + timedelta(hours=3)
+# Rango de consulta de disponibilidad que contiene a RESERVA_INICIO.
+RESERVA_DESDE = (RESERVA_INICIO.date() - timedelta(days=14)).isoformat()
+RESERVA_HASTA = (RESERVA_INICIO.date() + timedelta(days=14)).isoformat()
 
 from backend.models import (  # noqa: E402
     Amenity,
@@ -240,9 +261,9 @@ def _seed(db) -> None:
                 departamento_id=depto_a.id,
                 periodo="2026-05",
                 monto_primer_vencimiento=85000.00,
-                fecha_primer_vencimiento=date(2026, 7, 10),
+                fecha_primer_vencimiento=VENC_1,
                 monto_segundo_vencimiento=round(85000.00 * 1.07, 2),
-                fecha_segundo_vencimiento=date(2026, 7, 10) + timedelta(days=10),
+                fecha_segundo_vencimiento=VENC_2,
                 saldo_anterior=0.0,
             ),
             Expensa(
@@ -251,9 +272,9 @@ def _seed(db) -> None:
                 departamento_id=depto_b.id,
                 periodo="2026-05",
                 monto_primer_vencimiento=92000.00,
-                fecha_primer_vencimiento=date(2026, 7, 10),
+                fecha_primer_vencimiento=VENC_1,
                 monto_segundo_vencimiento=round(92000.00 * 1.07, 2),
-                fecha_segundo_vencimiento=date(2026, 7, 10) + timedelta(days=10),
+                fecha_segundo_vencimiento=VENC_2,
                 saldo_anterior=0.0,
             ),
             MovimientoCuenta(
@@ -291,14 +312,14 @@ def _seed(db) -> None:
                 id=301, consorcio_id=1, nombre="Laundry", descripcion="Lavandería compartida",
                 activo=True,
             ),
-            # Reserva confirmada existente en SUM: 2026-07-15 14:00–17:00.
+            # Reserva confirmada existente en SUM: RESERVA_INICIO 14:00–17:00.
             Reserva(
                 id=400,
                 consorcio_id=1,
                 amenity_id=300,
                 usuario_id=user_a.id,
-                inicio=datetime(2026, 7, 15, 14, 0),
-                fin=datetime(2026, 7, 15, 17, 0),
+                inicio=RESERVA_INICIO,
+                fin=RESERVA_FIN,
                 estado=EstadoReserva.confirmada,
             ),
             # Fase 1: clase de prorrateo de ejemplo (id=500)

@@ -29,7 +29,9 @@ def enviar_email(
     attachments = attachments or []
     settings = get_settings()
 
-    if not settings.SMTP_HOST:
+    # DEMO_MODE fuerza consola: el demo es público y no debe mandar mail real
+    # a nadie, aunque el servicio tenga SMTP configurado por error.
+    if settings.DEMO_MODE or not settings.SMTP_HOST:
         # Modo console: loggear y devolver True
         print(f"[EMAIL CONSOLE MODE] To: {to} | Subject: {subject}")
         print(f"[EMAIL CONSOLE MODE] Body:\n{body}")

@@ -22,9 +22,12 @@ frontend/build/
 
 # Database de desarrollo (cada quien tiene la suya local)
 consorcio.db
+# Base del modo demo: la regenera backend/seed_demo.py, nunca se versiona.
+demo.db
 *.db.bak
 *.sqlite
 *.sqlite3
+*.corrupta
 
 # Logs
 *.log
