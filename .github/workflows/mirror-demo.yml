@@ -11,6 +11,8 @@ on:
 jobs:
   mirror:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,7 +28,10 @@ jobs:
           test -n "$MIRROR_REPO"  || { echo "Falta MIRROR_REPO";  exit 1; }
 
           # Cinturon y tiradores: si el snapshot incluye una base, abortar.
-          if git ls-files | grep -iE '\.(db|sqlite|corrupta)$'; then
+          # Cubre todo lo que el .gitignore ya declara sensible (consorcio.db,
+          # demo.db, *.db.bak, *.sqlite, *.sqlite3, *.corrupta) mas .sql/.dump/
+          # .backup por si en el futuro aparece tooling de volcado.
+          if git ls-files | grep -iE '\.(db(\.bak)?|sqlite3?|corrupta|sql|dump|backup)$'; then
             echo "ERROR: el snapshot incluye archivos de base de datos"
             exit 1
           fi
