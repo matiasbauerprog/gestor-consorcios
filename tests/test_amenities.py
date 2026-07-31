@@ -358,6 +358,30 @@ def test_crear_amenity_sin_descripcion_es_201(client, headers_admin):
     assert r.json()["descripcion"] is None
 
 
+def test_crear_amenity_persiste_precio_reserva_y_reglas(client, headers_admin):
+    # Regresion: crear_amenity solo copiaba nombre/descripcion del payload al
+    # modelo, así que precio_reserva (y el resto de las reglas) quedaban en
+    # None sin importar lo que mandara el cliente — silencioso, sin 400/409,
+    # porque el schema los valida bien; el bug estaba en el mapeo al modelo.
+    # Con precio_reserva en None, una reserva de depto nunca genera cargo en
+    # cuenta corriente (backend/routers/amenities.py:280).
+    r = client.post("/amenities", json={
+        "nombre": "Quincho",
+        "precio_reserva": 15_000.0,
+        "duracion_maxima_horas": 4,
+        "anticipacion_maxima_dias": 30,
+        "max_reservas_activas_por_depto": 2,
+        "horas_minimas_cancelacion": 48,
+    }, headers=headers_admin)
+    assert r.status_code == 201
+    body = r.json()
+    assert body["precio_reserva"] == 15_000.0
+    assert body["duracion_maxima_horas"] == 4
+    assert body["anticipacion_maxima_dias"] == 30
+    assert body["max_reservas_activas_por_depto"] == 2
+    assert body["horas_minimas_cancelacion"] == 48
+
+
 def test_crear_amenity_sin_nombre_devuelve_400(client, headers_admin):
     r = client.post("/amenities", json={"descripcion": "Sin nombre"}, headers=headers_admin)
     assert r.status_code == 400
