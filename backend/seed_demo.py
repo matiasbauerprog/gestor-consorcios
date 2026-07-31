@@ -316,9 +316,24 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
 
     puntuales, irregulares, morosos = perfiles_deterministas(deptos)
 
+    # UF-03C (el moroso "fijo") es, además de un moroso más, el destino del
+    # botón "Propietario moroso" de /auth/demo-login — a diferencia de un
+    # moroso real (que es realista que nunca haya iniciado sesión), a este
+    # login público le pedimos entrar directo, así que necesita haber pasado
+    # por el alta con password ya cambiada como cualquier usuario puntual o
+    # irregular. Se agrega SÓLO a este loop de login: el loop de pagos más
+    # abajo arma `pagan` desde `puntuales + irregulares`, no desde
+    # `tokens_depto`, así que esto no le paga las expensas ni le saca la
+    # deuda/interés que es la razón de ser de ese botón.
+    deptos_por_codigo = {d["codigo"]: d for d in deptos}
+    fijo_moroso = deptos_por_codigo.get(CODIGO_MOROSO_FIJO)
+    deptos_con_login = puntuales + irregulares + (
+        [fijo_moroso] if fijo_moroso is not None else []
+    )
+
     email_de = {d["id"]: f"uf{d['codigo'][3:].lower()}@{DOMINIO_DEMO}" for d in deptos}
     tokens_depto = {}
-    for depto in puntuales + irregulares:
+    for depto in deptos_con_login:
         email = email_de[depto["id"]]
         token = api.login(email, passwords_iniciales[email])
         api.cambiar_password(token, passwords_iniciales[email], seed_password)

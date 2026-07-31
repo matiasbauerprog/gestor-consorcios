@@ -30,8 +30,21 @@ export default function DemoLogin({ onSinDemo }) {
   async function entrar(rol) {
     setError(null);
     setCargando(rol);
-    const r = await demoLogin(rol);
-    setCargando(null);
+
+    let r;
+    try {
+      r = await demoLogin(rol);
+    } catch {
+      // fetch() rechazó: backend caído, sin conexión, CORS, etc. apiFetch
+      // sólo devuelve {status, data} para respuestas HTTP — un reject acá no
+      // tiene status que leer, así que no puede tratarse como un error de la
+      // API. Sin este catch la pantalla queda trabada en "Entrando..." para
+      // siempre (candado del brief: nunca un estado intermedio sin salida).
+      setError("No hay conexión con el servidor. Revisá tu conexión y probá de nuevo.");
+      return;
+    } finally {
+      setCargando(null);
+    }
 
     if (r.status === 200) {
       await login(r.data.access_token, r.data.user);
