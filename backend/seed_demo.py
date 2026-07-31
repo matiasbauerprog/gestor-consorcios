@@ -574,6 +574,19 @@ def _resetear_esquema(engine) -> None:
         # trabajos), asi que no puede resolver el orden y falla al soltar una
         # tabla todavia referenciada. DROP SCHEMA ... CASCADE no depende del
         # orden: se lleva todo el esquema de una, constraints incluidas.
+        #
+        # Esto requiere que el rol de conexion sea DUEÑO del esquema `public`
+        # — en el addon estandar de Postgres de Railway conecta como
+        # `postgres`, superusuario de esa instancia dedicada, que bypasea
+        # el chequeo de ownership, asi que hoy siempre se cumple. Si el demo
+        # se mudara a otro Postgres administrado con roles acotados (RDS,
+        # Cloud SQL con un usuario no-superusuario, etc.) esto puede fallar
+        # en silencio cada 6 h sin fallback. La salida portable, si llega
+        # ese caso, es dropear las tablas del metadata con CASCADE en vez
+        # del esquema entero (`DROP TABLE ... CASCADE` por cada tabla, o el
+        # equivalente vía `Base.metadata.tables`): esas tablas las crea este
+        # mismo rol via create_all, asi que siempre las posee, sin depender
+        # de ser dueño del esquema.
         with engine.begin() as conn:
             conn.execute(text("DROP SCHEMA public CASCADE"))
             conn.execute(text("CREATE SCHEMA public"))

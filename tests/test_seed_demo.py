@@ -181,22 +181,68 @@ def test_comunicados_demo_tiene_contenido_variado():
     assert len({t for t, _ in COMUNICADOS_DEMO}) == len(COMUNICADOS_DEMO)
 
 
-def test_resetear_esquema_en_postgres_no_usa_drop_all():
+class _ConexionPostgresFalsa:
+    """Registra los statements que le llegan en vez de ejecutarlos.
+
+    No hay Postgres real en este entorno (ver reporte de la Task 7), asi que
+    no podemos verificar el DROP SCHEMA contra una base de verdad. Esto es
+    lo mejor que se puede hacer sin levantar un Postgres en CI: capturar el
+    SQL que _resetear_esquema emite realmente, en el orden en que lo emite,
+    en vez de inspeccionar el codigo fuente como texto (fragil ante
+    refactors que muevan la rama a otra funcion sin cambiar su
+    comportamiento).
+    """
+
+    def __init__(self):
+        self.statements: list[str] = []
+
+    def execute(self, clause):
+        self.statements.append(str(clause))
+
+
+class _EnginePostgresFalso:
+    """Engine minimo que finge ser Postgres para _resetear_esquema.
+
+    Solo implementa lo que la rama no-sqlite de _resetear_esquema toca:
+    `url.get_backend_name()` y `begin()` como context manager. No abre
+    ninguna conexion real.
+    """
+
+    def __init__(self):
+        self.url = type("Url", (), {"get_backend_name": lambda self: "postgresql"})()
+        self.conexion = _ConexionPostgresFalsa()
+
+    def begin(self):
+        from contextlib import contextmanager
+
+        @contextmanager
+        def _ctx():
+            yield self.conexion
+
+        return _ctx()
+
+
+def test_resetear_esquema_en_postgres_hace_drop_schema_cascade_y_recrea():
     """En Postgres, drop_all choca con el mismo ciclo de FK que en SQLite.
 
     El modelo tiene un ciclo cajas -> consorcios -> presupuestos -> trabajos, y
     drop_all ordena las tablas topologicamente: con un ciclo no puede, avisa por
     SAWarning y falla al soltar una tabla todavia referenciada. En Postgres la
     salida limpia es DROP SCHEMA ... CASCADE, que no depende del orden.
+
+    Test de comportamiento (que SQL se emite y en que orden), no de forma
+    textual del codigo: sobrevive a un refactor que mueva esta rama a otra
+    funcion, y ademas verifica el orden DROP -> CREATE, que la version
+    anterior basada en inspect.getsource no cubria.
     """
-    import inspect
+    from backend.seed_demo import _resetear_esquema
 
-    from backend import seed_demo
+    engine_falso = _EnginePostgresFalso()
 
-    fuente = inspect.getsource(seed_demo._resetear_esquema)
-    rama_pg = fuente.split('!= "sqlite"')[1].split("try:")[0]
-    assert "DROP SCHEMA" in rama_pg.upper()
-    assert "CASCADE" in rama_pg.upper()
+    _resetear_esquema(engine_falso)
+
+    statements = [s.upper() for s in engine_falso.conexion.statements]
+    assert statements == ["DROP SCHEMA PUBLIC CASCADE", "CREATE SCHEMA PUBLIC"]
 
 
 def test_seed_demo_no_expone_guard_de_reentrada():

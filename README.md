@@ -330,6 +330,16 @@ El primer arranque necesita una corrida manual del cron (o esperar hasta 6 h):
 como no hay seed-on-boot, la base arranca vacía y `/auth/demo-login` devuelve
 503 hasta que el generador corra por primera vez.
 
+**Nota sobre el reset:** el reset por cron ejecuta `DROP SCHEMA public
+CASCADE`, lo que requiere que el rol de conexión sea dueño del esquema
+`public` — cierto en el addon estándar de Railway, que conecta como
+`postgres`; no garantizado en otro Postgres administrado con roles acotados
+(RDS, Cloud SQL, etc.). Si algún día se usa esta misma estrategia de reset
+fuera del addon de Railway, verificar ownership primero o migrar a la
+variante portable (dropear tabla por tabla vía el metadata de SQLAlchemy en
+vez del esquema entero) — ver el comentario en `_resetear_esquema`
+(`backend/seed_demo.py`).
+
 ---
 
 ## Pieza destacada — Cuenta corriente con FIFO
