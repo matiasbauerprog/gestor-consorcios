@@ -1,7 +1,13 @@
 # Modo demo — dataset de 6 meses, selector de rol y deploy público
 
 Fecha: 2026-07-30
-Estado: diseño acordado, pendiente de plan de implementación.
+Estado: **implementado y mergeado a master** (2026-07-31, 9 tasks, 927 tests).
+Plan de implementación: `docs/superpowers/plans/2026-07-31-modo-demo.md`.
+Demo en vivo: https://consorciosdemo.vercel.app/
+
+> Las secciones de abajo son el diseño tal como se acordó, con correcciones
+> marcadas donde la implementación reveló que una decisión no se sostenía. Ver
+> especialmente "Reset automático", que cambió dos veces.
 
 ## Problema
 
@@ -61,7 +67,7 @@ fecha.
 **No incluye (va a un spec aparte, "hardening de producción"):**
 
 - Uploads a S3 / almacenamiento persistente. **El demo no lo necesita**: el
-  filesystem efímero de Railway borra los comprobantes en cada restart, pero como
+  filesystem efímero del contenedor borra los comprobantes en cada restart, pero como
   el demo se resetea igual, es irrelevante — hasta deseable. Es un requisito
   exclusivo de producción.
 - Migraciones (Alembic). El demo hace `drop_all` + `create_all` en cada reset, así
@@ -77,14 +83,14 @@ fecha.
 | Relación del código demo con este repo | **Mismo repo + `DEMO_MODE`** | Un fork por copia se desincroniza en semanas: cada fix habría que portarlo a mano. Con un solo codebase, lo que se arregla acá está en el demo al siguiente deploy, y el hardening de producción beneficia al demo gratis. |
 | Datos modificados por visitantes | **Instancia compartida + reset cada 6 h** | El visitante puede hacer de todo sin límites. Simple de operar: un script y un cron. Se acepta que dos visitantes simultáneos se pisen. |
 | Perfil del consorcio | **Mediano realista, 18 UF** | Con 2 UF los reportes salen vacíos y parece un Excel. Con 40+ el visitante se pierde y el reset se vuelve lento. 18 UF luce prorrateo por coeficientes, morosos con intereses y obra en cuotas. |
-| Hosting | **Railway / Render** | El `Procfile` actual ya sirve, tienen cron nativo y Postgres administrado para cuando entre producción. |
+| Hosting | **Render** (backend + Postgres) y **Vercel** (frontend) | El `Procfile` actual ya sirve, tienen cron nativo y Postgres administrado. Decidido como "Railway / Render" en el diseño; quedó en Render + Vercel. |
 | Construcción del dataset | **Adaptar `seed_e2e.py`** | Ya tiene la arquitectura correcta. Un generador que escriba directo a la DB tendría que replicar a mano el cálculo de cierre, el FIFO de pagos y los intereses punitorios; cuando esa lógica cambie, el dataset queda silenciosamente inconsistente — el peor bug posible en un demo público. |
 | Entrada del visitante | **Selector de rol (3 botones)** | Un click sin tipeo, y convierte el control de acceso por rol de invisible a lo primero que se prueba. Además, al emitir el token sin pasar por credenciales, que un visitante cambie la password del admin deja de romper el demo. |
 
 ## Arquitectura del modo demo
 
 Flag `DEMO_MODE: bool = False` en `backend/config.py`. Mismo codebase, dos
-servicios de Railway con distintas variables de entorno.
+servicios con distintas variables de entorno.
 
 Comportamientos que cambia:
 
@@ -123,7 +129,7 @@ error en producción, un bypass total de autenticación. Tres candados en capas:
 
 ### Cómo se entera el frontend
 
-Variable de build `VITE_DEMO_MODE=true` en el servicio demo de Railway. El
+Variable de build `VITE_DEMO_MODE=true` en el proyecto de Vercel del demo. El
 frontend se compila igual desde el mismo repo; solo cambia el flag.
 
 Para que frontend y backend no queden desincronizados (frontend con selector,
@@ -190,20 +196,56 @@ Consorcio "Edificio Libertador", 18 UF en 3 pisos, encargado propio:
 
 ## Reset automático
 
-Cron de Railway cada 6 h ejecutando `python -m backend.seed_demo --reset`, que
-hace `drop_all` → `create_all` → puebla. Al correr in-process con `TestClient`, no
-necesita que el servicio web esté arriba.
+> **Sección corregida el 2026-07-31 tras la implementación.** El diseño original
+> proponía SQLite + cron + seed automático al bootear. Ninguna de esas tres cosas
+> sobrevivió al contacto con la medición y con las restricciones reales del
+> hosting. Lo que sigue es lo que efectivamente se construyó; el texto anterior
+> quedó afirmando una arquitectura que contradecía al README.
 
-El cron solo no cubre un caso: si Railway reinicia el contenedor (deploy, crash,
-mantenimiento), el filesystem efímero se lleva la base SQLite y el demo queda
-vacío hasta el próximo cron. Para eso, **seed automático al bootear si la base
-está vacía** — el restart se auto-cura.
+Cron cada 6 h ejecutando `python -m backend.seed_demo --reset`, que hace
+`_resetear_esquema` → `create_all` → puebla. Al correr in-process con
+`TestClient`, no necesita que el servicio web esté arriba.
 
-**Riesgo cerrado (2026-07-31):** el runtime medido con 18 UF es **67 s** (66.6
-base vacía / 68.1 con `--reset`), por encima del umbral de 60 s. Se adoptó la
-alternativa: **volumen persistente + cron cada 6 h, sin seed-on-boot.** El grueso
-del tiempo es bcrypt (hashing de contraseñas); en Railway con menos CPU por core
-el margen es aun peor.
+**Dos cosas cambiaron respecto del diseño original:**
+
+**1. No hay seed-on-boot.** El runtime medido con 18 UF es **67 s** (66.6 s desde
+base vacía, 68.1 s con `--reset`), por encima del umbral de 60 s que nos habíamos
+puesto. Generar al arrancar haría fallar el healthcheck. El grueso del tiempo es
+bcrypt hasheando contraseñas, y en un contenedor con menos CPU por core el margen
+empeora. Como consecuencia, **la base arranca vacía y `/auth/demo-login` devuelve
+503 hasta la primera corrida del cron** — hay que dispararlo a mano tras el primer
+deploy.
+
+**2. El demo usa Postgres, no SQLite con volumen.** Al descartar el seed-on-boot y
+quedar solo el cron, apareció una restricción que el diseño no había anticipado:
+los cron jobs corren en contenedores separados del servicio web, y los discos
+persistentes se montan en un único servicio. Un cron externo no puede tocar el
+archivo SQLite del web; y aunque pudiera, dos procesos haciendo drop/recreate
+sobre SQLite mientras el web atiende tráfico es receta de bloqueos. Con Postgres
+el cron se conecta por red: sin filesystem compartido y sin downtime.
+
+Eso obligó a escribir una rama Postgres propia en `_resetear_esquema`:
+`drop_all` tampoco sirve ahí, porque el modelo tiene un ciclo de FK
+(`cajas → consorcios → presupuestos → trabajos`) que le impide ordenar las tablas.
+Se usa `DROP SCHEMA public CASCADE`, que no depende del orden.
+
+**Riesgo abierto que esto deja:** `DROP SCHEMA public CASCADE` exige que el rol de
+conexión sea dueño del esquema `public`, cosa que en Render depende de la versión
+de Postgres (en 15+ el dueño de la base puede; en 14 o anterior, no). Está
+documentado con el chequeo concreto y la variante portable en la sección
+"Deploy del demo" del `README.md`. **La rama Postgres nunca se ejecutó contra un
+Postgres real** durante el desarrollo: está cubierta por un test que intercepta el
+SQL emitido, no por una corrida.
+
+## Infraestructura real (2026-07-31)
+
+- **Frontend:** Vercel — https://consorciosdemo.vercel.app/
+- **Backend + Postgres:** Render
+
+El diseño original decía "Railway / Render"; quedó en Render para el backend y
+Vercel para el frontend. Las restricciones que motivaron las decisiones de arriba
+(cron en contenedor aparte, disco montado en un solo servicio) valen igual en los
+dos proveedores.
 
 ## Repo público
 
@@ -243,7 +285,7 @@ no sirve para nada.
 | Riesgo | Mitigación |
 |---|---|
 | `DEMO_MODE=true` en producción → bypass de auth | Tres candados en capas (ruta ausente, validator de boot, lista blanca) |
-| Seed-on-boot lento → healthcheck falla | ✅ Medido: 67 s → cron + volumen persistente, sin seed-on-boot |
+| Seed-on-boot lento → healthcheck falla | ✅ Medido: 67 s → solo cron, sin seed-on-boot. Y al quedar solo el cron, el demo pasó de SQLite a Postgres (ver Reset automático) |
 | Dos visitantes simultáneos se pisan | Aceptado explícitamente. El banner avisa que es un demo compartido |
 | Mirror publica el historial con `consorcio.db.corrupta` | Snapshot huérfano force-pusheado, nunca historial |
 | Un visitante deja el demo feo por hasta 6 h | Aceptado. Si molesta, bajar el intervalo del cron |

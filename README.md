@@ -292,53 +292,87 @@ Cada fase tiene su propio ciclo `brainstorming → spec → plan → implementac
 ## Deploy del demo
 
 El demo público corre en su propia infraestructura, separada de producción, para
-poder resetearse sin afectar datos reales. El generador (`backend/seed_demo.py`)
-tarda 67-69 s, así que no hay seed-on-boot: haría fallar el healthcheck de
-Railway durante el arranque. En su lugar, un cron aparte lo dispara cada 6 h.
+poder resetearse sin afectar datos reales.
 
-Los cron jobs de Railway corren en contenedores separados de los servicios web,
-y los volúmenes se montan en un único servicio — un cron externo no puede
+**Infraestructura actual:** frontend en **Vercel**
+(https://consorciosdemo.vercel.app/), backend y base en **Render**.
+
+El generador (`backend/seed_demo.py`) tarda 67-69 s, así que no hay seed-on-boot:
+haría fallar el healthcheck durante el arranque. En su lugar, un cron aparte lo
+dispara cada 6 h.
+
+Los cron jobs de Render corren en contenedores separados de los servicios web, y
+los discos persistentes se montan en un único servicio — un cron externo no puede
 compartir el archivo SQLite del servicio web, y aunque pudiera, dos procesos
 haciendo drop/recreate sobre SQLite mientras el web atiende tráfico es receta de
-bloqueos. Por eso el demo usa **Postgres administrado** en vez de SQLite: el
-cron se conecta por red, sin filesystem compartido y sin downtime del servicio
-web durante el reset. De paso iguala la infraestructura del demo a la de
-producción.
+bloqueos. Por eso el demo usa **Postgres administrado** en vez de SQLite: el cron
+se conecta por red, sin filesystem compartido y sin downtime del servicio web
+durante el reset. De paso iguala la infraestructura del demo a la de producción.
 
 ```
-Servicios en Railway:
-  1. Postgres administrado (addon)
-  2. Servicio web    -> uvicorn backend.main:app
-  3. Servicio cron   -> python -m backend.seed_demo --reset, schedule "0 */6 * * *"
+Vercel:
+  frontend (Vite build)  -> VITE_DEMO_MODE=true
+                            VITE_API_URL apuntando al backend de Render
+
+Render:
+  1. Postgres administrado
+  2. Web service   -> uvicorn backend.main:app  (usa el Procfile)
+  3. Cron job      -> python -m backend.seed_demo --reset
+                      schedule "0 */6 * * *"
 
 Los servicios 2 y 3 comparten las mismas variables de entorno.
 ```
 
+`frontend/vercel.json` ya trae el rewrite de SPA (`/(.*) -> /index.html`), sin el
+cual cualquier ruta que no sea `/` da 404 al recargar.
+
 | Variable | Valor |
 |---|---|
 | `DEMO_MODE` | `true` |
-| `DATABASE_URL` | la del Postgres del addon — **el nombre de la base debe contener `demo`** (ej. `consorcio_demo`), lo exige el candado de `Settings` |
+| `DATABASE_URL` | la interna del Postgres de Render — **debe contener la subcadena `demo`** (ej. base `consorcio_demo`), lo exige el candado de `Settings`, que si no impide arrancar |
 | `SECRET_KEY` | generar una distinta de la de producción |
 | `SEED_ENABLED` | `false` — el dataset lo genera `seed_demo`, no `seed_if_empty`; si queda en `true` aparece un "Consorcio Demo" de smoke-test al lado del real |
 | `DEMO_SEED_PASSWORD` | mínimo 8 caracteres |
 | `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` | credenciales del super admin del demo |
 | `SMTP_HOST` | vacío (además `DEMO_MODE` fuerza modo consola en `mail_service`) |
-| `CORS_ORIGINS` | el dominio del frontend del demo |
-| `CORS_ORIGIN_REGEX` | **vacío** — el default de localhost no debe viajar a un deploy público |
+| `CORS_ORIGINS` | el dominio de Vercel del frontend (ej. `https://consorciosdemo.vercel.app`). Si usás preview deployments de Vercel, cada uno tiene su propio subdominio y no va a estar en la lista |
+| `CORS_ORIGIN_REGEX` | **vacío** — el default matchea `localhost` en cualquier puerto y no debe viajar a un deploy público |
 
 El primer arranque necesita una corrida manual del cron (o esperar hasta 6 h):
 como no hay seed-on-boot, la base arranca vacía y `/auth/demo-login` devuelve
 503 hasta que el generador corra por primera vez.
 
-**Nota sobre el reset:** el reset por cron ejecuta `DROP SCHEMA public
-CASCADE`, lo que requiere que el rol de conexión sea dueño del esquema
-`public` — cierto en el addon estándar de Railway, que conecta como
-`postgres`; no garantizado en otro Postgres administrado con roles acotados
-(RDS, Cloud SQL, etc.). Si algún día se usa esta misma estrategia de reset
-fuera del addon de Railway, verificar ownership primero o migrar a la
-variante portable (dropear tabla por tabla vía el metadata de SQLAlchemy en
-vez del esquema entero) — ver el comentario en `_resetear_esquema`
-(`backend/seed_demo.py`).
+### ⚠️ Verificar antes de confiar en el cron: ownership del esquema `public`
+
+El reset ejecuta `DROP SCHEMA public CASCADE`, que **exige que el rol de conexión
+sea dueño del esquema `public`**. En Render el usuario que te dan es dueño de la
+*base*, pero **no es superusuario**, y ahí la cosa depende de la versión:
+
+- **PostgreSQL 15+** — `public` pertenece a `pg_database_owner`, así que el dueño
+  de la base puede dropearlo. **Funciona.**
+- **PostgreSQL 14 o anterior** — `public` pertenece al superusuario `postgres`, y
+  el dueño de la base **no** puede dropearlo: el cron falla cada 6 h con
+  `must be owner of schema public`, en silencio salvo que alguien mire los logs.
+
+Comprobalo una vez contra la base del demo, antes de dar el cron por bueno:
+
+```sql
+SELECT version();
+SELECT nspname, pg_get_userbyid(nspowner) AS owner
+  FROM pg_namespace WHERE nspname = 'public';
+```
+
+Si la versión es 14 o menor, no uses `DROP SCHEMA`: cambiá `_resetear_esquema`
+(`backend/seed_demo.py`) a la variante portable que ya está documentada en su
+comentario — dropear tabla por tabla vía el metadata de SQLAlchemy con `CASCADE`,
+que sólo requiere ownership de las tablas propias (las crea el mismo rol vía
+`create_all`, así que siempre las posee).
+
+**Estado de verificación:** la rama Postgres del reset está cubierta por un test
+que intercepta el SQL emitido y comprueba el orden `DROP` → `CREATE`, pero
+**nunca se ejecutó contra un Postgres real** (no había Docker en el entorno de
+desarrollo). La primera corrida real del cron es, en los hechos, su primera
+prueba: miralo.
 
 ---
 
