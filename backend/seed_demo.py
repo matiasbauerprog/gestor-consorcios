@@ -130,12 +130,32 @@ def crear_catalogo_personal(api, admin_token, cid, proveedor_id: int) -> dict:
     }, expect=201)
     empleado_id = r.json()["id"]
 
-    # El sueldo básico va en el empleado; estos son los haberes adicionales.
-    # "Horas extra" es cantidad_x_valor: el último de la lista, a propósito,
-    # porque poblar_demo necesita saber cuál de los ids requiere `cantidad`
-    # al armar la liquidación (LiquidacionHaberItem, schemas.py:756).
+    # Proveedores institucionales para las contribuciones (AFIP, ART). Se
+    # crean acá — no se reusan los proveedores comerciales del consorcio
+    # (limpieza, ascensores, etc.) porque no representan a quién se le paga
+    # una contribución patronal real — siguiendo el mismo patrón que
+    # backend/seed.py (Fase 3: AFIP/ARCA/FATERYH/SUTERH como Proveedor).
+    r = api.req("POST", "/proveedores", token=admin_token, cid=cid, json={
+        "razon_social": "AFIP", "cuit": "30-00000001-7",
+    }, expect=201)
+    proveedor_afip = r.json()["id"]
+    r = api.req("POST", "/proveedores", token=admin_token, cid=cid, json={
+        "razon_social": "ART Interacción SA", "cuit": "30-00000002-5",
+    }, expect=201)
+    proveedor_art = r.json()["id"]
+
+    # El sueldo básico NO entra solo por estar en el empleado: _calcular_y_guardar
+    # (backend/routers/liquidaciones.py:289) arma el bruto sumando únicamente
+    # los haberes de la liquidación. Por eso el catálogo necesita un haber
+    # "Básico" porcentaje_sobre_basico al 100%, igual que backend/seed.py:338 —
+    # sin él, el bruto se arma sólo con los adicionales y el sueldo real del
+    # encargado casi desaparece del rubro.
+    # "Horas extra" queda última a propósito: poblar_demo necesita saber cuál
+    # de los ids requiere `cantidad` al armar la liquidación
+    # (LiquidacionHaberItem, schemas.py:756).
     haberes = []
     for orden, (nombre, tipo, valor) in enumerate([
+        ("Básico", "porcentaje_sobre_basico", 100.0),
         ("Antigüedad", "porcentaje_sobre_basico", 20.0),
         ("Presentismo", "monto_fijo", 95_000.0),
         ("Plus por limpieza", "monto_fijo", 60_000.0),
@@ -147,19 +167,26 @@ def crear_catalogo_personal(api, admin_token, cid, proveedor_id: int) -> dict:
         }, expect=201)
         haberes.append(r.json()["id"])
 
+    # Las contribuciones llevan `proveedor_id`: _generar_gastos
+    # (backend/routers/liquidaciones.py:252-276) sólo materializa un Gasto por
+    # cada proveedor con detalle asociado — sin proveedor_id el monto se
+    # calcula y queda en liquidacion.detalle, pero nunca entra al prorrateo.
+    # Los descuentos no lo necesitan: ya restan del bruto sin generar gasto
+    # propio (los cobra el empleado neto, no el consorcio aparte).
     conceptos = []
-    for orden, (nombre, tipo, porcentaje) in enumerate([
-        ("Jubilación", "descuento", 11.0),
-        ("Ley 19.032", "descuento", 3.0),
-        ("Obra social FATERYH", "descuento", 3.0),
-        ("Sindicato SUTERH", "descuento", 2.0),
-        ("Contribuciones patronales", "contribucion", 17.0),
-        ("ART", "contribucion", 5.0),
+    for orden, (nombre, tipo, porcentaje, prov) in enumerate([
+        ("Jubilación", "descuento", 11.0, None),
+        ("Ley 19.032", "descuento", 3.0, None),
+        ("Obra social FATERYH", "descuento", 3.0, None),
+        ("Sindicato SUTERH", "descuento", 2.0, None),
+        ("Contribuciones patronales", "contribucion", 17.0, proveedor_afip),
+        ("ART", "contribucion", 5.0, proveedor_art),
     ]):
-        r = api.req("POST", "/conceptos-liquidacion", token=admin_token, cid=cid, json={
-            "nombre": nombre, "tipo": tipo,
-            "porcentaje": porcentaje, "orden": orden,
-        }, expect=201)
+        payload = {"nombre": nombre, "tipo": tipo, "porcentaje": porcentaje, "orden": orden}
+        if prov is not None:
+            payload["proveedor_id"] = prov
+        r = api.req("POST", "/conceptos-liquidacion", token=admin_token, cid=cid, json=payload,
+                    expect=201)
         conceptos.append(r.json()["id"])
 
     return {"empleado_id": empleado_id, "haberes": haberes, "conceptos": conceptos}
