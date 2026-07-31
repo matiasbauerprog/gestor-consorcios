@@ -433,6 +433,7 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
     # legítimo, y eso no debe hacer explotar el generador.
     reservantes = RNG.sample(sorted(tokens_depto), k=min(8, len(tokens_depto)))
     reservas = 0
+    reservas_canceladas = 0
     for depto_id in reservantes:
         amenity = RNG.choice(list(amenities.values()))
         inicio = datetime.now().replace(minute=0, second=0, microsecond=0) + timedelta(
@@ -445,54 +446,89 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
                     })
         if r.status_code == 201:
             reservas += 1
-            # 20% cancela — es lo que ejercita la reversa del cargo en cuenta
-            # corriente, que es justamente lo que hace interesante al módulo.
-            if RNG.random() < 0.2:
+            # La primera reserva exitosa se cancela siempre (determinista): el
+            # 20% al azar puede no tocar a nadie en una corrida entera —pasó
+            # de hecho en una corrida real, 0 de 8— y sin al menos una
+            # cancelación la reversa del cargo en cuenta corriente, que es lo
+            # que hace interesante al módulo, no queda demostrada. El resto
+            # sigue al 20% probabilístico para sumar variedad.
+            if reservas_canceladas == 0 or RNG.random() < 0.2:
                 api.req("DELETE", f"/reservas/{r.json()['id']}",
                         token=tokens_depto[depto_id], cid=cid)
-    print(f"[demo] reservas: {reservas}")
+                reservas_canceladas += 1
+    print(f"[demo] reservas: {reservas} · canceladas: {reservas_canceladas}")
 
     # --- Peticiones → trabajos → presupuestos ---
     # Portado de seed_e2e.py:307-351 con la escala ajustada (k=6 en vez de
-    # k=12), para que el módulo de Tareas y Presupuestos quede con contenido
-    # en los 4 estados: petición abierta, trabajo sin presupuestos, trabajo
-    # con presupuestos pendientes y trabajo con presupuesto aprobado.
+    # k=12). EstadoPeticion tiene 4 valores (abierta, convertida_en_trabajo,
+    # rechazada, cancelada — backend/models.py), pero la lógica probabilística
+    # de seed_e2e.py sólo alcanza dos: nunca llama a PATCH /peticiones/{id}
+    # (único camino a rechazada) ni a POST /trabajos/{id}/cancelar (único
+    # camino a cancelada, que cascadea desde el trabajo — ver
+    # backend/routers/trabajos.py:190-201). Por eso acá los primeros 4 deptos
+    # muestreados recorren los 4 estados de forma explícita y determinista;
+    # los 2 restantes quedan con la lógica probabilística original para sumar
+    # variedad dentro de "convertida_en_trabajo".
+    titulos = [
+        "Pérdida de agua en baño", "Humedad en pared del dormitorio",
+        "Portero eléctrico sin audio", "Luz de pasillo quemada",
+        "Filtración en balcón", "Ascensor hace ruido",
+    ]
     peticionantes = RNG.sample(sorted(tokens_depto), k=min(6, len(tokens_depto)))
     peticiones = 0
     trabajos_creados = 0
-    for depto_id in peticionantes:
+    for indice, depto_id in enumerate(peticionantes):
         r = api.req("POST", "/peticiones", token=tokens_depto[depto_id], cid=cid, json={
-            "titulo": RNG.choice([
-                "Pérdida de agua en baño", "Humedad en pared del dormitorio",
-                "Portero eléctrico sin audio", "Luz de pasillo quemada",
-                "Filtración en balcón", "Ascensor hace ruido",
-            ]),
+            "titulo": RNG.choice(titulos),
             "descripcion": "Solicito revisión y reparación a la brevedad. Gracias.",
         }, expect=201)
         peticion_id = r.json()["id"]
         peticiones += 1
 
-        if RNG.random() < 0.6:  # el resto queda abierta (realista)
+        if indice == 0:
+            continue  # queda abierta, sin tocar
+
+        if indice == 1:
+            api.req("PATCH", f"/peticiones/{peticion_id}", token=admin_token, cid=cid,
+                    json={"estado": "rechazada"}, expect=200)
+            continue
+
+        if indice == 2:
             r = api.req("POST", "/trabajos", token=admin_token, cid=cid, json={
                 "peticion_id": peticion_id,
                 "descripcion": "Trabajo generado a partir del reclamo del depto.",
             }, expect=201)
             trabajo_id = r.json()["id"]
             trabajos_creados += 1
+            api.req("POST", f"/trabajos/{trabajo_id}/cancelar", token=admin_token, cid=cid,
+                    expect=204)
+            continue
 
-            elegido = None
-            for prov in RNG.sample(proveedores, k=RNG.randint(1, 3)):
-                # El endpoint de presupuestos recibe multipart/form-data.
-                r = api.req("POST", f"/trabajos/{trabajo_id}/presupuestos",
-                            token=admin_token, cid=cid,
-                            data={"proveedor_id": str(prov),
-                                  "monto": str(round(RNG.uniform(20_000, 150_000), 2))},
-                            expect=201)
-                elegido = r.json()
-            if elegido is not None:
-                api.req("POST",
-                        f"/trabajos/{trabajo_id}/presupuestos/{elegido['id']}/aprobar",
-                        token=admin_token, cid=cid, expect=200)
+        # indice 3: siempre se convierte (garantiza el 4to estado, con
+        # presupuesto aprobado). Los índices 4 y 5 quedan al 60% original.
+        if indice != 3 and RNG.random() >= 0.6:
+            continue  # queda abierta (realista)
+
+        r = api.req("POST", "/trabajos", token=admin_token, cid=cid, json={
+            "peticion_id": peticion_id,
+            "descripcion": "Trabajo generado a partir del reclamo del depto.",
+        }, expect=201)
+        trabajo_id = r.json()["id"]
+        trabajos_creados += 1
+
+        elegido = None
+        for prov in RNG.sample(proveedores, k=RNG.randint(1, 3)):
+            # El endpoint de presupuestos recibe multipart/form-data.
+            r = api.req("POST", f"/trabajos/{trabajo_id}/presupuestos",
+                        token=admin_token, cid=cid,
+                        data={"proveedor_id": str(prov),
+                              "monto": str(round(RNG.uniform(20_000, 150_000), 2))},
+                        expect=201)
+            elegido = r.json()
+        if elegido is not None:
+            api.req("POST",
+                    f"/trabajos/{trabajo_id}/presupuestos/{elegido['id']}/aprobar",
+                    token=admin_token, cid=cid, expect=200)
     print(f"[demo] peticiones: {peticiones} · trabajos: {trabajos_creados}")
 
     dt = time.monotonic() - t0
@@ -507,6 +543,7 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
         "comunicados": comunicados,
         "cuotas_obra": cuotas_obra,
         "reservas": reservas,
+        "reservas_canceladas": reservas_canceladas,
         "peticiones": peticiones,
         "amenities": amenities,
         "proveedores": proveedores,
