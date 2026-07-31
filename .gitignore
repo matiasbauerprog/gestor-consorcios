@@ -27,6 +27,7 @@ demo.db
 *.db.bak
 *.sqlite
 *.sqlite3
+*.corrupta
 
 # Logs
 *.log
