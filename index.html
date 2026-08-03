@@ -81,6 +81,10 @@ a { color: inherit; }
   .seccion { padding: 5rem 2rem; }
 }
 
+/* La nav es sticky: sin esto, el salto por ancla deja el título debajo de la barra. */
+html { scroll-behavior: smooth; }
+#simulador, #modulos, #precios { scroll-margin-top: 4.5rem; }
+
 /* Micro-label uppercase del design system de la app */
 .eyebrow {
   font-size: 0.72rem;
@@ -482,6 +486,101 @@ a { color: inherit; }
   .sim-controles { flex-direction: row; }
 }
 
+/* Pantallas del simulador */
+.pantalla-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.pantalla-titulo { font-size: 1.05rem; margin: 0; }
+
+.pantalla-meta { font-size: 0.78rem; color: var(--color-text-muted); }
+
+.pantalla-tip {
+  font-size: 0.8rem;
+  color: var(--color-text-muted-strong);
+  background: var(--color-warning-bg);
+  border-left: 3px solid var(--color-warning);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 0.6rem 0.8rem;
+  margin: 0 0 1rem;
+}
+
+.gasto-form {
+  display: grid;
+  gap: 0.7rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.campo { display: flex; flex-direction: column; gap: 0.2rem; }
+
+.campo label {
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-text-muted);
+}
+
+.campo input, .campo select {
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.55rem;
+  width: 100%;
+}
+
+.btn-sm { padding: 0.5rem 1rem; font-size: 0.82rem; width: fit-content; }
+
+.lista-gastos { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+
+.tarjeta {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 0.9rem;
+}
+
+.tarjeta h4 {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 800;
+  margin: 0 0 0.35rem;
+}
+
+.tarjeta .meta {
+  font-size: 0.74rem;
+  color: var(--color-text-muted);
+  margin: 0 0 0.1rem;
+}
+
+.tarjeta-nueva {
+  border-color: var(--color-success);
+  background: var(--color-success-bg);
+  animation: aparecer 0.4s ease;
+}
+
+@keyframes aparecer {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (min-width: 600px) {
+  .gasto-form { grid-template-columns: repeat(2, 1fr); }
+  .gasto-form button { grid-column: 1 / -1; }
+}
+
 /* ===== CTA-SIMULADOR ===== */
 /* ===== CONSORCIO ===== */
 /* ===== MODULOS ===== */
@@ -659,7 +758,76 @@ a { color: inherit; }
           <button type="button" data-ir="4">Mi cuenta</button>
         </aside>
         <main class="app-main">
-          <div class="sim-paso" data-paso="1"></div>
+          <div class="sim-paso" data-paso="1">
+            <div class="pantalla-head">
+              <h3 class="pantalla-titulo">Gastos</h3>
+              <span class="pantalla-meta">Período 2026-08 · total <strong id="g-total">$ 1.519.100</strong></span>
+            </div>
+
+            <form class="gasto-form" id="gasto-form">
+              <div class="campo">
+                <label for="g-rubro">Rubro</label>
+                <select id="g-rubro">
+                  <option value="abonos_y_servicios" selected>Abonos y servicios</option>
+                  <option value="mantenimiento_partes_comunes">Mantenimiento partes comunes</option>
+                  <option value="servicios_publicos">Servicios públicos</option>
+                  <option value="seguros">Seguros</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label for="g-concepto">Concepto</label>
+                <input id="g-concepto" type="text" value="Abono mensual de ascensores" readonly>
+              </div>
+              <div class="campo">
+                <label for="g-monto">Monto</label>
+                <input id="g-monto" type="text" value="480000" readonly>
+              </div>
+              <div class="campo">
+                <label for="g-clase">Clase de prorrateo</label>
+                <select id="g-clase">
+                  <option selected>A — Expensas ordinarias</option>
+                  <option>B — Expensas extraordinarias</option>
+                  <option>C — Servicios diferenciados</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primario btn-sm" id="g-guardar">Guardar gasto</button>
+            </form>
+
+            <p class="pantalla-tip">
+              Fijate que no elegís a quién cobrarle: elegís la <strong>clase de prorrateo</strong>.
+              El coeficiente de cada unidad hace el resto en el cierre.
+            </p>
+
+            <ul class="lista-gastos" id="lista-gastos">
+              <li class="tarjeta tarjeta-nueva" id="g-nuevo" hidden>
+                <h4>Abonos y servicios · Abono mensual de ascensores</h4>
+                <p class="meta">$ 480.000 · 2026-08 · pagó 05/08/2026</p>
+                <p class="meta">Proveedor: Ascensores Del Plata</p>
+                <p class="meta">Clase A — Expensas ordinarias</p>
+                <p class="meta">Caja: Banco Nación cta. cte.</p>
+              </li>
+              <li class="tarjeta">
+                <h4>Sueldos y cargas sociales · Sueldo encargado agosto</h4>
+                <p class="meta">$ 1.240.000 · 2026-08 · pagó 04/08/2026</p>
+                <p class="meta">Clase A — Expensas ordinarias</p>
+                <p class="meta">Caja: Banco Nación cta. cte.</p>
+              </li>
+              <li class="tarjeta">
+                <h4>Servicios públicos · Luz de partes comunes</h4>
+                <p class="meta">$ 186.400 · 2026-08 · pagó 03/08/2026</p>
+                <p class="meta">Proveedor: Edenor</p>
+                <p class="meta">Clase A — Expensas ordinarias</p>
+                <p class="meta">Caja: Banco Nación cta. cte.</p>
+              </li>
+              <li class="tarjeta">
+                <h4>Seguros · Póliza integral del consorcio</h4>
+                <p class="meta">$ 92.700 · 2026-08 · pagó 02/08/2026</p>
+                <p class="meta">Proveedor: Sancor Seguros</p>
+                <p class="meta">Clase A — Expensas ordinarias</p>
+                <p class="meta">Caja: Banco Nación cta. cte.</p>
+              </li>
+            </ul>
+          </div>
           <div class="sim-paso" data-paso="2" hidden></div>
           <div class="sim-paso" data-paso="3" hidden></div>
           <div class="sim-paso" data-paso="4" hidden></div>
@@ -759,7 +927,13 @@ function irAPaso(n) {
 }
 
 function render() {
-  /* Los pasos 1-4 agregan acá su lógica de pintado. */
+  /* Paso 1 */
+  document.getElementById("g-nuevo").hidden = !sim.gastoCargado;
+  document.getElementById("g-total").textContent = money(sim.gastoCargado ? 1999100 : 1519100);
+  document.getElementById("g-guardar").disabled = sim.gastoCargado;
+  document.getElementById("g-guardar").textContent = sim.gastoCargado ? "Gasto guardado ✓" : "Guardar gasto";
+
+  /* Los pasos 2-4 agregan acá su lógica de pintado. */
 }
 
 function resetSim() {
@@ -777,6 +951,14 @@ document.getElementById("sim-reset").addEventListener("click", resetSim);
 
 document.getElementById("sim-siguiente").addEventListener("click", () => {
   if (sim.paso < 4) irAPaso(sim.paso + 1);
+});
+
+document.getElementById("gasto-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (sim.gastoCargado) return;
+  sim.gastoCargado = true;
+  render();
+  nota("El abono entró a la clase A. El total del período pasó de $ 1.519.100 a $ 1.999.100. Ahora cerrá el mes.");
 });
 
 irAPaso(1);
