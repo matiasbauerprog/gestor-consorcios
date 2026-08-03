@@ -581,6 +581,87 @@ html { scroll-behavior: smooth; }
   .gasto-form button { grid-column: 1 / -1; }
 }
 
+.cierre-bloque {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.cierre-bloque h4 {
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  font-weight: 800;
+  margin: 0 0 0.7rem;
+}
+
+.lista-validaciones {
+  list-style: none;
+  margin: 0 0 0.9rem;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+}
+
+.val-ok { color: var(--color-success); font-weight: 600; }
+.val-aviso { color: var(--color-warning); font-weight: 600; }
+
+.cierre-cifras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.5rem;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0.9rem;
+}
+
+.cierre-cifras strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  color: var(--color-text);
+}
+
+.tabla-scroll { overflow-x: auto; margin-bottom: 0.5rem; }
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.tabla th {
+  text-align: left;
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border-strong);
+  padding: 0.4rem 0.5rem;
+}
+
+.tabla td {
+  border-bottom: 1px solid var(--color-border);
+  padding: 0.45rem 0.5rem;
+}
+
+.tabla .num { text-align: right; }
+.tabla .col-unidad { font-weight: 800; color: var(--color-primary); }
+
+.fila-destacada { background: var(--color-primary-soft); }
+
+.cierre-ok {
+  border-color: var(--color-success);
+  background: var(--color-success-bg);
+}
+
+.cierre-ok h4 { color: var(--color-success); }
+.cierre-ok .meta { font-size: 0.8rem; color: var(--color-text-muted-strong); margin: 0; }
+
 /* ===== CTA-SIMULADOR ===== */
 /* ===== CONSORCIO ===== */
 /* ===== MODULOS ===== */
@@ -828,7 +909,57 @@ html { scroll-behavior: smooth; }
               </li>
             </ul>
           </div>
-          <div class="sim-paso" data-paso="2" hidden></div>
+          <div class="sim-paso" data-paso="2" hidden>
+            <div class="pantalla-head">
+              <h3 class="pantalla-titulo">Cierre de período</h3>
+              <span class="pantalla-meta">Período 2026-08</span>
+            </div>
+
+            <div class="cierre-bloque" id="cierre-estado">
+              <h4>Estado de 2026-08</h4>
+              <ul class="lista-validaciones">
+                <li class="val-ok">✓ Los 24 coeficientes suman 100 %.</li>
+                <li class="val-ok">✓ Todos los gastos del período tienen clase o unidad asignada.</li>
+                <li class="val-aviso" id="val-gasto">⚠ Hay un gasto del mes sin cargar.</li>
+              </ul>
+              <button type="button" class="btn btn-primario btn-sm" id="c-preview">Generar preview</button>
+            </div>
+
+            <div class="cierre-bloque" id="cierre-preview" hidden>
+              <h4>Vista previa de cierre — 2026-08</h4>
+              <div class="cierre-cifras">
+                <span>Total a expensar <strong id="c-total">$ 1.999.100</strong></span>
+                <span>Boletas <strong>24</strong></span>
+                <span>Intereses <strong>$ 18.430</strong></span>
+              </div>
+              <div class="tabla-scroll">
+                <table class="tabla">
+                  <thead>
+                    <tr><th>Unidad</th><th>Ubicación</th><th class="num">Coef.</th><th class="num">Monto</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td class="col-unidad">1A</td><td>Piso 1, letra A</td><td class="num">3,90 %</td><td class="num">$ 77.965</td></tr>
+                    <tr><td class="col-unidad">1B</td><td>Piso 1, letra B</td><td class="num">3,90 %</td><td class="num">$ 77.965</td></tr>
+                    <tr class="fila-destacada"><td class="col-unidad">2A</td><td>Piso 2, letra A</td><td class="num">4,15 %</td><td class="num">$ 82.963</td></tr>
+                    <tr><td class="col-unidad">2B</td><td>Piso 2, letra B</td><td class="num">4,15 %</td><td class="num">$ 82.963</td></tr>
+                    <tr><td class="col-unidad">3A</td><td>Piso 3, letra A</td><td class="num">4,40 %</td><td class="num">$ 87.960</td></tr>
+                    <tr><td class="col-unidad">3B</td><td>Piso 3, letra B</td><td class="num">4,40 %</td><td class="num">$ 87.960</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="pantalla-meta">…y 18 unidades más.</p>
+              <p class="pantalla-tip" id="c-trazo">
+                Los $ 480.000 del abono de ascensores están repartidos acá adentro: a la 2A
+                le tocaron $ 19.920 por su 4,15 %.
+              </p>
+              <button type="button" class="btn btn-primario btn-sm" id="c-confirmar">Confirmar cierre</button>
+            </div>
+
+            <div class="cierre-bloque cierre-ok" id="cierre-hecho" hidden>
+              <h4>✓ Período 2026-08 cerrado</h4>
+              <p class="meta">Se emitieron 24 expensas por $ 1.999.100. Cada propietario ya la tiene en su portal.</p>
+            </div>
+          </div>
           <div class="sim-paso" data-paso="3" hidden></div>
           <div class="sim-paso" data-paso="4" hidden></div>
         </main>
@@ -933,13 +1064,22 @@ function render() {
   document.getElementById("g-guardar").disabled = sim.gastoCargado;
   document.getElementById("g-guardar").textContent = sim.gastoCargado ? "Gasto guardado ✓" : "Guardar gasto";
 
-  /* Los pasos 2-4 agregan acá su lógica de pintado. */
+  /* Paso 2 */
+  document.getElementById("val-gasto").hidden = sim.gastoCargado;
+  document.getElementById("c-total").textContent = money(sim.gastoCargado ? 1999100 : 1519100);
+  document.getElementById("c-trazo").hidden = !sim.gastoCargado;
+  document.getElementById("cierre-hecho").hidden = !sim.periodoCerrado;
+  document.getElementById("c-confirmar").disabled = sim.periodoCerrado;
+
+  /* Los pasos 3-4 agregan acá su lógica de pintado. */
 }
 
 function resetSim() {
   sim.gastoCargado = false;
   sim.periodoCerrado = false;
   sim.pagoAplicado = null;
+  document.getElementById("cierre-estado").hidden = false;
+  document.getElementById("cierre-preview").hidden = true;
   irAPaso(1);
 }
 
@@ -959,6 +1099,19 @@ document.getElementById("gasto-form").addEventListener("submit", (e) => {
   sim.gastoCargado = true;
   render();
   nota("El abono entró a la clase A. El total del período pasó de $ 1.519.100 a $ 1.999.100. Ahora cerrá el mes.");
+});
+
+document.getElementById("c-preview").addEventListener("click", () => {
+  document.getElementById("cierre-estado").hidden = true;
+  document.getElementById("cierre-preview").hidden = false;
+  nota("Esto es solo una vista previa: todavía no se emitió nada. Revisá el total y confirmá.");
+});
+
+document.getElementById("c-confirmar").addEventListener("click", () => {
+  sim.periodoCerrado = true;
+  document.getElementById("cierre-preview").hidden = true;
+  render();
+  nota("24 expensas emitidas. Ahora mirá qué pasa cuando una unidad que debe hace un pago.");
 });
 
 irAPaso(1);
