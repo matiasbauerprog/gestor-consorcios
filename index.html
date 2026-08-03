@@ -224,6 +224,58 @@ a { color: inherit; }
 }
 
 /* ===== DOLORES ===== */
+.dolores { border-top: 1px solid var(--color-border); }
+
+.dolores-titulo {
+  font-size: clamp(1.6rem, 5.5vw, 2.1rem);
+  max-width: 20ch;
+  margin-bottom: 2.5rem;
+}
+
+.dolores-grid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.dolor {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-top: 4px solid var(--acento);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+}
+
+.dolor h3 {
+  font-size: 1.12rem;
+  color: var(--acento);
+  margin-bottom: 0.75rem;
+}
+
+.dolor p {
+  font-size: 0.94rem;
+  color: var(--color-text-muted-strong);
+}
+
+.dolor-respuesta {
+  color: var(--color-text);
+  font-weight: 600;
+  border-top: 1px solid var(--color-border);
+  padding-top: 0.9rem;
+}
+
+.dolor-link {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--acento);
+  text-decoration: none;
+}
+
+.dolor-link:hover { text-decoration: underline; }
+
+@media (min-width: 900px) {
+  .dolores-grid { grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+}
+
 /* ===== SIMULADOR ===== */
 /* ===== CTA-SIMULADOR ===== */
 /* ===== CONSORCIO ===== */
@@ -313,6 +365,56 @@ a { color: inherit; }
 </header>
 
 <!-- ===== DOLORES ===== -->
+<section class="seccion dolores">
+  <p class="eyebrow">Lo que pasa hoy</p>
+  <h2 class="dolores-titulo">Tres cosas que te comen la semana.</h2>
+
+  <div class="dolores-grid">
+    <article class="dolor" style="--acento: var(--color-mod-cobranzas);">
+      <h3>Un pago parcial y ya no sabés cuánto debe la unidad.</h3>
+      <p>
+        Entran $120.000 de una unidad que arrastra tres expensas vencidas.
+        ¿A cuál se lo imputás? La planilla dice una cosa, el recibo otra y el
+        propietario una tercera.
+      </p>
+      <p class="dolor-respuesta">
+        Acá el cobro se imputa solo a la deuda más antigua: mayo se salda entero,
+        junio queda a la mitad, julio intacto. El saldo que ve el propietario en
+        su portal es el mismo número que ves vos.
+      </p>
+      <a class="dolor-link" href="#simulador">Velo en el paso 3 →</a>
+    </article>
+
+    <article class="dolor" style="--acento: var(--color-mod-gastos);">
+      <h3>El cierre de mes se te come tres días.</h3>
+      <p>
+        Prorratear a mano, rubro por rubro, coeficiente por coeficiente. Y si
+        entró una factura tarde, empezás de nuevo.
+      </p>
+      <p class="dolor-respuesta">
+        Cargás cada factura durante el mes con su rubro y su clase de prorrateo.
+        El día del cierre mirás la vista previa con el total y la cantidad de
+        boletas, confirmás, y salen las 24 expensas con el coeficiente aplicado.
+      </p>
+      <a class="dolor-link" href="#simulador">Velo en los pasos 1 y 2 →</a>
+    </article>
+
+    <article class="dolor" style="--acento: var(--color-mod-operacion);">
+      <h3>Atendés el mismo llamado veinte veces.</h3>
+      <p>
+        "¿Cuánto debo?", "¿en qué se fue la plata este mes?", "¿está libre el SUM
+        el sábado?". Siempre en el peor momento.
+      </p>
+      <p class="dolor-respuesta">
+        El propietario entra con su usuario y ve su expensa, el detalle de gastos
+        del mes, los comprobantes que presentó y la agenda del SUM. Reserva solo.
+        Sin llamarte.
+      </p>
+      <a class="dolor-link" href="#simulador">Velo en el paso 4 →</a>
+    </article>
+  </div>
+</section>
+
 <!-- ===== SIMULADOR ===== -->
 <!-- ===== CTA-SIMULADOR ===== -->
 <!-- ===== CONSORCIO ===== -->
