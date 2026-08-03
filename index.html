@@ -923,6 +923,89 @@ html { scroll-behavior: smooth; }
 }
 
 /* ===== PRECIOS ===== */
+.precios { border-top: 1px solid var(--color-border); }
+
+.precios-titulo { font-size: clamp(1.6rem, 5.5vw, 2.1rem); }
+
+.precios-intro {
+  max-width: 52ch;
+  color: var(--color-text-muted-strong);
+  margin-bottom: 2rem;
+}
+
+.precios-grid { display: grid; gap: 1rem; align-items: start; }
+
+.plan {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.4rem;
+}
+
+.plan-base { border-color: var(--color-primary); box-shadow: var(--shadow-md); }
+
+.plan-tag {
+  display: inline-block;
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-primary);
+  margin-bottom: 0.75rem;
+}
+
+.plan-precio { margin: 0 0 1rem; }
+
+.plan-precio strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.plan-precio span { font-size: 0.8rem; color: var(--color-text-muted); }
+
+.plan-lista {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.plan-lista li { padding-left: 1.25rem; position: relative; }
+
+.plan-lista li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: var(--color-success);
+  font-weight: 800;
+}
+
+.plan-nota {
+  font-size: 0.82rem;
+  color: var(--color-text-muted-strong);
+  margin: 0;
+}
+
+.precios-letra {
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+@media (min-width: 900px) {
+  .precios-grid { grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+}
+
 /* ===== CIERRE ===== */
 /* ===== FOOTER ===== */
 .footer {
@@ -1395,6 +1478,59 @@ html { scroll-behavior: smooth; }
 </section>
 
 <!-- ===== PRECIOS ===== -->
+<section class="seccion precios" id="precios">
+  <p class="eyebrow">Cuánto sale</p>
+  <h2 class="precios-titulo">Se paga por unidad, no por edificio.</h2>
+  <p class="precios-intro">
+    Si administrás tres edificios de 30 unidades, pagás por 90 unidades. Si un
+    consorcio se va, deja de pagarse solo. Sin costo de alta ni permanencia.
+  </p>
+
+  <div class="precios-grid">
+    <article class="plan plan-base">
+      <span class="plan-tag">Base</span>
+      <p class="plan-precio"><strong>USD 1,40</strong><span>por unidad / mes</span></p>
+      <ul class="plan-lista">
+        <li>Cobranzas y expensas</li>
+        <li>Gastos y proveedores</li>
+        <li>Tesorería</li>
+        <li>Comunicados</li>
+        <li>Reportes</li>
+        <li>Portal para propietarios e inquilinos</li>
+        <li>Todos tus consorcios en la misma cuenta</li>
+      </ul>
+    </article>
+
+    <article class="plan plan-extra">
+      <span class="plan-tag">Módulos opcionales</span>
+      <p class="plan-precio"><strong>+USD 0,20</strong><span>por unidad / mes, cada uno</span></p>
+      <ul class="plan-lista">
+        <li>Mantenimiento — peticiones, presupuestos y trabajos</li>
+        <li>Espacios comunes — reservas de SUM, laundry y parrilla</li>
+        <li>Personal y sueldos — legajos y liquidaciones del encargado</li>
+      </ul>
+      <p class="plan-nota">
+        Activás solo lo que el consorcio usa. No todo edificio tiene encargado
+        propio ni SUM.
+      </p>
+    </article>
+
+    <article class="plan plan-tope">
+      <span class="plan-tag">Con todo activado</span>
+      <p class="plan-precio"><strong>USD 2,00</strong><span>por unidad / mes</span></p>
+      <p class="plan-nota">
+        Es el techo. Un edificio de 30 unidades con absolutamente todo prendido
+        sale USD 60 por mes.
+      </p>
+    </article>
+  </div>
+
+  <ul class="precios-letra">
+    <li><strong>Mínimo mensual por consorcio:</strong> el equivalente a 20 unidades — USD 28 con el plan base.</li>
+    <li><strong>Facturado en pesos</strong> al tipo de cambio del día.</li>
+  </ul>
+</section>
+
 <!-- ===== CIERRE ===== -->
 <!-- ===== FOOTER ===== -->
 <footer class="footer">
