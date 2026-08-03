@@ -277,6 +277,211 @@ a { color: inherit; }
 }
 
 /* ===== SIMULADOR ===== */
+.simulador { border-top: 1px solid var(--color-border); }
+
+.sim-titulo { font-size: clamp(1.6rem, 5.5vw, 2.1rem); }
+
+.sim-intro {
+  max-width: 52ch;
+  color: var(--color-text-muted-strong);
+  margin-bottom: 1.75rem;
+}
+
+.sim-stepper {
+  list-style: none;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0;
+  margin: 0 0 1rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.sim-stepper::-webkit-scrollbar { display: none; }
+
+.sim-stepper button {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-text-muted-strong);
+  background: transparent;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+}
+
+.sim-stepper button span {
+  display: grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: var(--color-border);
+  font-size: 0.72rem;
+}
+
+.sim-stepper button[aria-current="step"] {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.sim-stepper button[aria-current="step"] span {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Frame de browser */
+.browser {
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  background: var(--color-surface);
+}
+
+.browser-barra {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.browser-punto {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+}
+
+.browser-url {
+  margin-left: 0.5rem;
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.browser-cuerpo { display: flex; flex-direction: column; }
+
+.app-topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.75rem;
+}
+
+.app-chip {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 0.66rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-pill);
+}
+
+.app-rol {
+  margin-left: auto;
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  font-weight: 700;
+  font-size: 0.66rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-pill);
+}
+
+.app-cuerpo { display: flex; min-height: 420px; }
+
+.app-sidebar {
+  display: none;
+  width: 168px;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.75rem 0.5rem;
+  background: var(--color-bg);
+  border-right: 1px solid var(--color-border);
+}
+
+.app-sidebar-grupo {
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-text-muted);
+  padding: 0.5rem 0.5rem 0.25rem;
+}
+
+.app-sidebar button {
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+}
+
+.app-sidebar button:hover { background: var(--color-primary-soft); }
+
+.app-sidebar button[aria-current="page"] {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+.sim-pie {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.sim-nota {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+}
+
+.sim-controles { display: flex; flex-direction: column; gap: 0.6rem; }
+
+.btn-ghost {
+  background: transparent;
+  border-color: var(--color-border-strong);
+  color: var(--color-text-muted-strong);
+}
+
+.btn-ghost:hover { border-color: var(--color-primary); color: var(--color-primary); }
+
+@media (min-width: 600px) {
+  .app-sidebar { display: flex; }
+  .app-main { padding: 1.25rem; }
+  .sim-pie { flex-direction: row; align-items: center; justify-content: space-between; }
+  .sim-controles { flex-direction: row; }
+}
+
 /* ===== CTA-SIMULADOR ===== */
 /* ===== CONSORCIO ===== */
 /* ===== MODULOS ===== */
@@ -416,6 +621,62 @@ a { color: inherit; }
 </section>
 
 <!-- ===== SIMULADOR ===== -->
+<section class="seccion simulador" id="simulador">
+  <p class="eyebrow">Probalo acá</p>
+  <h2 class="sim-titulo">Un mes de trabajo, en cuatro pasos.</h2>
+  <p class="sim-intro">
+    Esto es el sistema de verdad, con las mismas pantallas. Tocá los botones:
+    lo que hacés en un paso aparece en el siguiente.
+  </p>
+
+  <ol class="sim-stepper" id="sim-stepper">
+    <li><button type="button" data-ir="1"><span>1</span> Cargar un gasto</button></li>
+    <li><button type="button" data-ir="2"><span>2</span> Cerrar el período</button></li>
+    <li><button type="button" data-ir="3"><span>3</span> Imputar un cobro</button></li>
+    <li><button type="button" data-ir="4"><span>4</span> Lo ve el propietario</button></li>
+  </ol>
+
+  <div class="browser">
+    <div class="browser-barra">
+      <span class="browser-punto"></span>
+      <span class="browser-punto"></span>
+      <span class="browser-punto"></span>
+      <span class="browser-url" id="sim-url">libertad.gestorconsorcios.app/gastos</span>
+    </div>
+    <div class="browser-cuerpo">
+      <div class="app-topbar">
+        <strong>Edificio Libertad</strong>
+        <span class="app-chip">24 UF</span>
+        <span class="app-rol" id="sim-rol">Administración</span>
+      </div>
+      <div class="app-cuerpo">
+        <aside class="app-sidebar" id="sim-sidebar">
+          <span class="app-sidebar-grupo">Finanzas</span>
+          <button type="button" data-ir="1">Gastos</button>
+          <button type="button" data-ir="2">Cierre de período</button>
+          <button type="button" data-ir="3">Cuentas corrientes</button>
+          <span class="app-sidebar-grupo">Portal</span>
+          <button type="button" data-ir="4">Mi cuenta</button>
+        </aside>
+        <main class="app-main">
+          <div class="sim-paso" data-paso="1"></div>
+          <div class="sim-paso" data-paso="2" hidden></div>
+          <div class="sim-paso" data-paso="3" hidden></div>
+          <div class="sim-paso" data-paso="4" hidden></div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <div class="sim-pie">
+    <p class="sim-nota" id="sim-nota">Empezá cargando la factura del mes.</p>
+    <div class="sim-controles">
+      <button type="button" class="btn btn-ghost" id="sim-reset">Reiniciar</button>
+      <button type="button" class="btn btn-primario" id="sim-siguiente">Siguiente paso →</button>
+    </div>
+  </div>
+</section>
+
 <!-- ===== CTA-SIMULADOR ===== -->
 <!-- ===== CONSORCIO ===== -->
 <!-- ===== MODULOS ===== -->
@@ -442,6 +703,84 @@ document.getElementById("wa-hero").href = linkWhatsApp(
 );
 
 /* ===== SIMULADOR ===== */
+const sim = {
+  paso: 1,
+  gastoCargado: false,
+  periodoCerrado: false,
+  pagoAplicado: null,
+};
+
+const SIM_URLS = {
+  1: "libertad.gestorconsorcios.app/gastos",
+  2: "libertad.gestorconsorcios.app/cierre-de-periodo",
+  3: "libertad.gestorconsorcios.app/departamentos/2A/cuenta",
+  4: "libertad.gestorconsorcios.app/mi-cuenta",
+};
+
+const SIM_ROLES = { 1: "Administración", 2: "Administración", 3: "Administración", 4: "Propietario" };
+
+const SIM_NOTAS_BASE = {
+  1: "Empezá cargando la factura del mes.",
+  2: "Mirá la vista previa antes de confirmar. Nada se emite hasta que lo confirmás vos.",
+  3: "La unidad 2A arrastra tres expensas vencidas. Elegí cuánto paga.",
+  4: "Esto es lo que ve el propietario cuando entra con su usuario.",
+};
+
+function money(n) {
+  return "$ " + Math.round(n).toLocaleString("es-AR");
+}
+
+function nota(texto) {
+  document.getElementById("sim-nota").textContent = texto;
+}
+
+function irAPaso(n) {
+  sim.paso = n;
+
+  document.querySelectorAll(".sim-paso").forEach((el) => {
+    el.hidden = Number(el.dataset.paso) !== n;
+  });
+
+  document.querySelectorAll("#sim-stepper button").forEach((b) => {
+    if (Number(b.dataset.ir) === n) b.setAttribute("aria-current", "step");
+    else b.removeAttribute("aria-current");
+  });
+
+  document.querySelectorAll("#sim-sidebar button").forEach((b) => {
+    if (Number(b.dataset.ir) === n) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
+  });
+
+  document.getElementById("sim-url").textContent = SIM_URLS[n];
+  document.getElementById("sim-rol").textContent = SIM_ROLES[n];
+  document.getElementById("sim-siguiente").hidden = n === 4;
+  nota(SIM_NOTAS_BASE[n]);
+  render();
+}
+
+function render() {
+  /* Los pasos 1-4 agregan acá su lógica de pintado. */
+}
+
+function resetSim() {
+  sim.gastoCargado = false;
+  sim.periodoCerrado = false;
+  sim.pagoAplicado = null;
+  irAPaso(1);
+}
+
+document.querySelectorAll("[data-ir]").forEach((b) => {
+  b.addEventListener("click", () => irAPaso(Number(b.dataset.ir)));
+});
+
+document.getElementById("sim-reset").addEventListener("click", resetSim);
+
+document.getElementById("sim-siguiente").addEventListener("click", () => {
+  if (sim.paso < 4) irAPaso(sim.paso + 1);
+});
+
+irAPaso(1);
+
 /* ===== CTA-SIMULADOR ===== */
 /* ===== CIERRE ===== */
 </script>
