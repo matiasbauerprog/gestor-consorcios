@@ -1,1687 +1,254 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gestor Consorcios - Sistema de gestión contable de copropiedades</title>
-  
-  <!-- Google Fonts Inter -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  
-  <style>
-    /* =====================================================================
-       Design System "Aire" + Colores Command Soluciones (SaaS Moderno)
-       ===================================================================== */
-    :root {
-      --color-bg: #F9F7F2; /* Marfil de Command */
-      --color-surface: #ffffff;
-      --color-text: #000000; /* Negro base de Command */
-      --color-text-muted: #78716c;
-      --color-border: #eceae4;
-      --color-border-strong: #e5e2da;
-      
-      /* Paleta oficial de Command Soluciones */
-      --color-coral: #C0443C;
-      --color-primary: #3460A8; /* Azul */
-      --color-primary-hover: #2a4f8c;
-      --color-primary-soft: #e9eff8;
-      --color-yellow: #FFE100;
-      --color-green: #2D8F5E;
-      --color-purple: #7C4DFF;
-      
-      --radius: 12px; /* Redondeado suave de Treinta */
-      --radius-sm: 8px;
-      --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.05);
-      --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.08);
-      --font-sans: "Inter", system-ui, -apple-system, sans-serif;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    html {
-      scroll-behavior: smooth;
-    }
-
-    body {
-      font-family: var(--font-sans);
-      background-color: var(--color-bg);
-      color: var(--color-text);
-      line-height: 1.5;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    /* ---------- Grid / Contenedores ---------- */
-    .container {
-      max-width: 1140px;
-      margin: 0 auto;
-      padding: 0 1.5rem;
-      width: 100%;
-    }
-
-    /* ---------- Navbar ---------- */
-    .navbar {
-      background: rgba(249, 247, 242, 0.9);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--color-border);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      padding: 0.9rem 0;
-    }
-
-    .navbar-container {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-      font-weight: 800;
-      font-size: 1.25rem;
-      color: var(--color-text);
-      text-decoration: none;
-    }
-
-    .logo-badge {
-      background: var(--color-primary);
-      color: #fff;
-      font-size: 0.95rem;
-      font-weight: 700;
-      width: 32px;
-      height: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: var(--radius-sm);
-    }
-
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 1.5rem;
-    }
-
-    .nav-link {
-      font-size: 0.88rem;
-      font-weight: 600;
-      color: var(--color-text-muted);
-      text-decoration: none;
-      transition: color 0.15s;
-    }
-
-    .nav-link:hover {
-      color: var(--color-primary);
-    }
-
-    /* ---------- Botones (Estilo Treinta) ---------- */
-    .btn {
-      font-family: var(--font-sans);
-      font-size: 0.88rem;
-      font-weight: 600;
-      padding: 0.65rem 1.4rem;
-      border-radius: 30px; /* Redondeados Treinta */
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      transition: all 0.2s;
-      text-decoration: none;
-      min-height: 44px;
-      border: 1px solid transparent;
-    }
-
-    .btn-primary {
-      background: var(--color-primary);
-      color: #fff;
-    }
-
-    .btn-primary:hover {
-      background: var(--color-primary-hover);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(52, 96, 168, 0.2);
-    }
-
-    .btn-accent {
-      background: var(--color-coral);
-      color: #fff;
-    }
-
-    .btn-accent:hover {
-      background: var(--color-danger-hover);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(192, 68, 60, 0.2);
-    }
-
-    .btn-secondary {
-      background: transparent;
-      color: var(--color-text);
-      border-color: var(--color-border-strong);
-    }
-
-    .btn-secondary:hover {
-      background: var(--color-primary-soft);
-      border-color: var(--color-primary);
-    }
-
-    /* ---------- Hero Section ---------- */
-    .hero {
-      padding: 4rem 0 5rem;
-      position: relative;
-    }
-
-    .hero-grid {
-      display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
-      gap: 3.5rem;
-      align-items: center;
-    }
-
-    @media (max-width: 991px) {
-      .hero-grid {
-        grid-template-columns: 1fr;
-        gap: 3rem;
-        text-align: center;
-      }
-    }
-
-    .hero-left {
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-    }
-
-    .hero-tag {
-      font-size: 0.75rem;
-      font-weight: 700;
-      color: var(--color-primary);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-
-    .hero-heading {
-      font-size: 3rem;
-      font-weight: 800;
-      line-height: 1.15;
-      letter-spacing: -0.03em;
-    }
-
-    @media (max-width: 600px) {
-      .hero-heading {
-        font-size: 2.3rem;
-      }
-    }
-
-    /* Tag dinámico rotativo */
-    .hero-change-tag-holder {
-      display: inline-block;
-      position: relative;
-      background: var(--color-primary-soft);
-      padding: 0 0.5rem;
-      border-radius: 4px;
-    }
-
-    #hero-change-tag {
-      transition: opacity 0.25s ease, transform 0.25s ease;
-      display: inline-block;
-      color: var(--color-primary);
-      font-weight: 700;
-    }
-
-    .hero-subheader {
-      font-size: 1.1rem;
-      color: var(--color-text-muted);
-      max-width: 600px;
-    }
-
-    @media (max-width: 991px) {
-      .hero-subheader {
-        margin: 0 auto;
-      }
-    }
-
-    /* Checklist de la Hero */
-    .hero-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      text-align: left;
-    }
-
-    @media (max-width: 991px) {
-      .hero-list {
-        max-width: 480px;
-        margin: 0 auto;
-      }
-    }
-
-    .hero-list-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.75rem;
-      font-size: 0.95rem;
-    }
-
-    .hero-list-icon {
-      background: var(--color-primary-soft);
-      color: var(--color-primary);
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      flex-shrink: 0;
-      font-size: 0.8rem;
-    }
-
-    .hero-actions {
-      display: flex;
-      gap: 1rem;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    @media (max-width: 991px) {
-      .hero-actions {
-        justify-content: center;
-      }
-    }
-
-    /* Demo Tag Honesto */
-    .demo-honest-tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      background: var(--color-primary-soft);
-      color: var(--color-primary);
-      padding: 0.4rem 0.8rem;
-      font-size: 0.8rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-top: 0.5rem;
-      border-radius: 20px;
-      align-self: flex-start;
-    }
-
-    @media (max-width: 991px) {
-      .demo-honest-tag {
-        align-self: center;
-      }
-    }
-
-    /* Mockup derecha */
-    .hero-right {
-      position: relative;
-    }
-
-    .browser-frame {
-      background: var(--color-surface);
-      border-radius: var(--radius);
-      border: 1px solid var(--color-border-strong);
-      box-shadow: var(--shadow-lg);
-      overflow: hidden;
-    }
-
-    .browser-bar {
-      background: #f1ede4;
-      border-bottom: 1px solid var(--color-border);
-      padding: 0.5rem 0.75rem;
-      display: flex;
-      align-items: center;
-      gap: 0.35rem;
-    }
-
-    .browser-dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-      background: #e5e2da;
-    }
-
-    .browser-dot.red { background: var(--color-coral); }
-    .browser-dot.yellow { background: var(--color-yellow); }
-    .browser-dot.green { background: var(--color-green); }
-
-    .browser-url {
-      background: var(--color-surface);
-      height: 18px;
-      border-radius: 4px;
-      flex: 1;
-      margin: 0 1rem;
-      font-size: 0.65rem;
-      color: var(--color-text-muted);
-      display: flex;
-      align-items: center;
-      padding: 0 0.5rem;
-      border: 1px solid var(--color-border);
-    }
-
-    /* Tabs de mini-demo — el selector mismo es la señal de interactividad */
-    .demo-tabs {
-      display: inline-flex;
-      align-items: stretch;
-      background: var(--color-surface);
-      border: 1px solid var(--color-border-strong);
-      border-radius: 12px;
-      padding: 4px;
-      margin-bottom: 0.75rem;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-      gap: 2px;
-      flex-wrap: wrap;
-    }
-    .demo-tab {
-      background: transparent;
-      border: none;
-      color: var(--color-text-muted);
-      font-family: var(--font-sans);
-      font-size: 0.78rem;
-      font-weight: 600;
-      padding: 0.45rem 0.85rem;
-      border-radius: 8px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      transition: background 0.15s, color 0.15s;
-      white-space: nowrap;
-    }
-    .demo-tab:hover {
-      background: var(--color-bg);
-      color: var(--color-text);
-    }
-    .demo-tab.activo {
-      background: var(--color-primary);
-      color: #fff;
-    }
-    .demo-tab-num {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 18px;
-      height: 18px;
-      background: var(--color-primary-soft);
-      color: var(--color-primary);
-      border-radius: 50%;
-      font-size: 0.62rem;
-      font-weight: 700;
-    }
-    .demo-tab.activo .demo-tab-num {
-      background: rgba(255, 255, 255, 0.22);
-      color: #fff;
-    }
-    @media (max-width: 991px) {
-      .demo-tabs { justify-content: center; }
-    }
-
-    /* Badges */
-    .badge {
-      display: inline-block;
-      padding: 0.25em 0.7em;
-      border-radius: 999px;
-      border: none;
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-
-    .badge--neutro {
-      background: var(--color-border);
-      color: var(--color-text-muted);
-    }
-
-    .badge--ok {
-      background: rgba(45, 143, 94, 0.15);
-      color: var(--color-green);
-    }
-
-    .badge--alerta {
-      background: rgba(192, 68, 60, 0.15);
-      color: var(--color-coral);
-    }
-
-    .badge--warning {
-      background: rgba(255, 225, 0, 0.25);
-      color: #7a6e00;
-    }
-
-    /* Tabs del Carrousel */
-    .carousel-tab {
-      background: transparent;
-      color: var(--color-text-muted);
-      border: none;
-      font-size: 0.72rem;
-      font-weight: 600;
-      padding: 0.35rem;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .carousel-tab.active {
-      background: var(--color-surface);
-      color: var(--color-primary);
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-    }
-
-    /* ---------- Features Grid Section ---------- */
-    .what-to-do-section {
-      padding: 5rem 0;
-      background: #ffffff;
-      border-top: 1px solid var(--color-border);
-      border-bottom: 1px solid var(--color-border);
-    }
-
-    .section-title-holder {
-      text-align: center;
-      margin-bottom: 3.5rem;
-    }
-
-    .section-heading {
-      font-size: 2.1rem;
-      font-weight: 700;
-      letter-spacing: -0.03em;
-    }
-
-    .what-to-do-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1.5rem;
-    }
-
-    @media (max-width: 991px) {
-      .what-to-do-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-
-    @media (max-width: 640px) {
-      .what-to-do-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    /* Tarjetas */
-    .what-card {
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius);
-      padding: 1.85rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      height: 100%;
-      position: relative;
-      transition: all 0.25s;
-    }
-
-    .what-card:hover {
-      border-color: var(--color-primary-soft);
-      box-shadow: var(--shadow-md);
-      transform: translateY(-2px);
-    }
-
-    .what-icon {
-      background: var(--color-primary-soft);
-      color: var(--color-primary);
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.25rem;
-      flex-shrink: 0;
-    }
-
-    .what-title {
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: var(--color-text);
-      letter-spacing: -0.02em;
-    }
-
-    .what-text {
-      font-size: 0.85rem;
-      color: var(--color-text-muted);
-      line-height: 1.5;
-      flex: 1;
-    }
-
-    .what-more-link {
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: var(--color-primary);
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-      cursor: pointer;
-      align-self: flex-start;
-      margin-top: 0.5rem;
-      transition: gap 0.2s;
-    }
-
-    .what-more-link:hover {
-      color: var(--color-primary-hover);
-      gap: 0.5rem;
-    }
-
-    /* ---------- Modales Detallados (Popups) ---------- */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.4);
-      backdrop-filter: blur(4px);
-      z-index: 1000;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 1.5rem;
-      opacity: 0;
-      transition: opacity 0.25s ease;
-    }
-
-    .modal-overlay.active {
-      display: flex;
-      opacity: 1;
-    }
-
-    .modal-card {
-      background: var(--color-surface);
-      border-radius: var(--radius);
-      border: 1px solid var(--color-border-strong);
-      box-shadow: var(--shadow-lg);
-      max-width: 520px;
-      width: 100%;
-      padding: 2.25rem;
-      position: relative;
-      transform: translateY(20px);
-      transition: transform 0.25s ease;
-      display: flex;
-      flex-direction: column;
-      gap: 1.25rem;
-    }
-
-    .modal-overlay.active .modal-card {
-      transform: translateY(0);
-    }
-
-    .modal-close-btn {
-      position: absolute;
-      top: 1.25rem;
-      right: 1.25rem;
-      background: transparent;
-      border: none;
-      font-size: 1.25rem;
-      color: var(--color-text-muted);
-      cursor: pointer;
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.15s;
-    }
-
-    .modal-close-btn:hover {
-      background: var(--color-bg);
-      color: var(--color-text);
-    }
-
-    .modal-header {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .modal-header-text h3 {
-      font-size: 1.3rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-
-    .modal-header-text span {
-      font-size: 0.72rem;
-      font-weight: 700;
-      color: var(--color-primary);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .modal-body {
-      font-size: 0.9rem;
-      line-height: 1.55;
-      color: var(--color-text);
-    }
-
-    /* ---------- Call to Action Final ---------- */
-    .cta-section {
-      padding: 5rem 0;
-      background: var(--color-bg);
-    }
-
-    .cta-card {
-      background: var(--color-primary);
-      color: #ffffff;
-      border-radius: var(--radius);
-      padding: 3.5rem 3rem;
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1.25rem;
-      position: relative;
-      overflow: hidden;
-      box-shadow: var(--shadow-lg);
-    }
-
-    .cta-title {
-      font-size: 2.2rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      position: relative;
-      z-index: 2;
-    }
-
-    .cta-text {
-      font-size: 1rem;
-      color: rgba(255, 255, 255, 0.85);
-      max-width: 580px;
-      position: relative;
-      z-index: 2;
-    }
-
-    /* ---------- Footer ---------- */
-    .footer {
-      background: #1c1917;
-      color: #a8a29e;
-      padding: 4rem 0 3rem;
-      font-size: 0.82rem;
-    }
-
-    .footer-grid {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 1.5rem;
-    }
-
-    @media (max-width: 600px) {
-      .footer-grid {
-        flex-direction: column;
-        text-align: center;
-      }
-    }
-
-    .footer-logo {
-      color: #ffffff;
-      font-weight: 700;
-      font-size: 1.1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      text-decoration: none;
-    }
-
-    .footer-logo-badge {
-      background: var(--color-primary);
-      color: #fff;
-      width: 28px;
-      height: 28px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.8rem;
-      border-radius: 6px;
-    }
-
-    .footer-text span {
-      color: #ffffff;
-      font-weight: 500;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestor Consorcios — Expensas, gastos y cuentas corrientes para administradores</title>
+<meta name="description" content="Prorrateá los gastos por coeficiente, emití las expensas de todos tus edificios e imputá cada pago a la deuda más vieja. Probá el simulador sin registrarte.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ===== TOKENS ===== */
+:root {
+  --color-bg: #f4f0e6;
+  --color-surface: #ffffff;
+  --color-text: #121212;
+  --color-text-muted: #706c64;
+  --color-text-muted-strong: #66625a;
+  --color-border: #e3ded2;
+  --color-border-strong: #d6d0c4;
+  --color-primary: #2c6473;
+  --color-primary-hover: #24525e;
+  --color-primary-soft: #e7f0f3;
+  --color-danger: #b33f38;
+  --color-danger-bg: #f7e0de;
+  --color-success: #26784f;
+  --color-success-bg: #e3efe7;
+  --color-warning: #84691b;
+  --color-warning-bg: #f7efd4;
+
+  --color-mod-inicio: #1b3a4b;
+  --color-mod-cobranzas: #305d4a;
+  --color-mod-gastos: #c0443c;
+  --color-mod-finanzas: #8a6d1c;
+  --color-mod-expensas: #2c6473;
+  --color-mod-operacion: #5b36b8;
+
+  --wa: #25d366;
+
+  --radius-sm: 12px;
+  --radius: 16px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+  --shadow-md: 0 8px 24px rgba(18, 18, 18, 0.1);
+
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Montserrat", var(--font-sans);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.5em;
+}
+
+p { margin: 0 0 1em; line-height: 1.6; }
+a { color: inherit; }
+
+.seccion {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 3.5rem 1.25rem;
+}
+
+@media (min-width: 600px) {
+  .seccion { padding: 5rem 2rem; }
+}
+
+/* Micro-label uppercase del design system de la app */
+.eyebrow {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--color-primary);
+  margin: 0 0 0.75rem;
+}
+
+/* Botones */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  padding: 0.9rem 1.5rem;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  width: 100%;
+}
+
+.btn-primario { background: var(--color-primary); color: #fff; }
+.btn-primario:hover { background: var(--color-primary-hover); }
+
+.btn-wa { background: var(--wa); color: #06301a; }
+.btn-wa:hover { background: #1fbb59; }
+.btn-wa svg { flex-shrink: 0; }
+
+@media (min-width: 600px) {
+  .btn { width: auto; padding: 0.7rem 1.35rem; font-size: 0.9rem; }
+}
+
+/* ===== NAV ===== */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(244, 240, 230, 0.9);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.nav-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.nav-marca {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-mod-inicio);
+}
+
+.nav-links { display: none; }
+
+.nav-cta { width: auto; padding: 0.5rem 1rem; font-size: 0.82rem; }
+
+@media (min-width: 600px) {
+  .nav-inner { padding: 0.85rem 2rem; }
+  .nav-links {
+    display: flex;
+    gap: 1.75rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+  .nav-links a {
+    color: var(--color-text-muted-strong);
+    text-decoration: none;
+  }
+  .nav-links a:hover { color: var(--color-primary); }
+}
+
+/* ===== HERO ===== */
+/* ===== DOLORES ===== */
+/* ===== SIMULADOR ===== */
+/* ===== CTA-SIMULADOR ===== */
+/* ===== CONSORCIO ===== */
+/* ===== MODULOS ===== */
+/* ===== PRECIOS ===== */
+/* ===== CIERRE ===== */
+/* ===== FOOTER ===== */
+.footer {
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.footer-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.footer-marca {
+  font-family: var(--font-display);
+  font-weight: 800;
+  color: var(--color-mod-inicio);
+}
+
+.footer-legal { font-size: 0.85rem; color: var(--color-text-muted); }
+
+@media (min-width: 600px) {
+  .footer-inner {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2rem;
+  }
+}
+</style>
 </head>
 <body>
 
-  <!-- Barra de Navegación -->
-  <nav class="navbar">
-    <div class="container navbar-container">
-      <a href="#" class="logo">
-        <div class="logo-badge">GC</div>
-        <span>Gestor Consorcios</span>
-      </a>
-      <div class="nav-links">
-        <a href="#caracteristicas" class="nav-link">Funcionalidades</a>
-        <a href="#dolores" class="nav-link">Por qué falla</a>
-        <a href="./tutorial.html" class="btn btn-secondary" style="min-height:36px; padding: 0.3rem 1.2rem; font-size: 0.8rem;">
-          Probar Demo
-        </a>
-      </div>
+<!-- ===== NAV ===== -->
+<nav class="nav">
+  <div class="nav-inner">
+    <span class="nav-marca">Gestor Consorcios</span>
+    <div class="nav-links">
+      <a href="#simulador">Cómo funciona</a>
+      <a href="#modulos">Módulos</a>
+      <a href="#precios">Precios</a>
     </div>
-  </nav>
-
-  <!-- Hero Section -->
-  <header class="hero">
-    <div class="container hero-grid">
-      
-      <!-- Contenido Textual (AIDA - Captar Atención) -->
-      <div class="hero-left">
-        <span class="hero-tag">SISTEMA INTEGRAL DE ADMINISTRACIÓN DE EDIFICIOS</span>
-        
-        <h1 class="hero-heading">
-          La gestión de tu <br>
-          <div class="hero-change-tag-holder">
-            <span id="hero-change-tag">consorcio</span>
-          </div><br>
-          sin planillas ni descuadres.
-        </h1>
-
-        <p class="hero-subheader">
-          Liquidá expensas, imputá cobros por antigüedad y publicá comunicados para los propietarios desde un solo lugar. Diseñado para administraciones porteñas.
-        </p>
-
-        <!-- Checklist de Características Hero -->
-        <div class="hero-list">
-          <div class="hero-list-item">
-            <div class="hero-list-icon">✔</div>
-            <div class="hero-list-text"><strong>Liquidación Ley 941 CABA</strong> con rubros oficiales y comprobantes por UF</div>
-          </div>
-          <div class="hero-list-item">
-            <div class="hero-list-icon">✔</div>
-            <div class="hero-list-text"><strong>Imputación automática por antigüedad</strong> — se acaban los cobros a cuenta que descuadran</div>
-          </div>
-          <div class="hero-list-item">
-            <div class="hero-list-icon">✔</div>
-            <div class="hero-list-text"><strong>Portal para copropietarios</strong> con expensas, comprobantes y reservas del SUM</div>
-          </div>
-        </div>
-
-        <div class="hero-actions">
-          <a href="./tutorial.html" class="btn btn-accent" style="min-height: 46px; padding: 0.75rem 1.75rem; font-size: 0.95rem;">
-            Probar demo gratis
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </a>
-          <a href="#caracteristicas" class="btn btn-secondary" style="min-height: 46px;">Ver funcionalidades</a>
-        </div>
-
-        <!-- Honest Demo Tag -->
-        <div class="demo-honest-tag">
-          ⚡ Demo de Evaluación - Sin Cargos ni Registros
-        </div>
-      </div>
-      
-      <!-- Carrousel de Mini Demos Interactivas en la Hero -->
-      <div class="hero-right">
-        <div class="demo-tabs" role="tablist" aria-label="Mini-demos del sistema">
-          <button type="button" class="demo-tab activo" id="demo-tab-0" role="tab" onclick="switchSlide(0)">
-            <span class="demo-tab-num">1</span>
-            Cuentas corrientes
-          </button>
-          <button type="button" class="demo-tab" id="demo-tab-1" role="tab" onclick="switchSlide(1)">
-            <span class="demo-tab-num">2</span>
-            Cierre de período
-          </button>
-          <button type="button" class="demo-tab" id="demo-tab-2" role="tab" onclick="switchSlide(2)">
-            <span class="demo-tab-num">3</span>
-            Reservas
-          </button>
-        </div>
-        <div class="browser-frame">
-          <div class="browser-bar">
-            <div class="browser-dot red"></div>
-            <div class="browser-dot yellow"></div>
-            <div class="browser-dot green"></div>
-            <div class="browser-url">libertad.gestorconsorcios.local/dashboard</div>
-          </div>
-          
-          <div class="browser-content" style="padding: 0; background: var(--color-bg); min-height: 410px; display: flex; flex-direction: column; text-align: left; position: relative; overflow: hidden;">
-            
-            <div class="app-shell" style="height: 100%; display: flex; flex-direction: column; flex: 1;">
-              
-              <!-- Mini Header -->
-              <header class="app-header" style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; border-bottom: 1px solid var(--color-border); padding: 0.4rem 0.75rem; min-height: 38px; font-size: 0.72rem; flex-shrink:0;">
-                <div style="display: flex; align-items: center; gap: 0.35rem;">
-                  <span style="font-weight: 700; color: var(--color-primary);">Edificio Libertad</span>
-                  <span style="color: var(--color-border-strong)">|</span>
-                  <span style="font-size: 0.65rem; background: var(--color-primary-soft); color: var(--color-primary); padding: 0.1rem 0.3rem; border-radius: 4px; font-weight:600;">UF: 6</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--color-text-muted);">
-                  <span>admin@consorcio.local</span>
-                  <span style="font-size: 0.65rem; background: rgba(45, 143, 94, 0.15); color: var(--color-green); padding: 0.1rem 0.3rem; border-radius: 4px; font-weight: 600;">Admin</span>
-                </div>
-              </header>
-
-              <!-- Mini Body -->
-              <div class="app-body" style="display: flex; flex-direction: row; flex: 1; min-height: 0; height: calc(100% - 38px);">
-                
-                <!-- Mini Sidebar -->
-                <aside class="app-sidebar" style="width: 140px; background: var(--color-bg); border-right: 1px solid var(--color-border); padding: 0.5rem 0; display: flex; flex-direction: column; gap: 0.4rem; flex-shrink: 0;">
-                  <div class="sidebar-logo" style="font-size: 0.78rem; font-weight: 700; padding: 0 0.5rem 0.25rem; color: var(--color-text);">Gestor Consorcios</div>
-                  <nav style="display: flex; flex-direction: column; gap: 0.4rem;">
-                    
-                    <div class="sidebar-section">
-                      <div class="sidebar-section-titulo" style="font-size: 0.55rem; font-weight: 600; text-transform: uppercase; color: var(--color-text-muted); padding: 0.25rem 0.5rem; letter-spacing: 0.05em;">Finanzas</div>
-                      <a class="sidebar-link" id="tab-0" onclick="switchSlide(0)" style="font-size: 0.72rem; padding: 0.3rem 0.5rem; color: var(--color-text); text-decoration: none; display: block; cursor: pointer; border-radius: 4px; margin: 0 0.25rem; font-weight: 500; transition: all 0.2s;">Cuentas corrientes</a>
-                    </div>
-                    
-                    <div class="sidebar-section">
-                      <div class="sidebar-section-titulo" style="font-size: 0.55rem; font-weight: 600; text-transform: uppercase; color: var(--color-text-muted); padding: 0.25rem 0.5rem; letter-spacing: 0.05em;">Espacios comunes</div>
-                      <a class="sidebar-link" id="tab-2" onclick="switchSlide(2)" style="font-size: 0.72rem; padding: 0.3rem 0.5rem; color: var(--color-text); text-decoration: none; display: block; cursor: pointer; border-radius: 4px; margin: 0 0.25rem; font-weight: 500; transition: all 0.2s;">Reservas</a>
-                    </div>
-                    
-                    <div class="sidebar-section">
-                      <div class="sidebar-section-titulo" style="font-size: 0.55rem; font-weight: 600; text-transform: uppercase; color: var(--color-text-muted); padding: 0.25rem 0.5rem; letter-spacing: 0.05em;">Configuración</div>
-                      <a class="sidebar-link" id="tab-1" onclick="switchSlide(1)" style="font-size: 0.72rem; padding: 0.3rem 0.5rem; color: var(--color-text); text-decoration: none; display: block; cursor: pointer; border-radius: 4px; margin: 0 0.25rem; font-weight: 500; transition: all 0.2s;">Cierre de período</a>
-                    </div>
-
-                  </nav>
-                </aside>
-                
-                <!-- Mini Content Area -->
-                <main class="app-content" style="flex: 1; padding: 0.75rem; overflow-y: auto; background: #ffffff; display: flex; flex-direction: column;">
-                  
-                  <!-- SLIDE 0: CUENTA CORRIENTE (Imputación por Antigüedad) -->
-                  <div class="carousel-slide" id="slide-0" style="display: flex; flex-direction: column; gap: 0.5rem; flex: 1;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                      <div style="display:flex; flex-direction:column; gap:0.05rem;">
-                        <span style="font-size:0.7rem; font-weight:700; color:var(--color-text);">Cuenta corriente · UF-01A</span>
-                        <span style="font-size:0.55rem; color:var(--color-text-muted);">Piso 1, letra A · Carlos G.</span>
-                      </div>
-                      <span style="font-size:0.6rem; color:var(--color-text-muted); font-style:italic;" id="mini-cuentas-status">Listo</span>
-                    </div>
-
-                    <!-- Balance Card -->
-                    <div style="background:var(--color-surface); border:1px solid var(--color-border); border-left:3px solid var(--color-coral); padding: 0.5rem 0.6rem; border-radius: var(--radius-sm); display:flex; justify-content:space-between; align-items:center;">
-                      <div style="display:flex; flex-direction:column; gap:0.05rem;">
-                        <span style="font-size:0.55rem; font-weight:600; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.04em;">Saldo</span>
-                        <strong id="mini-balance" style="font-size:1rem; color:var(--color-coral); transition: color 0.3s; letter-spacing:-0.01em;">$ 53.000</strong>
-                      </div>
-                      <span class="badge badge--alerta" style="font-size:0.55rem; padding:0.15rem 0.4rem;">En mora</span>
-                    </div>
-
-                    <!-- Tabla de movimientos -->
-                    <div style="display:flex; flex-direction:column; gap:0; flex:1; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); overflow:hidden;">
-                      <!-- Header de tabla -->
-                      <div style="display:grid; grid-template-columns: 55px 1fr 70px; gap:0.4rem; padding:0.3rem 0.5rem; background:var(--color-bg); border-bottom:1px solid var(--color-border); font-size:0.55rem; font-weight:600; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.04em;">
-                        <span>Fecha</span>
-                        <span>Concepto</span>
-                        <span style="text-align:right;">Monto</span>
-                      </div>
-
-                      <!-- Enero -->
-                      <div id="mini-row-1" style="display:grid; grid-template-columns: 55px 1fr 70px; gap:0.4rem; padding:0.4rem 0.5rem; border-bottom:1px solid var(--color-border); align-items:center; transition: background 0.4s;">
-                        <span style="font-size:0.6rem; color:var(--color-text-muted);">05/01</span>
-                        <div style="min-width:0;">
-                          <div style="font-size:0.68rem; font-weight:600;">Expensa Ene 2026</div>
-                          <div style="font-size:0.55rem; color:var(--color-text-muted);" id="mini-detail-1">Vencida hace 12 días</div>
-                        </div>
-                        <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:0.1rem;">
-                          <strong style="font-size:0.7rem; color:var(--color-coral);">+ $ 15.000</strong>
-                          <span class="badge badge--alerta" id="mini-badge-1" style="font-size:0.5rem; padding:0.08rem 0.3rem;">Vencida</span>
-                        </div>
-                      </div>
-
-                      <!-- Febrero -->
-                      <div id="mini-row-2" style="display:grid; grid-template-columns: 55px 1fr 70px; gap:0.4rem; padding:0.4rem 0.5rem; border-bottom:1px solid var(--color-border); align-items:center; transition: background 0.4s;">
-                        <span style="font-size:0.6rem; color:var(--color-text-muted);">05/02</span>
-                        <div style="min-width:0;">
-                          <div style="font-size:0.68rem; font-weight:600;">Expensa Feb 2026</div>
-                          <div style="font-size:0.55rem; color:var(--color-text-muted);" id="mini-detail-2">Vencida hace 5 días</div>
-                        </div>
-                        <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:0.1rem;">
-                          <strong style="font-size:0.7rem; color:var(--color-coral);">+ $ 20.000</strong>
-                          <span class="badge badge--alerta" id="mini-badge-2" style="font-size:0.5rem; padding:0.08rem 0.3rem;">Vencida</span>
-                        </div>
-                      </div>
-
-                      <!-- Marzo -->
-                      <div id="mini-row-3" style="display:grid; grid-template-columns: 55px 1fr 70px; gap:0.4rem; padding:0.4rem 0.5rem; align-items:center; transition: background 0.4s;">
-                        <span style="font-size:0.6rem; color:var(--color-text-muted);">05/03</span>
-                        <div style="min-width:0;">
-                          <div style="font-size:0.68rem; font-weight:600;">Expensa Mar 2026</div>
-                          <div style="font-size:0.55rem; color:var(--color-text-muted);" id="mini-detail-3">Vence en 3 días</div>
-                        </div>
-                        <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:0.1rem;">
-                          <strong style="font-size:0.7rem; color:var(--color-coral);">+ $ 18.000</strong>
-                          <span class="badge badge--alerta" id="mini-badge-3" style="font-size:0.5rem; padding:0.08rem 0.3rem;">Vencida</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Simulación de cobro -->
-                    <div style="display:flex; gap:0.4rem; align-items:center; background: var(--color-primary-soft); padding: 0.4rem 0.5rem; border-radius:var(--radius-sm); margin-top: auto;">
-                      <div style="display:flex; flex-direction:column; gap:0.1rem; flex:1;">
-                        <label style="font-size:0.55rem; color:var(--color-primary); font-weight:700; text-transform:uppercase; letter-spacing:0.04em;">Registrar pago</label>
-                        <input type="number" id="mini-input-payment" value="30000" style="font-size:0.85rem; font-weight:700; border:none; outline:none; background:transparent; padding:0; width:100%; color:var(--color-primary);" min="1000" max="60000" step="5000">
-                      </div>
-                      <button class="btn btn-primary" onclick="runMiniFifo()" id="mini-btn-run" style="min-height:30px; height:30px; padding: 0 0.75rem; font-size:0.65rem; border-radius:15px; background:var(--color-primary); color:#fff; border:none; cursor:pointer; font-weight:600;">
-                        Imputar
-                      </button>
-                      <button class="btn btn-secondary" onclick="resetMiniFifo()" id="mini-btn-reset" style="min-height:30px; height:30px; padding: 0 0.75rem; font-size:0.65rem; border-radius:15px; background:transparent; border:1px solid var(--color-border-strong); color:var(--color-text); cursor:pointer; display:none; font-weight:600;">
-                        Reset
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- SLIDE 1: CIERRE DE PERÍODO (Vista previa) -->
-                  <div class="carousel-slide" id="slide-1" style="display: none; flex-direction: column; gap: 0.5rem; flex: 1;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                      <div style="display:flex; flex-direction:column; gap:0.05rem;">
-                        <span style="font-size:0.7rem; font-weight:700; color:var(--color-text);">Cierre de período · Julio 2026</span>
-                        <span style="font-size:0.55rem; color:var(--color-text-muted);">Vista previa · Ley 941 CABA</span>
-                      </div>
-                      <span class="badge badge--ok" style="font-size:0.55rem; padding:0.15rem 0.4rem;">✓ Listo</span>
-                    </div>
-
-                    <!-- Validaciones -->
-                    <div style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:0.4rem 0.5rem; display:flex; flex-direction:column; gap:0.2rem;">
-                      <span style="font-size:0.55rem; font-weight:600; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.1rem;">Validaciones</span>
-                      <div style="display:flex; gap:0.35rem; align-items:center; font-size:0.62rem;">
-                        <span style="color:var(--color-green); font-weight:700;">✓</span>
-                        <span style="color:var(--color-text);">Gastos del período cargados (11)</span>
-                      </div>
-                      <div style="display:flex; gap:0.35rem; align-items:center; font-size:0.62rem;">
-                        <span style="color:var(--color-green); font-weight:700;">✓</span>
-                        <span style="color:var(--color-text);">Coeficientes de prorrateo suman 100%</span>
-                      </div>
-                      <div style="display:flex; gap:0.35rem; align-items:center; font-size:0.62rem;">
-                        <span style="color:var(--color-green); font-weight:700;">✓</span>
-                        <span style="color:var(--color-text);">Sin conflictos con períodos anteriores</span>
-                      </div>
-                    </div>
-
-                    <!-- Input total + selector -->
-                    <div style="background:var(--color-bg); border:1px solid var(--color-border); padding: 0.4rem 0.5rem; border-radius: var(--radius-sm); display:flex; justify-content:space-between; align-items:center;">
-                      <div style="display:flex; flex-direction:column; gap:0.05rem; text-align:left;">
-                        <span style="font-size:0.55rem; font-weight:600; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.04em;">Total a expensar</span>
-                        <input type="number" id="prorrateo-input-total" value="300000" oninput="runProrrateo(this.value)" style="font-size:0.9rem; font-weight:700; border:none; outline:none; background:transparent; padding:0; width:100%; color:var(--color-primary); letter-spacing:-0.01em;">
-                      </div>
-                      <div style="display:flex; gap:0.2rem;">
-                        <button onclick="changeProrrateoTotal(200000)" style="padding:0.2rem 0.4rem; border:1px solid var(--color-border-strong); background:var(--color-surface); border-radius:4px; cursor:pointer; font-size:0.55rem; font-weight:600;">200k</button>
-                        <button onclick="changeProrrateoTotal(300000)" style="padding:0.2rem 0.4rem; border:1px solid var(--color-border-strong); background:var(--color-surface); border-radius:4px; cursor:pointer; font-size:0.55rem; font-weight:600;">300k</button>
-                        <button onclick="changeProrrateoTotal(450000)" style="padding:0.2rem 0.4rem; border:1px solid var(--color-border-strong); background:var(--color-surface); border-radius:4px; cursor:pointer; font-size:0.55rem; font-weight:600;">450k</button>
-                      </div>
-                    </div>
-
-                    <!-- Boletas por UF (preview) -->
-                    <div style="display:flex; flex-direction:column; gap:0; flex:1; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-sm); overflow:hidden;">
-                      <div style="display:grid; grid-template-columns: 1fr 60px 80px; gap:0.4rem; padding:0.3rem 0.5rem; background:var(--color-bg); border-bottom:1px solid var(--color-border); font-size:0.55rem; font-weight:600; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.04em;">
-                        <span>UF</span>
-                        <span style="text-align:right;">Coef.</span>
-                        <span style="text-align:right;">A pagar</span>
-                      </div>
-                      <div style="display:grid; grid-template-columns: 1fr 60px 80px; gap:0.4rem; padding:0.35rem 0.5rem; border-bottom:1px solid var(--color-border); align-items:center; font-size:0.65rem;">
-                        <div>
-                          <div style="font-weight:600;">UF-01A</div>
-                          <div style="font-size:0.55rem; color:var(--color-text-muted);">Carlos G.</div>
-                        </div>
-                        <span style="text-align:right; color:var(--color-text-muted); font-size:0.6rem;">15,00 %</span>
-                        <strong id="prorrateo-uf-1" style="text-align:right; color:var(--color-primary);">$ 45.000</strong>
-                      </div>
-                      <div style="display:grid; grid-template-columns: 1fr 60px 80px; gap:0.4rem; padding:0.35rem 0.5rem; border-bottom:1px solid var(--color-border); align-items:center; font-size:0.65rem;">
-                        <div>
-                          <div style="font-weight:600;">UF-02A</div>
-                          <div style="font-size:0.55rem; color:var(--color-text-muted);">Daniel P.</div>
-                        </div>
-                        <span style="text-align:right; color:var(--color-text-muted); font-size:0.6rem;">20,00 %</span>
-                        <strong id="prorrateo-uf-2" style="text-align:right; color:var(--color-primary);">$ 60.000</strong>
-                      </div>
-                      <div style="display:grid; grid-template-columns: 1fr 60px 80px; gap:0.4rem; padding:0.35rem 0.5rem; align-items:center; font-size:0.65rem;">
-                        <div>
-                          <div style="font-weight:600;">UF-03A</div>
-                          <div style="font-size:0.55rem; color:var(--color-text-muted);">Elena R.</div>
-                        </div>
-                        <span style="text-align:right; color:var(--color-text-muted); font-size:0.6rem;">15,00 %</span>
-                        <strong id="prorrateo-uf-3" style="text-align:right; color:var(--color-primary);">$ 45.000</strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- SLIDE 2: RESERVAS DE AMENITIES -->
-                  <div class="carousel-slide" id="slide-2" style="display: none; flex-direction: column; gap: 0.5rem; flex: 1;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                      <div style="display:flex; flex-direction:column; gap:0.05rem;">
-                        <span style="font-size:0.7rem; font-weight:700; color:var(--color-text);">Reservas</span>
-                        <span style="font-size:0.55rem; color:var(--color-text-muted);">Portal del copropietario · UF-02A</span>
-                      </div>
-                      <span style="font-size:0.6rem; color:var(--color-text-muted);">Sáb 11/07</span>
-                    </div>
-
-                    <!-- Selector de amenity (chips) -->
-                    <div style="display:flex; gap:0.25rem; align-items:center;">
-                      <button style="padding:0.25rem 0.55rem; border:1px solid var(--color-primary); background:var(--color-primary-soft); color:var(--color-primary); border-radius:12px; cursor:pointer; font-size:0.6rem; font-weight:600;">SUM</button>
-                      <button style="padding:0.25rem 0.55rem; border:1px solid var(--color-border-strong); background:var(--color-surface); color:var(--color-text-muted); border-radius:12px; cursor:pointer; font-size:0.6rem; font-weight:500;">Parrilla</button>
-                      <button style="padding:0.25rem 0.55rem; border:1px solid var(--color-border-strong); background:var(--color-surface); color:var(--color-text-muted); border-radius:12px; cursor:pointer; font-size:0.6rem; font-weight:500;">Laundry</button>
-                    </div>
-
-                    <!-- Info del amenity -->
-                    <div style="background:var(--color-bg); border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:0.35rem 0.5rem; font-size:0.58rem; color:var(--color-text-muted); display:flex; justify-content:space-between;">
-                      <span>Capacidad: <strong style="color:var(--color-text);">40 personas</strong></span>
-                      <span>Cancel. mín.: <strong style="color:var(--color-text);">48 hs</strong></span>
-                    </div>
-
-                    <!-- Slots del día -->
-                    <div style="display:flex; flex-direction:column; gap:0.35rem; flex:1;">
-                      <span style="font-size:0.55rem; font-weight:600; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.04em;">Turnos del sábado</span>
-
-                      <!-- Slot Tarde -->
-                      <div style="background:var(--color-surface); border:1px solid var(--color-border); border-left:3px solid var(--color-coral); padding:0.4rem 0.5rem; border-radius:var(--radius-sm); display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                          <div style="font-size:0.7rem; font-weight:600;">12:00 – 18:00</div>
-                          <div style="font-size:0.55rem; color:var(--color-text-muted);">Reservado por UF-03A (Elena R.)</div>
-                        </div>
-                        <span class="badge badge--alerta" style="font-size:0.55rem; padding:0.15rem 0.4rem; background:rgba(192,68,60,0.1); color:var(--color-coral);">Ocupado</span>
-                      </div>
-
-                      <!-- Slot Noche (jugable) -->
-                      <div id="mini-reserva-row-2" style="background:var(--color-surface); border:1px solid var(--color-border); border-left:3px solid var(--color-primary); padding:0.4rem 0.5rem; border-radius:var(--radius-sm); display:flex; justify-content:space-between; align-items:center; transition: all 0.4s;">
-                        <div>
-                          <div style="font-size:0.7rem; font-weight:600;">19:00 – 00:00</div>
-                          <div style="font-size:0.55rem; color:var(--color-text-muted);" id="mini-reserva-detail-2">Disponible · $ 8.500 por turno</div>
-                        </div>
-                        <span class="badge badge--neutro" id="mini-reserva-badge-2" style="font-size:0.55rem; padding:0.15rem 0.4rem; background:var(--color-primary-soft); color:var(--color-primary);">Disponible</span>
-                      </div>
-                    </div>
-
-                    <div style="display:flex; justify-content:flex-end; gap:0.4rem; margin-top: auto;">
-                      <button class="btn btn-primary" id="mini-reserva-btn-run" onclick="runMiniReserva()" style="min-height:30px; height:30px; font-size:0.65rem; padding: 0 0.85rem; border-radius:15px; background:var(--color-primary); color:#fff; border:none; cursor:pointer; font-weight:600;">
-                        Reservar 19:00 – 00:00
-                      </button>
-                      <button class="btn btn-secondary" id="mini-reserva-btn-reset" onclick="resetMiniReserva()" style="min-height:30px; height:30px; font-size:0.65rem; padding: 0 0.75rem; border-radius:15px; background:transparent; border:1px solid var(--color-border-strong); color:var(--color-text); cursor:pointer; display:none; font-weight:600;">
-                        Cancelar
-                      </button>
-                    </div>
-                  </div>
-
-                </main>
-              </div>
-        </div>
-        </div>
-      </div>
-
-    </div>
-  </header>
-
-  <!-- Seccion dolores (Psychology: Empatía) -->
-  <section class="what-to-do-section" id="dolores" style="background:#faf9f6;">
-    <div class="container">
-      <div class="section-title-holder" style="margin-bottom: 2.5rem;">
-        <span class="hero-tag">POR QUÉ EXCEL YA NO ALCANZA</span>
-        <h2 class="section-heading" style="margin-top: 0.5rem;">Administrar un edificio no debería ser un caos contable.</h2>
-      </div>
-
-      <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; text-align: left;">
-        <div style="background:var(--color-surface); border:1px solid var(--color-border); padding: 1.5rem; border-radius: var(--radius); box-shadow: var(--shadow-md);">
-          <div style="color:var(--color-coral); font-size:1.5rem; margin-bottom:0.5rem;">⚠</div>
-          <h4 style="font-size:1rem; font-weight:700; margin-bottom:0.5rem;">Cobros a cuenta que descuadran</h4>
-          <p style="font-size:0.85rem; color:var(--color-text-muted); line-height:1.5;">
-            Un propietario paga de más, otro paga la mitad. Imputar a mano genera errores contables que aparecen recién en el cierre, cuando ya es tarde.
-          </p>
-        </div>
-        <div style="background:var(--color-surface); border:1px solid var(--color-border); padding: 1.5rem; border-radius: var(--radius); box-shadow: var(--shadow-md);">
-          <div style="color:var(--color-coral); font-size:1.5rem; margin-bottom:0.5rem;">⚠</div>
-          <h4 style="font-size:1rem; font-weight:700; margin-bottom:0.5rem;">Cierres manuales de horas</h4>
-          <p style="font-size:0.85rem; color:var(--color-text-muted); line-height:1.5;">
-            Prorratear gastos por rubro y armar la liquidación de cada UF según Ley 941 se lleva días de trabajo administrativo cada mes.
-          </p>
-        </div>
-        <div style="background:var(--color-surface); border:1px solid var(--color-border); padding: 1.5rem; border-radius: var(--radius); box-shadow: var(--shadow-md);">
-          <div style="color:var(--color-coral); font-size:1.5rem; margin-bottom:0.5rem;">⚠</div>
-          <h4 style="font-size:1rem; font-weight:700; margin-bottom:0.5rem;">Copropietarios sin visibilidad</h4>
-          <p style="font-size:0.85rem; color:var(--color-text-muted); line-height:1.5;">
-            El mail del administrador se satura con pedidos de saldos, comprobantes y reservas del SUM. Todo por no tener un portal online.
-          </p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Features Grid Section (Alineado con features reales del sistema) -->
-  <section class="what-to-do-section" id="caracteristicas">
-    <div class="container">
-      
-      <div class="section-title-holder">
-        <span class="hero-tag">TODO EN UNA PLATAFORMA</span>
-        <h2 class="section-heading" style="margin-top: 0.5rem;">Los módulos que una administración moderna necesita.</h2>
-      </div>
-
-      <div class="what-to-do-grid">
-        
-        <!-- Card 1: Imputación de pagos por antigüedad -->
-        <div class="what-card">
-          <div class="what-icon">⇄</div>
-          <h3 class="what-title">Cuentas corrientes por UF</h3>
-          <p class="what-text">
-            Historial contable individual con saldo consolidado. Los cobros a cuenta se imputan automáticamente a las expensas más antiguas (FIFO).
-          </p>
-          <a class="what-more-link" onclick="openDetailsModal('fifo')">
-            Ver más
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </a>
-        </div>
-
-        <!-- Card 2: Ley 941 -->
-        <div class="what-card">
-          <div class="what-icon">⚖</div>
-          <h3 class="what-title">Liquidación Ley 941</h3>
-          <p class="what-text">
-            Prorrateo mensual por coeficiente y comprobantes con el formato que exige la Ley 941 CABA. Rubros oficiales configurables.
-          </p>
-          <a class="what-more-link" onclick="openDetailsModal('ley941')">
-            Ver más
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </a>
-        </div>
-
-        <!-- Card 3: Padrón -->
-        <div class="what-card">
-          <div class="what-icon">👥</div>
-          <h3 class="what-title">Padrón del edificio</h3>
-          <p class="what-text">
-            Unidades funcionales, coeficientes de prorrateo, propietarios, inquilinos y representantes. Usuarios de acceso al portal por UF.
-          </p>
-          <a class="what-more-link" onclick="openDetailsModal('padron')">
-            Ver más
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </a>
-        </div>
-
-        <!-- Card 4: Gastos y Mantenimiento -->
-        <div class="what-card">
-          <div class="what-icon">💸</div>
-          <h3 class="what-title">Egresos y proveedores</h3>
-          <p class="what-text">
-            Facturas, abonos, seguros, gastos habituales y planes en cuotas. Cada gasto se clasifica por rubro y va a prorrateo o a un depto puntual.
-          </p>
-          <a class="what-more-link" onclick="openDetailsModal('gastos')">
-            Ver más
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </a>
-        </div>
-
-        <!-- Card 5: Liquidación de Haberes -->
-        <div class="what-card">
-          <div class="what-icon">💼</div>
-          <h3 class="what-title">Sueldos y cargas sociales</h3>
-          <p class="what-text">
-            Liquidación mensual del encargado con haberes y conceptos snapshot. Genera automáticamente los gastos del rubro sueldos.
-          </p>
-          <a class="what-more-link" onclick="openDetailsModal('haberes')">
-            Ver más
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </a>
-        </div>
-
-        <!-- Card 6: Amenities y Reservas -->
-        <div class="what-card">
-          <div class="what-icon">📅</div>
-          <h3 class="what-title">Amenities y reservas</h3>
-          <p class="what-text">
-            SUM, parrilla, laundry. Los copropietarios reservan desde el portal, con control de disponibilidad y anticipación mínima de cancelación.
-          </p>
-          <a class="what-more-link" onclick="openDetailsModal('amenities')">
-            Ver más
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </a>
-        </div>
-
-      </div>
-
-    </div>
-  </section>
-
-  <!-- Section de imagen de la ciudad en la zona intermedia -->
-  <section style="padding: 4rem 0; background: var(--color-surface); text-align: center; border-bottom: 1px solid var(--color-border);">
-    <div class="container" style="max-width: 800px; display:flex; flex-direction:column; gap:1.5rem; align-items:center;">
-      <span class="hero-tag">CONVIVENCIA Y TRANSPARENCIA</span>
-      <h3 style="font-size:1.8rem; font-weight:700; letter-spacing:-0.02em;">Menos morosidad. Asambleas más cortas.</h3>
-      <p style="font-size:0.95rem; color:var(--color-text-muted); max-width:600px;">
-        Cuando cada copropietario ve en su portal la deuda, los gastos del mes y los comprobantes de pago, las discusiones sobre las expensas cambian de tono. La transparencia es la mejor cobranza.
-      </p>
-      <div style="border-radius:var(--radius); overflow:hidden; border:1px solid var(--color-border); box-shadow:var(--shadow-md); width:100%;">
-        <img src="consorcio_hero.png" alt="Fachada del edificio administrado" style="width:100%; display:block;">
-      </div>
-    </div>
-  </section>
-
-  <!-- Call to Action Final -->
-  <section class="cta-section">
-    <div class="container">
-      
-      <div class="cta-card">
-        <h2 class="cta-title">Probá la plataforma en vivo.</h2>
-        <p class="cta-text">
-          Cargamos un consorcio de demostración con 60 UFs, seis meses de gastos y expensas ya emitidas. En 5 minutos ves si te sirve — sin instalar nada, sin dar tu tarjeta.
-        </p>
-        <a href="./tutorial.html" class="btn btn-accent" style="font-size: 1rem; padding: 0.8rem 2rem; min-height: 48px; position:relative; z-index:2;">
-          Entrar al demo
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-        </a>
-      </div>
-
-    </div>
-  </section>
-
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="container footer-grid">
-      <a href="#" class="footer-logo">
-        <div class="footer-logo-badge">GC</div>
-        <span>Gestor Consorcios</span>
-      </a>
-      <div class="footer-text">
-        <span>© 2026 Gestor Consorcios.</span> Todos los derechos reservados. Desarrollado con tecnología de Command Soluciones.
-      </div>
-    </div>
-  </footer>
-
-  <!-- MODAL DE DETALLES -->
-  <div class="modal-overlay" id="details-modal-overlay" onclick="closeDetailsModal(event)">
-    <div class="modal-card" onclick="event.stopPropagation()">
-      <button class="modal-close-btn" onclick="closeDetailsModal(null)">×</button>
-      
-      <div class="modal-header">
-        <div class="what-icon" id="modal-icon">⇄</div>
-        <div class="modal-header-text">
-          <span id="modal-tag">Módulo</span>
-          <h3 id="modal-title">Título del Detalle</h3>
-        </div>
-      </div>
-      
-      <div class="modal-body" id="modal-desc">
-        Descripción detallada de la funcionalidad.
-      </div>
-      
-      <div style="display:flex; justify-content:flex-end; margin-top:0.5rem;">
-        <button class="btn btn-primary" onclick="closeDetailsModal(null)" style="min-height:36px; font-size:0.8rem; border-radius:15px; height:36px;">Entendido</button>
-      </div>
-    </div>
+    <a class="btn btn-primario nav-cta" href="https://consorciosdemo.vercel.app/" target="_blank" rel="noopener">Entrar al demo</a>
   </div>
+</nav>
 
-  <!-- LÓGICA DE INTERACTIVIDAD (TAG DINÁMICO, MODAL Y CARROUSEL AUTO-PLAY) -->
-  <script>
-    // Helper Formato Moneda ARS
-    function formatMoney(amount) {
-      return Number(amount).toLocaleString("es-AR", {
-        style: "currency",
-        currency: "ARS",
-      });
-    }
+<!-- ===== HERO ===== -->
+<!-- ===== DOLORES ===== -->
+<!-- ===== SIMULADOR ===== -->
+<!-- ===== CTA-SIMULADOR ===== -->
+<!-- ===== CONSORCIO ===== -->
+<!-- ===== MODULOS ===== -->
+<!-- ===== PRECIOS ===== -->
+<!-- ===== CIERRE ===== -->
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+  <div class="footer-inner">
+    <span class="footer-marca">Gestor Consorcios</span>
+    <span class="footer-legal">Sistema de gestión para administradores de consorcios.</span>
+  </div>
+</footer>
 
-    // 1. Lógica del tag dinámico de la Hero Section
-    const words = ["consorcio", "edificio", "administración"];
-    let index = 0;
-    const changeTag = document.getElementById("hero-change-tag");
+<script>
+const WHATSAPP = "5491178959108";
 
-    setInterval(() => {
-      index = (index + 1) % words.length;
-      
-      // Animación de salida
-      changeTag.style.opacity = 0;
-      changeTag.style.transform = "translateY(10px)";
-      
-      setTimeout(() => {
-        changeTag.innerText = words[index];
-        // Animación de entrada
-        changeTag.style.opacity = 1;
-        changeTag.style.transform = "translateY(0)";
-      }, 250);
-    }, 2500);
+function linkWhatsApp(mensaje) {
+  return "https://wa.me/" + WHATSAPP + "?text=" + encodeURIComponent(mensaje);
+}
 
-    // 2. Base de datos de detalles de funcionalidades reales
-    const featuresDetails = {
-      fifo: {
-        title: "Cuentas Corrientes e Imputación de Pagos",
-        icon: "⇄",
-        desc: "El sistema de imputación de pagos procesa la cuenta corriente unificada de cada departamento de forma automatizada. Al ingresar un pago, el sistema lo destina en orden cronológico a saldar la deuda más antigua del consorcista. Esto previene descuadres y simplifica la conciliación, asegurando que los saldos de deudores y créditos a favor sean siempre correctos y fáciles de auditar."
-      },
-      ley941: {
-        title: "Liquidación de Expensas CABA",
-        icon: "⚖",
-        desc: "Módulo diseñado bajo la normativa legal de la Ley 941 de la Ciudad Autónoma de Buenos Aires. Agrupa los gastos en los rubros obligatorios de la liquidación oficial (Haberes del encargado, Cargas sociales, Servicios públicos, Abonos de servicios, Mantenimiento de partes comunes y Seguros). Genera comprobantes y resúmenes estructurados listos para ser auditados."
-      },
-      padron: {
-        title: "Padrón de Copropietarios",
-        icon: "👥",
-        desc: "Panel de administración del padrón de departamentos de la copropiedad. Permite registrar las unidades funcionales (UF), asignar coeficientes porcentuales de participación y asociar datos de inquilinos y propietarios. Es la base que utiliza el sistema para el prorrateo de los gastos del consorcio."
-      },
-      gastos: {
-        title: "Egresos y Trabajos",
-        icon: "💸",
-        desc: "Carga y categorización de facturas de proveedores, seguros y servicios recurrentes. El módulo de Trabajos permite llevar un control y seguimiento detallado de obras de reparación en partes comunes, tareas de mantenimiento del edificio e incidencias informadas por los consorcistas."
-      },
-      haberes: {
-        title: "Haberes y Cargas Sociales",
-        icon: "💼",
-        desc: "Liquidación de haberes y cálculo de sueldos para el encargado (portero) del consorcio, ayudantes y personal contratado. Permite la carga de horas extras, adicionales reglamentarios y cálculo automatizado de cargas sociales y aportes del personal del edificio."
-      },
-      amenities: {
-        title: "Amenities y Reservas",
-        icon: "📅",
-        desc: "Módulo de reserva digital de espacios comunes (SUM, parrilla, terrazas). Permite definir horarios habilitados, cupos de personas y bloquear automáticamente los turnos a departamentos que acumulen expensas deudas vencidas, incentivando la regularización de saldos."
-      }
-    };
-
-    // 3. Lógica para abrir/cerrar modal de detalles
-    const overlay = document.getElementById("details-modal-overlay");
-    const mIcon = document.getElementById("modal-icon");
-    const mTitle = document.getElementById("modal-title");
-    const mDesc = document.getElementById("modal-desc");
-
-    function openDetailsModal(key) {
-      const data = featuresDetails[key];
-      if (!data) return;
-
-      mIcon.innerText = data.icon;
-      mTitle.innerText = data.title;
-      mDesc.innerHTML = data.desc;
-
-      overlay.style.display = "flex";
-      void overlay.offsetWidth;
-      overlay.classList.add("active");
-    }
-
-    function closeDetailsModal(event) {
-      overlay.classList.remove("active");
-      setTimeout(() => {
-        overlay.style.display = "none";
-      }, 250);
-    }
-
-    // 4. Lógica de Pestañas/Slides del Carrousel con Auto-Play
-    let currentSlide = 0;
-    let autoSlideInterval = setInterval(autoRotateSlide, 5000);
-
-    function autoRotateSlide() {
-      currentSlide = (currentSlide + 1) % 3;
-      switchSlide(currentSlide, false);
-    }
-
-    function switchSlide(slideIndex, stopInterval = true) {
-      if (stopInterval) {
-        clearInterval(autoSlideInterval);
-      }
-      currentSlide = slideIndex;
-
-      // Ocultar todas las slides
-      const slides = document.querySelectorAll(".carousel-slide");
-      slides.forEach(s => s.style.display = "none");
-
-      // Desactivar todos los enlaces de la simulación
-      const tabs = document.querySelectorAll(".browser-content .sidebar-link");
-      tabs.forEach(t => {
-        t.style.background = "transparent";
-        t.style.color = "var(--color-text)";
-        t.style.fontWeight = "500";
-        t.classList.remove("activo");
-      });
-
-      // Desactivar todos los tabs externos
-      const externalTabs = document.querySelectorAll(".demo-tab");
-      externalTabs.forEach(t => t.classList.remove("activo"));
-
-      // Mostrar slide y pestaña seleccionada
-      const targetSlide = document.getElementById(`slide-${slideIndex}`);
-      if (targetSlide) targetSlide.style.display = "flex";
-
-      const activeTab = document.getElementById(`tab-${slideIndex}`);
-      if (activeTab) {
-        activeTab.style.background = "var(--color-primary-soft)";
-        activeTab.style.color = "var(--color-primary)";
-        activeTab.style.fontWeight = "600";
-        activeTab.classList.add("activo");
-      }
-
-      const activeExternalTab = document.getElementById(`demo-tab-${slideIndex}`);
-      if (activeExternalTab) activeExternalTab.classList.add("activo");
-    }
-
-    // Inicializar visualmente en el primer slide al cargar
-    switchSlide(0, false);
-
-    // ---------- SLIDE 0: Lógica de la Mini Demo de Imputación ----------
-    let miniOriginalDebts = [
-      { id: 1, period: "Enero", amount: 15000, paid: 0 },
-      { id: 2, period: "Febrero", amount: 20000, paid: 0 },
-      { id: 3, period: "Marzo", amount: 18000, paid: 0 }
-    ];
-
-    function runMiniFifo() {
-      clearInterval(autoSlideInterval); // Detener auto-giro al interactuar
-      const paymentInput = document.getElementById("mini-input-payment");
-      const paymentVal = parseFloat(paymentInput.value) || 0;
-      if (paymentVal <= 0) return;
-
-      // Deshabilitar controles
-      const runBtn = document.getElementById("mini-btn-run");
-      runBtn.disabled = true;
-      paymentInput.disabled = true;
-
-      let remaining = paymentVal;
-      let debts = JSON.parse(JSON.stringify(miniOriginalDebts));
-
-      // Paso 1: Enero
-      setTimeout(() => {
-        const row1 = document.getElementById("mini-row-1");
-        row1.style.background = "#fffdeb";
-        row1.style.borderLeftColor = "var(--color-yellow)";
-        document.getElementById("mini-cuentas-status").innerText = "Procesando Enero...";
-
-        setTimeout(() => {
-          const allocated = Math.min(remaining, debts[0].amount);
-          debts[0].paid = allocated;
-          remaining -= allocated;
-
-          const detail1 = document.getElementById("mini-detail-1");
-          const badge1 = document.getElementById("mini-badge-1");
-
-          detail1.innerText = `Abonado: ${formatMoney(allocated)} / Deuda: ${formatMoney(debts[0].amount)}`;
-          if (debts[0].paid === debts[0].amount) {
-            badge1.className = "badge badge--ok";
-            badge1.innerText = "Confirmada";
-            row1.style.background = "rgba(45, 143, 94, 0.08)";
-            row1.style.borderLeftColor = "var(--color-green)";
-          } else {
-            badge1.className = "badge badge--warning";
-            badge1.innerText = "Parcial";
-            row1.style.background = "#fffdeb";
-          }
-
-          // Paso 2: Febrero
-          setTimeout(() => {
-            const row2 = document.getElementById("mini-row-2");
-            row2.style.background = "#fffdeb";
-            row2.style.borderLeftColor = "var(--color-yellow)";
-            document.getElementById("mini-cuentas-status").innerText = "Procesando Febrero...";
-
-            setTimeout(() => {
-              const allocated2 = Math.min(remaining, debts[1].amount);
-              debts[1].paid = allocated2;
-              remaining -= allocated2;
-
-              const detail2 = document.getElementById("mini-detail-2");
-              const badge2 = document.getElementById("mini-badge-2");
-
-              detail2.innerText = `Abonado: ${formatMoney(allocated2)} / Deuda: ${formatMoney(debts[1].amount)}`;
-              if (debts[1].paid === debts[1].amount) {
-                badge2.className = "badge badge--ok";
-                badge2.innerText = "Confirmada";
-                row2.style.background = "rgba(45, 143, 94, 0.08)";
-                row2.style.borderLeftColor = "var(--color-green)";
-              } else if (debts[1].paid > 0) {
-                badge2.className = "badge badge--warning";
-                badge2.innerText = "Parcial";
-                row2.style.background = "#fffdeb";
-                row2.style.borderLeftColor = "var(--color-yellow)";
-              } else {
-                row2.style.background = "var(--color-surface)";
-                row2.style.borderLeftColor = "var(--color-coral)";
-              }
-
-              // Paso 3: Marzo
-              setTimeout(() => {
-                const row3 = document.getElementById("mini-row-3");
-                row3.style.background = "#fffdeb";
-                row3.style.borderLeftColor = "var(--color-yellow)";
-                document.getElementById("mini-cuentas-status").innerText = "Procesando Marzo...";
-
-                setTimeout(() => {
-                  const allocated3 = Math.min(remaining, debts[2].amount);
-                  debts[2].paid = allocated3;
-                  remaining -= allocated3;
-
-                  const detail3 = document.getElementById("mini-detail-3");
-                  const badge3 = document.getElementById("mini-badge-3");
-
-                  detail3.innerText = `Abonado: ${formatMoney(allocated3)} / Deuda: ${formatMoney(debts[2].amount)}`;
-                  if (debts[2].paid === debts[2].amount) {
-                    badge3.className = "badge badge--ok";
-                    badge3.innerText = "Confirmada";
-                    row3.style.background = "rgba(45, 143, 94, 0.08)";
-                    row3.style.borderLeftColor = "var(--color-green)";
-                  } else if (debts[2].paid > 0) {
-                    badge3.className = "badge badge--warning";
-                    badge3.innerText = "Parcial";
-                    row3.style.background = "#fffdeb";
-                    row3.style.borderLeftColor = "var(--color-yellow)";
-                  } else {
-                    row3.style.background = "var(--color-surface)";
-                    row3.style.borderLeftColor = "var(--color-coral)";
-                  }
-
-                  // Fin de la simulación
-                  document.getElementById("mini-cuentas-status").innerText = "Pago imputado contable";
-                  
-                  // Actualizar balance deudor
-                  const totalPending = 53000 - paymentVal;
-                  const balanceEl = document.getElementById("mini-balance");
-                  if (totalPending > 0) {
-                    balanceEl.innerText = formatMoney(totalPending);
-                    balanceEl.style.color = "var(--color-coral)";
-                  } else if (totalPending < 0) {
-                    balanceEl.innerText = `A Favor: ${formatMoney(Math.abs(totalPending))}`;
-                    balanceEl.style.color = "var(--color-green)";
-                  } else {
-                    balanceEl.innerText = "$ 0,00";
-                    balanceEl.style.color = "var(--color-text)";
-                  }
-
-                  // Intercambiar botones
-                  runBtn.style.display = "none";
-                  document.getElementById("mini-btn-reset").style.display = "inline-flex";
-
-                }, 500);
-              }, 400);
-            }, 500);
-          }, 400);
-        }, 500);
-      }, 300);
-    }
-
-    function resetMiniFifo() {
-      // Revertir deudas a valores iniciales
-      const row1 = document.getElementById("mini-row-1");
-      const row2 = document.getElementById("mini-row-2");
-      const row3 = document.getElementById("mini-row-3");
-
-      row1.style.background = "var(--color-surface)";
-      row1.style.borderLeftColor = "var(--color-coral)";
-      row2.style.background = "var(--color-surface)";
-      row2.style.borderLeftColor = "var(--color-coral)";
-      row3.style.background = "var(--color-surface)";
-      row3.style.borderLeftColor = "var(--color-coral)";
-
-      document.getElementById("mini-badge-1").className = "badge badge--alerta";
-      document.getElementById("mini-badge-1").innerText = "Vencida";
-      document.getElementById("mini-badge-2").className = "badge badge--alerta";
-      document.getElementById("mini-badge-2").innerText = "Vencida";
-      document.getElementById("mini-badge-3").className = "badge badge--alerta";
-      document.getElementById("mini-badge-3").innerText = "Vencida";
-
-      document.getElementById("mini-detail-1").innerText = "Deuda: $ 15.000,00";
-      document.getElementById("mini-detail-2").innerText = "Deuda: $ 20.000,00";
-      document.getElementById("mini-detail-3").innerText = "Deuda: $ 18.000,00";
-
-      document.getElementById("mini-balance").innerText = "$ 53.000,00";
-      document.getElementById("mini-balance").style.color = "var(--color-coral)";
-      document.getElementById("mini-cuentas-status").innerText = "Listo";
-
-      // Habilitar controles
-      const runBtn = document.getElementById("mini-btn-run");
-      runBtn.disabled = false;
-      runBtn.style.display = "inline-flex";
-      
-      const paymentInput = document.getElementById("mini-input-payment");
-      paymentInput.disabled = false;
-      paymentInput.value = "30000";
-
-      document.getElementById("mini-btn-reset").style.display = "none";
-    }
-
-    // ---------- SLIDE 1: Lógica del Prorrateo ----------
-    function runProrrateo(totalVal) {
-      clearInterval(autoSlideInterval); // Detener auto-giro al interactuar
-      const total = parseFloat(totalVal) || 0;
-      document.getElementById("prorrateo-uf-1").innerText = formatMoney(total * 0.15);
-      document.getElementById("prorrateo-uf-2").innerText = formatMoney(total * 0.20);
-      document.getElementById("prorrateo-uf-3").innerText = formatMoney(total * 0.15);
-    }
-
-    function changeProrrateoTotal(amount) {
-      clearInterval(autoSlideInterval);
-      document.getElementById("prorrateo-input-total").value = amount;
-      runProrrateo(amount);
-    }
-
-    // ---------- SLIDE 2: Lógica de la Mini Demo de Reservas ----------
-    function runMiniReserva() {
-      clearInterval(autoSlideInterval); // Detener auto-giro al interactuar
-      const row = document.getElementById("mini-reserva-row-2");
-      row.style.borderLeftColor = "var(--color-green)";
-      row.style.background = "rgba(45, 143, 94, 0.08)";
-
-      const detail = document.getElementById("mini-reserva-detail-2");
-      detail.innerText = "Reservado por UF-02A (vos)";
-
-      const badge = document.getElementById("mini-reserva-badge-2");
-      badge.className = "badge badge--ok";
-      badge.style.background = "rgba(45, 143, 94, 0.15)";
-      badge.style.color = "var(--color-green)";
-      badge.innerText = "Confirmada";
-
-      document.getElementById("mini-reserva-btn-run").style.display = "none";
-      document.getElementById("mini-reserva-btn-reset").style.display = "inline-flex";
-    }
-
-    function resetMiniReserva() {
-      const row = document.getElementById("mini-reserva-row-2");
-      row.style.borderLeftColor = "var(--color-primary)";
-      row.style.background = "var(--color-surface)";
-
-      const detail = document.getElementById("mini-reserva-detail-2");
-      detail.innerText = "Disponible · $ 8.500 por turno";
-
-      const badge = document.getElementById("mini-reserva-badge-2");
-      badge.className = "badge badge--neutro";
-      badge.style.background = "var(--color-primary-soft)";
-      badge.style.color = "var(--color-primary)";
-      badge.innerText = "Disponible";
-
-      document.getElementById("mini-reserva-btn-run").style.display = "inline-flex";
-      document.getElementById("mini-reserva-btn-reset").style.display = "none";
-    }
-  </script>
+/* ===== HERO ===== */
+/* ===== SIMULADOR ===== */
+/* ===== CTA-SIMULADOR ===== */
+/* ===== CIERRE ===== */
+</script>
 </body>
 </html>
