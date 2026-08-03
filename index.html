@@ -856,7 +856,72 @@ html { scroll-behavior: smooth; }
 }
 
 /* ===== CONSORCIO ===== */
+.consorcio {
+  border-top: 1px solid var(--color-border);
+}
+
+.consorcio-inner { max-width: 62ch; }
+
+.consorcio h2 { font-size: clamp(1.5rem, 5vw, 2rem); }
+
+.consorcio p { color: var(--color-text-muted-strong); }
+
+.consorcio-remate {
+  font-weight: 600;
+  color: var(--color-text);
+  border-left: 3px solid var(--color-mod-cobranzas);
+  padding-left: 1rem;
+}
+
 /* ===== MODULOS ===== */
+.modulos { border-top: 1px solid var(--color-border); }
+
+.modulos-titulo { font-size: clamp(1.6rem, 5.5vw, 2.1rem); margin-bottom: 2rem; }
+
+.modulos-grid { display: grid; gap: 1rem; }
+
+.modulo {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--acento);
+  border-radius: var(--radius-sm);
+  padding: 1.1rem 1.25rem;
+}
+
+.modulo-plan {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  border-radius: var(--radius-pill);
+  padding: 0.15rem 0.55rem;
+  margin-bottom: 0.6rem;
+}
+
+.modulo-opcional .modulo-plan {
+  color: var(--acento);
+  background: color-mix(in srgb, var(--acento) 12%, transparent);
+}
+
+.modulo h3 { font-size: 1rem; color: var(--acento); margin-bottom: 0.4rem; }
+
+.modulo p {
+  font-size: 0.88rem;
+  color: var(--color-text-muted-strong);
+  margin: 0;
+}
+
+@media (min-width: 700px) {
+  .modulos-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 1000px) {
+  .modulos-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
 /* ===== PRECIOS ===== */
 /* ===== CIERRE ===== */
 /* ===== FOOTER ===== */
@@ -1255,7 +1320,80 @@ html { scroll-behavior: smooth; }
 </section>
 
 <!-- ===== CONSORCIO ===== -->
+<section class="seccion consorcio">
+  <div class="consorcio-inner">
+    <p class="eyebrow">Del otro lado del mostrador</p>
+    <h2>La asamblea se va entera en discutir un número que nadie puede ver.</h2>
+    <p>
+      El consejo no tiene cómo auditar sin pedir carpetas. El vecino que
+      administra lleva el fondo de reserva en un cuaderno. Y cada expensa que
+      sube vuelve a abrir la misma discusión de siempre.
+    </p>
+    <p class="consorcio-remate">
+      Cuando cada propietario entra y ve en qué se fue la plata —factura por
+      factura, rubro por rubro, con los comprobantes adjuntos— la discusión se
+      termina antes de empezar. La transparencia no es un favor al propietario:
+      es lo que te saca la discusión de encima.
+    </p>
+  </div>
+</section>
+
 <!-- ===== MODULOS ===== -->
+<section class="seccion modulos" id="modulos">
+  <p class="eyebrow">Lo que incluye</p>
+  <h2 class="modulos-titulo">Ocho módulos. Activás los que usás.</h2>
+
+  <div class="modulos-grid">
+    <article class="modulo" style="--acento: var(--color-mod-cobranzas);">
+      <span class="modulo-plan">Base</span>
+      <h3>Cobranzas y expensas</h3>
+      <p>Emisión por coeficiente, cuenta corriente por unidad con imputación a la deuda más vieja, comprobantes de pago e intereses punitorios.</p>
+    </article>
+
+    <article class="modulo" style="--acento: var(--color-mod-gastos);">
+      <span class="modulo-plan">Base</span>
+      <h3>Gastos y proveedores</h3>
+      <p>Facturas clasificadas por rubro, gastos habituales que se cargan solos cada mes, planes en cuotas y gastos particulares de una unidad.</p>
+    </article>
+
+    <article class="modulo" style="--acento: var(--color-mod-finanzas);">
+      <span class="modulo-plan">Base</span>
+      <h3>Tesorería</h3>
+      <p>Cajas y cuentas bancarias, transferencias entre cajas y el fondo de reparación separado del giro del mes.</p>
+    </article>
+
+    <article class="modulo" style="--acento: var(--color-mod-inicio);">
+      <span class="modulo-plan">Base</span>
+      <h3>Comunicados</h3>
+      <p>La cartelera del edificio, pero que llega. Publicás una vez y lo ven todas las unidades desde su portal.</p>
+    </article>
+
+    <article class="modulo" style="--acento: var(--color-mod-expensas);">
+      <span class="modulo-plan">Base</span>
+      <h3>Reportes</h3>
+      <p>Lista de morosos, estado financiero, detalle de gastos del período y listado de proveedores. El consejo los mira sin pedirte nada.</p>
+    </article>
+
+    <article class="modulo modulo-opcional" style="--acento: var(--color-mod-operacion);">
+      <span class="modulo-plan">Opcional</span>
+      <h3>Mantenimiento</h3>
+      <p>Peticiones de los vecinos, presupuestos de proveedores, trabajos aprobados y las tareas recurrentes del edificio.</p>
+    </article>
+
+    <article class="modulo modulo-opcional" style="--acento: var(--color-mod-operacion);">
+      <span class="modulo-plan">Opcional</span>
+      <h3>Espacios comunes</h3>
+      <p>SUM, laundry, parrilla. Con reglas por amenity: precio del turno, anticipación, duración y tope de reservas por unidad.</p>
+    </article>
+
+    <article class="modulo modulo-opcional" style="--acento: var(--color-mod-finanzas);">
+      <span class="modulo-plan">Opcional</span>
+      <h3>Personal y sueldos</h3>
+      <p>Legajo del encargado, haberes, descuentos y contribuciones. Cada liquidación genera sola los gastos del rubro sueldos.</p>
+    </article>
+  </div>
+</section>
+
 <!-- ===== PRECIOS ===== -->
 <!-- ===== CIERRE ===== -->
 <!-- ===== FOOTER ===== -->
