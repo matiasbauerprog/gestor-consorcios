@@ -116,6 +116,10 @@ html { scroll-behavior: smooth; }
 .btn-primario { background: var(--color-primary); color: #fff; }
 .btn-primario:hover { background: var(--color-primary-hover); }
 
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn:disabled:hover { background: var(--color-primary); }
+.btn-ghost:disabled:hover { background: transparent; border-color: var(--color-border-strong); color: var(--color-text-muted-strong); }
+
 .btn-wa { background: var(--wa); color: #06301a; }
 .btn-wa:hover { background: #1fbb59; }
 .btn-wa svg { flex-shrink: 0; }
@@ -662,6 +666,80 @@ html { scroll-behavior: smooth; }
 .cierre-ok h4 { color: var(--color-success); }
 .cierre-ok .meta { font-size: 0.8rem; color: var(--color-text-muted-strong); margin: 0; }
 
+.cc-saldo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 1rem;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.cc-saldo strong {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  color: var(--color-danger);
+  transition: color 0.3s;
+}
+
+.estado-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-text-muted-strong);
+}
+
+.estado-punto {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-danger);
+}
+
+.cc-cobro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.cc-cobro-label {
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-text-muted);
+}
+
+.cc-montos { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.fila-saldada { background: var(--color-success-bg); }
+.fila-parcial { background: var(--color-warning-bg); }
+
+.pill {
+  font-size: 0.66rem;
+  font-weight: 800;
+  border-radius: var(--radius-pill);
+  padding: 0.1rem 0.45rem;
+}
+
+.pill-saldada { background: var(--color-success); color: #fff; }
+.pill-parcial { background: var(--color-warning); color: #fff; }
+.pill-impaga { background: var(--color-danger-bg); color: var(--color-danger); }
+
+@keyframes imputar {
+  from { background: var(--color-primary-soft); }
+}
+
+.fila-animada { animation: imputar 0.9s ease; }
+
 /* ===== CTA-SIMULADOR ===== */
 /* ===== CONSORCIO ===== */
 /* ===== MODULOS ===== */
@@ -960,7 +1038,41 @@ html { scroll-behavior: smooth; }
               <p class="meta">Se emitieron 24 expensas por $ 1.999.100. Cada propietario ya la tiene en su portal.</p>
             </div>
           </div>
-          <div class="sim-paso" data-paso="3" hidden></div>
+          <div class="sim-paso" data-paso="3" hidden>
+            <div class="pantalla-head">
+              <h3 class="pantalla-titulo">Cuenta corriente · 2A</h3>
+              <span class="pantalla-meta">Piso 2, letra A · Carlos G.</span>
+            </div>
+
+            <div class="cc-saldo">
+              <span>Saldo</span>
+              <strong id="cc-saldo">$ 320.463</strong>
+              <span class="estado-badge" id="cc-estado"><span class="estado-punto"></span>En mora</span>
+            </div>
+
+            <div class="tabla-scroll">
+              <table class="tabla" id="cc-tabla">
+                <thead>
+                  <tr><th>Período</th><th>Concepto</th><th class="num">Monto</th><th class="num">Imputado</th><th>Estado</th></tr>
+                </thead>
+                <tbody id="cc-filas"></tbody>
+              </table>
+            </div>
+
+            <div class="cc-cobro">
+              <span class="cc-cobro-label">Registrar un pago de</span>
+              <div class="cc-montos">
+                <button type="button" class="btn btn-ghost btn-sm" data-pago="74200">$ 74.200</button>
+                <button type="button" class="btn btn-primario btn-sm" data-pago="120000">$ 120.000</button>
+                <button type="button" class="btn btn-ghost btn-sm" data-pago="320463">$ 320.463</button>
+              </div>
+            </div>
+
+            <p class="pantalla-tip">
+              No elegís a qué expensa se imputa. El pago entra y salda la deuda más vieja
+              primero — el resto queda a cuenta de la siguiente.
+            </p>
+          </div>
           <div class="sim-paso" data-paso="4" hidden></div>
         </main>
       </div>
@@ -1071,7 +1183,10 @@ function render() {
   document.getElementById("cierre-hecho").hidden = !sim.periodoCerrado;
   document.getElementById("c-confirmar").disabled = sim.periodoCerrado;
 
-  /* Los pasos 3-4 agregan acá su lógica de pintado. */
+  /* Paso 3 */
+  pintarCuentaCorriente();
+
+  /* El paso 4 agrega acá su lógica de pintado. */
 }
 
 function resetSim() {
@@ -1112,6 +1227,78 @@ document.getElementById("c-confirmar").addEventListener("click", () => {
   document.getElementById("cierre-preview").hidden = true;
   render();
   nota("24 expensas emitidas. Ahora mirá qué pasa cuando una unidad que debe hace un pago.");
+});
+
+const EXPENSAS_2A = [
+  { periodo: "2026-05", monto: 74200 },
+  { periodo: "2026-06", monto: 79800 },
+  { periodo: "2026-07", monto: 83500 },
+  { periodo: "2026-08", monto: 82963, requiereCierre: true },
+];
+
+function deudaUF2A() {
+  let restante = sim.pagoAplicado || 0;
+  const filas = [];
+  let saldo = 0;
+
+  for (const e of EXPENSAS_2A) {
+    if (e.requiereCierre && !sim.periodoCerrado) continue;
+    const pagado = Math.min(restante, e.monto);
+    restante -= pagado;
+    saldo += e.monto - pagado;
+    const estado = pagado >= e.monto ? "saldada" : pagado > 0 ? "parcial" : "impaga";
+    filas.push({ periodo: e.periodo, monto: e.monto, pagado, estado });
+  }
+  return { filas, saldo };
+}
+
+const PILL_LABEL = { saldada: "Saldada", parcial: "Parcial", impaga: "Impaga" };
+
+function pintarCuentaCorriente() {
+  const { filas, saldo } = deudaUF2A();
+
+  document.getElementById("cc-filas").innerHTML = filas
+    .map((f) => {
+      const clase = f.estado === "saldada" ? "fila-saldada" : f.estado === "parcial" ? "fila-parcial" : "";
+      const animar = sim.pagoAplicado && f.estado !== "impaga" ? " fila-animada" : "";
+      return (
+        '<tr class="' + clase + animar + '">' +
+        "<td>" + f.periodo + "</td>" +
+        "<td>Expensa emitida</td>" +
+        '<td class="num">' + money(f.monto) + "</td>" +
+        '<td class="num">' + money(f.pagado) + "</td>" +
+        '<td><span class="pill pill-' + f.estado + '">' + PILL_LABEL[f.estado] + "</span></td>" +
+        "</tr>"
+      );
+    })
+    .join("");
+
+  const saldoEl = document.getElementById("cc-saldo");
+  saldoEl.textContent = money(saldo);
+  saldoEl.style.color = saldo > 0 ? "var(--color-danger)" : "var(--color-success)";
+
+  const estadoEl = document.getElementById("cc-estado");
+  estadoEl.innerHTML =
+    '<span class="estado-punto" style="background:' +
+    (saldo > 0 ? "var(--color-danger)" : "var(--color-success)") +
+    '"></span>' + (saldo > 0 ? "En mora" : "Al día");
+
+  document.querySelectorAll("[data-pago]").forEach((b) => {
+    b.disabled = sim.pagoAplicado !== null;
+  });
+}
+
+document.querySelectorAll("[data-pago]").forEach((b) => {
+  b.addEventListener("click", () => {
+    sim.pagoAplicado = Number(b.dataset.pago);
+    render();
+    const { saldo } = deudaUF2A();
+    nota(
+      "Se imputó " + money(sim.pagoAplicado) +
+      " arrancando por la deuda más vieja. Saldo de la unidad: " + money(saldo) +
+      ". Ahora mirá lo mismo desde el lado del propietario."
+    );
+  });
 });
 
 irAPaso(1);
