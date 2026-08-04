@@ -2751,3 +2751,58 @@ td.monto {
     grid-column: 1 / -1;
   }
 }
+
+/* ---------- ListaResponsive: tabla de ≥600px para arriba ---------- */
+
+.tabla-scroll {
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.tabla-datos {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.tabla-datos thead th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.tabla-datos tbody tr {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tabla-datos tbody tr:hover {
+  background: var(--color-bg);
+}
+
+.tabla-datos tbody td {
+  padding: 0.6rem 0.75rem;
+  vertical-align: middle;
+}
+
+/* Los importes se leen mejor alineados a la derecha y tabulados. */
+.tabla-datos .col-monto {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tabla-datos .col-acciones {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.lista-vacia {
+  color: var(--color-text-muted);
+  margin: 1rem 0;
+}
