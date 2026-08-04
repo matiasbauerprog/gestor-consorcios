@@ -144,6 +144,61 @@ def _borrar_movimiento_de_gasto(db: Session, gasto_id: int) -> None:
         db.flush()
 
 
+def _materializar_habituales(db: Session, cid: int, periodo: str) -> list[Gasto]:
+    """Crea los gastos que faltan para las plantillas activas del período.
+
+    Idempotente: una plantilla que ya generó su gasto en ese período se saltea.
+    Los gastos nacen SIN pagar y SIN MovimientoCaja — la plantilla dice cuánto
+    se espera gastar, no cuánto se gastó. El egreso de caja lo produce
+    POST /gastos/{id}/pagar cuando llega la factura real.
+
+    No hace commit: el llamador decide la transacción.
+    """
+    anio, mes = map(int, periodo.split("-"))
+    fecha_provisoria = date(anio, mes, 1)
+
+    plantillas_activas = db.scalars(
+        select(GastoHabitual).where(
+            GastoHabitual.consorcio_id == cid,
+            GastoHabitual.activa == True,  # noqa: E712
+        )
+    ).all()
+
+    ids_ya_generadas = set(
+        db.scalars(
+            select(Gasto.gasto_habitual_id).where(
+                Gasto.consorcio_id == cid,
+                Gasto.periodo == periodo,
+                Gasto.gasto_habitual_id.is_not(None),
+            )
+        ).all()
+    )
+
+    nuevos: list[Gasto] = []
+    for plantilla in plantillas_activas:
+        if plantilla.id in ids_ya_generadas:
+            continue
+        gasto = Gasto(
+            consorcio_id=cid,
+            periodo=periodo,
+            rubro=plantilla.rubro,
+            clase_prorrateo_id=plantilla.clase_prorrateo_id,
+            departamento_id=None,
+            proveedor_id=plantilla.proveedor_id,
+            concepto=plantilla.concepto,
+            monto=plantilla.monto,
+            forma_pago=plantilla.forma_pago,
+            caja_id=plantilla.caja_id,
+            fecha_pago=fecha_provisoria,
+            pagado=False,
+            gasto_habitual_id=plantilla.id,
+        )
+        db.add(gasto)
+        db.flush()
+        nuevos.append(gasto)
+    return nuevos
+
+
 @router.get(
     "",
     response_model=list[GastoOut],
@@ -449,50 +504,8 @@ def cargar_habituales(
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
 ) -> list[Gasto]:
-    # Bloquear si el período está cerrado
     _bloquear_si_periodo_cerrado(db, cid, payload.periodo)
-
-    anio, mes = map(int, payload.periodo.split("-"))
-    fecha_pago_default = date(anio, mes, 1)
-
-    # Plantillas activas que aún no tienen gasto generado en este período.
-    plantillas_activas = db.scalars(
-        select(GastoHabitual).where(GastoHabitual.consorcio_id == cid, GastoHabitual.activa == True)  # noqa: E712
-    ).all()
-
-    ids_ya_generadas = set(
-        db.scalars(
-            select(Gasto.gasto_habitual_id).where(
-                Gasto.consorcio_id == cid,
-                Gasto.periodo == payload.periodo,
-                Gasto.gasto_habitual_id.is_not(None),
-            )
-        ).all()
-    )
-
-    nuevos: list[Gasto] = []
-    for plantilla in plantillas_activas:
-        if plantilla.id in ids_ya_generadas:
-            continue
-        gasto = Gasto(
-            consorcio_id=cid,
-            periodo=payload.periodo,
-            rubro=plantilla.rubro,
-            clase_prorrateo_id=plantilla.clase_prorrateo_id,
-            departamento_id=None,
-            proveedor_id=plantilla.proveedor_id,
-            concepto=plantilla.concepto,
-            monto=plantilla.monto,
-            forma_pago=plantilla.forma_pago,
-            caja_id=plantilla.caja_id,
-            fecha_pago=fecha_pago_default,
-            gasto_habitual_id=plantilla.id,
-        )
-        db.add(gasto)
-        db.flush()
-        _crear_movimiento_para_gasto(db, gasto)
-        nuevos.append(gasto)
-
+    nuevos = _materializar_habituales(db, cid, payload.periodo)
     db.commit()
     for g in nuevos:
         db.refresh(g)

@@ -364,6 +364,24 @@ def test_cargar_habituales_usa_fecha_primer_dia_del_periodo(client, headers_admi
     assert generado["fecha_pago"] == "2026-07-01"
 
 
+def test_habituales_se_materializan_sin_pagar_ni_mover_caja(
+    client, headers_admin, db_session
+):
+    from backend.models import MovimientoCaja
+
+    r = client.post(
+        "/gastos/cargar-habituales", json={"periodo": "2026-08"}, headers=headers_admin
+    )
+    assert r.status_code == 201
+    creados = r.json()
+    assert creados, "la plantilla 700 del seed debe materializarse"
+    assert all(g["pagado"] is False for g in creados)
+
+    ids = [g["id"] for g in creados]
+    movs = db_session.query(MovimientoCaja).filter(MovimientoCaja.gasto_id.in_(ids)).all()
+    assert movs == [], "un gasto sin pagar no debe generar movimiento de caja"
+
+
 # ---------------------------------------------------------------------------
 # Bloqueos con período cerrado (Task 8)
 # ---------------------------------------------------------------------------
