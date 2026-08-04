@@ -125,6 +125,22 @@ def test_preview_un_gasto_clase_se_prorratea_por_coeficientes(db, proveedor, cla
     assert montos == [500.0, 500.0]
 
 
+def test_preview_avisa_si_hay_gastos_sin_pagar(db, proveedor, clase_50_50):
+    g = _gasto("2026-05", 1000, proveedor.id, clase_id=clase_50_50.id)
+    g.pagado = False
+    db.add(g)
+    db.commit()
+
+    preview = calcular_preview_cierre(db, 1, "2026-05")
+
+    codigos = {v.codigo for v in preview.validaciones}
+    assert "gastos_sin_pagar" in codigos
+    aviso = next(v for v in preview.validaciones if v.codigo == "gastos_sin_pagar")
+    assert aviso.tipo == "warning"
+    # No debe impedir el cierre: es informativo.
+    assert preview.puede_cerrar
+
+
 def test_preview_gasto_particular_va_solo_al_depto_indicado(db, proveedor, clase_50_50):
     db.add(_gasto("2026-05", 800, proveedor.id, depto_id=1, concepto="Reparación caño 1A"))
     db.commit()

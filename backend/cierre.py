@@ -212,6 +212,15 @@ def calcular_preview_cierre(
             f"Hay {len(huerfanos)} gasto(s) del período sin clase de prorrateo ni departamento asignado.",
         ))
 
+    sin_pagar = [g for g in gastos_periodo if not g.pagado]
+    if sin_pagar:
+        validaciones.append(Validacion(
+            "warning",
+            "gastos_sin_pagar",
+            f"Hay {len(sin_pagar)} gasto(s) del período todavía sin confirmar "
+            f"el pago. Se prorratean igual, con el monto cargado.",
+        ))
+
     if not gastos_periodo:
         validaciones.append(Validacion(
             "warning",
