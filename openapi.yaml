@@ -2531,7 +2531,13 @@ paths:
   /gastos:
     get:
       tags: [Gastos]
-      summary: Listar gastos del consorcio (admin)
+      summary: Listar gastos del consorcio (materializa recurrentes pendientes) (admin)
+      description: >-
+        Antes de listar, materializa (idempotente) los gastos de las plantillas
+        recurrentes activas que falten para el período consultado — sólo si el
+        período es actual/pasado y no está cerrado. Es un efecto de escritura
+        deliberado en un GET: la alternativa es un scheduler que el proyecto no
+        tiene, y repetir la consulta no duplica nada.
       security: [{ bearerAuth: [] }]
       parameters:
         - in: query

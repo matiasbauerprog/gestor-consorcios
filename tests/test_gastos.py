@@ -384,6 +384,29 @@ def test_listar_gastos_es_idempotente(client, headers_admin):
     assert len(primera) == len(segunda)
 
 
+def test_listar_gastos_periodo_cerrado_no_materializa(client, headers_admin):
+    """Cierra el período ACTUAL (el mismo que sí tiene la plantilla 700
+    disponible para materializar) y confirma que el GET posterior no generó
+    nada. A diferencia de un período futuro, acá la única razón por la que no
+    debería materializar es el cierre — si se invirtiera ese chequeo, este
+    test es el que lo detecta."""
+    periodo = date.today().strftime("%Y-%m")
+    r_cierre = client.post(f"/periodos/{periodo}/cerrar", json={}, headers=headers_admin)
+    assert r_cierre.status_code == 201
+
+    r = client.get(f"/gastos?periodo={periodo}", headers=headers_admin)
+    assert r.status_code == 200
+    assert not any(g["gasto_habitual_id"] == 700 for g in r.json())
+
+
+def test_listar_gastos_sin_periodo_no_materializa(client, headers_admin):
+    """Sin `periodo` no hay contra qué materializar: el GET debe seguir
+    siendo una lectura pura."""
+    r = client.get("/gastos", headers=headers_admin)
+    assert r.status_code == 200
+    assert not any(g["gasto_habitual_id"] == 700 for g in r.json())
+
+
 def test_habituales_se_materializan_sin_pagar_ni_mover_caja(
     client, headers_admin, db_session
 ):
