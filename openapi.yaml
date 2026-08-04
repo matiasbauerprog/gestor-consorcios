@@ -2695,6 +2695,43 @@ paths:
         '403': { $ref: '#/components/responses/AccesoDenegado' }
         '404': { $ref: '#/components/responses/NoEncontrado' }
 
+  /gastos/{gasto_id}/pagar:
+    parameters:
+      - in: path
+        name: gasto_id
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Gastos]
+      summary: Confirmar el pago de un gasto devengado (admin)
+      description: >-
+        Confirma el pago real de un gasto materializado sin pagar (recurrente
+        o de cualquier origen): fija monto, fecha de pago y caja definitivos
+        con los datos de la factura, y recién ahí genera el MovimientoCaja de
+        egreso. El monto puede diferir del de la plantilla — la factura manda.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GastoPagar' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GastoOut' }
+        '400': { $ref: '#/components/responses/PedidoInvalido' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/AccesoDenegado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '409':
+          description: El gasto ya figura como pagado, o el período está cerrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /gastos-habituales:
     get:
       tags: [Gastos]
@@ -5571,6 +5608,14 @@ components:
         fecha_factura: { type: string, format: date, nullable: true }
         cuota_actual: { type: integer, minimum: 1, nullable: true }
         cuota_total: { type: integer, minimum: 1, nullable: true }
+
+    GastoPagar:
+      type: object
+      required: [monto, fecha_pago, caja_id]
+      properties:
+        monto: { type: number, exclusiveMinimum: 0 }
+        fecha_pago: { type: string, format: date }
+        caja_id: { type: integer, minimum: 1 }
 
     PlanCuotasCrear:
       type: object

@@ -609,6 +609,14 @@ class GastoActualizar(BaseModel):
     cuota_total: int | None = Field(default=None, ge=1)
 
 
+class GastoPagar(BaseModel):
+    """Confirma el pago real de un gasto devengado. El monto puede diferir del
+    de la plantilla: la factura manda."""
+    monto: float = Field(..., gt=0)
+    fecha_pago: date
+    caja_id: int = Field(..., gt=0)
+
+
 class GastoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

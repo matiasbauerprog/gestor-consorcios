@@ -31,6 +31,7 @@ from ..schemas import (
     GastoActualizar,
     GastoCrear,
     GastoOut,
+    GastoPagar,
     PlanCuotasCrear,
 )
 
@@ -424,7 +425,49 @@ def actualizar_gasto(
     for campo, valor in cambios.items():
         setattr(gasto, campo, valor)
 
-    _borrar_movimiento_de_gasto(db, gasto.id)
+    # Un gasto sin pagar no tiene movimiento de caja que rehacer. Recrearlo acá
+    # le adelantaría el egreso a un gasto que todavía no se pagó.
+    if gasto.pagado:
+        _borrar_movimiento_de_gasto(db, gasto.id)
+        _crear_movimiento_para_gasto(db, gasto)
+
+    db.commit()
+    db.refresh(gasto)
+    return gasto
+
+
+@router.post(
+    "/{gasto_id}/pagar",
+    response_model=GastoOut,
+    status_code=status.HTTP_200_OK,
+    summary="Confirmar el pago de un gasto devengado",
+)
+def pagar_gasto(
+    gasto_id: int,
+    payload: GastoPagar,
+    db: Session = Depends(get_db),
+    _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
+) -> Gasto:
+    gasto = db.get(Gasto, gasto_id)
+    if gasto is None or gasto.consorcio_id != cid:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="El gasto solicitado no existe.",
+        )
+    if gasto.pagado:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="El gasto ya figura como pagado.",
+        )
+    _bloquear_si_periodo_cerrado(db, cid, gasto.periodo)
+    _validar_caja_activa(db, cid, payload.caja_id)
+
+    gasto.monto = payload.monto
+    gasto.fecha_pago = payload.fecha_pago
+    gasto.caja_id = payload.caja_id
+    gasto.pagado = True
+    db.flush()
     _crear_movimiento_para_gasto(db, gasto)
 
     db.commit()

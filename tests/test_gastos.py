@@ -564,3 +564,71 @@ def test_gasto_creado_a_mano_nace_pagado(client, headers_admin):
     r = client.post("/gastos", json=GASTO_VALIDO, headers=headers_admin)
     assert r.status_code == 201
     assert r.json()["pagado"] is True
+
+
+# ---------------------------------------------------------------------------
+# POST /gastos/{gasto_id}/pagar
+# ---------------------------------------------------------------------------
+
+
+def _un_gasto_sin_pagar(client, headers_admin, periodo):
+    """Materializa los recurrentes del período y devuelve uno sin pagar."""
+    gastos = client.get(f"/gastos?periodo={periodo}", headers=headers_admin).json()
+    return next(g for g in gastos if g["pagado"] is False)
+
+
+def test_pagar_gasto_crea_movimiento_de_caja(client, headers_admin, db_session):
+    from backend.models import MovimientoCaja
+
+    periodo = date.today().strftime("%Y-%m")
+    sin_pagar = _un_gasto_sin_pagar(client, headers_admin, periodo)
+
+    r = client.post(
+        f"/gastos/{sin_pagar['id']}/pagar",
+        json={"monto": 63400.0, "fecha_pago": f"{periodo}-15", "caja_id": 900},
+        headers=headers_admin,
+    )
+    assert r.status_code == 200
+    assert r.json()["pagado"] is True
+    assert r.json()["monto"] == 63400.0
+
+    movs = (
+        db_session.query(MovimientoCaja)
+        .filter(MovimientoCaja.gasto_id == sin_pagar["id"])
+        .all()
+    )
+    assert len(movs) == 1
+    assert movs[0].monto == 63400.0
+
+
+def test_pagar_dos_veces_devuelve_409(client, headers_admin):
+    periodo = date.today().strftime("%Y-%m")
+    sin_pagar = _un_gasto_sin_pagar(client, headers_admin, periodo)
+    body = {"monto": 100.0, "fecha_pago": f"{periodo}-15", "caja_id": 900}
+
+    assert client.post(
+        f"/gastos/{sin_pagar['id']}/pagar", json=body, headers=headers_admin
+    ).status_code == 200
+    assert client.post(
+        f"/gastos/{sin_pagar['id']}/pagar", json=body, headers=headers_admin
+    ).status_code == 409
+
+
+def test_pagar_gasto_inexistente_devuelve_404(client, headers_admin):
+    r = client.post(
+        "/gastos/999999/pagar",
+        json={"monto": 100.0, "fecha_pago": "2026-08-15", "caja_id": 900},
+        headers=headers_admin,
+    )
+    assert r.status_code == 404
+
+
+def test_pagar_gasto_con_monto_cero_devuelve_400(client, headers_admin):
+    periodo = date.today().strftime("%Y-%m")
+    sin_pagar = _un_gasto_sin_pagar(client, headers_admin, periodo)
+    r = client.post(
+        f"/gastos/{sin_pagar['id']}/pagar",
+        json={"monto": 0, "fecha_pago": f"{periodo}-15", "caja_id": 900},
+        headers=headers_admin,
+    )
+    assert r.status_code == 400
