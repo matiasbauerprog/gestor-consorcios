@@ -1,8 +1,10 @@
-"""Módulo de cierre de período — función pura.
+"""Módulo de cierre de período — cálculo del preview.
 
-Calcula el preview completo del cierre de un período sin escribir nada. El
-endpoint /periodos/{periodo}/cerrar consume el preview y persiste en una
-transacción atómica.
+Calcula el preview completo del cierre de un período. No persiste nada del
+cierre en sí: el endpoint /periodos/{periodo}/cerrar consume el preview y
+persiste en una transacción atómica. La única escritura propia es el
+devengamiento de los recargos por mora ya vencidos, que tiene que estar
+materializado antes de leer los saldos que arrastra el cierre.
 """
 from dataclasses import dataclass, field
 from datetime import date, timedelta
@@ -23,6 +25,7 @@ from .models import (
     PeriodoCerrado,
     Rubro,
 )
+from .recargos import devengar_recargos
 
 
 @dataclass
@@ -322,6 +325,19 @@ def _completar_preview(
                 )
 
     fecha_corte = date.today()
+
+    # Devengamiento perezoso antes de mirar saldos: el `saldo_anterior` que
+    # arrastra la expensa nueva tiene que incluir los recargos ya vencidos.
+    # Se pasa `hoy=fecha_corte` para que un preview a una fecha de corte
+    # pasada no devengue recargos posteriores a esa fecha. Un solo commit
+    # para todo el padrón, no uno por departamento.
+    hubo_recargos = False
+    for d in deptos:
+        if devengar_recargos(db, d.id, hoy=fecha_corte):
+            hubo_recargos = True
+    if hubo_recargos:
+        db.commit()
+
     intereses_por_depto: dict[int, float] = {}
     for d in deptos:
         monto, descripcion = calcular_intereses_al_cierre(db, consorcio_id, d.id, fecha_corte)

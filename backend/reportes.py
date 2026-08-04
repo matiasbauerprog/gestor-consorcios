@@ -1,7 +1,9 @@
 """Reportes — Fase 6b.
 
-Funciones puras: leen de la DB y devuelven dataclasses listas para serializar
-(a JSON via Pydantic) o renderizar a PDF. Sin side effects, sin mutaciones.
+Funciones de lectura: leen de la DB y devuelven dataclasses listas para
+serializar (a JSON via Pydantic) o renderizar a PDF. No mutan nada, con una
+sola excepción: `calcular_morosos` devenga los recargos por mora vencidos
+antes de leer, porque un reporte de deuda que no los ve la subestima.
 """
 from collections import defaultdict
 from dataclasses import dataclass
@@ -20,6 +22,7 @@ from .models import (
     MovimientoCaja,
     Proveedor,
 )
+from .recargos import devengar_recargos
 
 
 # === Dataclasses ===
@@ -102,6 +105,17 @@ def calcular_morosos(db: Session, consorcio_id: int, solo_deudores: bool = True)
     ).all())
     items: list[ItemMoroso] = []
     hoy = date.today()
+
+    # Devengamiento perezoso: el reporte de morosos tiene que ver el recargo
+    # ya emitido, si no subestima la deuda. Un solo commit para todo el
+    # padrón, no uno por departamento.
+    hubo_recargos = False
+    for d in deptos:
+        if devengar_recargos(db, d.id, hoy=hoy):
+            hubo_recargos = True
+    if hubo_recargos:
+        db.commit()
+
     for d in deptos:
         estado = calcular_estado_cuenta(db, d.id)
         saldo = round(estado.saldo_total, 2)

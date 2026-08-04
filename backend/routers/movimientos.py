@@ -10,6 +10,7 @@ from ..cuenta_corriente import calcular_estado_cuenta
 from ..database import get_db
 from ..models import Departamento, Expensa, MovimientoCuenta, Rol
 from ..modulos import require_modulo
+from ..recargos import devengar_recargos
 from ..schemas import CuentaResumenOut, EstadoCuentaOut, MovimientoCuentaOut, NotaCrear
 from ..tenant import get_consorcio_activo
 
@@ -25,6 +26,11 @@ def _cuenta(
     desde: date | None,
     hasta: date | None,
 ) -> EstadoCuentaOut:
+    # Devengamiento perezoso: leer la cuenta materializa los recargos vencidos.
+    # Idempotente, así que repetir la lectura no duplica nada.
+    if devengar_recargos(db, departamento_id):
+        db.commit()
+
     estado = calcular_estado_cuenta(db, departamento_id)
     depto = db.get(Departamento, departamento_id)
 
@@ -91,6 +97,15 @@ def listar_cuentas(
             Expensa.fecha_segundo_vencimiento < hoy,
         ).distinct().all()
     }
+
+    # Devengamiento perezoso, un solo commit para todo el listado: hacerlo por
+    # departamento sería una transacción por iteración.
+    hubo_recargos = False
+    for d in deptos:
+        if devengar_recargos(db, d.id):
+            hubo_recargos = True
+    if hubo_recargos:
+        db.commit()
 
     resultado = []
     for d in deptos:
