@@ -94,7 +94,11 @@ def calcular_estado_cuenta(
     movimientos = list(
         db.scalars(
             select(MovimientoCuenta)
-            .where(MovimientoCuenta.departamento_id == departamento_id)
+            .where(
+                MovimientoCuenta.departamento_id == departamento_id,
+                # La foto es a `hoy`: un pago de mañana no cancela nada hoy.
+                MovimientoCuenta.fecha <= hoy,
+            )
             .order_by(MovimientoCuenta.fecha.asc(), MovimientoCuenta.id.asc())
         ).all()
     )
@@ -141,6 +145,7 @@ def calcular_estado_cuenta(
         select(func.max(MovimientoCuenta.fecha)).where(
             MovimientoCuenta.departamento_id == departamento_id,
             MovimientoCuenta.tipo == TipoMovimiento.interes_punitorio,
+            MovimientoCuenta.fecha <= hoy,
         )
     )
 

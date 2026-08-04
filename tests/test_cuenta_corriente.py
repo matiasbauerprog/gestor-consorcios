@@ -326,6 +326,51 @@ def test_interes_no_se_recobra_si_ya_fue_capitalizado(db_empty, depto):
     assert estado.por_expensa[1].interes_acumulado == 5.35
 
 
+def test_un_pago_posterior_a_hoy_no_cancela_la_expensa(db_empty, depto):
+    """La foto de la cuenta a una fecha no puede incluir pagos del futuro."""
+    e = Expensa(consorcio_id=1, id=1, departamento_id=depto.id, periodo="2026-05",
+                monto_primer_vencimiento=1000.0,
+                fecha_primer_vencimiento=date(2026, 6, 10),
+                monto_segundo_vencimiento=1070.0,
+                fecha_segundo_vencimiento=date(2026, 6, 20),
+                saldo_anterior=0.0)
+    db_empty.add(e)
+    _mov_expensa(db_empty, depto.id, e.id, 1000.0, date(2026, 5, 10))
+    _mov_pago(db_empty, depto.id, 1000.0, date(2026, 6, 25))
+    db_empty.commit()
+
+    # Al 5 de junio ese pago todavía no ocurrió.
+    estado = calcular_estado_cuenta(db_empty, depto.id, hoy=date(2026, 6, 5))
+    assert estado.saldo_total == 1000.0
+    assert estado.por_expensa[1].monto_pagado == 0.0
+    assert estado.por_expensa[1].estado == EstadoExpensa.pendiente
+
+    # Al 30 de junio sí.
+    estado = calcular_estado_cuenta(db_empty, depto.id, hoy=date(2026, 6, 30))
+    assert estado.por_expensa[1].monto_pagado == 1000.0
+
+
+def test_una_capitalizacion_posterior_a_hoy_no_recorta_el_interes(db_empty, depto):
+    """El interés al 30/06 no puede descontarse por un cierre del 10/07."""
+    e = Expensa(consorcio_id=1, id=1, departamento_id=depto.id, periodo="2026-05",
+                monto_primer_vencimiento=1000.0,
+                fecha_primer_vencimiento=date(2026, 6, 10),
+                monto_segundo_vencimiento=1070.0,
+                fecha_segundo_vencimiento=date(2026, 6, 20),
+                saldo_anterior=0.0)
+    db_empty.add(e)
+    _mov_expensa(db_empty, depto.id, e.id, 1000.0, date(2026, 5, 10))
+    db_empty.add(MovimientoCuenta(
+        consorcio_id=1, departamento_id=depto.id, fecha=date(2026, 7, 10),
+        tipo=TipoMovimiento.interes_punitorio, descripcion="Intereses", monto=99.0,
+    ))
+    db_empty.commit()
+
+    # 10 días de mora al 30/06: 1070 * 0.001 * 10 = 10.70
+    estado = calcular_estado_cuenta(db_empty, depto.id, hoy=date(2026, 6, 30))
+    assert estado.por_expensa[1].interes_acumulado == 10.70
+
+
 def test_antes_del_vencimiento_el_exigible_sigue_siendo_el_primero(db_empty, depto):
     e = Expensa(consorcio_id=1, id=1, departamento_id=depto.id, periodo="2026-05",
                 monto_primer_vencimiento=1000.0,
