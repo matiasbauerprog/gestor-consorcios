@@ -139,3 +139,17 @@ def test_delete_expensa_con_pagos_409(client, headers_admin, headers_depto_a):
     r = client.delete("/expensas/100", headers=headers_admin)
     assert r.status_code == 409
     assert "pago" in r.json()["detail"].lower()
+
+
+# ---------------------------------------------------------------------------
+# Desglose de monto exigible e interés acumulado (Task 4)
+# ---------------------------------------------------------------------------
+
+
+def test_expensa_out_expone_exigible_e_interes(client, headers_admin):
+    r = client.get("/expensas", headers=headers_admin)
+    assert r.status_code == 200
+    body = r.json()
+    assert body, "el seed debe dejar al menos una expensa"
+    assert "monto_exigible" in body[0]
+    assert "interes_acumulado" in body[0]

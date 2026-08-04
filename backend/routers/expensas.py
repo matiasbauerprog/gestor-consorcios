@@ -43,6 +43,8 @@ def _expensa_to_out(expensa: Expensa, calc) -> ExpensaOut:
         saldo_anterior=expensa.saldo_anterior,
         estado_calculado=calc.estado,
         monto_pendiente=calc.monto_pendiente,
+        monto_exigible=calc.monto_exigible,
+        interes_acumulado=calc.interes_acumulado,
         detalle=[LineaDetalleExpensaOut.model_validate(d) for d in expensa.detalle],
     )
 

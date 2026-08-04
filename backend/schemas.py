@@ -210,6 +210,8 @@ class ExpensaOut(BaseModel):
     saldo_anterior: float
     estado_calculado: EstadoExpensa
     monto_pendiente: float
+    monto_exigible: float
+    interes_acumulado: float
     detalle: list[LineaDetalleExpensaOut]
 
 
