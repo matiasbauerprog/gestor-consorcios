@@ -479,3 +479,27 @@ def test_crear_gasto_con_trabajo_id_inexistente_404(client, headers_admin):
     payload = dict(_GASTO_VALIDO, trabajo_id=99999)
     r = client.post("/gastos", json=payload, headers=headers_admin)
     assert r.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Columna `pagado`
+# ---------------------------------------------------------------------------
+
+
+GASTO_VALIDO = {
+    "periodo": "2026-07",
+    "rubro": "servicios_publicos",
+    "clase_prorrateo_id": 500,
+    "proveedor_id": 600,
+    "concepto": "Luz pasillos julio",
+    "monto": 15000.0,
+    "forma_pago": "transferencia",
+    "caja_id": 900,
+    "fecha_pago": "2026-07-10",
+}
+
+
+def test_gasto_creado_a_mano_nace_pagado(client, headers_admin):
+    r = client.post("/gastos", json=GASTO_VALIDO, headers=headers_admin)
+    assert r.status_code == 201
+    assert r.json()["pagado"] is True

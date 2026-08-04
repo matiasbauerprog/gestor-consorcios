@@ -622,6 +622,7 @@ class GastoOut(BaseModel):
     monto: float
     forma_pago: FormaPago
     fecha_pago: date
+    pagado: bool
     numero_factura: str | None
     fecha_factura: date | None
     cuota_actual: int | None

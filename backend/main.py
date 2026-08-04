@@ -124,6 +124,17 @@ def _migrar_expensa_recargo_evaluado() -> None:
             ))
 
 
+def _migrar_gasto_pagado() -> None:
+    """ALTER TABLE idempotente: agrega `pagado` a gastos. Los gastos existentes
+    quedan en 1 — todos generaron su MovimientoCaja al crearse."""
+    with engine.begin() as conn:
+        cols = {r[1] for r in conn.execute(text("PRAGMA table_info(gastos)"))}
+        if cols and "pagado" not in cols:
+            conn.execute(text(
+                "ALTER TABLE gastos ADD COLUMN pagado BOOLEAN NOT NULL DEFAULT 1"
+            ))
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
@@ -132,6 +143,7 @@ async def lifespan(_: FastAPI):
         _migrar_pk_periodos_cerrados()
         _migrar_administracion_modulos()
         _migrar_expensa_recargo_evaluado()
+        _migrar_gasto_pagado()
     if get_settings().SEED_ENABLED:
         with SessionLocal() as db:
             seed_if_empty(db)

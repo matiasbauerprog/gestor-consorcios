@@ -632,6 +632,11 @@ class Gasto(Base):
     )
     fecha_pago: Mapped[date] = mapped_column(Date, nullable=False)
 
+    # Un gasto puede existir (devengado, prorrateable) sin estar pagado todavía.
+    # Sólo al pagarse genera su MovimientoCaja. Default True: los gastos que ya
+    # existían fueron todos creados junto con su movimiento.
+    pagado: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
     numero_factura: Mapped[str | None] = mapped_column(String(50))
     fecha_factura: Mapped[date | None] = mapped_column(Date)
 
