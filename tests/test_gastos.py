@@ -632,3 +632,64 @@ def test_pagar_gasto_con_monto_cero_devuelve_400(client, headers_admin):
         headers=headers_admin,
     )
     assert r.status_code == 400
+
+
+def test_pagar_gasto_periodo_cerrado_devuelve_409(client, headers_admin, db_session):
+    """POST /gastos/{id}/pagar con el período del gasto ya cerrado debe
+    bloquearse (mismo guard que usan crear_gasto/actualizar_gasto/etc.)."""
+    from backend.models import CoeficienteDepartamento
+
+    periodo = date.today().strftime("%Y-%m")
+    sin_pagar = _un_gasto_sin_pagar(client, headers_admin, periodo)
+
+    # Cerrar el período requiere que la clase de prorrateo del gasto recién
+    # materializado tenga coeficientes completos para los deptos del seed;
+    # si no, el cierre da 409 por validaciones bloqueantes (coeficientes
+    # faltantes) en vez del 409 de "período cerrado" que este test ejercita.
+    db_session.add_all([
+        CoeficienteDepartamento(consorcio_id=1, departamento_id=1, clase_prorrateo_id=500, porcentaje=50),
+        CoeficienteDepartamento(consorcio_id=1, departamento_id=2, clase_prorrateo_id=500, porcentaje=50),
+    ])
+    db_session.commit()
+
+    r_cierre = client.post(f"/periodos/{periodo}/cerrar", json={}, headers=headers_admin)
+    assert r_cierre.status_code == 201
+
+    r = client.post(
+        f"/gastos/{sin_pagar['id']}/pagar",
+        json={"monto": 100.0, "fecha_pago": f"{periodo}-15", "caja_id": 900},
+        headers=headers_admin,
+    )
+    assert r.status_code == 409
+    assert "cerrado" in r.json()["detail"].lower()
+
+
+# ---------------------------------------------------------------------------
+# Guarda del PATCH: no debe crear movimiento de caja para un gasto sin pagar
+# ---------------------------------------------------------------------------
+
+
+def test_patch_gasto_no_pagado_no_crea_movimiento_de_caja(
+    client, headers_admin, db_session
+):
+    """Editar un gasto UNPAID no debe conjurar un MovimientoCaja de la nada
+    ni marcarlo como pagado de rebote. Sólo POST /pagar puede pagar un gasto."""
+    from backend.models import MovimientoCaja
+
+    periodo = date.today().strftime("%Y-%m")
+    sin_pagar = _un_gasto_sin_pagar(client, headers_admin, periodo)
+
+    r = client.patch(
+        f"/gastos/{sin_pagar['id']}",
+        json={"concepto": "Actualizado sin pagar"},
+        headers=headers_admin,
+    )
+    assert r.status_code == 200
+    assert r.json()["pagado"] is False
+
+    movs = (
+        db_session.query(MovimientoCaja)
+        .filter(MovimientoCaja.gasto_id == sin_pagar["id"])
+        .all()
+    )
+    assert movs == []
