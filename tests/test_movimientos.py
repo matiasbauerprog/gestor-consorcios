@@ -384,7 +384,7 @@ def test_leer_la_cuenta_dos_veces_no_duplica_el_recargo(
 
 
 def test_pagar_el_monto_con_recargo_deja_el_saldo_en_cero(
-    client, headers_admin, headers_depto_a, db_session
+    client, headers_depto_a, db_session
 ):
     """Sin el recargo en la cuenta, pagar lo exigible dejaría saldo negativo."""
     from datetime import date

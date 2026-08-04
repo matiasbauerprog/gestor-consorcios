@@ -22,7 +22,7 @@ from .models import (
     MovimientoCaja,
     Proveedor,
 )
-from .recargos import devengar_recargos
+from .recargos import devengar_recargos_y_marcar
 
 
 # === Dataclasses ===
@@ -111,7 +111,7 @@ def calcular_morosos(db: Session, consorcio_id: int, solo_deudores: bool = True)
     # padrón, no uno por departamento.
     hubo_recargos = False
     for d in deptos:
-        if devengar_recargos(db, d.id, hoy=hoy):
+        if devengar_recargos_y_marcar(db, d.id, hoy=hoy):
             hubo_recargos = True
     if hubo_recargos:
         db.commit()

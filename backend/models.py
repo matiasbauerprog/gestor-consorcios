@@ -339,6 +339,12 @@ class Expensa(Base):
     fecha_segundo_vencimiento: Mapped[date] = mapped_column(Date, nullable=False)
     saldo_anterior: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
 
+    # El recargo se decide una sola vez, el día del vencimiento, y la decisión
+    # no cambia después. Marcar la expensa evita re-evaluarla en cada lectura.
+    recargo_evaluado: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+
     departamento: Mapped["Departamento"] = relationship(back_populates="expensas")
     detalle: Mapped[list["ExpensaDetalle"]] = relationship(
         back_populates="expensa", cascade="all, delete-orphan"

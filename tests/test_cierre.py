@@ -200,6 +200,44 @@ def test_preview_validacion_bloqueante_fechas_invalidas(db, clase_50_50):
     assert "fechas_invalidas" in codigos
 
 
+def test_preview_devenga_el_recargo_antes_de_leer_el_saldo_anterior(db, proveedor, clase_50_50):
+    """Regresión del cableado en `_completar_preview`: sin el devengamiento el
+    `saldo_anterior` que arrastra la expensa nueva es 1000 y no 1070.
+
+    El primer vencimiento tiene que estar en el pasado real (el preview usa
+    `fecha_corte = date.today()`) y el segundo en el futuro, para que no corra
+    interés punitorio y el único delta sea el recargo.
+    """
+    from datetime import timedelta
+
+    hoy = date.today()
+    expensa = Expensa(consorcio_id=1,
+        departamento_id=1, periodo="2026-04",
+        monto_primer_vencimiento=1000, fecha_primer_vencimiento=hoy - timedelta(days=5),
+        monto_segundo_vencimiento=1070, fecha_segundo_vencimiento=hoy + timedelta(days=5),
+        saldo_anterior=0.0,
+    )
+    db.add(expensa); db.flush()
+    db.add(MovimientoCuenta(consorcio_id=1,
+        departamento_id=1, fecha=hoy - timedelta(days=25),
+        tipo=TipoMovimiento.expensa_emitida, descripcion="Expensa 2026-04",
+        monto=1000, expensa_id=expensa.id,
+    ))
+    # Un gasto del período para que el depto 1 llegue a tener expensa nueva
+    # (el bucle saltea los deptos con monto_1 == 0).
+    db.add(_gasto("2026-05", 1000.0, proveedor.id, clase_id=clase_50_50.id))
+    db.commit()
+
+    preview = calcular_preview_cierre(db, 1, "2026-05")
+
+    por_depto = {e.departamento_id: e for e in preview.expensas}
+    assert por_depto[1].saldo_anterior == 1070.0
+    # El depto 2 no tiene deuda previa: su saldo anterior no se toca.
+    assert por_depto[2].saldo_anterior == 0.0
+    # Sin mora vencida no hay intereses en juego: el delta es puro recargo.
+    assert preview.total_intereses == 0.0
+
+
 def test_intereses_depto_al_dia_devuelve_cero(db):
     monto, _ = calcular_intereses_al_cierre(db, 1, 1, date(2026, 6, 30))
     assert monto == 0.0

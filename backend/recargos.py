@@ -19,12 +19,17 @@ from .cuenta_corriente import calcular_estado_cuenta
 from .models import Expensa, MovimientoCuenta, TipoMovimiento
 
 
-def devengar_recargos(
-    db: Session, departamento_id: int, hoy: date | None = None
-) -> list[MovimientoCuenta]:
-    """Emite el recargo de las expensas del depto que vencieron impagas.
+def _devengar(
+    db: Session, departamento_id: int, hoy: date | None
+) -> tuple[list[MovimientoCuenta], list[Expensa]]:
+    """Núcleo del devengamiento. Devuelve (movimientos nuevos, expensas evaluadas).
 
-    Idempotente: una expensa que ya tiene su movimiento de recargo se saltea.
+    Cada expensa se evalúa UNA SOLA VEZ: se la marca con `recargo_evaluado`
+    haya emitido recargo o no. Sin esa marca, las expensas que no devengan
+    (pagadas antes del vencimiento, o consorcios sin recargo configurado)
+    volverían a costar un `calcular_estado_cuenta` completo en cada lectura,
+    para siempre y acumulando un mes por período.
+
     No hace commit — el llamador decide la transacción.
     """
     hoy = hoy or date.today()
@@ -35,12 +40,13 @@ def devengar_recargos(
             .where(
                 Expensa.departamento_id == departamento_id,
                 Expensa.fecha_primer_vencimiento < hoy,
+                Expensa.recargo_evaluado == False,  # noqa: E712
             )
             .order_by(Expensa.fecha_primer_vencimiento.asc(), Expensa.id.asc())
         ).all()
     )
     if not expensas:
-        return []
+        return [], []
 
     ya_recargadas = set(
         db.scalars(
@@ -53,6 +59,11 @@ def devengar_recargos(
 
     nuevos: list[MovimientoCuenta] = []
     for e in expensas:
+        # La decisión se toma acá y no se vuelve a tomar, salga como salga.
+        e.recargo_evaluado = True
+        # `ya_recargadas` sigue haciendo falta: las expensas que ya tenían su
+        # recargo antes de que existiera la columna migran con la marca en 0,
+        # y sin esta guarda emitirían un segundo movimiento.
         if e.id in ya_recargadas:
             continue
         recargo = round(e.monto_segundo_vencimiento - e.monto_primer_vencimiento, 2)
@@ -78,6 +89,33 @@ def devengar_recargos(
         db.add(mov)
         nuevos.append(mov)
 
-    if nuevos:
-        db.flush()
+    db.flush()
+    return nuevos, expensas
+
+
+def devengar_recargos(
+    db: Session, departamento_id: int, hoy: date | None = None
+) -> list[MovimientoCuenta]:
+    """Emite el recargo de las expensas del depto que vencieron impagas.
+
+    Idempotente: cada expensa se evalúa una sola vez (ver `_devengar`).
+    Devuelve los movimientos creados. No hace commit — el llamador decide la
+    transacción.
+    """
+    nuevos, _ = _devengar(db, departamento_id, hoy)
     return nuevos
+
+
+def devengar_recargos_y_marcar(
+    db: Session, departamento_id: int, hoy: date | None = None
+) -> bool:
+    """Igual que `devengar_recargos`, pero devuelve si quedó algo por commitear.
+
+    Es el punto de entrada de las lecturas. La marca `recargo_evaluado` se
+    escribe también cuando NO se emite recargo, y esa escritura hay que
+    persistirla: `get_db` cierra la sesión sin commitear, así que un llamador
+    que sólo mire los movimientos creados perdería la marca y volvería a
+    evaluar la misma expensa en cada request — justo lo que la marca evita.
+    """
+    nuevos, evaluadas = _devengar(db, departamento_id, hoy)
+    return bool(nuevos or evaluadas)

@@ -2,9 +2,14 @@
 
 Calcula el preview completo del cierre de un período. No persiste nada del
 cierre en sí: el endpoint /periodos/{periodo}/cerrar consume el preview y
-persiste en una transacción atómica. La única escritura propia es el
-devengamiento de los recargos por mora ya vencidos, que tiene que estar
-materializado antes de leer los saldos que arrastra el cierre.
+escribe las expensas y los intereses en una única transacción.
+
+La única escritura propia del preview es el devengamiento de los recargos por
+mora ya vencidos, que tiene que estar materializado antes de leer los saldos
+que arrastra el cierre. Ese commit es independiente y ocurre antes de que se
+evalúe `puede_cerrar`: si el cierre después se rechaza, los recargos quedan
+igual — son deuda ya ganada, no parte del cierre —, pero por eso la
+atomicidad es del cierre y no del request entero.
 """
 from dataclasses import dataclass, field
 from datetime import date, timedelta
@@ -25,7 +30,7 @@ from .models import (
     PeriodoCerrado,
     Rubro,
 )
-from .recargos import devengar_recargos
+from .recargos import devengar_recargos_y_marcar
 
 
 @dataclass
@@ -333,7 +338,7 @@ def _completar_preview(
     # para todo el padrón, no uno por departamento.
     hubo_recargos = False
     for d in deptos:
-        if devengar_recargos(db, d.id, hoy=fecha_corte):
+        if devengar_recargos_y_marcar(db, d.id, hoy=fecha_corte):
             hubo_recargos = True
     if hubo_recargos:
         db.commit()

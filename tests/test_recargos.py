@@ -2,6 +2,7 @@
 from datetime import date
 
 import pytest
+from sqlalchemy import select
 
 from backend.models import (
     Administracion,
@@ -11,7 +12,7 @@ from backend.models import (
     MovimientoCuenta,
     TipoMovimiento,
 )
-from backend.recargos import devengar_recargos
+from backend.recargos import devengar_recargos, devengar_recargos_y_marcar
 
 
 @pytest.fixture
@@ -81,6 +82,67 @@ def test_expensa_pagada_antes_del_vencimiento_no_devenga(db_empty, depto):
     assert devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15)) == []
 
 
+def test_la_expensa_que_no_devenga_queda_marcada_como_evaluada(db_empty, depto):
+    """El caso caro: pagada a tiempo, no emite nada, y aun así no se vuelve
+    a evaluar. Sin la marca, cada lectura pagaba un `calcular_estado_cuenta`
+    entero por esta expensa, para siempre."""
+    e = _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
+    _pago(db_empty, 1000.0, date(2026, 6, 5))
+
+    assert devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15)) == []
+    db_empty.commit()
+
+    assert e.recargo_evaluado is True
+    # Y ya no es candidata: la segunda pasada no la mira siquiera.
+    assert devengar_recargos_y_marcar(db_empty, 1, hoy=date(2026, 6, 30)) is False
+
+
+def test_sin_recargo_configurado_tambien_queda_evaluada(db_empty, depto):
+    e = _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20),
+                 monto1=1000.0, monto2=1000.0)
+
+    assert devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15)) == []
+    db_empty.commit()
+
+    assert e.recargo_evaluado is True
+    assert devengar_recargos_y_marcar(db_empty, 1, hoy=date(2026, 6, 30)) is False
+
+
+def test_marcar_reporta_que_hay_algo_para_commitear(db_empty, depto):
+    """`devengar_recargos_y_marcar` es True aunque no se emita movimiento:
+    la marca es una escritura y el llamador tiene que commitearla."""
+    _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
+    _pago(db_empty, 1000.0, date(2026, 6, 5))
+
+    assert devengar_recargos_y_marcar(db_empty, 1, hoy=date(2026, 6, 15)) is True
+    # Sin expensas vencidas nuevas no hay nada que persistir.
+    db_empty.commit()
+    assert devengar_recargos_y_marcar(db_empty, 1, hoy=date(2026, 6, 15)) is False
+
+
+def test_una_expensa_ya_recargada_sin_marca_no_emite_segundo_movimiento(db_empty, depto):
+    """Simula el estado post-migración: el recargo existe pero
+    `recargo_evaluado` migró en 0. La guarda `ya_recargadas` lo cubre."""
+    e = _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
+    devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15))
+    db_empty.commit()
+
+    # Volvemos la expensa al estado que deja el ALTER TABLE.
+    e.recargo_evaluado = False
+    db_empty.commit()
+
+    assert devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15)) == []
+    db_empty.commit()
+
+    recargos = db_empty.scalars(
+        select(MovimientoCuenta).where(
+            MovimientoCuenta.tipo == TipoMovimiento.recargo
+        )
+    ).all()
+    assert len(recargos) == 1
+    assert e.recargo_evaluado is True
+
+
 def test_pagar_despues_del_vencimiento_no_borra_el_recargo(db_empty, depto):
     """El recargo se ganó el 10/06; pagar el 12/06 no lo revierte."""
     _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
@@ -98,7 +160,7 @@ def test_no_devenga_antes_del_vencimiento(db_empty, depto):
 
 
 def test_es_idempotente(db_empty, depto):
-    _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
+    e = _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
 
     primera = devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15))
     db_empty.commit()
@@ -107,6 +169,9 @@ def test_es_idempotente(db_empty, depto):
 
     assert len(primera) == 1
     assert segunda == []
+    # La que sí devengó también queda marcada: la segunda pasada ni la mira.
+    assert e.recargo_evaluado is True
+    assert devengar_recargos_y_marcar(db_empty, 1, hoy=date(2026, 6, 30)) is False
 
 
 def test_sin_recargo_configurado_no_emite_movimiento(db_empty, depto):

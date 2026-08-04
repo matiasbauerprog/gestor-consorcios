@@ -28,6 +28,37 @@ def test_morosos_orden_por_saldo_descendente(db):
             assert items[i].saldo >= items[i+1].saldo
 
 
+def test_morosos_devenga_el_recargo_de_las_expensas_vencidas(db):
+    """Regresión del cableado en `calcular_morosos`: sin el devengamiento el
+    reporte informa 135000 y subestima la deuda en el recargo."""
+    from datetime import timedelta
+
+    from backend.models import Expensa, MovimientoCuenta, TipoMovimiento
+
+    hoy = date.today()
+    # Primer vencimiento pasado (ya rige el monto con recargo) y segundo
+    # futuro (no corre interés punitorio, que ensuciaría la aritmética).
+    db.add(Expensa(
+        id=150, consorcio_id=1, departamento_id=1, periodo="2026-04",
+        monto_primer_vencimiento=50000.0,
+        fecha_primer_vencimiento=hoy - timedelta(days=5),
+        monto_segundo_vencimiento=53500.0,
+        fecha_segundo_vencimiento=hoy + timedelta(days=5),
+        saldo_anterior=0.0,
+    ))
+    db.add(MovimientoCuenta(
+        consorcio_id=1, departamento_id=1, fecha=hoy - timedelta(days=25),
+        tipo=TipoMovimiento.expensa_emitida, descripcion="Expensa 2026-04",
+        monto=50000.0, expensa_id=150,
+    ))
+    db.commit()
+
+    items = {it.departamento_id: it for it in calcular_morosos(db, 1, solo_deudores=True)}
+
+    # 85000 (expensa del seed) + 53500 (50000 + 7% de recargo) = 138500.
+    assert items[1].saldo == 138500.0
+
+
 def test_estado_financiero_patrimonio_es_activo_menos_pasivo(db):
     rep = calcular_estado_financiero(db, 1, date.today())
     assert rep.patrimonio_neto == round(rep.activo_total - rep.pasivo_total, 2)

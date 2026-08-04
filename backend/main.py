@@ -113,6 +113,17 @@ def _migrar_administracion_modulos() -> None:
             ))
 
 
+def _migrar_expensa_recargo_evaluado() -> None:
+    """ALTER TABLE idempotente: agrega `recargo_evaluado` a expensas. Las
+    existentes arrancan en 0 y se evalúan una vez en la primera lectura."""
+    with engine.begin() as conn:
+        cols = {r[1] for r in conn.execute(text("PRAGMA table_info(expensas)"))}
+        if cols and "recargo_evaluado" not in cols:
+            conn.execute(text(
+                "ALTER TABLE expensas ADD COLUMN recargo_evaluado BOOLEAN NOT NULL DEFAULT 0"
+            ))
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
@@ -120,6 +131,7 @@ async def lifespan(_: FastAPI):
         _migrar_usuario_activa()
         _migrar_pk_periodos_cerrados()
         _migrar_administracion_modulos()
+        _migrar_expensa_recargo_evaluado()
     if get_settings().SEED_ENABLED:
         with SessionLocal() as db:
             seed_if_empty(db)
