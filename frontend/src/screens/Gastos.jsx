@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Tarjeta from "../components/Tarjeta";
 import Tabs from "../components/Tabs";
+import ModalPagarGasto from "../components/ModalPagarGasto";
 import {
   listarGastos,
   crearGasto,
   crearPlanCuotas,
   actualizarGasto,
   eliminarGasto,
-  cargarGastosHabituales,
 } from "../api/gastos";
 import { listarClasesProrrateo } from "../api/clasesProrrateo";
 import { listarProveedores } from "../api/proveedores";
@@ -56,6 +56,7 @@ export default function Gastos() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
   const [modal, setModal] = useState(null);
+  const [modalPagar, setModalPagar] = useState(null);
   const [cerrados, setCerrados] = useState(new Set());
 
   // El período no es un filtro: es el contexto de trabajo (define el cierre).
@@ -127,17 +128,6 @@ export default function Gastos() {
     setPeriodo(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }
 
-  async function handleCargarHabituales() {
-    const r = await cargarGastosHabituales(periodo);
-    if (r.status === 201) {
-      recargar();
-      const n = r.data.length;
-      setError(n === 0 ? "No había gastos recurrentes nuevos para cargar." : null);
-    } else if (r.status !== 401) {
-      setError(r.data?.detail || "No se pudieron cargar los habituales.");
-    }
-  }
-
   async function handleBorrar(g) {
     if (!confirm(`¿Eliminar el gasto "${g.concepto}"?`)) return;
     const r = await eliminarGasto(g.id);
@@ -207,9 +197,6 @@ export default function Gastos() {
         <div className="cabecera-acciones">
           {!cerrados.has(periodo) && (
             <>
-              <button type="button" onClick={handleCargarHabituales}>
-                Cargar recurrentes
-              </button>
               <button type="button" onClick={() => setModal({ tipo: "crear" })}>
                 + Nuevo gasto
               </button>
@@ -265,7 +252,8 @@ export default function Gastos() {
             <Tarjeta>
               <h3>{labelRubro(g.rubro)} · {g.concepto}</h3>
               <p className="meta">
-                ${g.monto.toLocaleString("es-AR")} · {g.periodo} · pagó {formatFecha(g.fecha_pago)}
+                ${g.monto.toLocaleString("es-AR")} · {g.periodo} ·{" "}
+                {g.pagado ? `pagó ${formatFecha(g.fecha_pago)}` : "sin pagar"}
               </p>
               <p className="meta">Proveedor: {proveedorPorId(g.proveedor_id)}</p>
               <p className="meta">
@@ -281,6 +269,11 @@ export default function Gastos() {
                   <span title="Período cerrado — no editable">🔒</span>
                 ) : (
                   <>
+                    {!g.pagado && (
+                      <button type="button" onClick={() => setModalPagar(g)}>
+                        Confirmar pago
+                      </button>
+                    )}
                     <button type="button" onClick={() => setModal({ tipo: "editar", gasto: g })}>
                       Editar
                     </button>
@@ -309,6 +302,15 @@ export default function Gastos() {
             setModal(null);
             recargar();
           }}
+        />
+      )}
+
+      {modalPagar && (
+        <ModalPagarGasto
+          gasto={modalPagar}
+          cajas={cajas}
+          onClose={() => setModalPagar(null)}
+          onPagado={() => { setModalPagar(null); recargar(); }}
         />
       )}
     </section>
