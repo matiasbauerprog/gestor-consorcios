@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Tarjeta from "../components/Tarjeta";
 import Tabs from "../components/Tabs";
 import ModalPagarGasto from "../components/ModalPagarGasto";
+import ListaResponsive from "../components/ListaResponsive";
 import {
   listarGastos,
   crearGasto,
@@ -152,6 +153,59 @@ export default function Gastos() {
     return cajas.find((c) => c.id === id)?.nombre || "—";
   }
 
+  const columnas = [
+    { clave: "concepto", titulo: "Concepto", celda: (g) => g.concepto },
+    { clave: "rubro", titulo: "Rubro", celda: (g) => labelRubro(g.rubro) },
+    { clave: "proveedor", titulo: "Proveedor", celda: (g) => proveedorPorId(g.proveedor_id) },
+    {
+      clave: "destino",
+      titulo: "Clase / Depto",
+      celda: (g) =>
+        g.clase_prorrateo_id !== null
+          ? `Clase ${clasePorId(g.clase_prorrateo_id)}`
+          : `Depto ${deptoPorId(g.departamento_id)}`,
+    },
+    { clave: "caja", titulo: "Caja", celda: (g) => cajaPorId(g.caja_id) },
+    {
+      clave: "monto",
+      titulo: "Monto",
+      className: "col-monto",
+      celda: (g) => `$${g.monto.toLocaleString("es-AR")}`,
+    },
+    {
+      clave: "pago",
+      titulo: "Pago",
+      celda: (g) =>
+        g.pagado ? (
+          formatFecha(g.fecha_pago)
+        ) : cerrados.has(g.periodo) ? (
+          <span className="meta">Sin pagar</span>
+        ) : (
+          <button type="button" onClick={() => setModalPagar(g)}>
+            Confirmar
+          </button>
+        ),
+    },
+    {
+      clave: "acciones",
+      titulo: "",
+      className: "col-acciones",
+      celda: (g) =>
+        cerrados.has(g.periodo) ? (
+          <span title="Período cerrado — no editable">🔒</span>
+        ) : (
+          <>
+            <button type="button" onClick={() => setModal({ tipo: "editar", gasto: g })}>
+              Editar
+            </button>
+            <button type="button" className="boton-borrar" onClick={() => handleBorrar(g)}>
+              Eliminar
+            </button>
+          </>
+        ),
+    },
+  ];
+
   return (
     <section>
       <header className="cabecera-pantalla">
@@ -244,49 +298,52 @@ export default function Gastos() {
 
       {error && <p role="alert" className="error-banner">{error}</p>}
       {cargando && <p>Cargando…</p>}
-      {!cargando && gastos.length === 0 && <p>No hay gastos con esos filtros.</p>}
 
-      <ul className="lista-gastos">
-        {gastos.map((g) => (
-          <li key={g.id}>
-            <Tarjeta>
-              <h3>{labelRubro(g.rubro)} · {g.concepto}</h3>
-              <p className="meta">
-                ${g.monto.toLocaleString("es-AR")} · {g.periodo} ·{" "}
-                {g.pagado ? `pagó ${formatFecha(g.fecha_pago)}` : "sin pagar"}
-              </p>
-              <p className="meta">Proveedor: {proveedorPorId(g.proveedor_id)}</p>
-              <p className="meta">
-                {g.clase_prorrateo_id !== null
-                  ? <>Clase {clasePorId(g.clase_prorrateo_id)}</>
-                  : <>Particular a {deptoPorId(g.departamento_id)}</>}
-                {g.cuota_actual && <> · Cuota {g.cuota_actual}/{g.cuota_total}</>}
-                {g.gasto_habitual_id && <> · Recurrente</>}
-              </p>
-              <p className="meta">Caja: {cajaPorId(g.caja_id)}</p>
-              <div className="tarjeta-acciones">
-                {cerrados.has(g.periodo) ? (
-                  <span title="Período cerrado — no editable">🔒</span>
-                ) : (
-                  <>
-                    {!g.pagado && (
-                      <button type="button" onClick={() => setModalPagar(g)}>
-                        Confirmar pago
-                      </button>
-                    )}
-                    <button type="button" onClick={() => setModal({ tipo: "editar", gasto: g })}>
-                      Editar
+      {!cargando && (
+      <ListaResponsive
+        columnas={columnas}
+        filas={gastos}
+        claveFila={(g) => g.id}
+        vacio="No hay gastos con esos filtros."
+        renderTarjeta={(g) => (
+          <Tarjeta>
+            <h3>{labelRubro(g.rubro)} · {g.concepto}</h3>
+            <p className="meta">
+              ${g.monto.toLocaleString("es-AR")} · {g.periodo} ·{" "}
+              {g.pagado ? `pagó ${formatFecha(g.fecha_pago)}` : "sin pagar"}
+            </p>
+            <p className="meta">Proveedor: {proveedorPorId(g.proveedor_id)}</p>
+            <p className="meta">
+              {g.clase_prorrateo_id !== null
+                ? <>Clase {clasePorId(g.clase_prorrateo_id)}</>
+                : <>Particular a {deptoPorId(g.departamento_id)}</>}
+              {g.cuota_actual && <> · Cuota {g.cuota_actual}/{g.cuota_total}</>}
+              {g.gasto_habitual_id && <> · Recurrente</>}
+            </p>
+            <p className="meta">Caja: {cajaPorId(g.caja_id)}</p>
+            <div className="tarjeta-acciones">
+              {cerrados.has(g.periodo) ? (
+                <span title="Período cerrado — no editable">🔒</span>
+              ) : (
+                <>
+                  {!g.pagado && (
+                    <button type="button" onClick={() => setModalPagar(g)}>
+                      Confirmar pago
                     </button>
-                    <button type="button" className="boton-borrar" onClick={() => handleBorrar(g)}>
-                      Eliminar
-                    </button>
-                  </>
-                )}
-              </div>
-            </Tarjeta>
-          </li>
-        ))}
-      </ul>
+                  )}
+                  <button type="button" onClick={() => setModal({ tipo: "editar", gasto: g })}>
+                    Editar
+                  </button>
+                  <button type="button" className="boton-borrar" onClick={() => handleBorrar(g)}>
+                    Eliminar
+                  </button>
+                </>
+              )}
+            </div>
+          </Tarjeta>
+        )}
+      />
+      )}
 
       {modal && (
         <ModalGasto
