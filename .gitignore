@@ -52,3 +52,6 @@ backend/uploads/comprobantes/*
 
 # Visual companion (brainstorming)
 .superpowers/
+
+# Worktrees de ejecucion aislada (superpowers / SDD)
+.worktrees/
