@@ -10,6 +10,7 @@ import { listarCajas } from "../api/cajas";
 import { obtenerConfiguracion } from "../api/configuracion";
 import { API_BASE } from "../api/client";
 import BadgeEstado from "../components/BadgeEstado";
+import ListaResponsive from "../components/ListaResponsive";
 import Modal from "../components/Modal";
 import SelectorDepartamento from "../components/SelectorDepartamento";
 import Tarjeta from "../components/Tarjeta";
@@ -177,13 +178,82 @@ export default function Comprobantes() {
     };
   }, [filtroEstado, filtroDepto, esAdmin]);
 
+  const columnas = [
+    { clave: "fecha", titulo: "Fecha", celda: (c) => formatFecha(c.fecha_pago) },
+    ...(esAdmin
+      ? [{
+          clave: "depto",
+          titulo: "Departamento",
+          celda: (c) => c.departamento_codigo || (c.departamento_id ? `#${c.departamento_id}` : "—"),
+        }]
+      : []),
+    {
+      clave: "monto",
+      titulo: "Monto",
+      className: "col-monto",
+      celda: (c) => `$${c.monto.toLocaleString("es-AR")}`,
+    },
+    {
+      clave: "estado",
+      titulo: "Estado",
+      celda: (c) => <BadgeEstado estado={c.estado} />,
+    },
+    {
+      clave: "archivo",
+      titulo: "Comprobante",
+      celda: (c) =>
+        c.archivo_path ? (
+          <a href={`${API_BASE}${c.archivo_path}`} target="_blank" rel="noopener noreferrer">
+            <img
+              src={`${API_BASE}${c.archivo_path}`}
+              alt={`Comprobante del ${formatFecha(c.fecha_pago)}`}
+              className="comprobante-thumb"
+            />
+          </a>
+        ) : (
+          "—"
+        ),
+    },
+    {
+      clave: "acciones",
+      titulo: "",
+      className: "col-acciones",
+      celda: (c) => (
+        <>
+          {esAdmin && c.estado === "pendiente_verificacion" && (
+            <>
+              <button
+                type="button"
+                onClick={() => handleAprobarClick(c)}
+                disabled={accionandoId === c.id || cargandoCajas}
+              >
+                {accionandoId === c.id ? "…" : "Aprobar"}
+              </button>
+              <button
+                type="button"
+                className="boton-borrar"
+                onClick={() => handleDecision(c.id, "rechazado")}
+                disabled={accionandoId === c.id}
+              >
+                {accionandoId === c.id ? "…" : "Rechazar"}
+              </button>
+            </>
+          )}
+          <button type="button" className="boton-peligro" onClick={() => setModalEliminar(c)}>
+            Eliminar
+          </button>
+        </>
+      ),
+    },
+  ];
+
   return (
     <section>
       <header className="seccion-header">
         <h2>Comprobantes</h2>
       </header>
 
-      <div className="filtros">
+      <div className="filtros-barra">
         <label>
           Estado
           <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)}>
@@ -200,59 +270,60 @@ export default function Comprobantes() {
       {cargando && <p>Cargando…</p>}
       {errorCarga && <p role="alert" className="error-banner">{errorCarga}</p>}
       {errorAccion && <p role="alert" className="error-banner">{errorAccion}</p>}
-      {!cargando && !errorCarga && comprobantes.length === 0 && (
-        <p>No hay comprobantes con esos filtros.</p>
-      )}
 
-      <ul className="lista-comprobantes">
-        {comprobantes.map((c) => (
-          <li key={c.id}>
-            <Tarjeta>
-              <h3>
-                ${c.monto.toLocaleString("es-AR")}
-              </h3>
-              <p className="meta">Pagado {formatFecha(c.fecha_pago)}</p>
-              {c.departamento_id && (
-                <p className="meta">Departamento: {c.departamento_codigo || `#${c.departamento_id}`}</p>
+      {!cargando && (
+      <ListaResponsive
+        columnas={columnas}
+        filas={comprobantes}
+        claveFila={(c) => c.id}
+        vacio="No hay comprobantes con esos filtros."
+        renderTarjeta={(c) => (
+          <Tarjeta>
+            <h3>${c.monto.toLocaleString("es-AR")}</h3>
+            <p className="meta">Pagado {formatFecha(c.fecha_pago)}</p>
+            {c.departamento_id && (
+              <p className="meta">
+                Departamento: {c.departamento_codigo || `#${c.departamento_id}`}
+              </p>
+            )}
+            <p><BadgeEstado estado={c.estado} /></p>
+            {c.archivo_path && (
+              <a href={`${API_BASE}${c.archivo_path}`} target="_blank" rel="noopener noreferrer">
+                <img
+                  src={`${API_BASE}${c.archivo_path}`}
+                  alt="Comprobante"
+                  className="comprobante-img"
+                />
+              </a>
+            )}
+            <div className="tarjeta-acciones">
+              {esAdmin && c.estado === "pendiente_verificacion" && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleAprobarClick(c)}
+                    disabled={accionandoId === c.id || cargandoCajas}
+                  >
+                    {accionandoId === c.id ? "…" : "Aprobar"}
+                  </button>
+                  <button
+                    type="button"
+                    className="boton-borrar"
+                    onClick={() => handleDecision(c.id, "rechazado")}
+                    disabled={accionandoId === c.id}
+                  >
+                    {accionandoId === c.id ? "…" : "Rechazar"}
+                  </button>
+                </>
               )}
-              <p><BadgeEstado estado={c.estado} /></p>
-              {c.archivo_path && (
-                <a href={`${API_BASE}${c.archivo_path}`} target="_blank" rel="noopener noreferrer">
-                  <img src={`${API_BASE}${c.archivo_path}`} alt="Comprobante" className="comprobante-img" />
-                </a>
-              )}
-              <div className="tarjeta-acciones">
-                {esAdmin && c.estado === "pendiente_verificacion" && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => handleAprobarClick(c)}
-                      disabled={accionandoId === c.id || cargandoCajas}
-                    >
-                      {accionandoId === c.id ? "…" : "Aprobar"}
-                    </button>
-                    <button
-                      type="button"
-                      className="boton-borrar"
-                      onClick={() => handleDecision(c.id, "rechazado")}
-                      disabled={accionandoId === c.id}
-                    >
-                      {accionandoId === c.id ? "…" : "Rechazar"}
-                    </button>
-                  </>
-                )}
-                <button
-                  type="button"
-                  className="boton-peligro"
-                  onClick={() => setModalEliminar(c)}
-                >
-                  Eliminar
-                </button>
-              </div>
-            </Tarjeta>
-          </li>
-        ))}
-      </ul>
+              <button type="button" className="boton-peligro" onClick={() => setModalEliminar(c)}>
+                Eliminar
+              </button>
+            </div>
+          </Tarjeta>
+        )}
+      />
+      )}
 
       {modalAprobar && (
         <Modal titulo="Aprobar comprobante" onClose={() => setModalAprobar(null)}>

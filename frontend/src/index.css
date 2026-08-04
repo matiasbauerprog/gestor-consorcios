@@ -2819,3 +2819,13 @@ td.monto {
   color: var(--color-text-muted);
   margin: 1rem 0;
 }
+
+/* La imagen inline de 240px hace la lista interminable; en tabla va miniatura. */
+.comprobante-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  cursor: zoom-in;
+}
