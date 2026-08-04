@@ -9,6 +9,10 @@ import ModalComprobantesExpensa from "../components/ModalComprobantesExpensa";
 import ModalEnvioPdfs from "../components/ModalEnvioPdfs";
 import SelectorDepartamento from "../components/SelectorDepartamento";
 import TarjetaExpensa from "../components/TarjetaExpensa";
+import ListaResponsive from "../components/ListaResponsive";
+import BadgeEstado from "../components/BadgeEstado";
+import { formatFecha } from "../utils/fechas";
+import { abrirPdfExpensa } from "../api/pdf";
 
 export default function Expensas() {
   const { user, token } = useAuth();
@@ -109,39 +113,128 @@ export default function Expensas() {
     }
   }
 
+  function formatearMonto(v) {
+    return Number(v).toLocaleString("es-AR", {
+      style: "currency",
+      currency: "ARS",
+      maximumFractionDigits: 0,
+    });
+  }
+
+  async function handleAbrirPdf(expensa) {
+    try {
+      await abrirPdfExpensa(expensa.id);
+    } catch (err) {
+      setErrorAccion(`No se pudo abrir el PDF: ${err.message}`);
+    }
+  }
+
+  const columnas = [
+    { clave: "periodo", titulo: "Período", celda: (e) => e.periodo },
+    ...(esAdmin
+      ? [{
+          clave: "depto",
+          titulo: "Departamento",
+          celda: (e) => {
+            const d = deptoById[e.departamento_id];
+            return d ? `${d.codigo} — ${d.descripcion}` : `#${e.departamento_id}`;
+          },
+        }]
+      : []),
+    {
+      clave: "venc1",
+      titulo: "1° venc",
+      celda: (e) => `${formatFecha(e.fecha_primer_vencimiento)} · ${formatearMonto(e.monto_primer_vencimiento)}`,
+    },
+    {
+      clave: "venc2",
+      titulo: "2° venc",
+      celda: (e) => `${formatFecha(e.fecha_segundo_vencimiento)} · ${formatearMonto(e.monto_segundo_vencimiento)}`,
+    },
+    {
+      clave: "estado",
+      titulo: "Estado",
+      celda: (e) => <BadgeEstado estado={e.estado_calculado} />,
+    },
+    {
+      clave: "pendiente",
+      titulo: "Pendiente",
+      className: "col-monto",
+      celda: (e) =>
+        e.monto_pendiente >= 0.5 ? (
+          <>
+            <strong>{formatearMonto(e.monto_pendiente)}</strong>
+            {e.interes_acumulado > 0 && (
+              <>
+                <br />
+                <span className="meta">
+                  +{formatearMonto(e.interes_acumulado)} int.
+                </span>
+              </>
+            )}
+          </>
+        ) : (
+          "—"
+        ),
+    },
+    {
+      clave: "acciones",
+      titulo: "",
+      className: "col-acciones",
+      celda: (e) => (
+        <>
+          <button type="button" onClick={() => setModalComprobantes(e)}>
+            Comprobantes
+          </button>
+          <button type="button" onClick={() => handleAbrirPdf(e)}>
+            PDF
+          </button>
+          {esAdmin && (
+            <button
+              type="button"
+              className="boton-peligro"
+              onClick={() => setModalEliminar(e)}
+            >
+              Eliminar
+            </button>
+          )}
+        </>
+      ),
+    },
+  ];
+
   return (
     <section className="pantalla">
       <header className="seccion-header">
         <h2>Expensas</h2>
-        {esAdmin && (
-          <div className="seccion-acciones">
-            <SelectorDepartamento
-              valor={departamentoSeleccionado}
-              onChange={setDepartamentoSeleccionado}
+      </header>
+
+      {esAdmin && (
+        <div className="filtros-barra">
+          <SelectorDepartamento
+            valor={departamentoSeleccionado}
+            onChange={setDepartamentoSeleccionado}
+          />
+          <label>
+            Período
+            <input
+              type="month"
+              value={filtroPeriodo}
+              onChange={(e) => setFiltroPeriodo(e.target.value)}
             />
-            <label>
-              Período:{" "}
-              <input
-                type="month"
-                value={filtroPeriodo}
-                onChange={(e) => setFiltroPeriodo(e.target.value)}
-              />
-              {filtroPeriodo && (
-                <button type="button" onClick={() => setFiltroPeriodo("")} style={{ marginLeft: "0.5em" }}>
-                  Limpiar
-                </button>
-              )}
-            </label>
-            <button
-              type="button"
-              disabled={departamentoSeleccionado === null}
-              onClick={() => setModalCrearAbierto(true)}
-            >
+          </label>
+          {filtroPeriodo && (
+            <button type="button" onClick={() => setFiltroPeriodo("")}>
+              Limpiar
+            </button>
+          )}
+          {departamentoSeleccionado !== null && (
+            <button type="button" onClick={() => setModalCrearAbierto(true)}>
               + Nueva expensa
             </button>
-          </div>
-        )}
-      </header>
+          )}
+        </div>
+      )}
 
       {cargando && <p>Cargando…</p>}
       {errorCarga && (
@@ -153,9 +246,6 @@ export default function Expensas() {
         <p role="alert" className="error-banner">
           {errorAccion}
         </p>
-      )}
-      {!cargando && !errorCarga && expensas.length === 0 && (
-        <p>No hay expensas para mostrar.</p>
       )}
 
       {filtroPeriodo && (
@@ -189,9 +279,13 @@ export default function Expensas() {
         </div>
       )}
 
-      <ul className="lista-expensas">
-        {expensasFiltradas.map((e) => (
-          <li key={e.id}>
+      {!cargando && (
+        <ListaResponsive
+          columnas={columnas}
+          filas={expensasFiltradas}
+          claveFila={(e) => e.id}
+          vacio="No hay expensas para mostrar."
+          renderTarjeta={(e) => (
             <TarjetaExpensa
               expensa={e}
               esAdmin={esAdmin}
@@ -200,9 +294,9 @@ export default function Expensas() {
               onEliminar={setModalEliminar}
               onVerComprobantes={setModalComprobantes}
             />
-          </li>
-        ))}
-      </ul>
+          )}
+        />
+      )}
 
       {esAdmin && departamentoSeleccionado !== null && (
         <p>
