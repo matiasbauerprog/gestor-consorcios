@@ -62,6 +62,7 @@ class TipoMovimiento(str, enum.Enum):
     expensa_emitida = "expensa_emitida"
     pago_recibido = "pago_recibido"
     interes_punitorio = "interes_punitorio"
+    recargo = "recargo"
     nota_debito = "nota_debito"
     nota_credito = "nota_credito"
 
@@ -69,6 +70,7 @@ class TipoMovimiento(str, enum.Enum):
 TIPOS_DEBITO = frozenset({
     TipoMovimiento.expensa_emitida,
     TipoMovimiento.interes_punitorio,
+    TipoMovimiento.recargo,
     TipoMovimiento.nota_debito,
 })
 TIPOS_CREDITO = frozenset({

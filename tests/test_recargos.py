@@ -1,0 +1,133 @@
+"""Tests del devengamiento del recargo por mora. Sin HTTP, contra DB en memoria."""
+from datetime import date
+
+import pytest
+
+from backend.models import (
+    Administracion,
+    Consorcio,
+    Departamento,
+    Expensa,
+    MovimientoCuenta,
+    TipoMovimiento,
+)
+from backend.recargos import devengar_recargos
+
+
+@pytest.fixture
+def depto(db_empty):
+    db_empty.add(Administracion(
+        id=1, razon_social="Admin recargos", cuit="30-11-1",
+        email_contacto="a@a.com",
+    ))
+    db_empty.flush()
+    db_empty.add(Consorcio(
+        id=1, administracion_id=1, nombre="Recargos test",
+        consorcio_domicilio="d", consorcio_cuit="c",
+        admin_nombre="n", admin_domicilio="d", admin_email="e@e.com",
+        admin_telefono="t", admin_cuit="c", admin_rpa="0",
+        admin_situacion_fiscal="M", banco_titular="t", banco_nombre="n",
+        banco_numero_cuenta="0", banco_cbu="0" * 22,
+    ))
+    db_empty.flush()
+    d = Departamento(consorcio_id=1, id=1, codigo="1A", descripcion="1° A")
+    db_empty.add(d)
+    db_empty.commit()
+    return d
+
+
+def _expensa(db, expensa_id, venc1, venc2, monto1=1000.0, monto2=1070.0):
+    e = Expensa(consorcio_id=1, id=expensa_id, departamento_id=1,
+                periodo="2026-05", monto_primer_vencimiento=monto1,
+                fecha_primer_vencimiento=venc1,
+                monto_segundo_vencimiento=monto2,
+                fecha_segundo_vencimiento=venc2, saldo_anterior=0.0)
+    db.add(e)
+    db.add(MovimientoCuenta(
+        consorcio_id=1, departamento_id=1, fecha=date(2026, 5, 1),
+        tipo=TipoMovimiento.expensa_emitida, descripcion="Expensa",
+        monto=monto1, expensa_id=expensa_id,
+    ))
+    db.commit()
+    return e
+
+
+def _pago(db, monto, fecha):
+    db.add(MovimientoCuenta(
+        consorcio_id=1, departamento_id=1, fecha=fecha,
+        tipo=TipoMovimiento.pago_recibido, descripcion="Pago", monto=monto,
+    ))
+    db.commit()
+
+
+def test_expensa_impaga_al_vencimiento_devenga_recargo(db_empty, depto):
+    _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
+
+    nuevos = devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15))
+    db_empty.commit()
+
+    assert len(nuevos) == 1
+    assert nuevos[0].monto == 70.0
+    assert nuevos[0].tipo == TipoMovimiento.recargo
+    assert nuevos[0].expensa_id == 1
+    # Se fecha el día del vencimiento, que es cuando se ganó.
+    assert nuevos[0].fecha == date(2026, 6, 10)
+
+
+def test_expensa_pagada_antes_del_vencimiento_no_devenga(db_empty, depto):
+    _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
+    _pago(db_empty, 1000.0, date(2026, 6, 5))
+
+    assert devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15)) == []
+
+
+def test_pagar_despues_del_vencimiento_no_borra_el_recargo(db_empty, depto):
+    """El recargo se ganó el 10/06; pagar el 12/06 no lo revierte."""
+    _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
+    _pago(db_empty, 1000.0, date(2026, 6, 12))
+
+    nuevos = devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15))
+    assert len(nuevos) == 1
+    assert nuevos[0].monto == 70.0
+
+
+def test_no_devenga_antes_del_vencimiento(db_empty, depto):
+    _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
+
+    assert devengar_recargos(db_empty, 1, hoy=date(2026, 6, 10)) == []
+
+
+def test_es_idempotente(db_empty, depto):
+    _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
+
+    primera = devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15))
+    db_empty.commit()
+    segunda = devengar_recargos(db_empty, 1, hoy=date(2026, 6, 20))
+    db_empty.commit()
+
+    assert len(primera) == 1
+    assert segunda == []
+
+
+def test_sin_recargo_configurado_no_emite_movimiento(db_empty, depto):
+    """monto_segundo == monto_primer: el consorcio no cobra recargo."""
+    _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20),
+             monto1=1000.0, monto2=1000.0)
+
+    assert devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15)) == []
+
+
+def test_el_saldo_vuelve_a_coincidir_con_el_pendiente(db_empty, depto):
+    """Es el punto de todo esto: saldo_total y la suma de pendientes empatan."""
+    from backend.cuenta_corriente import calcular_estado_cuenta
+
+    _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
+    devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15))
+    db_empty.commit()
+
+    estado = calcular_estado_cuenta(db_empty, 1, hoy=date(2026, 6, 15))
+    suma_pendientes = round(
+        sum(c.monto_pendiente for c in estado.por_expensa.values()), 2
+    )
+    assert estado.saldo_total == 1070.0
+    assert suma_pendientes == 1070.0
