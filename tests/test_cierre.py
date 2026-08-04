@@ -222,9 +222,38 @@ def test_intereses_un_mes_de_mora_calcula_correcto(db, proveedor):
     db.commit()
 
     monto, descripcion = calcular_intereses_al_cierre(db, 1, 1, date(2026, 5, 30))
-    # 10 días de mora, tasa 3%/mes → 0.001/día. 1000 × 0.001 × 10 = 10.
-    assert monto == 10.0
+    # 10 días de mora, tasa 3%/mes → 0.001/día. Base = 2° vencimiento (1070,
+    # ya con recargo): 1070 × 0.001 × 10 = 10.70.
+    assert monto == 10.70
     assert "2026-04" in descripcion
+
+
+def test_cierre_cobra_exactamente_el_interes_que_informa_la_cuenta(db, proveedor):
+    """Regresión: si el cierre calcula el punitorio sobre un pendiente que ya
+    incluye intereses devengados, cada corrida cobra interés del interés. El
+    cierre y la cuenta corriente tienen que coincidir siempre."""
+    from backend.cuenta_corriente import calcular_estado_cuenta
+
+    expensa = Expensa(consorcio_id=1,
+        departamento_id=1, periodo="2026-04",
+        monto_primer_vencimiento=1000, fecha_primer_vencimiento=date(2026, 5, 10),
+        monto_segundo_vencimiento=1070, fecha_segundo_vencimiento=date(2026, 5, 20),
+        saldo_anterior=0.0,
+    )
+    db.add(expensa); db.flush()
+    db.add(MovimientoCuenta(consorcio_id=1,
+        departamento_id=1, fecha=date(2026, 5, 1),
+        tipo=TipoMovimiento.expensa_emitida, descripcion="Expensa 2026-04",
+        monto=1000, expensa_id=expensa.id,
+    ))
+    db.commit()
+
+    monto, _ = calcular_intereses_al_cierre(db, 1, 1, date(2026, 5, 30))
+    calc = calcular_estado_cuenta(db, 1, hoy=date(2026, 5, 30)).por_expensa
+    interes_informado = round(sum(c.interes_acumulado for c in calc.values()), 2)
+
+    assert monto == interes_informado
+    assert monto > 0
 
 
 def test_intereses_no_recobra_lo_ya_cobrado(db, proveedor):
@@ -251,9 +280,10 @@ def test_intereses_no_recobra_lo_ya_cobrado(db, proveedor):
     db.commit()
 
     monto, _ = calcular_intereses_al_cierre(db, 1, 1, date(2026, 6, 9))
-    # Solo los 10 días nuevos (30-may → 9-jun): 1000 × 0.001 × 10 = 10.
+    # Solo los 10 días nuevos (30-may → 9-jun), sobre el 2° vencimiento (1070,
+    # ya con recargo): 1070 × 0.001 × 10 = 10.70.
     # El cálculo viejo (bug) daba 20 (desde el 20-may, re-cobrando el tramo pago).
-    assert monto == 10.0
+    assert monto == 10.70
 
 
 def test_intereses_usa_tasa_del_consorcio_correcto(db):
@@ -292,5 +322,6 @@ def test_intereses_usa_tasa_del_consorcio_correcto(db):
     db.commit()
 
     monto, _ = calcular_intereses_al_cierre(db, 2, 3, date(2026, 5, 30))
-    # 10 días de mora a 6%/mes → 0.002/día. 1000 × 0.002 × 10 = 20.
-    assert monto == 20.0
+    # 10 días de mora a 6%/mes → 0.002/día. Base = 2° vencimiento (1070, ya
+    # con recargo): 1070 × 0.002 × 10 = 21.40.
+    assert monto == 21.40
