@@ -172,3 +172,86 @@ def test_depto_sin_movimientos(db_empty, depto):
     estado = calcular_estado_cuenta(db_empty, depto.id, hoy=date(2026, 6, 5))
     assert estado.saldo_total == 0.0
     assert estado.por_expensa == {}
+
+
+from backend.cuenta_corriente import interes_devengado, monto_exigible_de
+
+
+def _expensa_simple():
+    return Expensa(
+        consorcio_id=1, id=99, departamento_id=1, periodo="2026-05",
+        monto_primer_vencimiento=1000.0,
+        fecha_primer_vencimiento=date(2026, 6, 10),
+        monto_segundo_vencimiento=1070.0,
+        fecha_segundo_vencimiento=date(2026, 6, 20),
+        saldo_anterior=0.0,
+    )
+
+
+def test_exigible_antes_del_primer_vencimiento():
+    assert monto_exigible_de(_expensa_simple(), date(2026, 6, 5)) == 1000.0
+
+
+def test_exigible_el_dia_del_primer_vencimiento_todavia_es_el_primero():
+    assert monto_exigible_de(_expensa_simple(), date(2026, 6, 10)) == 1000.0
+
+
+def test_exigible_pasado_el_primer_vencimiento_es_el_segundo():
+    assert monto_exigible_de(_expensa_simple(), date(2026, 6, 11)) == 1070.0
+
+
+def test_exigible_pasado_el_segundo_vencimiento_sigue_siendo_el_segundo():
+    # El interés se suma aparte, no infla el exigible.
+    assert monto_exigible_de(_expensa_simple(), date(2026, 7, 30)) == 1070.0
+
+
+def test_interes_cero_antes_del_segundo_vencimiento():
+    assert interes_devengado(
+        saldo_base=1070.0,
+        fecha_segundo_vencimiento=date(2026, 6, 20),
+        fecha_corte=date(2026, 6, 15),
+        tasa_mensual_pct=3.0,
+        ultima_capitalizacion=None,
+    ) == 0.0
+
+
+def test_interes_cero_si_no_hay_saldo():
+    assert interes_devengado(
+        saldo_base=0.0,
+        fecha_segundo_vencimiento=date(2026, 6, 20),
+        fecha_corte=date(2026, 7, 20),
+        tasa_mensual_pct=3.0,
+        ultima_capitalizacion=None,
+    ) == 0.0
+
+
+def test_interes_proporcional_a_los_dias_de_mora():
+    # tasa diaria = 3 / 100 / 30 = 0.001 ; 30 días ; 1000 * 0.001 * 30 = 30.0
+    assert interes_devengado(
+        saldo_base=1000.0,
+        fecha_segundo_vencimiento=date(2026, 6, 20),
+        fecha_corte=date(2026, 7, 20),
+        tasa_mensual_pct=3.0,
+        ultima_capitalizacion=None,
+    ) == 30.0
+
+
+def test_interes_arranca_desde_la_ultima_capitalizacion():
+    # Ya se capitalizó hasta el 10/07: sólo se cobran los 10 días siguientes.
+    assert interes_devengado(
+        saldo_base=1000.0,
+        fecha_segundo_vencimiento=date(2026, 6, 20),
+        fecha_corte=date(2026, 7, 20),
+        tasa_mensual_pct=3.0,
+        ultima_capitalizacion=date(2026, 7, 10),
+    ) == 10.0
+
+
+def test_interes_cero_si_ya_se_capitalizo_todo():
+    assert interes_devengado(
+        saldo_base=1000.0,
+        fecha_segundo_vencimiento=date(2026, 6, 20),
+        fecha_corte=date(2026, 7, 20),
+        tasa_mensual_pct=3.0,
+        ultima_capitalizacion=date(2026, 7, 20),
+    ) == 0.0

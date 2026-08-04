@@ -35,6 +35,45 @@ class EstadoCuenta:
     por_expensa: dict[int, EstadoExpensaCalculado] = field(default_factory=dict)
 
 
+def monto_exigible_de(expensa: Expensa, hoy: date) -> float:
+    """Monto que hay que pagar hoy por esta expensa, sin contar intereses.
+
+    Pasado el primer vencimiento pasa a regir el segundo (que incluye el
+    recargo). El día exacto del vencimiento todavía rige el primero.
+    """
+    if hoy <= expensa.fecha_primer_vencimiento:
+        return expensa.monto_primer_vencimiento
+    return expensa.monto_segundo_vencimiento
+
+
+def interes_devengado(
+    saldo_base: float,
+    fecha_segundo_vencimiento: date,
+    fecha_corte: date,
+    tasa_mensual_pct: float,
+    ultima_capitalizacion: date | None,
+) -> float:
+    """Interés punitorio sobre `saldo_base` por el tramo de mora todavía NO
+    capitalizado.
+
+    El cierre de período capitaliza intereses como movimientos de cuenta. Si
+    contáramos la mora desde el segundo vencimiento sin mirar esos movimientos,
+    cada cierre volvería a cobrar lo que el anterior ya cobró.
+    """
+    if saldo_base <= 0.005:
+        return 0.0
+    if fecha_segundo_vencimiento >= fecha_corte:
+        return 0.0
+    desde = fecha_segundo_vencimiento
+    if ultima_capitalizacion is not None and ultima_capitalizacion > desde:
+        desde = ultima_capitalizacion
+    dias_mora = (fecha_corte - desde).days
+    if dias_mora <= 0:
+        return 0.0
+    tasa_diaria = tasa_mensual_pct / 100 / 30
+    return round(saldo_base * tasa_diaria * dias_mora, 2)
+
+
 def calcular_estado_cuenta(
     db: Session, departamento_id: int, hoy: date | None = None
 ) -> EstadoCuenta:
