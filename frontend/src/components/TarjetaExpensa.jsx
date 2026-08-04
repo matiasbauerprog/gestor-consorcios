@@ -50,11 +50,14 @@ export default function TarjetaExpensa({
       <p style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", flexWrap: "wrap" }}>
         <BadgeEstado estado={expensa.estado_calculado} />
         {expensa.monto_pendiente >= 0.5 && (
-          <span className="meta">
-            Pendiente {formatearMonto(expensa.monto_pendiente)}
-          </span>
+          <strong>Pendiente {formatearMonto(expensa.monto_pendiente)}</strong>
         )}
       </p>
+      {expensa.monto_pendiente >= 0.5 && expensa.interes_acumulado > 0 && (
+        <p className="meta">
+          Incluye {formatearMonto(expensa.interes_acumulado)} de intereses por mora.
+        </p>
+      )}
       {(expensa.detalle?.length > 0 || esAdmin) && (
         <div className="tarjeta-acciones">
           {mostrarBotonComprobantes && (
