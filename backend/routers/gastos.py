@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, require_roles
+from ..cierre import periodo_cerrado_en
 from ..database import get_db
 from ..models import (
     Caja,
@@ -199,11 +200,26 @@ def _materializar_habituales(db: Session, cid: int, periodo: str) -> list[Gasto]
     return nuevos
 
 
+def _corresponde_materializar(db: Session, cid: int, periodo: str | None) -> bool:
+    """Sólo se materializan recurrentes en un período consultable y vivo.
+
+    - Período cerrado: ya liquidó sus expensas; agregarle gastos las dejaría
+      inconsistentes.
+    - Período futuro: navegar con las flechas hasta 2030 devengaría de golpe
+      los recurrentes de todos los meses intermedios.
+    """
+    if periodo is None:
+        return False
+    if periodo > date.today().strftime("%Y-%m"):
+        return False
+    return not periodo_cerrado_en(db, cid, periodo)
+
+
 @router.get(
     "",
     response_model=list[GastoOut],
     status_code=status.HTTP_200_OK,
-    summary="Listar gastos del consorcio",
+    summary="Listar gastos del consorcio (materializa recurrentes pendientes)",
 )
 def listar_gastos(
     periodo: str | None = Query(default=None, pattern=_PERIODO_PATTERN_GASTO),
@@ -218,7 +234,18 @@ def listar_gastos(
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
 ) -> list[Gasto]:
-    stmt = select(Gasto).where(Gasto.consorcio_id == cid).order_by(Gasto.fecha_pago.desc(), Gasto.id.desc())
+    # Efecto de escritura deliberado en un GET: materializa las plantillas
+    # recurrentes que falten. La alternativa es un scheduler, que el proyecto
+    # no tiene. La operación es idempotente, así que repetir el GET no duplica.
+    if _corresponde_materializar(db, cid, periodo):
+        if _materializar_habituales(db, cid, periodo):
+            db.commit()
+
+    stmt = (
+        select(Gasto)
+        .where(Gasto.consorcio_id == cid)
+        .order_by(Gasto.pagado.asc(), Gasto.fecha_pago.desc(), Gasto.id.desc())
+    )
     if periodo is not None:
         stmt = stmt.where(Gasto.periodo == periodo)
     if rubro is not None:

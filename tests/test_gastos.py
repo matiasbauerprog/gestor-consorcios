@@ -364,6 +364,26 @@ def test_cargar_habituales_usa_fecha_primer_dia_del_periodo(client, headers_admi
     assert generado["fecha_pago"] == "2026-07-01"
 
 
+def test_listar_gastos_materializa_los_recurrentes_del_mes(client, headers_admin):
+    periodo = date.today().strftime("%Y-%m")
+    r = client.get(f"/gastos?periodo={periodo}", headers=headers_admin)
+    assert r.status_code == 200
+    assert any(g["gasto_habitual_id"] == 700 for g in r.json())
+
+
+def test_listar_gastos_no_materializa_en_periodo_futuro(client, headers_admin):
+    r = client.get("/gastos?periodo=2030-01", headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json() == []
+
+
+def test_listar_gastos_es_idempotente(client, headers_admin):
+    periodo = date.today().strftime("%Y-%m")
+    primera = client.get(f"/gastos?periodo={periodo}", headers=headers_admin).json()
+    segunda = client.get(f"/gastos?periodo={periodo}", headers=headers_admin).json()
+    assert len(primera) == len(segunda)
+
+
 def test_habituales_se_materializan_sin_pagar_ni_mover_caja(
     client, headers_admin, db_session
 ):
