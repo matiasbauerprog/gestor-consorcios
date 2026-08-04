@@ -132,7 +132,10 @@ def test_un_pago_cubre_dos_expensas_fifo(db_empty, depto):
     assert estado.saldo_total == 500.0
     assert estado.por_expensa[1].estado == EstadoExpensa.pagada
     assert estado.por_expensa[2].estado == EstadoExpensa.parcial
-    assert estado.por_expensa[2].monto_pendiente == 500.0
+    # Al 2026-06-05 la expensa e1 ya pasó su segundo vencimiento, así que su
+    # exigible sube de 1000 a 1070 (recargo). El pago de 1500 cubre esos 1070
+    # por FIFO y deja solo 430 para e2, que queda debiendo 570 (no 500).
+    assert estado.por_expensa[2].monto_pendiente == 570.0
 
 
 def test_nota_credito_y_debito(db_empty, depto):
@@ -255,3 +258,88 @@ def test_interes_cero_si_ya_se_capitalizo_todo():
         tasa_mensual_pct=3.0,
         ultima_capitalizacion=date(2026, 7, 20),
     ) == 0.0
+
+
+def test_pago_del_primer_vencimiento_tarde_no_cancela_la_expensa(db_empty, depto):
+    """El bug crítico: pagar $1000 después del 1er venc dejaba la expensa
+    `pagada` y se perdía el recargo de $70."""
+    e = Expensa(consorcio_id=1, id=1, departamento_id=depto.id, periodo="2026-05",
+                monto_primer_vencimiento=1000.0,
+                fecha_primer_vencimiento=date(2026, 6, 10),
+                monto_segundo_vencimiento=1070.0,
+                fecha_segundo_vencimiento=date(2026, 6, 20),
+                saldo_anterior=0.0)
+    db_empty.add(e)
+    _mov_expensa(db_empty, depto.id, e.id, 1000.0, date(2026, 5, 10))
+    _mov_pago(db_empty, depto.id, 1000.0, date(2026, 6, 15))
+    db_empty.commit()
+
+    estado = calcular_estado_cuenta(db_empty, depto.id, hoy=date(2026, 6, 15))
+
+    calc = estado.por_expensa[1]
+    assert calc.monto_exigible == 1070.0
+    assert calc.interes_acumulado == 0.0
+    assert calc.monto_pendiente == 70.0
+    assert calc.estado == EstadoExpensa.parcial
+
+
+def test_expensa_impaga_pasado_el_segundo_vencimiento_acumula_interes(db_empty, depto):
+    e = Expensa(consorcio_id=1, id=1, departamento_id=depto.id, periodo="2026-05",
+                monto_primer_vencimiento=1000.0,
+                fecha_primer_vencimiento=date(2026, 6, 10),
+                monto_segundo_vencimiento=1070.0,
+                fecha_segundo_vencimiento=date(2026, 6, 20),
+                saldo_anterior=0.0)
+    db_empty.add(e)
+    _mov_expensa(db_empty, depto.id, e.id, 1000.0, date(2026, 5, 10))
+    db_empty.commit()
+
+    # 10 días de mora, tasa default 3% mensual -> 1070 * 0.001 * 10 = 10.70
+    estado = calcular_estado_cuenta(db_empty, depto.id, hoy=date(2026, 6, 30))
+
+    calc = estado.por_expensa[1]
+    assert calc.monto_exigible == 1070.0
+    assert calc.interes_acumulado == 10.70
+    assert calc.monto_pendiente == 1080.70
+    assert calc.estado == EstadoExpensa.vencida
+
+
+def test_interes_no_se_recobra_si_ya_fue_capitalizado(db_empty, depto):
+    e = Expensa(consorcio_id=1, id=1, departamento_id=depto.id, periodo="2026-05",
+                monto_primer_vencimiento=1000.0,
+                fecha_primer_vencimiento=date(2026, 6, 10),
+                monto_segundo_vencimiento=1070.0,
+                fecha_segundo_vencimiento=date(2026, 6, 20),
+                saldo_anterior=0.0)
+    db_empty.add(e)
+    _mov_expensa(db_empty, depto.id, e.id, 1000.0, date(2026, 5, 10))
+    db_empty.add(MovimientoCuenta(
+        consorcio_id=1, departamento_id=depto.id, fecha=date(2026, 6, 25),
+        tipo=TipoMovimiento.interes_punitorio, descripcion="Intereses",
+        monto=5.35,
+    ))
+    db_empty.commit()
+
+    # Capitalizado hasta el 25/06 -> sólo se devengan los 5 días siguientes.
+    estado = calcular_estado_cuenta(db_empty, depto.id, hoy=date(2026, 6, 30))
+
+    assert estado.por_expensa[1].interes_acumulado == 5.35
+
+
+def test_antes_del_vencimiento_el_exigible_sigue_siendo_el_primero(db_empty, depto):
+    e = Expensa(consorcio_id=1, id=1, departamento_id=depto.id, periodo="2026-05",
+                monto_primer_vencimiento=1000.0,
+                fecha_primer_vencimiento=date(2026, 6, 10),
+                monto_segundo_vencimiento=1070.0,
+                fecha_segundo_vencimiento=date(2026, 6, 20),
+                saldo_anterior=0.0)
+    db_empty.add(e)
+    _mov_expensa(db_empty, depto.id, e.id, 1000.0, date(2026, 5, 10))
+    db_empty.commit()
+
+    estado = calcular_estado_cuenta(db_empty, depto.id, hoy=date(2026, 6, 5))
+
+    calc = estado.por_expensa[1]
+    assert calc.monto_exigible == 1000.0
+    assert calc.monto_pendiente == 1000.0
+    assert calc.estado == EstadoExpensa.pendiente

@@ -6,10 +6,12 @@ retorna saldo total y estado calculado por expensa. No tiene side effects.
 from dataclasses import dataclass, field
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .models import (
+    Consorcio,
+    Departamento,
     EstadoExpensa,
     Expensa,
     MovimientoCuenta,
@@ -23,6 +25,8 @@ from .models import (
 class EstadoExpensaCalculado:
     expensa_id: int
     monto_total: float
+    monto_exigible: float
+    interes_acumulado: float
     monto_pagado: float
     monto_pendiente: float
     estado: EstadoExpensa
@@ -95,7 +99,10 @@ def calcular_estado_cuenta(
         ).all()
     )
 
-    pendientes: dict[int, float] = {e.id: e.monto_primer_vencimiento for e in expensas}
+    # El techo de cada expensa es lo exigible HOY, no el primer vencimiento:
+    # pasado el 1er venc rige el 2do, que incluye el recargo.
+    exigibles: dict[int, float] = {e.id: monto_exigible_de(e, hoy) for e in expensas}
+    pendientes: dict[int, float] = dict(exigibles)
     pagado_por_expensa: dict[int, float] = {e.id: 0.0 for e in expensas}
 
     saldo_total = 0.0
@@ -125,10 +132,30 @@ def calcular_estado_cuenta(
         pendientes[e.id] = round(pendientes[e.id] - cubierto, 2)
         credito_disponible = round(credito_disponible - cubierto, 2)
 
+    # Tasa punitoria del consorcio del depto, y hasta dónde ya se capitalizó.
+    depto = db.get(Departamento, departamento_id)
+    consorcio = db.get(Consorcio, depto.consorcio_id) if depto is not None else None
+    tasa_mensual_pct = consorcio.tasa_interes_mensual_pct if consorcio is not None else 0.0
+
+    ultima_capitalizacion = db.scalar(
+        select(func.max(MovimientoCuenta.fecha)).where(
+            MovimientoCuenta.departamento_id == departamento_id,
+            MovimientoCuenta.tipo == TipoMovimiento.interes_punitorio,
+        )
+    )
+
     por_expensa: dict[int, EstadoExpensaCalculado] = {}
     for e in expensas:
         pagado = round(pagado_por_expensa[e.id], 2)
-        pendiente = round(pendientes[e.id], 2)
+        saldo = round(pendientes[e.id], 2)
+        interes = interes_devengado(
+            saldo_base=saldo,
+            fecha_segundo_vencimiento=e.fecha_segundo_vencimiento,
+            fecha_corte=hoy,
+            tasa_mensual_pct=tasa_mensual_pct,
+            ultima_capitalizacion=ultima_capitalizacion,
+        )
+        pendiente = round(saldo + interes, 2)
         if pendiente <= 0.005:
             estado = EstadoExpensa.pagada
             pendiente = 0.0
@@ -140,7 +167,9 @@ def calcular_estado_cuenta(
             estado = EstadoExpensa.pendiente
         por_expensa[e.id] = EstadoExpensaCalculado(
             expensa_id=e.id,
-            monto_total=e.monto_primer_vencimiento,
+            monto_total=exigibles[e.id],
+            monto_exigible=exigibles[e.id],
+            interes_acumulado=interes,
             monto_pagado=pagado,
             monto_pendiente=pendiente,
             estado=estado,
