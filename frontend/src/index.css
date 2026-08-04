@@ -2829,3 +2829,19 @@ td.monto {
   border: 1px solid var(--color-border);
   cursor: zoom-in;
 }
+
+/* ---------- Reservas: dos columnas en desktop ---------- */
+
+.reservas-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 960px) {
+  .reservas-grid {
+    /* Izquierda: reservar (ancho fijo, es un formulario).
+       Derecha: consultar (elástica, son listas). */
+    grid-template-columns: minmax(280px, 380px) 1fr;
+    align-items: start;
+  }
+}
