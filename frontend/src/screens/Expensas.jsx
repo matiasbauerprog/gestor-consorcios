@@ -197,7 +197,7 @@ export default function Expensas({ embebida = false }) {
   ];
 
   return (
-    <section className="pantalla">
+    <section className="pantalla pantalla-ancha">
       {!embebida && (
         <header className="seccion-header">
           <h2>Expensas</h2>

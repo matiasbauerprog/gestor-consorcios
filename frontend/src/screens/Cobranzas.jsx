@@ -24,7 +24,7 @@ export default function Cobranzas() {
   }
 
   return (
-    <main className="pantalla">
+    <main className="pantalla pantalla-ancha">
       <header className="cabecera-pantalla">
         <h2>Cobranzas</h2>
       </header>

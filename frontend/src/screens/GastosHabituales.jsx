@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Tarjeta from "../components/Tarjeta";
-import Tabs from "../components/Tabs";
 import {
   listarGastosHabituales,
   crearGastoHabitual,
@@ -31,16 +31,12 @@ const FORMAS_PAGO = [
   { value: "otro", label: "Otro" },
 ];
 
-const TABS = [
-  { path: "/gastos", label: "Del mes", end: true },
-  { path: "/gastos/habituales", label: "Recurrentes" },
-];
-
 function labelRubro(value) {
   return RUBROS.find((r) => r.value === value)?.label || value;
 }
 
 export default function GastosHabituales() {
+  const navigate = useNavigate();
   const [habituales, setHabituales] = useState([]);
   const [clases, setClases] = useState([]);
   const [proveedores, setProveedores] = useState([]);
@@ -110,9 +106,15 @@ export default function GastosHabituales() {
   return (
     <section>
       <header className="cabecera-pantalla">
-        <h2>Gastos</h2>
+        <h2>Gastos recurrentes</h2>
+        <button
+          type="button"
+          className="boton-secundario"
+          onClick={() => navigate("/gastos")}
+        >
+          &larr; Volver a gastos del mes
+        </button>
       </header>
-      <Tabs tabs={TABS} />
 
       <div className="cabecera-acciones">
         <label className="filtro-checkbox">

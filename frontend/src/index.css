@@ -1737,8 +1737,14 @@ td.monto {
 
 /* ---------- Filtros ---------- */
 
+/* Las tres variantes se declaran juntas y ANTES del @media de tablet a
+   propósito: cuando `.filtros-gastos` vivía más abajo en el archivo, su
+   `flex-direction: column` le ganaba por orden de fuente al `row` del media
+   query y los filtros de Gastos quedaban apilados en escalera a cualquier
+   ancho. Si hay que tocar esto, que siga siendo arriba del media query. */
 .filtros,
-.filtros-barra {
+.filtros-barra,
+.filtros-gastos {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -1747,7 +1753,11 @@ td.monto {
 }
 
 .filtros label,
-.filtros-barra label {
+.filtros-barra label,
+.filtros-gastos label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
   font-size: 0.9rem;
 }
 
@@ -1755,7 +1765,9 @@ td.monto {
 .filtros input,
 .filtros select,
 .filtros-barra input,
-.filtros-barra select {
+.filtros-barra select,
+.filtros-gastos input,
+.filtros-gastos select {
   width: auto;
   align-self: flex-start;
 }
@@ -2082,6 +2094,15 @@ td.monto {
     max-width: 960px;
     margin: 0 auto;
   }
+
+  /* El tope de 960px es para las pantallas de lectura: una línea de texto de
+     1900px cansa. Las pantallas densas piden lo contrario, y encerrar una tabla
+     de siete columnas en 960px la desborda y esconde la última. Se sale del tope
+     marcando la pantalla con `pantalla-ancha`; el techo de 1600px evita que en
+     un monitor ultrawide la tabla se estire hasta ser ilegible. */
+  .app-content:has(.pantalla-ancha) {
+    max-width: 1600px;
+  }
 }
 
 /* ---------- Pantallas de Configuracion ---------- */
@@ -2212,19 +2233,9 @@ td.monto {
 
 /* ---------- Pantalla Gastos ---------- */
 
-.filtros-gastos {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-block-end: 1rem;
-}
-
-.filtros-gastos label {
-  display: flex;
-  flex-direction: column;
-  font-size: 0.9rem;
-  gap: 0.25rem;
-}
+/* `.filtros-gastos` se declara con `.filtros` y `.filtros-barra` arriba, antes
+   del @media de tablet. No redeclararlo acá: por orden de fuente le ganaría al
+   media query y volvería a apilar los filtros en escalera. */
 
 .lista-gastos {
   list-style: none;
@@ -2790,6 +2801,13 @@ td.monto {
 
 .tabla-datos {
   width: 100%;
+  /* Sin este min-width la tabla se queda clavada en el 100% del contenedor y el
+     contenido que no entra se desborda de la celda en silencio: la columna de
+     acciones quedaba cortada y el `overflow-x: auto` del wrapper nunca llegaba a
+     disparar la barra, porque para el wrapper la tabla seguía midiendo 100%.
+     Con max-content la tabla crece hasta lo que realmente necesita y entonces sí
+     el wrapper scrollea en vez de esconder la última columna. */
+  min-width: max-content;
   border-collapse: collapse;
   font-size: 0.8125rem;
 }

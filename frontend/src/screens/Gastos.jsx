@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Tarjeta from "../components/Tarjeta";
-import Tabs from "../components/Tabs";
 import ModalPagarGasto from "../components/ModalPagarGasto";
 import ListaResponsive from "../components/ListaResponsive";
 import {
@@ -37,11 +36,6 @@ const FORMAS_PAGO = [
   { value: "cheque", label: "Cheque" },
   { value: "efectivo", label: "Efectivo" },
   { value: "otro", label: "Otro" },
-];
-
-const TABS = [
-  { path: "/gastos", label: "Del mes", end: true },
-  { path: "/gastos/habituales", label: "Recurrentes" },
 ];
 
 function labelRubro(value) {
@@ -208,11 +202,17 @@ export default function Gastos() {
   ];
 
   return (
-    <section>
+    <section className="pantalla-ancha">
       <header className="cabecera-pantalla">
         <h2>Gastos</h2>
+        <button
+          type="button"
+          className="boton-secundario"
+          onClick={() => navigate("/gastos/habituales")}
+        >
+          Gastos recurrentes
+        </button>
       </header>
-      <Tabs tabs={TABS} />
 
       <section className="barra-periodo">
         <div className="barra-periodo-selector">

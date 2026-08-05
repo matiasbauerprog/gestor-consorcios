@@ -249,7 +249,7 @@ export default function Comprobantes({ embebida = false }) {
   ];
 
   return (
-    <section>
+    <section className="pantalla-ancha">
       {!embebida && (
         <header className="seccion-header">
           <h2>Comprobantes</h2>
