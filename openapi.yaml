@@ -2629,6 +2629,14 @@ paths:
     post:
       tags: [Gastos]
       summary: Materializar plantillas habituales activas en un período (admin)
+      description: >-
+        Crea los gastos que faltan para las plantillas activas del período.
+        Idempotente: una plantilla que ya generó su gasto en ese período se
+        saltea. Los gastos nacen SIN pagar (`pagado: false`) y **no** generan
+        MovimientoCaja — la plantilla dice cuánto se espera gastar, no cuánto
+        se gastó. El egreso de caja lo produce `POST /gastos/{gasto_id}/pagar`
+        cuando llega la factura real. Mientras tanto el gasto se prorratea a
+        los departamentos y figura como pasivo en el estado financiero.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -2709,6 +2717,13 @@ paths:
         o de cualquier origen): fija monto, fecha de pago y caja definitivos
         con los datos de la factura, y recién ahí genera el MovimientoCaja de
         egreso. El monto puede diferir del de la plantilla — la factura manda.
+
+
+        Si el período del gasto ya está CERRADO, se admite confirmar el pago
+        únicamente por el mismo `monto` que el gasto ya tiene: eso no altera lo
+        prorrateado a los departamentos. Un monto distinto devuelve 409, porque
+        el cierre sólo advierte sobre los gastos impagos y la diferencia hay que
+        registrarla como un gasto aparte en un período abierto.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -2726,7 +2741,9 @@ paths:
         '403': { $ref: '#/components/responses/AccesoDenegado' }
         '404': { $ref: '#/components/responses/NoEncontrado' }
         '409':
-          description: El gasto ya figura como pagado, o el período está cerrado.
+          description: >-
+            El gasto ya figura como pagado, o el período está cerrado y el
+            `monto` enviado difiere del que tiene el gasto.
           content:
             application/json:
               schema:
@@ -4792,6 +4809,19 @@ components:
         saldo_anterior: { type: number }
         estado_calculado: { type: string }
         monto_pendiente: { type: number }
+        monto_exigible:
+          type: number
+          description: >-
+            Lo que hay que pagar por esta expensa sin contar intereses: el
+            primer vencimiento más el recargo por mora efectivamente devengado
+            (movimiento de tipo `recargo` asentado contra la expensa). No se
+            deduce de la fecha: una expensa pagada en término nunca lo incluye.
+        interes_acumulado:
+          type: number
+          description: >-
+            Interés punitorio corrido sobre el saldo impago desde el segundo
+            vencimiento (o desde la última capitalización), ya incluido en
+            `monto_pendiente`. Puede tener centavos.
         detalle:
           type: array
           items: { $ref: '#/components/schemas/LineaDetalleExpensaOut' }
@@ -5553,6 +5583,13 @@ components:
           type: string
           enum: [transferencia, debito_automatico, cheque, efectivo, otro]
         fecha_pago: { type: string, format: date }
+        pagado:
+          type: boolean
+          description: >-
+            `false` mientras el gasto está devengado pero sin pagar: se prorratea
+            a los departamentos, no descuenta de la caja (no tiene MovimientoCaja)
+            y cuenta como pasivo en el estado financiero. Pasa a `true` con
+            `POST /gastos/{gasto_id}/pagar`, que es lo que genera el egreso.
         numero_factura: { type: string, nullable: true }
         fecha_factura: { type: string, format: date, nullable: true }
         cuota_actual: { type: integer, nullable: true }

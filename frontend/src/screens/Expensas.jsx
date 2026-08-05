@@ -12,6 +12,7 @@ import TarjetaExpensa from "../components/TarjetaExpensa";
 import ListaResponsive from "../components/ListaResponsive";
 import BadgeEstado from "../components/BadgeEstado";
 import { formatFecha } from "../utils/fechas";
+import { formatearInteres, formatearMonto } from "../utils/montos";
 import { abrirPdfExpensa } from "../api/pdf";
 
 export default function Expensas({ embebida = false }) {
@@ -113,14 +114,6 @@ export default function Expensas({ embebida = false }) {
     }
   }
 
-  function formatearMonto(v) {
-    return Number(v).toLocaleString("es-AR", {
-      style: "currency",
-      currency: "ARS",
-      maximumFractionDigits: 0,
-    });
-  }
-
   async function handleAbrirPdf(expensa) {
     try {
       await abrirPdfExpensa(expensa.id);
@@ -168,7 +161,7 @@ export default function Expensas({ embebida = false }) {
               <>
                 <br />
                 <span className="meta">
-                  +{formatearMonto(e.interes_acumulado)} int.
+                  +{formatearInteres(e.interes_acumulado)} int.
                 </span>
               </>
             )}

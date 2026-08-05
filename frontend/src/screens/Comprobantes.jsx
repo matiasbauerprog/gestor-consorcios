@@ -15,6 +15,7 @@ import Modal from "../components/Modal";
 import SelectorDepartamento from "../components/SelectorDepartamento";
 import Tarjeta from "../components/Tarjeta";
 import { formatFecha } from "../utils/fechas";
+import { formatearMonto } from "../utils/montos";
 
 const ESTADOS = [
   { value: "", label: "Todos" },
@@ -191,7 +192,7 @@ export default function Comprobantes({ embebida = false }) {
       clave: "monto",
       titulo: "Monto",
       className: "col-monto",
-      celda: (c) => `$${c.monto.toLocaleString("es-AR")}`,
+      celda: (c) => formatearMonto(c.monto),
     },
     {
       clave: "estado",
@@ -281,7 +282,7 @@ export default function Comprobantes({ embebida = false }) {
         vacio="No hay comprobantes con esos filtros."
         renderTarjeta={(c) => (
           <Tarjeta>
-            <h3>${c.monto.toLocaleString("es-AR")}</h3>
+            <h3>{formatearMonto(c.monto)}</h3>
             <p className="meta">Pagado {formatFecha(c.fecha_pago)}</p>
             {c.departamento_id && (
               <p className="meta">
@@ -331,7 +332,7 @@ export default function Comprobantes({ embebida = false }) {
         <Modal titulo="Aprobar comprobante" onClose={() => setModalAprobar(null)}>
           <p>
             Comprobante del <strong>{formatFecha(modalAprobar.comprobante.fecha_pago)}</strong> por{" "}
-            <strong>${modalAprobar.comprobante.monto.toLocaleString("es-AR")}</strong>
+            <strong>{formatearMonto(modalAprobar.comprobante.monto)}</strong>
           </p>
           <label>
             Caja destino

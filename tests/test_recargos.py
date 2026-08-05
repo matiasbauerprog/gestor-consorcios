@@ -12,7 +12,11 @@ from backend.models import (
     MovimientoCuenta,
     TipoMovimiento,
 )
-from backend.recargos import devengar_recargos, devengar_recargos_y_marcar
+# `_devengar` es privado a propósito: el único punto de entrada de producción
+# es `devengar_recargos_y_marcar`. Los tests que necesitan ver los movimientos
+# emitidos llaman al helper privado en vez de exponer un atajo público que un
+# read path futuro podría tomar por error (perdiendo la marca `recargo_evaluado`).
+from backend.recargos import _devengar, devengar_recargos_y_marcar
 
 
 @pytest.fixture
@@ -64,7 +68,7 @@ def _pago(db, monto, fecha):
 def test_expensa_impaga_al_vencimiento_devenga_recargo(db_empty, depto):
     _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
 
-    nuevos = devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15))
+    nuevos = _devengar(db_empty, 1, hoy=date(2026, 6, 15))[0]
     db_empty.commit()
 
     assert len(nuevos) == 1
@@ -79,7 +83,7 @@ def test_expensa_pagada_antes_del_vencimiento_no_devenga(db_empty, depto):
     _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
     _pago(db_empty, 1000.0, date(2026, 6, 5))
 
-    assert devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15)) == []
+    assert _devengar(db_empty, 1, hoy=date(2026, 6, 15))[0] == []
 
 
 def test_la_expensa_que_no_devenga_queda_marcada_como_evaluada(db_empty, depto):
@@ -89,7 +93,7 @@ def test_la_expensa_que_no_devenga_queda_marcada_como_evaluada(db_empty, depto):
     e = _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
     _pago(db_empty, 1000.0, date(2026, 6, 5))
 
-    assert devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15)) == []
+    assert _devengar(db_empty, 1, hoy=date(2026, 6, 15))[0] == []
     db_empty.commit()
 
     assert e.recargo_evaluado is True
@@ -101,7 +105,7 @@ def test_sin_recargo_configurado_tambien_queda_evaluada(db_empty, depto):
     e = _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20),
                  monto1=1000.0, monto2=1000.0)
 
-    assert devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15)) == []
+    assert _devengar(db_empty, 1, hoy=date(2026, 6, 15))[0] == []
     db_empty.commit()
 
     assert e.recargo_evaluado is True
@@ -124,14 +128,14 @@ def test_una_expensa_ya_recargada_sin_marca_no_emite_segundo_movimiento(db_empty
     """Simula el estado post-migración: el recargo existe pero
     `recargo_evaluado` migró en 0. La guarda `ya_recargadas` lo cubre."""
     e = _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
-    devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15))
+    _devengar(db_empty, 1, hoy=date(2026, 6, 15))[0]
     db_empty.commit()
 
     # Volvemos la expensa al estado que deja el ALTER TABLE.
     e.recargo_evaluado = False
     db_empty.commit()
 
-    assert devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15)) == []
+    assert _devengar(db_empty, 1, hoy=date(2026, 6, 15))[0] == []
     db_empty.commit()
 
     recargos = db_empty.scalars(
@@ -148,7 +152,7 @@ def test_pagar_despues_del_vencimiento_no_borra_el_recargo(db_empty, depto):
     _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
     _pago(db_empty, 1000.0, date(2026, 6, 12))
 
-    nuevos = devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15))
+    nuevos = _devengar(db_empty, 1, hoy=date(2026, 6, 15))[0]
     assert len(nuevos) == 1
     assert nuevos[0].monto == 70.0
 
@@ -156,15 +160,15 @@ def test_pagar_despues_del_vencimiento_no_borra_el_recargo(db_empty, depto):
 def test_no_devenga_antes_del_vencimiento(db_empty, depto):
     _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
 
-    assert devengar_recargos(db_empty, 1, hoy=date(2026, 6, 10)) == []
+    assert _devengar(db_empty, 1, hoy=date(2026, 6, 10))[0] == []
 
 
 def test_es_idempotente(db_empty, depto):
     e = _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
 
-    primera = devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15))
+    primera = _devengar(db_empty, 1, hoy=date(2026, 6, 15))[0]
     db_empty.commit()
-    segunda = devengar_recargos(db_empty, 1, hoy=date(2026, 6, 20))
+    segunda = _devengar(db_empty, 1, hoy=date(2026, 6, 20))[0]
     db_empty.commit()
 
     assert len(primera) == 1
@@ -179,7 +183,7 @@ def test_sin_recargo_configurado_no_emite_movimiento(db_empty, depto):
     _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20),
              monto1=1000.0, monto2=1000.0)
 
-    assert devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15)) == []
+    assert _devengar(db_empty, 1, hoy=date(2026, 6, 15))[0] == []
 
 
 def test_el_saldo_vuelve_a_coincidir_con_el_pendiente(db_empty, depto):
@@ -187,7 +191,7 @@ def test_el_saldo_vuelve_a_coincidir_con_el_pendiente(db_empty, depto):
     from backend.cuenta_corriente import calcular_estado_cuenta
 
     _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
-    devengar_recargos(db_empty, 1, hoy=date(2026, 6, 15))
+    _devengar(db_empty, 1, hoy=date(2026, 6, 15))[0]
     db_empty.commit()
 
     estado = calcular_estado_cuenta(db_empty, 1, hoy=date(2026, 6, 15))
@@ -196,3 +200,54 @@ def test_el_saldo_vuelve_a_coincidir_con_el_pendiente(db_empty, depto):
     )
     assert estado.saldo_total == 1070.0
     assert suma_pendientes == 1070.0
+
+
+def test_una_expensa_no_admite_dos_movimientos_de_recargo(db_empty, depto):
+    """La guarda de `_devengar` es un chequeo-y-después-inserto: dos lecturas
+    concurrentes la pasan las dos. La restricción única de la base es la que
+    impide el segundo recargo."""
+    from sqlalchemy.exc import IntegrityError
+
+    _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
+    _devengar(db_empty, 1, hoy=date(2026, 6, 15))
+    db_empty.commit()
+
+    db_empty.add(MovimientoCuenta(
+        consorcio_id=1, departamento_id=1, fecha=date(2026, 6, 10),
+        tipo=TipoMovimiento.recargo, descripcion="Recargo duplicado",
+        monto=70.0, expensa_id=1,
+    ))
+    with pytest.raises(IntegrityError):
+        db_empty.flush()
+    db_empty.rollback()
+
+
+def test_la_emision_y_el_recargo_de_la_misma_expensa_conviven(db_empty, depto):
+    """`tipo` forma parte de la clave: la restricción separa la emisión del
+    recargo en vez de hacerlos chocar."""
+    _expensa(db_empty, 1, date(2026, 6, 10), date(2026, 6, 20))
+    nuevos = _devengar(db_empty, 1, hoy=date(2026, 6, 15))[0]
+    db_empty.commit()
+
+    assert len(nuevos) == 1
+    movs = db_empty.scalars(
+        select(MovimientoCuenta).where(MovimientoCuenta.expensa_id == 1)
+    ).all()
+    assert {m.tipo for m in movs} == {
+        TipoMovimiento.expensa_emitida, TipoMovimiento.recargo
+    }
+
+
+def test_los_movimientos_sin_expensa_no_los_alcanza_la_restriccion(db_empty, depto):
+    """Pagos, notas e intereses llevan `expensa_id` NULL, y SQLite trata cada
+    NULL como distinto: varios del mismo tipo conviven."""
+    _pago(db_empty, 500.0, date(2026, 6, 1))
+    _pago(db_empty, 300.0, date(2026, 6, 2))
+    _pago(db_empty, 200.0, date(2026, 6, 3))
+
+    movs = db_empty.scalars(
+        select(MovimientoCuenta).where(
+            MovimientoCuenta.tipo == TipoMovimiento.pago_recibido
+        )
+    ).all()
+    assert len(movs) == 3

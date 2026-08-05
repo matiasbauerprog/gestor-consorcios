@@ -18,6 +18,7 @@ from ..models import (
     TipoMovimiento,
 )
 from ..pdf import generar_pdf_boleta
+from ..recargos import devengar_recargos_y_marcar
 from ..schemas import ExpensaCrear, ExpensaOut, LineaDetalleExpensaOut
 from ..modulos import require_modulo
 from ..tenant import get_consorcio_activo
@@ -84,6 +85,16 @@ def listar_expensas(
 
     stmt = stmt.offset(offset).limit(limit)
     expensas = list(db.scalars(stmt).all())
+
+    # Devengamiento perezoso antes de leer: el exigible sale del recargo ya
+    # asentado, así que sin devengar primero esta pantalla mostraría de menos.
+    # Un solo commit para todos los deptos listados, no uno por departamento.
+    hubo_recargos = False
+    for depto_id in {e.departamento_id for e in expensas}:
+        if devengar_recargos_y_marcar(db, depto_id):
+            hubo_recargos = True
+    if hubo_recargos:
+        db.commit()
 
     # FIFO se calcula una vez por depto y se reutiliza para todas sus expensas.
     estados_por_depto: dict[int, dict[int, "object"]] = {}
@@ -168,6 +179,12 @@ def crear_expensa(
     db.commit()
     db.refresh(expensa)
 
+    # La respuesta informa pendiente y exigible, así que también devenga: el
+    # FIFO reparte el crédito desde la expensa más vieja y un recargo sin
+    # asentar de una anterior le dejaría de más a ésta.
+    if devengar_recargos_y_marcar(db, expensa.departamento_id):
+        db.commit()
+
     calc = calcular_estado_cuenta(db, expensa.departamento_id).por_expensa[expensa.id]
     return _expensa_to_out(expensa, calc)
 
@@ -196,6 +213,11 @@ def obtener_expensa(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tiene permisos para acceder a este recurso.",
         )
+
+    # Mismo devengamiento perezoso que en el listado: el exigible se lee del
+    # recargo asentado, así que hay que emitirlo antes de calcular.
+    if devengar_recargos_y_marcar(db, expensa.departamento_id):
+        db.commit()
 
     calc = calcular_estado_cuenta(db, expensa.departamento_id).por_expensa.get(expensa.id)
     if calc is None:

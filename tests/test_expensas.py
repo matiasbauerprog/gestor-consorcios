@@ -153,3 +153,104 @@ def test_expensa_out_expone_exigible_e_interes(client, headers_admin):
     assert body, "el seed debe dejar al menos una expensa"
     assert "monto_exigible" in body[0]
     assert "interes_acumulado" in body[0]
+
+
+# ---------------------------------------------------------------------------
+# Devengamiento perezoso en las lecturas de expensas
+# ---------------------------------------------------------------------------
+
+
+def _expensa_vencida_impaga(db_session, expensa_id=170):
+    """Expensa con 1er vencimiento pasado y 2do futuro, sin pagos.
+
+    El 2do vencimiento a futuro deja el interés punitorio en cero, así que el
+    pendiente es exactamente 1er vencimiento + recargo.
+    """
+    from datetime import date, timedelta
+
+    from backend.models import Expensa, MovimientoCuenta, TipoMovimiento
+
+    hoy = date.today()
+    db_session.add(Expensa(
+        id=expensa_id, consorcio_id=1, departamento_id=1, periodo="2026-03",
+        monto_primer_vencimiento=1000.0,
+        fecha_primer_vencimiento=hoy - timedelta(days=5),
+        monto_segundo_vencimiento=1070.0,
+        fecha_segundo_vencimiento=hoy + timedelta(days=5),
+        saldo_anterior=0.0,
+    ))
+    db_session.add(MovimientoCuenta(
+        consorcio_id=1, departamento_id=1, fecha=hoy - timedelta(days=25),
+        tipo=TipoMovimiento.expensa_emitida, descripcion="Expensa 2026-03",
+        monto=1000.0, expensa_id=expensa_id,
+    ))
+    db_session.commit()
+    return expensa_id
+
+
+def _recargos_de(db_session, expensa_id):
+    from backend.models import MovimientoCuenta, TipoMovimiento
+
+    return (
+        db_session.query(MovimientoCuenta)
+        .filter(
+            MovimientoCuenta.expensa_id == expensa_id,
+            MovimientoCuenta.tipo == TipoMovimiento.recargo,
+        )
+        .all()
+    )
+
+
+def test_listar_expensas_devenga_el_recargo_antes_de_informar(
+    client, headers_depto_a, db_session
+):
+    """Regresión: `GET /expensas` calculaba la cuenta sin devengar. El exigible
+    sale del recargo asentado, así que sin devengar la pantalla que mira el
+    departamento informaba 1000 en vez de 1070."""
+    expensa_id = _expensa_vencida_impaga(db_session)
+    assert _recargos_de(db_session, expensa_id) == []
+
+    r = client.get("/expensas", headers=headers_depto_a)
+    assert r.status_code == 200
+    e = next(x for x in r.json() if x["id"] == expensa_id)
+
+    assert e["monto_exigible"] == 1070.0
+    assert e["monto_pendiente"] == 1070.0
+    assert len(_recargos_de(db_session, expensa_id)) == 1
+
+
+def test_obtener_expensa_devenga_el_recargo_antes_de_informar(
+    client, headers_depto_a, db_session
+):
+    expensa_id = _expensa_vencida_impaga(db_session, expensa_id=171)
+    assert _recargos_de(db_session, expensa_id) == []
+
+    r = client.get(f"/expensas/{expensa_id}", headers=headers_depto_a)
+    assert r.status_code == 200
+    assert r.json()["monto_exigible"] == 1070.0
+    assert len(_recargos_de(db_session, expensa_id)) == 1
+
+
+def test_listar_expensas_no_devenga_de_una_pagada_en_termino(
+    client, headers_depto_a, db_session
+):
+    """La contracara: al que pagó a tiempo no le aparece ningún recargo."""
+    from datetime import date, timedelta
+
+    from backend.models import MovimientoCuenta, TipoMovimiento
+
+    expensa_id = _expensa_vencida_impaga(db_session, expensa_id=172)
+    hoy = date.today()
+    db_session.add(MovimientoCuenta(
+        consorcio_id=1, departamento_id=1, fecha=hoy - timedelta(days=20),
+        tipo=TipoMovimiento.pago_recibido, descripcion="Pago en término",
+        monto=1000.0,
+    ))
+    db_session.commit()
+
+    r = client.get("/expensas", headers=headers_depto_a)
+    assert r.status_code == 200
+    e = next(x for x in r.json() if x["id"] == expensa_id)
+
+    assert e["monto_exigible"] == 1000.0
+    assert _recargos_de(db_session, expensa_id) == []

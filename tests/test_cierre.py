@@ -273,6 +273,14 @@ def test_intereses_un_mes_de_mora_calcula_correcto(db, proveedor):
         tipo=TipoMovimiento.expensa_emitida, descripcion="Expensa 2026-04",
         monto=1000, expensa_id=expensa.id,
     ))
+    # El recargo es un hecho asentado, no algo que se deduzca de la fecha: para
+    # que la base de la mora sea 1070 el movimiento tiene que existir, que es lo
+    # que emite `devengar_recargos_y_marcar` el día del 1er vencimiento.
+    db.add(MovimientoCuenta(consorcio_id=1,
+        departamento_id=1, fecha=date(2026, 5, 10),
+        tipo=TipoMovimiento.recargo, descripcion="Recargo por mora — expensa 2026-04",
+        monto=70, expensa_id=expensa.id,
+    ))
     db.commit()
 
     monto, descripcion = calcular_intereses_al_cierre(db, 1, 1, date(2026, 5, 30))
@@ -300,6 +308,14 @@ def test_cierre_cobra_exactamente_el_interes_que_informa_la_cuenta(db, proveedor
         tipo=TipoMovimiento.expensa_emitida, descripcion="Expensa 2026-04",
         monto=1000, expensa_id=expensa.id,
     ))
+    # El recargo es un hecho asentado, no algo que se deduzca de la fecha: para
+    # que la base de la mora sea 1070 el movimiento tiene que existir, que es lo
+    # que emite `devengar_recargos_y_marcar` el día del 1er vencimiento.
+    db.add(MovimientoCuenta(consorcio_id=1,
+        departamento_id=1, fecha=date(2026, 5, 10),
+        tipo=TipoMovimiento.recargo, descripcion="Recargo por mora — expensa 2026-04",
+        monto=70, expensa_id=expensa.id,
+    ))
     db.commit()
 
     monto, _ = calcular_intereses_al_cierre(db, 1, 1, date(2026, 5, 30))
@@ -324,6 +340,14 @@ def test_intereses_no_recobra_lo_ya_cobrado(db, proveedor):
         departamento_id=1, fecha=date(2026, 5, 1),
         tipo=TipoMovimiento.expensa_emitida, descripcion="Expensa 2026-04",
         monto=1000, expensa_id=expensa.id,
+    ))
+    # El recargo es un hecho asentado, no algo que se deduzca de la fecha: para
+    # que la base de la mora sea 1070 el movimiento tiene que existir, que es lo
+    # que emite `devengar_recargos_y_marcar` el día del 1er vencimiento.
+    db.add(MovimientoCuenta(consorcio_id=1,
+        departamento_id=1, fecha=date(2026, 5, 10),
+        tipo=TipoMovimiento.recargo, descripcion="Recargo por mora — expensa 2026-04",
+        monto=70, expensa_id=expensa.id,
     ))
     # Interés ya cobrado en un cierre anterior, con fecha 30-may (cubre 20→30 may).
     db.add(MovimientoCuenta(consorcio_id=1,
@@ -372,6 +396,12 @@ def test_intereses_usa_tasa_del_consorcio_correcto(db):
         departamento_id=3, fecha=date(2026, 5, 1),
         tipo=TipoMovimiento.expensa_emitida, descripcion="Expensa 2026-04",
         monto=1000, expensa_id=expensa.id,
+    ))
+    # Ídem: sin el movimiento de recargo la base de la mora sería 1000.
+    db.add(MovimientoCuenta(consorcio_id=2,
+        departamento_id=3, fecha=date(2026, 5, 10),
+        tipo=TipoMovimiento.recargo, descripcion="Recargo por mora — expensa 2026-04",
+        monto=70, expensa_id=expensa.id,
     ))
     db.commit()
 

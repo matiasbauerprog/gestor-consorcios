@@ -13,6 +13,7 @@ estable y no cambia retroactivamente.
 from datetime import date
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .cuenta_corriente import calcular_estado_cuenta
@@ -86,30 +87,33 @@ def _devengar(
             monto=recargo,
             expensa_id=e.id,
         )
+        # Savepoint alrededor del INSERT: las guardas de arriba son un
+        # chequeo-y-después-inserto, y dos lecturas concurrentes (FastAPI
+        # atiende los endpoints sync en un threadpool) lo pasan las dos. La
+        # restricción única decide, y el que pierde descarta su propio
+        # movimiento sin voltear la transacción entera.
+        savepoint = db.begin_nested()
         db.add(mov)
+        try:
+            db.flush()
+        except IntegrityError:
+            savepoint.rollback()
+            # El recargo ya existe: lo emitió el otro request. La marca se
+            # reafirma por si el savepoint la revirtió.
+            e.recargo_evaluado = True
+            continue
+        savepoint.commit()
         nuevos.append(mov)
 
     db.flush()
     return nuevos, expensas
 
 
-def devengar_recargos(
-    db: Session, departamento_id: int, hoy: date | None = None
-) -> list[MovimientoCuenta]:
-    """Emite el recargo de las expensas del depto que vencieron impagas.
-
-    Idempotente: cada expensa se evalúa una sola vez (ver `_devengar`).
-    Devuelve los movimientos creados. No hace commit — el llamador decide la
-    transacción.
-    """
-    nuevos, _ = _devengar(db, departamento_id, hoy)
-    return nuevos
-
-
 def devengar_recargos_y_marcar(
     db: Session, departamento_id: int, hoy: date | None = None
 ) -> bool:
-    """Igual que `devengar_recargos`, pero devuelve si quedó algo por commitear.
+    """Emite el recargo de las expensas del depto que vencieron impagas y
+    devuelve si quedó algo por commitear.
 
     Es el punto de entrada de las lecturas. La marca `recargo_evaluado` se
     escribe también cuando NO se emite recargo, y esa escritura hay que

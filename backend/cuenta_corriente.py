@@ -39,15 +39,20 @@ class EstadoCuenta:
     por_expensa: dict[int, EstadoExpensaCalculado] = field(default_factory=dict)
 
 
-def monto_exigible_de(expensa: Expensa, hoy: date) -> float:
-    """Monto que hay que pagar hoy por esta expensa, sin contar intereses.
+def monto_exigible_de(expensa: Expensa, recargo_devengado: float = 0.0) -> float:
+    """Monto que hay que pagar por esta expensa, sin contar intereses.
 
-    Pasado el primer vencimiento pasa a regir el segundo (que incluye el
-    recargo). El día exacto del vencimiento todavía rige el primero.
+    El exigible NO se deduce de la fecha sino del hecho asentado: el primer
+    vencimiento más el recargo que efectivamente se devengó contra esta expensa
+    (movimientos de tipo `recargo`). Derivarlo de la fecha inventaba un recargo
+    fantasma para quien pagaba en término: el saldo de la cuenta sólo suma los
+    movimientos, así que un exigible mayor que ellos abría una diferencia sin
+    respaldo que la cola FIFO arrastraba al período siguiente.
+
+    Quién decide si el recargo se gana es `recargos._devengar`, que mira la foto
+    de la cuenta al día del vencimiento. Acá sólo se lee lo que ya decidió.
     """
-    if hoy <= expensa.fecha_primer_vencimiento:
-        return expensa.monto_primer_vencimiento
-    return expensa.monto_segundo_vencimiento
+    return round(expensa.monto_primer_vencimiento + recargo_devengado, 2)
 
 
 def interes_devengado(
@@ -103,9 +108,21 @@ def calcular_estado_cuenta(
         ).all()
     )
 
-    # El techo de cada expensa es lo exigible HOY, no el primer vencimiento:
-    # pasado el 1er venc rige el 2do, que incluye el recargo.
-    exigibles: dict[int, float] = {e.id: monto_exigible_de(e, hoy) for e in expensas}
+    # El recargo devengado por expensa sale de los movimientos ya cargados
+    # (filtrados a `hoy`): una sola pasada, sin una query por expensa.
+    recargos_por_expensa: dict[int, float] = {}
+    for m in movimientos:
+        if m.tipo == TipoMovimiento.recargo and m.expensa_id is not None:
+            recargos_por_expensa[m.expensa_id] = round(
+                recargos_por_expensa.get(m.expensa_id, 0.0) + m.monto, 2
+            )
+
+    # El techo de cada expensa es el primer vencimiento más el recargo que
+    # realmente se asentó contra ella — el mismo hecho que ve el saldo.
+    exigibles: dict[int, float] = {
+        e.id: monto_exigible_de(e, recargos_por_expensa.get(e.id, 0.0))
+        for e in expensas
+    }
     pendientes: dict[int, float] = dict(exigibles)
     pagado_por_expensa: dict[int, float] = {e.id: 0.0 for e in expensas}
 

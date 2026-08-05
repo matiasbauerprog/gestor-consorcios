@@ -2,6 +2,7 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, require_roles
@@ -180,6 +181,10 @@ def _materializar_habituales(db: Session, cid: int, periodo: str) -> list[Gasto]
     for plantilla in plantillas_activas:
         if plantilla.id in ids_ya_generadas:
             continue
+        # Savepoint por plantilla: si otra request ganó la carrera entre el
+        # chequeo y el INSERT, la única que sobrevive es la suya y acá se
+        # descarta la propia sin arrastrar el resto de la transacción.
+        savepoint = db.begin_nested()
         gasto = Gasto(
             consorcio_id=cid,
             periodo=periodo,
@@ -196,7 +201,12 @@ def _materializar_habituales(db: Session, cid: int, periodo: str) -> list[Gasto]
             gasto_habitual_id=plantilla.id,
         )
         db.add(gasto)
-        db.flush()
+        try:
+            db.flush()
+        except IntegrityError:
+            savepoint.rollback()
+            continue
+        savepoint.commit()
         nuevos.append(gasto)
     return nuevos
 
@@ -460,7 +470,21 @@ def pagar_gasto(
             status_code=status.HTTP_409_CONFLICT,
             detail="El gasto ya figura como pagado.",
         )
-    _bloquear_si_periodo_cerrado(db, cid, gasto.periodo)
+    # El cierre sólo ADVIERTE sobre gastos impagos, así que cerrar por encima de
+    # ellos es un flujo esperado y la factura puede llegar después. Confirmar el
+    # pago por el mismo monto no toca nada de lo ya prorrateado, así que se
+    # permite; cambiar el monto sí lo tocaría y sigue bloqueado.
+    if db.get(PeriodoCerrado, (gasto.periodo, cid)) is not None:
+        if abs(payload.monto - gasto.monto) > 0.005:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"El período {gasto.periodo} está cerrado: el monto prorrateado "
+                    "a los departamentos ya no puede cambiar. Registrá la diferencia "
+                    "como un gasto aparte en un período abierto."
+                ),
+            )
+
     _validar_caja_activa(db, cid, payload.caja_id)
 
     gasto.monto = payload.monto

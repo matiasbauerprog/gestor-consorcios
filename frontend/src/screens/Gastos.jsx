@@ -17,6 +17,7 @@ import { listarDepartamentos } from "../api/departamentos";
 import { listarPeriodos } from "../api/periodos";
 import { listarCajas } from "../api/cajas";
 import { formatFecha } from "../utils/fechas";
+import { formatearMonto } from "../utils/montos";
 
 const RUBROS = [
   { value: "sueldos_y_cargas_sociales", label: "Sueldos y cargas sociales" },
@@ -170,7 +171,7 @@ export default function Gastos() {
       clave: "monto",
       titulo: "Monto",
       className: "col-monto",
-      celda: (g) => `$${g.monto.toLocaleString("es-AR")}`,
+      celda: (g) => formatearMonto(g.monto),
     },
     {
       clave: "pago",
@@ -309,7 +310,7 @@ export default function Gastos() {
           <Tarjeta>
             <h3>{labelRubro(g.rubro)} · {g.concepto}</h3>
             <p className="meta">
-              ${g.monto.toLocaleString("es-AR")} · {g.periodo} ·{" "}
+              {formatearMonto(g.monto)} · {g.periodo} ·{" "}
               {g.pagado ? `pagó ${formatFecha(g.fecha_pago)}` : "sin pagar"}
             </p>
             <p className="meta">Proveedor: {proveedorPorId(g.proveedor_id)}</p>

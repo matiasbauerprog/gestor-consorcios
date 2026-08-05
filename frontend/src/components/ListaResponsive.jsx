@@ -29,7 +29,7 @@ export default function ListaResponsive({
   }
 
   return (
-    <div className="tabla-scroll">
+    <div className="tabla-datos-scroll">
       <table className="tabla-datos">
         <thead>
           <tr>

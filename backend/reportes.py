@@ -9,7 +9,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from .caja_saldo import MovimientoSnapshot, calcular_saldo
@@ -170,14 +170,22 @@ def calcular_estado_financiero(db: Session, consorcio_id: int, fecha_corte: date
     morosos = calcular_morosos(db, consorcio_id, solo_deudores=True)
     deudores_total = sum(m.saldo for m in morosos)
 
-    gastos_futuros = list(db.scalars(
+    # Un gasto es pasivo si todavía no se pagó, o si su pago cae después del
+    # corte. La primera rama es la que importa desde que los recurrentes se
+    # materializan impagos con `fecha_pago` al día 1 del período (siempre
+    # pasada) y sin MovimientoCaja: sin ella no descontaban de la caja ni
+    # figuraban como deuda, y el patrimonio neto salía inflado.
+    gastos_pendientes = list(db.scalars(
         select(Gasto).where(
-            Gasto.fecha_pago > fecha_corte,
             Gasto.consorcio_id == consorcio_id,
+            or_(
+                Gasto.pagado == False,  # noqa: E712
+                Gasto.fecha_pago > fecha_corte,
+            ),
         )
     ).all())
     pasivos: list[ItemPasivoGasto] = []
-    for g in gastos_futuros:
+    for g in gastos_pendientes:
         prov = db.get(Proveedor, g.proveedor_id) if g.proveedor_id else None
         pasivos.append(ItemPasivoGasto(
             gasto_id=g.id,

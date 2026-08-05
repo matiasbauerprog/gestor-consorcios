@@ -2,14 +2,7 @@ import { abrirPdfExpensa } from "../api/pdf";
 import BadgeEstado from "./BadgeEstado";
 import Tarjeta from "./Tarjeta";
 import { formatFecha } from "../utils/fechas";
-
-function formatearMonto(v) {
-  return Number(v).toLocaleString("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  });
-}
+import { formatearInteres, formatearMonto } from "../utils/montos";
 
 export default function TarjetaExpensa({
   expensa,
@@ -55,7 +48,7 @@ export default function TarjetaExpensa({
       </p>
       {expensa.monto_pendiente >= 0.5 && expensa.interes_acumulado > 0 && (
         <p className="meta">
-          Incluye {formatearMonto(expensa.interes_acumulado)} de intereses por mora.
+          Incluye {formatearInteres(expensa.interes_acumulado)} de intereses por mora.
         </p>
       )}
       {(expensa.detalle?.length > 0 || esAdmin) && (

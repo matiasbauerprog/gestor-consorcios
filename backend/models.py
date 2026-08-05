@@ -600,6 +600,16 @@ class GastoHabitual(Base):
 
 class Gasto(Base):
     __tablename__ = "gastos"
+    # Una plantilla recurrente materializa como mucho UN gasto por período.
+    # `_materializar_habituales` corre dentro de un GET y FastAPI atiende los
+    # endpoints sync en un threadpool: dos requests concurrentes pasan el
+    # chequeo previo a la vez, y sin esta restricción ambos insertarían.
+    # `gasto_habitual_id` es NULL en los gastos comunes y SQLite trata cada NULL
+    # como distinto, así que no los alcanza.
+    __table_args__ = (
+        UniqueConstraint("consorcio_id", "periodo", "gasto_habitual_id",
+                         name="uq_gasto_consorcio_periodo_habitual"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     consorcio_id: Mapped[int] = mapped_column(
@@ -635,7 +645,9 @@ class Gasto(Base):
     # Un gasto puede existir (devengado, prorrateable) sin estar pagado todavía.
     # Sólo al pagarse genera su MovimientoCaja. Default True: los gastos que ya
     # existían fueron todos creados junto con su movimiento.
-    pagado: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    pagado: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="1"
+    )
 
     numero_factura: Mapped[str | None] = mapped_column(String(50))
     fecha_factura: Mapped[date | None] = mapped_column(Date)
@@ -808,6 +820,16 @@ class LiquidacionDetalle(Base):
 
 class MovimientoCuenta(Base):
     __tablename__ = "movimientos_cuenta"
+    # Los movimientos atados a una expensa son uno solo por tipo: la emisión y
+    # el recargo. `_devengar` inserta el recargo tras un chequeo previo, y dos
+    # lecturas concurrentes lo pasarían las dos; la restricción lo impide.
+    # Se incluye `tipo` para no chocar la emisión con el recargo de la misma
+    # expensa. Los movimientos sin expensa (pagos, notas, intereses) llevan
+    # `expensa_id` NULL y SQLite trata cada NULL como distinto: no los alcanza.
+    __table_args__ = (
+        UniqueConstraint("departamento_id", "expensa_id", "tipo",
+                         name="uq_movimiento_depto_expensa_tipo"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     consorcio_id: Mapped[int] = mapped_column(

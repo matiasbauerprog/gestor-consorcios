@@ -1,5 +1,7 @@
 from datetime import date
 
+import pytest
+
 
 _GASTO_VALIDO = {
     "periodo": "2026-06",
@@ -634,9 +636,12 @@ def test_pagar_gasto_con_monto_cero_devuelve_400(client, headers_admin):
     assert r.status_code == 400
 
 
-def test_pagar_gasto_periodo_cerrado_devuelve_409(client, headers_admin, db_session):
-    """POST /gastos/{id}/pagar con el período del gasto ya cerrado debe
-    bloquearse (mismo guard que usan crear_gasto/actualizar_gasto/etc.)."""
+def test_pagar_gasto_periodo_cerrado_con_otro_monto_devuelve_409(
+    client, headers_admin, db_session
+):
+    """Sobre un período cerrado sólo se admite confirmar el MISMO monto: acá
+    se paga 100 contra un gasto de otro importe, así que cambiaría lo ya
+    prorrateado a los departamentos y se rechaza."""
     from backend.models import CoeficienteDepartamento
 
     periodo = date.today().strftime("%Y-%m")
@@ -693,3 +698,104 @@ def test_patch_gasto_no_pagado_no_crea_movimiento_de_caja(
         .all()
     )
     assert movs == []
+
+
+def test_pagar_gasto_periodo_cerrado_mismo_monto_200(client, headers_admin, db_session):
+    """El cierre sólo ADVIERTE sobre gastos impagos, así que cerrar por encima
+    de ellos es un flujo esperado y la factura puede llegar tres días después.
+    Confirmar el pago por el mismo monto no cambia nada de lo prorrateado, así
+    que se permite: si no, el egreso se perdía y la caja quedaba mal para
+    siempre."""
+    from backend.models import CoeficienteDepartamento, MovimientoCaja
+
+    periodo = date.today().strftime("%Y-%m")
+    sin_pagar = _un_gasto_sin_pagar(client, headers_admin, periodo)
+
+    db_session.add_all([
+        CoeficienteDepartamento(consorcio_id=1, departamento_id=1, clase_prorrateo_id=500, porcentaje=50),
+        CoeficienteDepartamento(consorcio_id=1, departamento_id=2, clase_prorrateo_id=500, porcentaje=50),
+    ])
+    db_session.commit()
+
+    assert client.post(
+        f"/periodos/{periodo}/cerrar", json={}, headers=headers_admin
+    ).status_code == 201
+
+    r = client.post(
+        f"/gastos/{sin_pagar['id']}/pagar",
+        json={"monto": sin_pagar["monto"], "fecha_pago": f"{periodo}-15", "caja_id": 900},
+        headers=headers_admin,
+    )
+    assert r.status_code == 200
+    assert r.json()["pagado"] is True
+
+    movs = (
+        db_session.query(MovimientoCaja)
+        .filter(MovimientoCaja.gasto_id == sin_pagar["id"])
+        .all()
+    )
+    assert len(movs) == 1
+    assert movs[0].monto == sin_pagar["monto"]
+
+
+def test_pagar_gasto_periodo_abierto_admite_cualquier_monto(client, headers_admin):
+    """En un período abierto no cambia nada: el monto real de la factura pisa
+    al estimado de la plantilla."""
+    periodo = date.today().strftime("%Y-%m")
+    sin_pagar = _un_gasto_sin_pagar(client, headers_admin, periodo)
+    otro_monto = sin_pagar["monto"] + 1234.0
+
+    r = client.post(
+        f"/gastos/{sin_pagar['id']}/pagar",
+        json={"monto": otro_monto, "fecha_pago": f"{periodo}-15", "caja_id": 900},
+        headers=headers_admin,
+    )
+    assert r.status_code == 200
+    assert r.json()["monto"] == otro_monto
+
+
+# ---------------------------------------------------------------------------
+# Restricción única de los recurrentes materializados
+# ---------------------------------------------------------------------------
+
+
+def _gasto_recurrente(periodo, habitual_id, monto=1000.0):
+    from backend.models import FormaPago, Gasto, Rubro
+
+    return Gasto(
+        consorcio_id=1, periodo=periodo, rubro=Rubro.abonos_y_servicios,
+        clase_prorrateo_id=500, proveedor_id=600, concepto="Recurrente",
+        monto=monto, forma_pago=FormaPago.transferencia, caja_id=900,
+        fecha_pago=date(2026, 8, 1), pagado=False,
+        gasto_habitual_id=habitual_id,
+    )
+
+
+def test_una_plantilla_no_puede_generar_dos_gastos_en_el_mismo_periodo(db_session):
+    """`_materializar_habituales` chequea y después inserta, y FastAPI atiende
+    los endpoints sync en un threadpool: dos GET concurrentes pasan el chequeo
+    los dos. La restricción de la base es la que decide."""
+    from sqlalchemy.exc import IntegrityError
+
+    db_session.add(_gasto_recurrente("2026-08", 700))
+    db_session.commit()
+
+    db_session.add(_gasto_recurrente("2026-08", 700))
+    with pytest.raises(IntegrityError):
+        db_session.flush()
+    db_session.rollback()
+
+
+def test_la_misma_plantilla_en_otro_periodo_no_choca(db_session):
+    db_session.add(_gasto_recurrente("2026-08", 700))
+    db_session.add(_gasto_recurrente("2026-09", 700))
+    db_session.commit()
+
+
+def test_los_gastos_comunes_sin_plantilla_no_los_alcanza_la_restriccion(db_session):
+    """`gasto_habitual_id` es NULL en los gastos comunes y SQLite trata cada
+    NULL como distinto, así que varios del mismo período conviven."""
+    db_session.add(_gasto_recurrente("2026-08", None))
+    db_session.add(_gasto_recurrente("2026-08", None))
+    db_session.add(_gasto_recurrente("2026-08", None))
+    db_session.commit()

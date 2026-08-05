@@ -2778,7 +2778,12 @@ td.monto {
 
 /* ---------- ListaResponsive: tabla de ≥600px para arriba ---------- */
 
-.tabla-scroll {
+/* Se llama `.tabla-datos-scroll` y no `.tabla-scroll` porque esa clase ya
+   existe (matriz de coeficientes, con `margin: 1rem 0`). Redefinirla le sacaba
+   el margen superior a Configuración, una pantalla que esta rama no toca.
+   Renombrar es lo único que deja ambas densidades como estaban; reusar la regla
+   vieja habría cambiado el espaciado de las tres pantallas convertidas. */
+.tabla-datos-scroll {
   overflow-x: auto;
   margin-bottom: 1rem;
 }
