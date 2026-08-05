@@ -48,7 +48,7 @@ export default function Amenities() {
 
       {error && <p className="error">{error}</p>}
 
-      <ul className="lista-cards">
+      <ul className="grid-fichas">
         {items.length === 0 ? (
           <li className="vacio">Sin amenities.</li>
         ) : items.map((a) => (
