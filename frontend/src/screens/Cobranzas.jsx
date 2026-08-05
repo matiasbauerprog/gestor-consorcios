@@ -36,8 +36,8 @@ export default function Cobranzas() {
         ariaLabel="Secciones de cobranzas"
       />
 
-      {tabActivo === "expensas" && <Expensas />}
-      {tabActivo === "comprobantes" && <Comprobantes />}
+      {tabActivo === "expensas" && <Expensas embebida />}
+      {tabActivo === "comprobantes" && <Comprobantes embebida />}
       {tabActivo === "cierres" && <Periodos />}
     </main>
   );

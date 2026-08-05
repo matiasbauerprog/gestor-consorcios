@@ -4,6 +4,7 @@ import { listarAmenities } from "../api/amenities";
 import { listarReservas, crearReserva, cancelarReserva } from "../api/reservas";
 import { useAuth } from "../auth/AuthContext";
 import { formatFecha } from "../utils/fechas";
+import ListaResponsive from "../components/ListaResponsive";
 
 function fmtFecha(iso) {
   return new Date(iso).toLocaleString("es-AR", {
@@ -169,142 +170,160 @@ export default function Reservas() {
       {info && <p className="info">{info}</p>}
       {error && <p className="error">{error}</p>}
 
-      {amenitySeleccionado && (
-        <section className={`banner-politicas${bannerAbierto ? " abierto" : ""}`}>
-          <header onClick={() => setBannerAbierto(!bannerAbierto)}>
-            <strong>{amenitySeleccionado.nombre}</strong>{" "}
-            {amenitySeleccionado.precio_reserva
-              ? `— $${Number(amenitySeleccionado.precio_reserva).toLocaleString("es-AR")} por reserva`
-              : "— gratis"}{" "}
-            <span className="banner-toggle">{bannerAbierto ? "▲" : "▼"}</span>
-          </header>
-          {bannerAbierto && (
-            <ul>
-              {amenitySeleccionado.duracion_maxima_horas && (
-                <li>Duración máx: {amenitySeleccionado.duracion_maxima_horas}h</li>
+      <div className="reservas-grid">
+        <div className="reservas-col-form">
+          {amenitySeleccionado && (
+            <section className={`banner-politicas${bannerAbierto ? " abierto" : ""}`}>
+              <header onClick={() => setBannerAbierto(!bannerAbierto)}>
+                <strong>{amenitySeleccionado.nombre}</strong>{" "}
+                {amenitySeleccionado.precio_reserva
+                  ? `— $${Number(amenitySeleccionado.precio_reserva).toLocaleString("es-AR")} por reserva`
+                  : "— gratis"}{" "}
+                <span className="banner-toggle">{bannerAbierto ? "▲" : "▼"}</span>
+              </header>
+              {bannerAbierto && (
+                <ul>
+                  {amenitySeleccionado.duracion_maxima_horas && (
+                    <li>Duración máx: {amenitySeleccionado.duracion_maxima_horas}h</li>
+                  )}
+                  {amenitySeleccionado.anticipacion_maxima_dias && (
+                    <li>
+                      Reservable hasta {amenitySeleccionado.anticipacion_maxima_dias} días en el futuro
+                    </li>
+                  )}
+                  {amenitySeleccionado.max_reservas_activas_por_depto && (
+                    <li>
+                      Máx {amenitySeleccionado.max_reservas_activas_por_depto} reservas activas por depto
+                    </li>
+                  )}
+                  {amenitySeleccionado.horas_minimas_cancelacion !== null &&
+                  amenitySeleccionado.horas_minimas_cancelacion !== undefined ? (
+                    <li>
+                      Cancelación con reintegro: hasta {amenitySeleccionado.horas_minimas_cancelacion}h antes
+                    </li>
+                  ) : (
+                    <li>Cancelable en cualquier momento</li>
+                  )}
+                </ul>
               )}
-              {amenitySeleccionado.anticipacion_maxima_dias && (
-                <li>
-                  Reservable hasta {amenitySeleccionado.anticipacion_maxima_dias} días en el futuro
-                </li>
-              )}
-              {amenitySeleccionado.max_reservas_activas_por_depto && (
-                <li>
-                  Máx {amenitySeleccionado.max_reservas_activas_por_depto} reservas activas por depto
-                </li>
-              )}
-              {amenitySeleccionado.horas_minimas_cancelacion !== null &&
-              amenitySeleccionado.horas_minimas_cancelacion !== undefined ? (
-                <li>
-                  Cancelación con reintegro: hasta {amenitySeleccionado.horas_minimas_cancelacion}h antes
-                </li>
-              ) : (
-                <li>Cancelable en cualquier momento</li>
-              )}
-            </ul>
+            </section>
           )}
-        </section>
-      )}
 
-      {amenitySeleccionado && (
-        <form onSubmit={handleCrear} className="form-reserva">
-          <h3>Nueva reserva</h3>
-          <label>
-            Fecha{" "}
-            <input
-              type="date"
-              value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
-              required
-            />
-          </label>
-          <label>
-            Hora inicio{" "}
-            <input
-              type="time"
-              value={horaInicio}
-              onChange={(e) => setHoraInicio(e.target.value)}
-              required
-            />
-          </label>
-          <label>
-            Hora fin{" "}
-            <input
-              type="time"
-              value={horaFin}
-              onChange={(e) => setHoraFin(e.target.value)}
-              required
-            />
-          </label>
-          {fecha && horaInicio && horaFin && horaFin < horaInicio && (
-            <p className="meta" style={{ marginTop: "0.25rem" }}>
-              🌙 Termina el día siguiente ({formatFecha(sumarDias(fecha, 1))}) a las {horaFin}.
-            </p>
+          {amenitySeleccionado && (
+            <form onSubmit={handleCrear} className="form-reserva">
+              <h3>Nueva reserva</h3>
+              <label>
+                Fecha{" "}
+                <input
+                  type="date"
+                  value={fecha}
+                  onChange={(e) => setFecha(e.target.value)}
+                  required
+                />
+              </label>
+              <label>
+                Hora inicio{" "}
+                <input
+                  type="time"
+                  value={horaInicio}
+                  onChange={(e) => setHoraInicio(e.target.value)}
+                  required
+                />
+              </label>
+              <label>
+                Hora fin{" "}
+                <input
+                  type="time"
+                  value={horaFin}
+                  onChange={(e) => setHoraFin(e.target.value)}
+                  required
+                />
+              </label>
+              {fecha && horaInicio && horaFin && horaFin < horaInicio && (
+                <p className="meta" style={{ marginTop: "0.25rem" }}>
+                  🌙 Termina el día siguiente ({formatFecha(sumarDias(fecha, 1))}) a las {horaFin}.
+                </p>
+              )}
+              <div className="cta-sticky">
+                <button type="submit" disabled={guardando}>
+                  {guardando
+                    ? "Reservando…"
+                    : amenitySeleccionado.precio_reserva
+                    ? `Confirmar reserva ($${Number(amenitySeleccionado.precio_reserva).toLocaleString("es-AR")})`
+                    : "Confirmar reserva"}
+                </button>
+              </div>
+            </form>
           )}
-          <div className="cta-sticky">
-            <button type="submit" disabled={guardando}>
-              {guardando
-                ? "Reservando…"
-                : amenitySeleccionado.precio_reserva
-                ? `Confirmar reserva ($${Number(amenitySeleccionado.precio_reserva).toLocaleString("es-AR")})`
-                : "Confirmar reserva"}
-            </button>
-          </div>
-        </form>
-      )}
+        </div>
 
-      <section>
-        <h3>Próximas reservas (todos los deptos)</h3>
-        <ul className="lista-cards">
-          {proximasDelAmenity.length === 0 ? (
-            <li className="vacio">Sin próximas reservas.</li>
-          ) : (
-            proximasDelAmenity.map((r) => (
-              <li key={r.id} className="tarjeta">
-                <h4>
-                  {fmtFecha(r.inicio)} → {fmtFecha(r.fin)}
-                </h4>
-                <p>Depto del usuario #{r.usuario_id}</p>
-              </li>
-            ))
-          )}
-        </ul>
-      </section>
+        <div className="reservas-col-listas">
+          <section>
+            <h3>Próximas reservas (todos los deptos)</h3>
+            <ListaResponsive
+              columnas={[
+                { clave: "inicio", titulo: "Desde", celda: (r) => fmtFecha(r.inicio) },
+                { clave: "fin", titulo: "Hasta", celda: (r) => fmtFecha(r.fin) },
+                { clave: "usuario", titulo: "Depto", celda: (r) => `#${r.usuario_id}` },
+              ]}
+              filas={proximasDelAmenity}
+              claveFila={(r) => r.id}
+              vacio="Sin próximas reservas."
+              renderTarjeta={(r) => (
+                <article className="tarjeta">
+                  <h4>{fmtFecha(r.inicio)} → {fmtFecha(r.fin)}</h4>
+                  <p>Depto del usuario #{r.usuario_id}</p>
+                </article>
+              )}
+            />
+          </section>
 
-      {esDepto && (
-        <section>
-          <h3>Mis reservas</h3>
-          <ul className="lista-cards">
-            {misReservas.length === 0 ? (
-              <li className="vacio">No tenés reservas.</li>
-            ) : (
-              misReservas.map((r) => {
-                const esFutura = new Date(r.inicio) > ahora;
-                const activa = r.estado === "confirmada";
-                return (
-                  <li
-                    key={r.id}
-                    className={`tarjeta${activa ? "" : " cancelada"}`}
-                  >
-                    <h4>
-                      {fmtFecha(r.inicio)} → {fmtFecha(r.fin)}
-                    </h4>
+          {esDepto && (
+            <section>
+              <h3>Mis reservas</h3>
+              <ListaResponsive
+                columnas={[
+                  { clave: "inicio", titulo: "Desde", celda: (r) => fmtFecha(r.inicio) },
+                  { clave: "fin", titulo: "Hasta", celda: (r) => fmtFecha(r.fin) },
+                  {
+                    clave: "estado",
+                    titulo: "Estado",
+                    celda: (r) => `${r.estado}${r.movimiento_cuenta_id ? " — con cargo" : ""}`,
+                  },
+                  {
+                    clave: "acciones",
+                    titulo: "",
+                    className: "col-acciones",
+                    celda: (r) =>
+                      r.estado === "confirmada" && new Date(r.inicio) > ahora ? (
+                        <button type="button" onClick={() => handleCancelar(r)}>
+                          Cancelar
+                        </button>
+                      ) : null,
+                  },
+                ]}
+                filas={misReservas}
+                claveFila={(r) => r.id}
+                vacio="No tenés reservas."
+                renderTarjeta={(r) => (
+                  <article className={`tarjeta${r.estado === "confirmada" ? "" : " cancelada"}`}>
+                    <h4>{fmtFecha(r.inicio)} → {fmtFecha(r.fin)}</h4>
                     <p>
                       Estado: {r.estado}
                       {r.movimiento_cuenta_id ? " — con cargo" : ""}
                     </p>
-                    {activa && esFutura && (
+                    {r.estado === "confirmada" && new Date(r.inicio) > ahora && (
                       <button type="button" onClick={() => handleCancelar(r)}>
                         Cancelar
                       </button>
                     )}
-                  </li>
-                );
-              })
-            )}
-          </ul>
-        </section>
-      )}
+                  </article>
+                )}
+              />
+            </section>
+          )}
+        </div>
+      </div>
     </main>
   );
 }

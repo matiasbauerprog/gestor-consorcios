@@ -125,6 +125,22 @@ def test_preview_un_gasto_clase_se_prorratea_por_coeficientes(db, proveedor, cla
     assert montos == [500.0, 500.0]
 
 
+def test_preview_avisa_si_hay_gastos_sin_pagar(db, proveedor, clase_50_50):
+    g = _gasto("2026-05", 1000, proveedor.id, clase_id=clase_50_50.id)
+    g.pagado = False
+    db.add(g)
+    db.commit()
+
+    preview = calcular_preview_cierre(db, 1, "2026-05")
+
+    codigos = {v.codigo for v in preview.validaciones}
+    assert "gastos_sin_pagar" in codigos
+    aviso = next(v for v in preview.validaciones if v.codigo == "gastos_sin_pagar")
+    assert aviso.tipo == "warning"
+    # No debe impedir el cierre: es informativo.
+    assert preview.puede_cerrar
+
+
 def test_preview_gasto_particular_va_solo_al_depto_indicado(db, proveedor, clase_50_50):
     db.add(_gasto("2026-05", 800, proveedor.id, depto_id=1, concepto="Reparación caño 1A"))
     db.commit()
@@ -200,6 +216,44 @@ def test_preview_validacion_bloqueante_fechas_invalidas(db, clase_50_50):
     assert "fechas_invalidas" in codigos
 
 
+def test_preview_devenga_el_recargo_antes_de_leer_el_saldo_anterior(db, proveedor, clase_50_50):
+    """Regresión del cableado en `_completar_preview`: sin el devengamiento el
+    `saldo_anterior` que arrastra la expensa nueva es 1000 y no 1070.
+
+    El primer vencimiento tiene que estar en el pasado real (el preview usa
+    `fecha_corte = date.today()`) y el segundo en el futuro, para que no corra
+    interés punitorio y el único delta sea el recargo.
+    """
+    from datetime import timedelta
+
+    hoy = date.today()
+    expensa = Expensa(consorcio_id=1,
+        departamento_id=1, periodo="2026-04",
+        monto_primer_vencimiento=1000, fecha_primer_vencimiento=hoy - timedelta(days=5),
+        monto_segundo_vencimiento=1070, fecha_segundo_vencimiento=hoy + timedelta(days=5),
+        saldo_anterior=0.0,
+    )
+    db.add(expensa); db.flush()
+    db.add(MovimientoCuenta(consorcio_id=1,
+        departamento_id=1, fecha=hoy - timedelta(days=25),
+        tipo=TipoMovimiento.expensa_emitida, descripcion="Expensa 2026-04",
+        monto=1000, expensa_id=expensa.id,
+    ))
+    # Un gasto del período para que el depto 1 llegue a tener expensa nueva
+    # (el bucle saltea los deptos con monto_1 == 0).
+    db.add(_gasto("2026-05", 1000.0, proveedor.id, clase_id=clase_50_50.id))
+    db.commit()
+
+    preview = calcular_preview_cierre(db, 1, "2026-05")
+
+    por_depto = {e.departamento_id: e for e in preview.expensas}
+    assert por_depto[1].saldo_anterior == 1070.0
+    # El depto 2 no tiene deuda previa: su saldo anterior no se toca.
+    assert por_depto[2].saldo_anterior == 0.0
+    # Sin mora vencida no hay intereses en juego: el delta es puro recargo.
+    assert preview.total_intereses == 0.0
+
+
 def test_intereses_depto_al_dia_devuelve_cero(db):
     monto, _ = calcular_intereses_al_cierre(db, 1, 1, date(2026, 6, 30))
     assert monto == 0.0
@@ -219,12 +273,57 @@ def test_intereses_un_mes_de_mora_calcula_correcto(db, proveedor):
         tipo=TipoMovimiento.expensa_emitida, descripcion="Expensa 2026-04",
         monto=1000, expensa_id=expensa.id,
     ))
+    # El recargo es un hecho asentado, no algo que se deduzca de la fecha: para
+    # que la base de la mora sea 1070 el movimiento tiene que existir, que es lo
+    # que emite `devengar_recargos_y_marcar` el día del 1er vencimiento.
+    db.add(MovimientoCuenta(consorcio_id=1,
+        departamento_id=1, fecha=date(2026, 5, 10),
+        tipo=TipoMovimiento.recargo, descripcion="Recargo por mora — expensa 2026-04",
+        monto=70, expensa_id=expensa.id,
+    ))
     db.commit()
 
     monto, descripcion = calcular_intereses_al_cierre(db, 1, 1, date(2026, 5, 30))
-    # 10 días de mora, tasa 3%/mes → 0.001/día. 1000 × 0.001 × 10 = 10.
-    assert monto == 10.0
+    # 10 días de mora, tasa 3%/mes → 0.001/día. Base = 2° vencimiento (1070,
+    # ya con recargo): 1070 × 0.001 × 10 = 10.70.
+    assert monto == 10.70
     assert "2026-04" in descripcion
+
+
+def test_cierre_cobra_exactamente_el_interes_que_informa_la_cuenta(db, proveedor):
+    """Regresión: si el cierre calcula el punitorio sobre un pendiente que ya
+    incluye intereses devengados, cada corrida cobra interés del interés. El
+    cierre y la cuenta corriente tienen que coincidir siempre."""
+    from backend.cuenta_corriente import calcular_estado_cuenta
+
+    expensa = Expensa(consorcio_id=1,
+        departamento_id=1, periodo="2026-04",
+        monto_primer_vencimiento=1000, fecha_primer_vencimiento=date(2026, 5, 10),
+        monto_segundo_vencimiento=1070, fecha_segundo_vencimiento=date(2026, 5, 20),
+        saldo_anterior=0.0,
+    )
+    db.add(expensa); db.flush()
+    db.add(MovimientoCuenta(consorcio_id=1,
+        departamento_id=1, fecha=date(2026, 5, 1),
+        tipo=TipoMovimiento.expensa_emitida, descripcion="Expensa 2026-04",
+        monto=1000, expensa_id=expensa.id,
+    ))
+    # El recargo es un hecho asentado, no algo que se deduzca de la fecha: para
+    # que la base de la mora sea 1070 el movimiento tiene que existir, que es lo
+    # que emite `devengar_recargos_y_marcar` el día del 1er vencimiento.
+    db.add(MovimientoCuenta(consorcio_id=1,
+        departamento_id=1, fecha=date(2026, 5, 10),
+        tipo=TipoMovimiento.recargo, descripcion="Recargo por mora — expensa 2026-04",
+        monto=70, expensa_id=expensa.id,
+    ))
+    db.commit()
+
+    monto, _ = calcular_intereses_al_cierre(db, 1, 1, date(2026, 5, 30))
+    calc = calcular_estado_cuenta(db, 1, hoy=date(2026, 5, 30)).por_expensa
+    interes_informado = round(sum(c.interes_acumulado for c in calc.values()), 2)
+
+    assert monto == interes_informado
+    assert monto > 0
 
 
 def test_intereses_no_recobra_lo_ya_cobrado(db, proveedor):
@@ -242,6 +341,14 @@ def test_intereses_no_recobra_lo_ya_cobrado(db, proveedor):
         tipo=TipoMovimiento.expensa_emitida, descripcion="Expensa 2026-04",
         monto=1000, expensa_id=expensa.id,
     ))
+    # El recargo es un hecho asentado, no algo que se deduzca de la fecha: para
+    # que la base de la mora sea 1070 el movimiento tiene que existir, que es lo
+    # que emite `devengar_recargos_y_marcar` el día del 1er vencimiento.
+    db.add(MovimientoCuenta(consorcio_id=1,
+        departamento_id=1, fecha=date(2026, 5, 10),
+        tipo=TipoMovimiento.recargo, descripcion="Recargo por mora — expensa 2026-04",
+        monto=70, expensa_id=expensa.id,
+    ))
     # Interés ya cobrado en un cierre anterior, con fecha 30-may (cubre 20→30 may).
     db.add(MovimientoCuenta(consorcio_id=1,
         departamento_id=1, fecha=date(2026, 5, 30),
@@ -251,9 +358,10 @@ def test_intereses_no_recobra_lo_ya_cobrado(db, proveedor):
     db.commit()
 
     monto, _ = calcular_intereses_al_cierre(db, 1, 1, date(2026, 6, 9))
-    # Solo los 10 días nuevos (30-may → 9-jun): 1000 × 0.001 × 10 = 10.
+    # Solo los 10 días nuevos (30-may → 9-jun), sobre el 2° vencimiento (1070,
+    # ya con recargo): 1070 × 0.001 × 10 = 10.70.
     # El cálculo viejo (bug) daba 20 (desde el 20-may, re-cobrando el tramo pago).
-    assert monto == 10.0
+    assert monto == 10.70
 
 
 def test_intereses_usa_tasa_del_consorcio_correcto(db):
@@ -289,8 +397,15 @@ def test_intereses_usa_tasa_del_consorcio_correcto(db):
         tipo=TipoMovimiento.expensa_emitida, descripcion="Expensa 2026-04",
         monto=1000, expensa_id=expensa.id,
     ))
+    # Ídem: sin el movimiento de recargo la base de la mora sería 1000.
+    db.add(MovimientoCuenta(consorcio_id=2,
+        departamento_id=3, fecha=date(2026, 5, 10),
+        tipo=TipoMovimiento.recargo, descripcion="Recargo por mora — expensa 2026-04",
+        monto=70, expensa_id=expensa.id,
+    ))
     db.commit()
 
     monto, _ = calcular_intereses_al_cierre(db, 2, 3, date(2026, 5, 30))
-    # 10 días de mora a 6%/mes → 0.002/día. 1000 × 0.002 × 10 = 20.
-    assert monto == 20.0
+    # 10 días de mora a 6%/mes → 0.002/día. Base = 2° vencimiento (1070, ya
+    # con recargo): 1070 × 0.002 × 10 = 21.40.
+    assert monto == 21.40

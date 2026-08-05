@@ -279,3 +279,157 @@ def test_get_cuentas_scope_multitenant(client, dos_consorcios):
     assert data[0]["codigo"] == "UF-1A"
     # Cross-check: solo el depto 3 del c2 debe estar
     assert data[0]["departamento_id"] == 3
+
+
+# ---------------------------------------------------------------------------
+# Devengamiento perezoso del recargo por mora al leer la cuenta
+# ---------------------------------------------------------------------------
+#
+# El seed deja al depto 1 con la expensa 100 (85000, primer venc futuro) y su
+# movimiento `expensa_emitida`. Estos tests le agregan una expensa cuyo PRIMER
+# vencimiento ya pasó pero cuyo SEGUNDO todavía no: así rige el monto con
+# recargo sin que se mezclen intereses punitorios (que sólo corren pasado el
+# segundo vencimiento) y la aritmética queda limpia.
+
+_VENCIDA_MONTO_1 = 50000.0
+_VENCIDA_MONTO_2 = 53500.0          # 50000 + 7% de recargo
+_RECARGO_ESPERADO = 3500.0
+_SALDO_CON_RECARGO = 85000.0 + _VENCIDA_MONTO_2   # 138500.0
+
+
+def _expensa_primer_venc_pasado(db_session):
+    """Agrega al depto 1 una expensa con el primer vencimiento ya pasado.
+
+    Devuelve la fecha del primer vencimiento, que es cómo debe quedar fechado
+    el movimiento de recargo.
+    """
+    from datetime import date, timedelta
+
+    from backend.models import Expensa, MovimientoCuenta, TipoMovimiento
+
+    hoy = date.today()
+    venc_1 = hoy - timedelta(days=5)
+    venc_2 = hoy + timedelta(days=5)
+
+    db_session.add(Expensa(
+        id=150,
+        consorcio_id=1,
+        departamento_id=1,
+        periodo="2026-04",
+        monto_primer_vencimiento=_VENCIDA_MONTO_1,
+        fecha_primer_vencimiento=venc_1,
+        monto_segundo_vencimiento=_VENCIDA_MONTO_2,
+        fecha_segundo_vencimiento=venc_2,
+        saldo_anterior=0.0,
+    ))
+    db_session.add(MovimientoCuenta(
+        consorcio_id=1,
+        departamento_id=1,
+        fecha=venc_1 - timedelta(days=20),
+        tipo=TipoMovimiento.expensa_emitida,
+        descripcion="Expensa 2026-04",
+        monto=_VENCIDA_MONTO_1,
+        expensa_id=150,
+    ))
+    db_session.commit()
+    return venc_1
+
+
+def test_mi_cuenta_devenga_recargo_y_el_saldo_iguala_los_pendientes(
+    client, headers_depto_a, db_session
+):
+    _expensa_primer_venc_pasado(db_session)
+
+    r = client.get("/movimientos/mi-cuenta", headers=headers_depto_a)
+    assert r.status_code == 200
+    saldo = r.json()["saldo_total"]
+
+    r = client.get("/expensas", headers=headers_depto_a)
+    assert r.status_code == 200
+    suma_pendientes = round(sum(e["monto_pendiente"] for e in r.json()), 2)
+
+    assert saldo == _SALDO_CON_RECARGO
+    assert saldo == suma_pendientes
+
+
+def test_mi_cuenta_lista_el_movimiento_de_recargo(
+    client, headers_depto_a, db_session
+):
+    venc_1 = _expensa_primer_venc_pasado(db_session)
+
+    r = client.get("/movimientos/mi-cuenta", headers=headers_depto_a)
+    assert r.status_code == 200
+    recargos = [m for m in r.json()["movimientos"] if m["tipo"] == "recargo"]
+
+    assert len(recargos) == 1
+    assert recargos[0]["monto"] == _RECARGO_ESPERADO
+    assert recargos[0]["expensa_id"] == 150
+    # Se gana el día del primer vencimiento, así que va fechado ahí.
+    assert recargos[0]["fecha"] == venc_1.isoformat()
+    assert "Recargo por mora" in recargos[0]["descripcion"]
+
+
+def test_leer_la_cuenta_dos_veces_no_duplica_el_recargo(
+    client, headers_depto_a, db_session
+):
+    _expensa_primer_venc_pasado(db_session)
+
+    client.get("/movimientos/mi-cuenta", headers=headers_depto_a)
+    r = client.get("/movimientos/mi-cuenta", headers=headers_depto_a)
+    assert r.status_code == 200
+    body = r.json()
+
+    assert len([m for m in body["movimientos"] if m["tipo"] == "recargo"]) == 1
+    assert body["saldo_total"] == _SALDO_CON_RECARGO
+
+
+def test_pagar_el_monto_con_recargo_deja_el_saldo_en_cero(
+    client, headers_depto_a, db_session
+):
+    """Sin el recargo en la cuenta, pagar lo exigible dejaría saldo negativo."""
+    from datetime import date
+
+    from backend.models import MovimientoCuenta, TipoMovimiento
+
+    _expensa_primer_venc_pasado(db_session)
+
+    # Primero leemos: el recargo se materializa.
+    r = client.get("/movimientos/mi-cuenta", headers=headers_depto_a)
+    assert r.json()["saldo_total"] == _SALDO_CON_RECARGO
+
+    db_session.add(MovimientoCuenta(
+        consorcio_id=1,
+        departamento_id=1,
+        fecha=date.today(),
+        tipo=TipoMovimiento.pago_recibido,
+        descripcion="Pago total",
+        monto=_SALDO_CON_RECARGO,
+    ))
+    db_session.commit()
+
+    r = client.get("/movimientos/mi-cuenta", headers=headers_depto_a)
+    assert r.json()["saldo_total"] == 0.0
+
+
+def test_listado_de_cuentas_admin_devenga_el_recargo(
+    client, headers_admin, db_session
+):
+    _expensa_primer_venc_pasado(db_session)
+
+    r = client.get("/movimientos/cuentas", headers=headers_admin)
+    assert r.status_code == 200
+    por_codigo = {item["codigo"]: item for item in r.json()}
+
+    assert por_codigo["UF-1A"]["saldo_total"] == _SALDO_CON_RECARGO
+    # El depto B no tiene expensas vencidas: su saldo no se toca.
+    assert por_codigo["UF-2B"]["saldo_total"] == 92000.0
+
+
+def test_cuenta_departamento_admin_devenga_el_recargo(
+    client, headers_admin, db_session
+):
+    _expensa_primer_venc_pasado(db_session)
+
+    r = client.get("/departamentos/1/cuenta", headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json()["saldo_total"] == _SALDO_CON_RECARGO

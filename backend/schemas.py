@@ -210,6 +210,8 @@ class ExpensaOut(BaseModel):
     saldo_anterior: float
     estado_calculado: EstadoExpensa
     monto_pendiente: float
+    monto_exigible: float
+    interes_acumulado: float
     detalle: list[LineaDetalleExpensaOut]
 
 
@@ -607,6 +609,14 @@ class GastoActualizar(BaseModel):
     cuota_total: int | None = Field(default=None, ge=1)
 
 
+class GastoPagar(BaseModel):
+    """Confirma el pago real de un gasto devengado. El monto puede diferir del
+    de la plantilla: la factura manda."""
+    monto: float = Field(..., gt=0)
+    fecha_pago: date
+    caja_id: int = Field(..., gt=0)
+
+
 class GastoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -620,6 +630,7 @@ class GastoOut(BaseModel):
     monto: float
     forma_pago: FormaPago
     fecha_pago: date
+    pagado: bool
     numero_factura: str | None
     fecha_factura: date | None
     cuota_actual: int | None

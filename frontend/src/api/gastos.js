@@ -17,11 +17,8 @@ export function crearPlanCuotas(payload) {
   return apiFetch("/gastos/plan-cuotas", { method: "POST", body: payload });
 }
 
-export function cargarGastosHabituales(periodo) {
-  return apiFetch("/gastos/cargar-habituales", {
-    method: "POST",
-    body: { periodo },
-  });
+export function pagarGasto(id, payload) {
+  return apiFetch(`/gastos/${id}/pagar`, { method: "POST", body: payload });
 }
 
 export function obtenerGasto(id) {

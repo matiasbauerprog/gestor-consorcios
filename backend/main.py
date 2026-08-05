@@ -113,6 +113,90 @@ def _migrar_administracion_modulos() -> None:
             ))
 
 
+def _migrar_expensa_recargo_evaluado() -> None:
+    """ALTER TABLE idempotente: agrega `recargo_evaluado` a expensas. Las
+    existentes arrancan en 0 y se evalúan una vez en la primera lectura."""
+    with engine.begin() as conn:
+        cols = {r[1] for r in conn.execute(text("PRAGMA table_info(expensas)"))}
+        if cols and "recargo_evaluado" not in cols:
+            conn.execute(text(
+                "ALTER TABLE expensas ADD COLUMN recargo_evaluado BOOLEAN NOT NULL DEFAULT 0"
+            ))
+
+
+def _migrar_gasto_pagado() -> None:
+    """ALTER TABLE idempotente: agrega `pagado` a gastos. Los gastos existentes
+    quedan en 1 — todos generaron su MovimientoCaja al crearse."""
+    with engine.begin() as conn:
+        cols = {r[1] for r in conn.execute(text("PRAGMA table_info(gastos)"))}
+        if cols and "pagado" not in cols:
+            conn.execute(text(
+                "ALTER TABLE gastos ADD COLUMN pagado BOOLEAN NOT NULL DEFAULT 1"
+            ))
+
+
+def _migrar_unique_gasto_habitual_periodo() -> None:
+    """Índice único idempotente (consorcio_id, periodo, gasto_habitual_id) en
+    gastos. Cierra la carrera de `_materializar_habituales`, que chequea y
+    después inserta dentro de un GET.
+
+    SQLite no admite agregar un UNIQUE por ALTER TABLE: se crea como índice.
+    Si la base traía duplicados el CREATE fallaría y la app no arrancaría, así
+    que se chequea antes y se avisa en vez de romper el arranque.
+    """
+    with engine.begin() as conn:
+        if not list(conn.execute(text("PRAGMA table_info(gastos)"))):
+            return  # la tabla no existe todavía; create_all la crea con el UNIQUE
+        duplicados = conn.execute(text("""
+            SELECT consorcio_id, periodo, gasto_habitual_id, COUNT(*) AS n
+            FROM gastos
+            WHERE gasto_habitual_id IS NOT NULL
+            GROUP BY consorcio_id, periodo, gasto_habitual_id
+            HAVING n > 1
+        """)).fetchall()
+        if duplicados:
+            logger.warning(
+                "No se creó uq_gasto_consorcio_periodo_habitual: hay %d grupos "
+                "de gastos recurrentes duplicados que hay que resolver a mano.",
+                len(duplicados),
+            )
+            return
+        conn.execute(text("""
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_gasto_consorcio_periodo_habitual
+            ON gastos (consorcio_id, periodo, gasto_habitual_id)
+        """))
+
+
+def _migrar_unique_movimiento_expensa_tipo() -> None:
+    """Índice único idempotente (departamento_id, expensa_id, tipo) en
+    movimientos_cuenta. Cierra la carrera de `recargos._devengar`.
+
+    Los movimientos sin expensa llevan `expensa_id` NULL y SQLite trata cada
+    NULL como distinto, así que el índice no los alcanza.
+    """
+    with engine.begin() as conn:
+        if not list(conn.execute(text("PRAGMA table_info(movimientos_cuenta)"))):
+            return
+        duplicados = conn.execute(text("""
+            SELECT departamento_id, expensa_id, tipo, COUNT(*) AS n
+            FROM movimientos_cuenta
+            WHERE expensa_id IS NOT NULL
+            GROUP BY departamento_id, expensa_id, tipo
+            HAVING n > 1
+        """)).fetchall()
+        if duplicados:
+            logger.warning(
+                "No se creó uq_movimiento_depto_expensa_tipo: hay %d grupos de "
+                "movimientos duplicados por expensa que hay que resolver a mano.",
+                len(duplicados),
+            )
+            return
+        conn.execute(text("""
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_movimiento_depto_expensa_tipo
+            ON movimientos_cuenta (departamento_id, expensa_id, tipo)
+        """))
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
@@ -120,6 +204,10 @@ async def lifespan(_: FastAPI):
         _migrar_usuario_activa()
         _migrar_pk_periodos_cerrados()
         _migrar_administracion_modulos()
+        _migrar_expensa_recargo_evaluado()
+        _migrar_gasto_pagado()
+        _migrar_unique_gasto_habitual_periodo()
+        _migrar_unique_movimiento_expensa_tipo()
     if get_settings().SEED_ENABLED:
         with SessionLocal() as db:
             seed_if_empty(db)

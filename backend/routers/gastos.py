@@ -2,9 +2,11 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, require_roles
+from ..cierre import periodo_cerrado_en
 from ..database import get_db
 from ..models import (
     Caja,
@@ -30,6 +32,7 @@ from ..schemas import (
     GastoActualizar,
     GastoCrear,
     GastoOut,
+    GastoPagar,
     PlanCuotasCrear,
 )
 
@@ -144,11 +147,90 @@ def _borrar_movimiento_de_gasto(db: Session, gasto_id: int) -> None:
         db.flush()
 
 
+def _materializar_habituales(db: Session, cid: int, periodo: str) -> list[Gasto]:
+    """Crea los gastos que faltan para las plantillas activas del período.
+
+    Idempotente: una plantilla que ya generó su gasto en ese período se saltea.
+    Los gastos nacen SIN pagar y SIN MovimientoCaja — la plantilla dice cuánto
+    se espera gastar, no cuánto se gastó. El egreso de caja lo produce
+    POST /gastos/{id}/pagar cuando llega la factura real.
+
+    No hace commit: el llamador decide la transacción.
+    """
+    anio, mes = map(int, periodo.split("-"))
+    fecha_provisoria = date(anio, mes, 1)
+
+    plantillas_activas = db.scalars(
+        select(GastoHabitual).where(
+            GastoHabitual.consorcio_id == cid,
+            GastoHabitual.activa == True,  # noqa: E712
+        )
+    ).all()
+
+    ids_ya_generadas = set(
+        db.scalars(
+            select(Gasto.gasto_habitual_id).where(
+                Gasto.consorcio_id == cid,
+                Gasto.periodo == periodo,
+                Gasto.gasto_habitual_id.is_not(None),
+            )
+        ).all()
+    )
+
+    nuevos: list[Gasto] = []
+    for plantilla in plantillas_activas:
+        if plantilla.id in ids_ya_generadas:
+            continue
+        # Savepoint por plantilla: si otra request ganó la carrera entre el
+        # chequeo y el INSERT, la única que sobrevive es la suya y acá se
+        # descarta la propia sin arrastrar el resto de la transacción.
+        savepoint = db.begin_nested()
+        gasto = Gasto(
+            consorcio_id=cid,
+            periodo=periodo,
+            rubro=plantilla.rubro,
+            clase_prorrateo_id=plantilla.clase_prorrateo_id,
+            departamento_id=None,
+            proveedor_id=plantilla.proveedor_id,
+            concepto=plantilla.concepto,
+            monto=plantilla.monto,
+            forma_pago=plantilla.forma_pago,
+            caja_id=plantilla.caja_id,
+            fecha_pago=fecha_provisoria,
+            pagado=False,
+            gasto_habitual_id=plantilla.id,
+        )
+        db.add(gasto)
+        try:
+            db.flush()
+        except IntegrityError:
+            savepoint.rollback()
+            continue
+        savepoint.commit()
+        nuevos.append(gasto)
+    return nuevos
+
+
+def _corresponde_materializar(db: Session, cid: int, periodo: str | None) -> bool:
+    """Sólo se materializan recurrentes en un período consultable y vivo.
+
+    - Período cerrado: ya liquidó sus expensas; agregarle gastos las dejaría
+      inconsistentes.
+    - Período futuro: navegar con las flechas hasta 2030 devengaría de golpe
+      los recurrentes de todos los meses intermedios.
+    """
+    if periodo is None:
+        return False
+    if periodo > date.today().strftime("%Y-%m"):
+        return False
+    return not periodo_cerrado_en(db, cid, periodo)
+
+
 @router.get(
     "",
     response_model=list[GastoOut],
     status_code=status.HTTP_200_OK,
-    summary="Listar gastos del consorcio",
+    summary="Listar gastos del consorcio (materializa recurrentes pendientes)",
 )
 def listar_gastos(
     periodo: str | None = Query(default=None, pattern=_PERIODO_PATTERN_GASTO),
@@ -163,7 +245,18 @@ def listar_gastos(
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
 ) -> list[Gasto]:
-    stmt = select(Gasto).where(Gasto.consorcio_id == cid).order_by(Gasto.fecha_pago.desc(), Gasto.id.desc())
+    # Efecto de escritura deliberado en un GET: materializa las plantillas
+    # recurrentes que falten. La alternativa es un scheduler, que el proyecto
+    # no tiene. La operación es idempotente, así que repetir el GET no duplica.
+    if _corresponde_materializar(db, cid, periodo):
+        if _materializar_habituales(db, cid, periodo):
+            db.commit()
+
+    stmt = (
+        select(Gasto)
+        .where(Gasto.consorcio_id == cid)
+        .order_by(Gasto.pagado.asc(), Gasto.fecha_pago.desc(), Gasto.id.desc())
+    )
     if periodo is not None:
         stmt = stmt.where(Gasto.periodo == periodo)
     if rubro is not None:
@@ -342,7 +435,63 @@ def actualizar_gasto(
     for campo, valor in cambios.items():
         setattr(gasto, campo, valor)
 
-    _borrar_movimiento_de_gasto(db, gasto.id)
+    # Un gasto sin pagar no tiene movimiento de caja que rehacer. Recrearlo acá
+    # le adelantaría el egreso a un gasto que todavía no se pagó.
+    if gasto.pagado:
+        _borrar_movimiento_de_gasto(db, gasto.id)
+        _crear_movimiento_para_gasto(db, gasto)
+
+    db.commit()
+    db.refresh(gasto)
+    return gasto
+
+
+@router.post(
+    "/{gasto_id}/pagar",
+    response_model=GastoOut,
+    status_code=status.HTTP_200_OK,
+    summary="Confirmar el pago de un gasto devengado",
+)
+def pagar_gasto(
+    gasto_id: int,
+    payload: GastoPagar,
+    db: Session = Depends(get_db),
+    _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    cid: int = Depends(get_consorcio_activo),
+) -> Gasto:
+    gasto = db.get(Gasto, gasto_id)
+    if gasto is None or gasto.consorcio_id != cid:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="El gasto solicitado no existe.",
+        )
+    if gasto.pagado:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="El gasto ya figura como pagado.",
+        )
+    # El cierre sólo ADVIERTE sobre gastos impagos, así que cerrar por encima de
+    # ellos es un flujo esperado y la factura puede llegar después. Confirmar el
+    # pago por el mismo monto no toca nada de lo ya prorrateado, así que se
+    # permite; cambiar el monto sí lo tocaría y sigue bloqueado.
+    if db.get(PeriodoCerrado, (gasto.periodo, cid)) is not None:
+        if abs(payload.monto - gasto.monto) > 0.005:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"El período {gasto.periodo} está cerrado: el monto prorrateado "
+                    "a los departamentos ya no puede cambiar. Registrá la diferencia "
+                    "como un gasto aparte en un período abierto."
+                ),
+            )
+
+    _validar_caja_activa(db, cid, payload.caja_id)
+
+    gasto.monto = payload.monto
+    gasto.fecha_pago = payload.fecha_pago
+    gasto.caja_id = payload.caja_id
+    gasto.pagado = True
+    db.flush()
     _crear_movimiento_para_gasto(db, gasto)
 
     db.commit()
@@ -449,50 +598,8 @@ def cargar_habituales(
     _user: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
 ) -> list[Gasto]:
-    # Bloquear si el período está cerrado
     _bloquear_si_periodo_cerrado(db, cid, payload.periodo)
-
-    anio, mes = map(int, payload.periodo.split("-"))
-    fecha_pago_default = date(anio, mes, 1)
-
-    # Plantillas activas que aún no tienen gasto generado en este período.
-    plantillas_activas = db.scalars(
-        select(GastoHabitual).where(GastoHabitual.consorcio_id == cid, GastoHabitual.activa == True)  # noqa: E712
-    ).all()
-
-    ids_ya_generadas = set(
-        db.scalars(
-            select(Gasto.gasto_habitual_id).where(
-                Gasto.consorcio_id == cid,
-                Gasto.periodo == payload.periodo,
-                Gasto.gasto_habitual_id.is_not(None),
-            )
-        ).all()
-    )
-
-    nuevos: list[Gasto] = []
-    for plantilla in plantillas_activas:
-        if plantilla.id in ids_ya_generadas:
-            continue
-        gasto = Gasto(
-            consorcio_id=cid,
-            periodo=payload.periodo,
-            rubro=plantilla.rubro,
-            clase_prorrateo_id=plantilla.clase_prorrateo_id,
-            departamento_id=None,
-            proveedor_id=plantilla.proveedor_id,
-            concepto=plantilla.concepto,
-            monto=plantilla.monto,
-            forma_pago=plantilla.forma_pago,
-            caja_id=plantilla.caja_id,
-            fecha_pago=fecha_pago_default,
-            gasto_habitual_id=plantilla.id,
-        )
-        db.add(gasto)
-        db.flush()
-        _crear_movimiento_para_gasto(db, gasto)
-        nuevos.append(gasto)
-
+    nuevos = _materializar_habituales(db, cid, payload.periodo)
     db.commit()
     for g in nuevos:
         db.refresh(g)

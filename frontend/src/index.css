@@ -1966,17 +1966,40 @@ td.monto {
     display: none;
   }
 
-  .filtros,
-  .filtros-barra {
-    flex-direction: row;
-    align-items: flex-end;
-    flex-wrap: wrap;
-  }
-
   .seccion-acciones {
     flex-direction: row;
     align-items: center;
     gap: 0.75rem;
+  }
+
+  /* Los filtros dejan de ser una columna que come alto y pasan a una barra.
+     Los controles nunca se estiran: ocupan su contenido. */
+  .filtros,
+  .filtros-barra,
+  .filtros-gastos {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 1rem;
+  }
+
+  .filtros label,
+  .filtros-barra label,
+  .filtros-gastos label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.6875rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .filtros-gastos select,
+  .filtros-gastos input {
+    width: auto;
+    align-self: flex-start;
   }
 }
 
@@ -2212,16 +2235,6 @@ td.monto {
   gap: 1rem;
 }
 
-@media (min-width: 960px) {
-  .filtros-gastos {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-  .filtros-gastos label {
-    flex: 1 1 200px;
-  }
-}
-
 /* ---------- Grid de cards (amenities) ---------- */
 
 .lista-cards {
@@ -2340,22 +2353,24 @@ td.monto {
 .tabs-panel {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
+  gap: 1.25rem;
   margin: 0 0 1.25rem;
-  padding: 0.25rem;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  width: fit-content;
-  max-width: 100%;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .tab-panel {
   background: transparent;
   border: none;
-  border-radius: var(--radius-sm);
-  padding: 0.5em 1em;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  /* El target táctil lo fija min-height, no el padding: así no depende de las
+     métricas de la fuente. El bloque queda liviano igual porque lo pesado era
+     la caja contenedora, no la altura de cada pestaña. */
+  display: inline-flex;
+  align-items: center;
   min-height: 44px;
+  padding: 0 0.15em;
+  margin-bottom: -1px;
   font-family: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
@@ -2364,7 +2379,7 @@ td.monto {
 }
 
 .tab-panel:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-primary-soft) 55%, transparent);
+  background: transparent;
   color: var(--color-text);
 }
 
@@ -2374,8 +2389,9 @@ td.monto {
 }
 
 .tab-panel.activo {
-  background: var(--color-primary-soft);
+  background: transparent;
   color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
   font-weight: 700;
 }
 
@@ -2389,10 +2405,13 @@ td.monto {
   display: inline-block;
 }
 
+/* Vive dentro de .app-header, cuyo fondo es var(--color-modulo) — un color
+   saturado. Hereda el mismo tratamiento blanco que .hamburguesa y
+   .avatar-boton; con var(--color-text) el nombre quedaba negro e ilegible. */
 .selector-consorcio-boton {
   background: transparent;
-  color: var(--color-text);
-  border: 1px solid var(--color-border-strong);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
   padding: 0.4em 0.7em;
   min-height: 44px;
   font-size: 0.8125rem;
@@ -2401,6 +2420,11 @@ td.monto {
   align-items: center;
   gap: 0.5rem;
   max-width: 200px;
+}
+
+.selector-consorcio-boton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
 .selector-consorcio-nombre {
@@ -2749,5 +2773,108 @@ td.monto {
   .inicio-hero,
   .inicio-acciones {
     grid-column: 1 / -1;
+  }
+}
+
+/* ---------- ListaResponsive: tabla de ≥600px para arriba ---------- */
+
+/* Se llama `.tabla-datos-scroll` y no `.tabla-scroll` porque esa clase ya
+   existe (matriz de coeficientes, con `margin: 1rem 0`). Redefinirla le sacaba
+   el margen superior a Configuración, una pantalla que esta rama no toca.
+   Renombrar es lo único que deja ambas densidades como estaban; reusar la regla
+   vieja habría cambiado el espaciado de las tres pantallas convertidas. */
+.tabla-datos-scroll {
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.tabla-datos {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.tabla-datos thead th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.tabla-datos tbody tr {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tabla-datos tbody tr:hover {
+  background: var(--color-bg);
+}
+
+.tabla-datos tbody td {
+  padding: 0.6rem 0.75rem;
+  vertical-align: middle;
+}
+
+/* Los importes se leen mejor alineados a la derecha y tabulados. */
+.tabla-datos .col-monto {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tabla-datos .col-acciones {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.lista-vacia {
+  color: var(--color-text-muted);
+  margin: 1rem 0;
+}
+
+/* La imagen inline de 240px hace la lista interminable; en tabla va miniatura. */
+.comprobante-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  cursor: zoom-in;
+}
+
+/* ---------- Reservas: dos columnas en desktop ---------- */
+
+.reservas-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 960px) {
+  .reservas-grid {
+    /* Izquierda: reservar (ancho fijo, es un formulario).
+       Derecha: consultar (elástica, son listas). */
+    grid-template-columns: minmax(280px, 380px) 1fr;
+    align-items: start;
+  }
+}
+
+/* ---------- Amenities: fichas en grid desde tablet ---------- */
+
+.grid-fichas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 600px) {
+  .grid-fichas {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   }
 }

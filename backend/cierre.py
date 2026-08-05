@@ -1,14 +1,21 @@
-"""Módulo de cierre de período — función pura.
+"""Módulo de cierre de período — cálculo del preview.
 
-Calcula el preview completo del cierre de un período sin escribir nada. El
-endpoint /periodos/{periodo}/cerrar consume el preview y persiste en una
-transacción atómica.
+Calcula el preview completo del cierre de un período. No persiste nada del
+cierre en sí: el endpoint /periodos/{periodo}/cerrar consume el preview y
+escribe las expensas y los intereses en una única transacción.
+
+La única escritura propia del preview es el devengamiento de los recargos por
+mora ya vencidos, que tiene que estar materializado antes de leer los saldos
+que arrastra el cierre. Ese commit es independiente y ocurre antes de que se
+evalúe `puede_cerrar`: si el cierre después se rechaza, los recargos quedan
+igual — son deuda ya ganada, no parte del cierre —, pero por eso la
+atomicidad es del cierre y no del request entero.
 """
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Literal
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .cuenta_corriente import calcular_estado_cuenta
@@ -20,11 +27,10 @@ from .models import (
     EstadoExpensa,
     Expensa,
     Gasto,
-    MovimientoCuenta,
     PeriodoCerrado,
     Rubro,
-    TipoMovimiento,
 )
+from .recargos import devengar_recargos_y_marcar
 
 
 @dataclass
@@ -93,51 +99,31 @@ def _calcular_fechas_default(
 
 
 def calcular_intereses_al_cierre(
-    db: Session, consorcio_id: int, depto_id: int, fecha_corte: date
+    db: Session, consorcio_id: int, depto_id: int, fecha_corte: date  # noqa: ARG001
 ) -> tuple[float, str]:
-    """Suma intereses sobre todas las expensas del depto con saldo > 0 cuyo
-    2° vencimiento ya pasó. Tasa diaria = mensual_pct / 100 / 30 (tasa del
-    consorcio del depto).
+    """Suma los intereses ya calculados por `calcular_estado_cuenta` sobre
+    todas las expensas del depto con interés acumulado > 0.
 
-    Solo se cobra el tramo de mora NO cubierto por cierres anteriores: los
-    intereses ya cobrados llegan hasta la fecha del último movimiento
-    `interes_punitorio` del depto — re-cobrar desde el vencimiento duplicaría
-    el interés en cada cierre subsecuente.
+    No recalcula la mora: delega en `calcular_estado_cuenta`, que es la única
+    fuente de verdad del interés devengado por expensa (base = monto exigible,
+    no el pendiente que ya arrastra intereses de cierres anteriores). Así el
+    cierre nunca compone interés sobre interés.
+
+    `consorcio_id` queda sin uso en el cuerpo — se mantiene en la firma porque
+    hay llamadores que lo pasan posicionalmente.
 
     Returns (monto_total, descripcion_agregada). Si monto == 0, retorna (0.0, "").
     """
-    config = db.get(Consorcio, consorcio_id)
-    if config is None:
-        return 0.0, ""
-
     estado = calcular_estado_cuenta(db, depto_id, hoy=fecha_corte)
-    tasa_diaria = config.tasa_interes_mensual_pct / 100 / 30
-
-    ultima_fecha_interes = db.scalar(
-        select(func.max(MovimientoCuenta.fecha)).where(
-            MovimientoCuenta.departamento_id == depto_id,
-            MovimientoCuenta.tipo == TipoMovimiento.interes_punitorio,
-        )
-    )
 
     intereses_por_expensa: list[tuple[str, float]] = []
     for expensa in db.scalars(
         select(Expensa).where(Expensa.departamento_id == depto_id)
     ).all():
         calc = estado.por_expensa.get(expensa.id)
-        if calc is None or calc.monto_pendiente <= 0.001:
+        if calc is None or calc.interes_acumulado <= 0.001:
             continue
-        if expensa.fecha_segundo_vencimiento >= fecha_corte:
-            continue
-        desde = expensa.fecha_segundo_vencimiento
-        if ultima_fecha_interes is not None and ultima_fecha_interes > desde:
-            desde = ultima_fecha_interes
-        dias_mora = (fecha_corte - desde).days
-        if dias_mora <= 0:
-            continue
-        interes = round(calc.monto_pendiente * tasa_diaria * dias_mora, 2)
-        if interes > 0:
-            intereses_por_expensa.append((expensa.periodo, interes))
+        intereses_por_expensa.append((expensa.periodo, calc.interes_acumulado))
 
     total = round(sum(m for _, m in intereses_por_expensa), 2)
     if total <= 0:
@@ -146,7 +132,10 @@ def calcular_intereses_al_cierre(
     partes = ", ".join(
         f"${m:.2f} por {p}" for p, m in intereses_por_expensa
     )
-    descripcion = f"Intereses al {fecha_corte.isoformat()} sobre {len(intereses_por_expensa)} expensa(s) vencida(s): {partes}"
+    descripcion = (
+        f"Intereses al {fecha_corte.isoformat()} sobre "
+        f"{len(intereses_por_expensa)} expensa(s) vencida(s): {partes}"
+    )
     return total, descripcion
 
 
@@ -221,6 +210,15 @@ def calcular_preview_cierre(
             "bloqueante",
             "gastos_huerfanos",
             f"Hay {len(huerfanos)} gasto(s) del período sin clase de prorrateo ni departamento asignado.",
+        ))
+
+    sin_pagar = [g for g in gastos_periodo if not g.pagado]
+    if sin_pagar:
+        validaciones.append(Validacion(
+            "warning",
+            "gastos_sin_pagar",
+            f"Hay {len(sin_pagar)} gasto(s) del período todavía sin confirmar "
+            f"el pago. Se prorratean igual, con el monto cargado.",
         ))
 
     if not gastos_periodo:
@@ -341,6 +339,19 @@ def _completar_preview(
                 )
 
     fecha_corte = date.today()
+
+    # Devengamiento perezoso antes de mirar saldos: el `saldo_anterior` que
+    # arrastra la expensa nueva tiene que incluir los recargos ya vencidos.
+    # Se pasa `hoy=fecha_corte` para que un preview a una fecha de corte
+    # pasada no devengue recargos posteriores a esa fecha. Un solo commit
+    # para todo el padrón, no uno por departamento.
+    hubo_recargos = False
+    for d in deptos:
+        if devengar_recargos_y_marcar(db, d.id, hoy=fecha_corte):
+            hubo_recargos = True
+    if hubo_recargos:
+        db.commit()
+
     intereses_por_depto: dict[int, float] = {}
     for d in deptos:
         monto, descripcion = calcular_intereses_al_cierre(db, consorcio_id, d.id, fecha_corte)

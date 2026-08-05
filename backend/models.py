@@ -62,6 +62,7 @@ class TipoMovimiento(str, enum.Enum):
     expensa_emitida = "expensa_emitida"
     pago_recibido = "pago_recibido"
     interes_punitorio = "interes_punitorio"
+    recargo = "recargo"
     nota_debito = "nota_debito"
     nota_credito = "nota_credito"
 
@@ -69,6 +70,7 @@ class TipoMovimiento(str, enum.Enum):
 TIPOS_DEBITO = frozenset({
     TipoMovimiento.expensa_emitida,
     TipoMovimiento.interes_punitorio,
+    TipoMovimiento.recargo,
     TipoMovimiento.nota_debito,
 })
 TIPOS_CREDITO = frozenset({
@@ -337,6 +339,12 @@ class Expensa(Base):
     fecha_segundo_vencimiento: Mapped[date] = mapped_column(Date, nullable=False)
     saldo_anterior: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
 
+    # El recargo se decide una sola vez, el día del vencimiento, y la decisión
+    # no cambia después. Marcar la expensa evita re-evaluarla en cada lectura.
+    recargo_evaluado: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+
     departamento: Mapped["Departamento"] = relationship(back_populates="expensas")
     detalle: Mapped[list["ExpensaDetalle"]] = relationship(
         back_populates="expensa", cascade="all, delete-orphan"
@@ -592,6 +600,16 @@ class GastoHabitual(Base):
 
 class Gasto(Base):
     __tablename__ = "gastos"
+    # Una plantilla recurrente materializa como mucho UN gasto por período.
+    # `_materializar_habituales` corre dentro de un GET y FastAPI atiende los
+    # endpoints sync en un threadpool: dos requests concurrentes pasan el
+    # chequeo previo a la vez, y sin esta restricción ambos insertarían.
+    # `gasto_habitual_id` es NULL en los gastos comunes y SQLite trata cada NULL
+    # como distinto, así que no los alcanza.
+    __table_args__ = (
+        UniqueConstraint("consorcio_id", "periodo", "gasto_habitual_id",
+                         name="uq_gasto_consorcio_periodo_habitual"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     consorcio_id: Mapped[int] = mapped_column(
@@ -623,6 +641,13 @@ class Gasto(Base):
         ForeignKey("cajas.id"), nullable=False
     )
     fecha_pago: Mapped[date] = mapped_column(Date, nullable=False)
+
+    # Un gasto puede existir (devengado, prorrateable) sin estar pagado todavía.
+    # Sólo al pagarse genera su MovimientoCaja. Default True: los gastos que ya
+    # existían fueron todos creados junto con su movimiento.
+    pagado: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="1"
+    )
 
     numero_factura: Mapped[str | None] = mapped_column(String(50))
     fecha_factura: Mapped[date | None] = mapped_column(Date)
@@ -795,6 +820,16 @@ class LiquidacionDetalle(Base):
 
 class MovimientoCuenta(Base):
     __tablename__ = "movimientos_cuenta"
+    # Los movimientos atados a una expensa son uno solo por tipo: la emisión y
+    # el recargo. `_devengar` inserta el recargo tras un chequeo previo, y dos
+    # lecturas concurrentes lo pasarían las dos; la restricción lo impide.
+    # Se incluye `tipo` para no chocar la emisión con el recargo de la misma
+    # expensa. Los movimientos sin expensa (pagos, notas, intereses) llevan
+    # `expensa_id` NULL y SQLite trata cada NULL como distinto: no los alcanza.
+    __table_args__ = (
+        UniqueConstraint("departamento_id", "expensa_id", "tipo",
+                         name="uq_movimiento_depto_expensa_tipo"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     consorcio_id: Mapped[int] = mapped_column(
