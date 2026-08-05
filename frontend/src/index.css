@@ -2353,22 +2353,20 @@ td.monto {
 .tabs-panel {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
+  gap: 1.25rem;
   margin: 0 0 1.25rem;
-  padding: 0.25rem;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  width: fit-content;
-  max-width: 100%;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .tab-panel {
   background: transparent;
   border: none;
-  border-radius: var(--radius-sm);
-  padding: 0.5em 1em;
-  min-height: 44px;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  /* Área táctil por padding, no por min-height: el bloque queda liviano
+     pero el target sigue arriba de 44px. */
+  padding: 0.75em 0.15em;
+  margin-bottom: -1px;
   font-family: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
@@ -2377,7 +2375,7 @@ td.monto {
 }
 
 .tab-panel:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-primary-soft) 55%, transparent);
+  background: transparent;
   color: var(--color-text);
 }
 
@@ -2387,8 +2385,9 @@ td.monto {
 }
 
 .tab-panel.activo {
-  background: var(--color-primary-soft);
+  background: transparent;
   color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
   font-weight: 700;
 }
 

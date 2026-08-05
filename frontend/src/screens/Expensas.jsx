@@ -14,7 +14,7 @@ import BadgeEstado from "../components/BadgeEstado";
 import { formatFecha } from "../utils/fechas";
 import { abrirPdfExpensa } from "../api/pdf";
 
-export default function Expensas() {
+export default function Expensas({ embebida = false }) {
   const { user, token } = useAuth();
   const [expensas, setExpensas] = useState([]);
   const [cargando, setCargando] = useState(false);
@@ -205,9 +205,11 @@ export default function Expensas() {
 
   return (
     <section className="pantalla">
-      <header className="seccion-header">
-        <h2>Expensas</h2>
-      </header>
+      {!embebida && (
+        <header className="seccion-header">
+          <h2>Expensas</h2>
+        </header>
+      )}
 
       {esAdmin && (
         <div className="filtros-barra">

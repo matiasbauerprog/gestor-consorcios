@@ -23,7 +23,7 @@ const ESTADOS = [
   { value: "rechazado", label: "Rechazados" },
 ];
 
-export default function Comprobantes() {
+export default function Comprobantes({ embebida = false }) {
   const { user } = useAuth();
   const esAdmin = user.rol === "administracion";
   const [searchParams] = useSearchParams();
@@ -249,9 +249,11 @@ export default function Comprobantes() {
 
   return (
     <section>
-      <header className="seccion-header">
-        <h2>Comprobantes</h2>
-      </header>
+      {!embebida && (
+        <header className="seccion-header">
+          <h2>Comprobantes</h2>
+        </header>
+      )}
 
       <div className="filtros-barra">
         <label>
