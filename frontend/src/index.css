@@ -2405,10 +2405,13 @@ td.monto {
   display: inline-block;
 }
 
+/* Vive dentro de .app-header, cuyo fondo es var(--color-modulo) — un color
+   saturado. Hereda el mismo tratamiento blanco que .hamburguesa y
+   .avatar-boton; con var(--color-text) el nombre quedaba negro e ilegible. */
 .selector-consorcio-boton {
   background: transparent;
-  color: var(--color-text);
-  border: 1px solid var(--color-border-strong);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
   padding: 0.4em 0.7em;
   min-height: 44px;
   font-size: 0.8125rem;
@@ -2417,6 +2420,11 @@ td.monto {
   align-items: center;
   gap: 0.5rem;
   max-width: 200px;
+}
+
+.selector-consorcio-boton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
 .selector-consorcio-nombre {
