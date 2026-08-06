@@ -34,24 +34,9 @@ demo.db
 
 # Editores / OS
 .DS_Store
-Thumbs.db
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# Claude Code session data
-.claude/projects/
-.claude/shell-snapshots/
-.claude/todos/
-.claude/statsig/
-
-# Archivos subidos por usuarios (las imágenes de comprobantes)
-backend/uploads/comprobantes/*
-!backend/uploads/comprobantes/.gitkeep
-
-# Visual companion (brainstorming)
 .superpowers/
 
 # Worktrees de ejecucion aislada (superpowers / SDD)
 .worktrees/
+.claude/
+
