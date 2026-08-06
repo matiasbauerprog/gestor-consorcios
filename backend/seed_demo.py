@@ -603,8 +603,14 @@ def _resetear_esquema(engine) -> None:
         # mismo rol via create_all, asi que siempre las posee, sin depender
         # de ser dueño del esquema.
         with engine.begin() as conn:
-            conn.execute(text("DROP SCHEMA public CASCADE"))
-            conn.execute(text("CREATE SCHEMA public"))
+            try:
+                conn.execute(text("DROP SCHEMA public CASCADE"))
+                conn.execute(text("CREATE SCHEMA public"))
+            except Exception:
+                # Fallback portable si el rol de conexión no es dueño del esquema `public`:
+                # dropea cada tabla de los modelos con CASCADE para ignorar ciclos de FK.
+                for table in reversed(Base.metadata.sorted_tables):
+                    conn.execute(text(f'DROP TABLE IF EXISTS "{table.name}" CASCADE'))
         return
 
     try:
