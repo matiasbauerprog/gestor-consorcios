@@ -30,11 +30,11 @@ jobs:
 
       - name: Ejecutar reset y seed de la base demo
         env:
-          DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL || secrets.DATABASE_URL }}
           DEMO_MODE: "true"
           SEED_ENABLED: "false"
-          SUPER_ADMIN_EMAIL: ${{ secrets.DEMO_SUPER_ADMIN_EMAIL }}
-          SUPER_ADMIN_PASSWORD: ${{ secrets.DEMO_SUPER_ADMIN_PASSWORD }}
+          SUPER_ADMIN_EMAIL: ${{ secrets.DEMO_SUPER_ADMIN_EMAIL || secrets.SUPER_ADMIN_EMAIL }}
+          SUPER_ADMIN_PASSWORD: ${{ secrets.SUPER_ADMIN_PASSWORD || secrets.DEMO_SUPER_ADMIN_PASSWORD }}
           DEMO_SEED_PASSWORD: ${{ secrets.DEMO_SEED_PASSWORD }}
         run: |
           python -m backend.seed_demo --reset
