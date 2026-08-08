@@ -34,8 +34,8 @@ jobs:
           DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL || secrets.DATABASE_URL }}
           DEMO_MODE: "true"
           SEED_ENABLED: "false"
-          SUPER_ADMIN_EMAIL: ${{ secrets.DEMO_SUPER_ADMIN_EMAIL || secrets.SUPER_ADMIN_EMAIL }}
-          SUPER_ADMIN_PASSWORD: ${{ secrets.SUPER_ADMIN_PASSWORD || secrets.DEMO_SUPER_ADMIN_PASSWORD }}
-          DEMO_SEED_PASSWORD: ${{ secrets.DEMO_SEED_PASSWORD }}
+          SUPER_ADMIN_EMAIL: ${{ secrets.DEMO_SUPER_ADMIN_EMAIL || secrets.SUPER_ADMIN_EMAIL || 'superadmin@demo.local' }}
+          SUPER_ADMIN_PASSWORD: ${{ secrets.SUPER_ADMIN_PASSWORD || secrets.DEMO_SUPER_ADMIN_PASSWORD || 'DemoSuperAdmin2026!' }}
+          DEMO_SEED_PASSWORD: ${{ secrets.DEMO_SEED_PASSWORD || 'DemoSeedPassword2026!' }}
         run: |
           python -m backend.seed_demo --reset
