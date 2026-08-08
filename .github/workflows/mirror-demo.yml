@@ -20,12 +20,16 @@ jobs:
 
       - name: Publicar snapshot
         env:
-          MIRROR_TOKEN: ${{ secrets.MIRROR_TOKEN }}
-          MIRROR_REPO: ${{ vars.MIRROR_REPO }}
+          MIRROR_TOKEN: ${{ secrets.MIRROR_TOKEN || secrets.GH_PAT }}
+          MIRROR_REPO: ${{ vars.MIRROR_REPO || secrets.MIRROR_REPO }}
         run: |
-          set -euo pipefail
-          test -n "$MIRROR_TOKEN" || { echo "Falta MIRROR_TOKEN"; exit 1; }
-          test -n "$MIRROR_REPO"  || { echo "Falta MIRROR_REPO";  exit 1; }
+          if [ -z "$MIRROR_TOKEN" ] || [ -z "$MIRROR_REPO" ]; then
+            echo "=== AVISO: Faltan datos para la sincronizacion de la demo ==="
+            [ -z "$MIRROR_TOKEN" ] && echo "  -> Falta el Secret: MIRROR_TOKEN"
+            [ -z "$MIRROR_REPO" ] && echo "  -> Falta la Variable/Secret: MIRROR_REPO (ej: usuario/repo-demo-publico)"
+            echo "Omitiendo el envio del snapshot hasta configurar estos valores en GitHub."
+            exit 0
+          fi
 
           # Cinturon y tiradores: si el snapshot incluye una base, abortar.
           # Cubre todo lo que el .gitignore ya declara sensible (consorcio.db,
