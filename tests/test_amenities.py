@@ -1,6 +1,6 @@
-from datetime import timedelta
+from datetime import time, timedelta
 
-from tests.conftest import RESERVA_DESDE, RESERVA_HASTA, RESERVA_INICIO
+from tests.conftest import HOY, RESERVA_DESDE, RESERVA_HASTA, RESERVA_INICIO
 
 # ---------------------------------------------------------------------------
 # GET /amenities/{id}/disponibilidad
@@ -99,9 +99,11 @@ def test_disponibilidad_rango_fuera_de_reservas_existentes(client, headers_admin
 # ---------------------------------------------------------------------------
 
 
+from datetime import datetime
+
 _PAYLOAD_OK = {
-    "inicio": "2026-08-10T18:00:00",
-    "fin": "2026-08-10T22:00:00",
+    "inicio": datetime.combine(HOY + timedelta(days=20), time(18, 0)).isoformat(),
+    "fin": datetime.combine(HOY + timedelta(days=20), time(22, 0)).isoformat(),
 }
 
 

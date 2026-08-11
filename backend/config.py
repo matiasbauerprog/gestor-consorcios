@@ -66,7 +66,11 @@ class Settings(BaseSettings):
         que la DATABASE_URL sea explícitamente una base demo y, si no, no
         arrancamos.
         """
-        if self.DEMO_MODE and "demo" not in self.DATABASE_URL.lower():
+        if not self.DATABASE_URL:
+            self.DATABASE_URL = (
+                "sqlite:///./demo.db" if self.DEMO_MODE else "sqlite:///./consorcio.db"
+            )
+        elif self.DEMO_MODE and "demo" not in self.DATABASE_URL.lower():
             raise ValueError(
                 "DEMO_MODE=true exige una DATABASE_URL que contenga 'demo' "
                 f"(recibida: {self.DATABASE_URL!r}). Es un candado "

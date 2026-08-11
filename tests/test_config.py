@@ -58,6 +58,18 @@ def test_demo_mode_false_no_exige_nada_de_la_database_url():
     assert s.DEMO_MODE is False
 
 
+def test_demo_mode_true_con_database_url_vacia_usa_fallback_demo():
+    s = Settings(SECRET_KEY="x", DEMO_MODE=True, DATABASE_URL="")
+    assert s.DEMO_MODE is True
+    assert s.DATABASE_URL == "sqlite:///./demo.db"
+
+
+def test_demo_mode_false_con_database_url_vacia_usa_fallback_default():
+    s = Settings(SECRET_KEY="x", DEMO_MODE=False, DATABASE_URL="")
+    assert s.DEMO_MODE is False
+    assert s.DATABASE_URL == "sqlite:///./consorcio.db"
+
+
 def test_demo_mode_fuerza_modo_consola_aunque_haya_smtp(monkeypatch, capsys):
     # Un demo publico nunca debe mandar mail real, ni siquiera si alguien
     # configura SMTP_HOST en el servicio por error.

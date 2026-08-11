@@ -74,9 +74,25 @@ def client_demo(db_session, monkeypatch):
         yield c
 
 
+def _obtener_rutas_app(app):
+    paths = set()
+    for r in app.routes:
+        if hasattr(r, "path"):
+            paths.add(r.path)
+        if hasattr(r, "routes"):
+            for sub in r.routes:
+                if hasattr(sub, "path"):
+                    paths.add(sub.path)
+        if hasattr(r, "original_router"):
+            for sub in r.original_router.routes:
+                if hasattr(sub, "path"):
+                    paths.add(sub.path)
+    return paths
+
+
 def test_ruta_demo_no_registrada_en_la_app_real():
     # Candado 2 (caso negativo): sin DEMO_MODE la ruta no existe (404, no 403).
-    paths = {getattr(r, "path", None) for r in app_real.routes}
+    paths = _obtener_rutas_app(app_real)
     assert "/auth/demo-login" not in paths
 
 
@@ -98,7 +114,15 @@ def test_ruta_demo_se_registra_cuando_demo_mode_es_true(tmp_path):
     db_path = tmp_path / "demo.db"  # nombre con "demo": pasa el candado 1
     script = (
         "import backend.main as m\n"
-        "paths = {getattr(r, 'path', None) for r in m.app.routes}\n"
+        "paths = set()\n"
+        "for r in m.app.routes:\n"
+        "    if hasattr(r, 'path'): paths.add(r.path)\n"
+        "    if hasattr(r, 'routes'):\n"
+        "        for sub in r.routes:\n"
+        "            if hasattr(sub, 'path'): paths.add(sub.path)\n"
+        "    if hasattr(r, 'original_router'):\n"
+        "        for sub in r.original_router.routes:\n"
+        "            if hasattr(sub, 'path'): paths.add(sub.path)\n"
         "print('/auth/demo-login' in paths)\n"
     )
     env = os.environ.copy()

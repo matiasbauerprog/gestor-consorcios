@@ -31,7 +31,7 @@ jobs:
       - name: Ejecutar reset y seed de la base demo
         env:
           SECRET_KEY: ${{ secrets.SECRET_KEY || 'demo-secret-key-seed-reset-2026' }}
-          DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL || secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL || secrets.DATABASE_URL || 'sqlite:///./demo.db' }}
           DEMO_MODE: "true"
           SEED_ENABLED: "false"
           SUPER_ADMIN_EMAIL: ${{ secrets.DEMO_SUPER_ADMIN_EMAIL || secrets.SUPER_ADMIN_EMAIL || 'superadmin@demo.local' }}
