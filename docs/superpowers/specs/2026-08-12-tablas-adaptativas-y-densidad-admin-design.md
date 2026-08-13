@@ -67,10 +67,15 @@ Cada columna gana dos campos, ambos opcionales con default:
   titulo: "Proveedor",
   celda: (fila) => …,
   prioridad: 2,      // 1 = nunca se oculta (default) · 2 · 3 = se va primero
-  ancho: "1fr",      // fr o % para texto, ch para montos y fechas (default "1fr")
+  ancho: "auto",     // auto o % para texto, ch para montos y fechas (default "auto")
   className: "col-monto",
 }
 ```
+
+**Nada de `fr`.** Es una unidad de grid: en un `<col>` el navegador la descarta
+en silencio. Bajo `table-layout: fixed`, las columnas en `auto` se reparten en
+partes iguales lo que sobra después de las de ancho fijo — que es exactamente el
+reparto proporcional que se busca.
 
 El componente renderiza un `<colgroup>` con los anchos declarados y
 `table-layout: fixed` en la tabla. Ahí está la inversión: las columnas se
@@ -286,8 +291,8 @@ Dirección elegida: **punto discreto**, el patrón de Linear y Notion.
 - **Mobile:** el panel deja de ser dropdown y sube como sheet, reusando el patrón
   de `SheetCuenta`.
 
-El formateo relativo va a un helper en `utils/` — lo necesita también la fila de
-detalle de las tablas.
+El formateo relativo va a un helper propio en `utils/`, con tests: es lógica pura
+de fechas, el tipo de código donde los off-by-one no se ven a simple vista.
 
 ---
 
@@ -295,7 +300,7 @@ detalle de las tablas.
 
 **`table-layout: fixed` corta contenido que hoy se ve entero.** Es el punto de
 verificación real del spec. Mitigación: `title` con el valor completo en toda
-celda con ellipsis, y anchos en `ch` (no en `fr`) para montos y fechas, que son
+celda con ellipsis, y anchos en `ch` (no en `auto`) para montos y fechas, que son
 las columnas donde cortar sería inaceptable.
 
 **Borrar la regla global de `table` toca 15 pantallas de una.** Incluidas las
