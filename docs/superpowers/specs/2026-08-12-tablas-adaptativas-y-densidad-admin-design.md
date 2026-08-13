@@ -110,20 +110,37 @@ lectores de pantalla. La razón está documentada en `ListaResponsive.jsx:5-6` y
 mantiene tal cual. Los escalones de la tabla de arriba aplican una vez que el
 árbol de tabla ya se eligió.
 
-**La fila de detalle, sin medición en JS.** Cada fila renderiza siempre una
-segunda `<tr class="fila-detalle">` con un `<td colspan>` que lista las columnas
-de prioridad 2 y 3 como pares etiqueta/valor. Cada par lleva su `data-prio`, y
-el mismo `@container` que oculta la columna arriba muestra su par abajo:
+**El mecanismo de ocultamiento (corregido durante la implementación,
+2026-08-13).** El diseño original ocultaba las columnas con `display: none` bajo
+`@container`, sin JavaScript: la misma condición leída en dos direcciones,
+imposible de desfasar. **No funciona**, y la razón es estructural, no un detalle
+de implementación.
 
-```css
-@container (max-width: 999px) {
-  .tabla-datos [data-prio="3"]     { display: none; }
-  .fila-detalle [data-prio="3"]    { display: block; }
-}
-```
+Una celda en `display: none` no genera caja y por lo tanto no ocupa lugar en la
+grilla de la tabla. Con `table-layout: fixed`, los anchos vienen del `<colgroup>`
+**por posición**: si se oculta la 4ª columna, la 5ª cae en el slot 4 y hereda el
+ancho de su vecina, la 6ª cae en el 5, y el último `<col>` queda declarando ancho
+para una columna vacía. Los montos se renderizan con el ancho de otra columna y
+sobra una franja muerta al costado. Y no ocurre solo en el escalón de 1000px:
+pasa en cada escalón donde se oculte algo. Bajarle el ancho a 0 al `<col>` no lo
+arregla — el defecto es posicional, no de ancho.
 
-No hay `ResizeObserver` ni estado de ancho en React. Es la misma condición leída
-en dos direcciones, así que no puede haber desfase ni parpadeo al redimensionar.
+El reemplazo: **la tabla mide su contenedor con `ResizeObserver` y renderiza
+únicamente las columnas que entran.** Lo que el usuario ve es idéntico. Lo que
+cambia es que las columnas descartadas no se dibujan nunca, así que no hay
+celdas ocultas, no hay corrimiento posicional, el `<colgroup>` siempre coincide
+con las celdas presentes, y el `colSpan` de la fila de detalle siempre iguala la
+cantidad real de columnas visibles.
+
+El costo es el JavaScript de medición que el diseño original quería evitar. A
+cambio desaparece una familia entera de errores de alineación que la versión CSS
+no podía evitar sin apilar hacks (`visibility: collapse` en `<col>`, soporte
+despareja entre motores; o `font-size: 0` para que una celda de ancho cero no
+estire la fila).
+
+**La fila de detalle** sigue igual: cada fila renderiza una segunda
+`<tr class="fila-detalle">` con un `<td colSpan>` que lista como pares
+etiqueta/valor exactamente las columnas que quedaron afuera en el ancho actual.
 
 El chevron vive en una columna propia al inicio, y se oculta por `@container` en
 el escalón donde ya no queda ninguna columna escondida. Es un `<button>` con
@@ -307,10 +324,9 @@ las columnas donde cortar sería inaceptable.
 que están fuera de alcance. Se verifican las 15 a 375px, 768px y 1440px antes de
 dar el bloque por cerrado.
 
-**`@container` no tiene fallback.** Si un navegador no lo soporta, ninguna
-columna se oculta nunca y vuelve el desborde. Baseline desde 2023 en las cuatro
-familias de motores; el proyecto ya usa `:has()`
-(`index.css:2103`), de la misma generación. Se acepta sin polyfill.
+**~~`@container` no tiene fallback.~~** Obsoleto: el ocultamiento pasó a
+`ResizeObserver` (ver 1.3). `ResizeObserver` es soporte universal desde 2020 y no
+necesita fallback. `@container` sigue sin usarse para esto.
 
 ## Verificación
 
