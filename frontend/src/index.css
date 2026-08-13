@@ -1255,6 +1255,12 @@ td.monto {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  /* A 375px el presupuesto horizontal de esta fila (~314px, ver cálculo en
+     el commit) no alcanza para las dos flechas de 44px + un mes largo en
+     una sola línea. En vez de negociar contra el piso del input, se deja
+     que el badge (o la segunda flecha) baje de línea: nunca hay overflow
+     horizontal, como máximo la fila crece en alto. */
+  flex-wrap: wrap;
   min-width: 0;
 }
 
@@ -1263,10 +1269,24 @@ td.monto {
   font-weight: 600;
   padding: 0.3rem 0.5rem;
   /* Chrome renderiza "agosto de 2026" y no entraba en los 9.5rem fijos que
-     había acá: el mes salía cortado. El piso evita que el campo cambie de
-     tamaño entre meses de nombre corto y largo. */
+     había acá: el mes salía cortado.
+     El piso NO puede ser igual al viejo width fijo (9.5rem) — ese es
+     justo el valor que ya demostró ser chico. Se derivó así:
+     - Peor caso real: "septiembre de 2026" (18 caracteres), el nombre de
+       mes más largo del rango mayo–septiembre que usa este selector.
+     - Sin poder medir en un Chrome real desde este entorno (extensión no
+       conectada), se estimó el ancho de texto con un ratio de ~0.55em por
+       carácter para Plus Jakarta Sans 600 a 1rem, calibrado contra el
+       propio bug: a los 9.5rem viejos "agosto de 2026" (14 caracteres)
+       perdía solo el último dígito, no una palabra entera, lo que acota
+       el ratio real de ancho por carácter.
+     - 18 car. × ~0.55em × 16px ≈ 158px de texto + ~20px del ícono nativo
+       del picker + 1rem de padding horizontal + 2px de borde (border-box)
+       ⇒ ~196px de necesidad, con margen ⇒ 14rem (224px) de piso.
+     Sigue siendo una estimación, no una medición en navegador: dejar
+     margen es intencional. */
   width: auto;
-  min-width: 9.5rem;
+  min-width: 14rem;
 }
 
 .periodo-nav {
@@ -1277,9 +1297,12 @@ td.monto {
   font-size: 0.875rem;
   color: var(--color-text-muted);
   cursor: pointer;
-  /* Glifo "‹"/"›" a tamaño visual sin cambios; el hit area se agranda a
-     44px con min-width/height + centrado flex, misma técnica que
-     .menu-kebab-trigger, en vez del min-height:44px "musculoso". */
+  /* El glifo "‹"/"›" se achicó a propósito (1rem -> 0.875rem): a full
+     tamaño competía visualmente con el puntito de estado de al lado. El
+     área táctil de 44px es independiente del tamaño del glifo — se logra
+     con min-width/height + centrado flex, misma técnica que
+     .menu-kebab-trigger, en vez del min-height:44px "musculoso". Bajar el
+     font-size no reabre el problema de accesibilidad. */
   min-width: 44px;
   min-height: 44px;
   display: inline-flex;
