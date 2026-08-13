@@ -2845,6 +2845,15 @@ td.monto {
   white-space: nowrap;
 }
 
+/* Las celdas de texto se recortan con ellipsis; las que tienen controles NO
+   pueden recortarse, porque un botón cortado deja de ser clickeable. Envuelven
+   a varias líneas en vez de cortarse: la fila crece de alto y nada queda
+   inalcanzable, sea cual sea el ancho de la columna. */
+.tabla-datos tbody td:has(button),
+.tabla-datos tbody td:has(a) {
+  white-space: normal;
+}
+
 /* Los importes se leen mejor alineados a la derecha y tabulados. */
 .tabla-datos .col-monto {
   text-align: right;

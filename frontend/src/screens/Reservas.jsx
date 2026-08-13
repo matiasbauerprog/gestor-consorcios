@@ -294,6 +294,7 @@ export default function Reservas() {
                     clave: "acciones",
                     titulo: "",
                     className: "col-acciones",
+                    ancho: "7rem",
                     celda: (r) =>
                       r.estado === "confirmada" && new Date(r.inicio) > ahora ? (
                         <button type="button" onClick={() => handleCancelar(r)}>

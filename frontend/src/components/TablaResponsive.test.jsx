@@ -63,4 +63,13 @@ describe("TablaResponsive — anchos y modelo de columnas", () => {
     montar({ filas: [], vacio: "No hay gastos." });
     expect(screen.getByText("No hay gastos.")).toBeInTheDocument();
   });
+
+  it("un botón dentro de una celda queda alcanzable por rol", () => {
+    const columnasConBoton = [
+      ...COLUMNAS,
+      { clave: "acciones", titulo: "", celda: () => <button type="button">Cancelar</button> },
+    ];
+    montar({ columnas: columnasConBoton });
+    expect(screen.getAllByRole("button", { name: "Cancelar" })).toHaveLength(FILAS.length);
+  });
 });
