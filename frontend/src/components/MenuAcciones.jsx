@@ -38,8 +38,20 @@ export default function MenuAcciones({ acciones, etiqueta = "Acciones" }) {
     accion.onSelect();
   }
 
+  function alPerderFoco(e) {
+    const siguienteFoco = e.relatedTarget;
+    // `relatedTarget` es null cuando el foco sale del documento entero (p.ej.
+    // a la barra del navegador): el usuario no se movió dentro de la página,
+    // así que no corresponde cerrar el menú.
+    if (siguienteFoco === null) return;
+    // El foco se movió DENTRO del propio menú (trigger -> item, item -> item):
+    // eso es justamente cómo se usa el menú con teclado, no una salida.
+    if (contenedorRef.current?.contains(siguienteFoco)) return;
+    setAbierto(false);
+  }
+
   return (
-    <div className="menu-kebab" ref={contenedorRef}>
+    <div className="menu-kebab" ref={contenedorRef} onBlur={alPerderFoco}>
       <button
         type="button"
         ref={triggerRef}

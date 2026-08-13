@@ -16,6 +16,7 @@ function montar(overrides = {}) {
         ]}
         {...overrides}
       />
+      <button type="button">después</button>
     </div>,
   );
   return { onEditar, onEliminar };
@@ -75,5 +76,35 @@ describe("MenuAcciones", () => {
     montar({ etiqueta: "Acciones de la caja Efectivo" });
     expect(screen.getByRole("button", { name: "Acciones de la caja Efectivo" }))
       .toBeInTheDocument();
+  });
+
+  it("no cierra el menú al mover el foco del trigger a un item", async () => {
+    const user = userEvent.setup();
+    montar();
+    await user.click(screen.getByRole("button", { name: "Acciones" }));
+    await user.tab();
+    expect(screen.getByRole("menuitem", { name: "Editar" })).toHaveFocus();
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+  });
+
+  it("no cierra el menú al mover el foco entre items", async () => {
+    const user = userEvent.setup();
+    montar();
+    await user.click(screen.getByRole("button", { name: "Acciones" }));
+    await user.tab();
+    await user.tab();
+    expect(screen.getByRole("menuitem", { name: "Eliminar" })).toHaveFocus();
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+  });
+
+  it("cierra el menú al tabear hacia afuera del componente", async () => {
+    const user = userEvent.setup();
+    montar();
+    await user.click(screen.getByRole("button", { name: "Acciones" }));
+    await user.tab(); // trigger -> Editar
+    await user.tab(); // Editar -> Eliminar
+    await user.tab(); // Eliminar -> "después" (afuera del menú)
+    expect(screen.getByRole("button", { name: "después" })).toHaveFocus();
+    expect(screen.queryByRole("menu")).toBeNull();
   });
 });
