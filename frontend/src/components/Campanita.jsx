@@ -112,9 +112,17 @@ export default function Campanita() {
                     onClick={() => handleClickNotif(n)}
                     className={`campanita-item${n.leida ? "" : " campanita-item-no-leida"}`}
                   >
-                    <span className="campanita-item-mensaje">{n.mensaje}</span>
-                    <span className="campanita-item-fecha">
-                      {formatearTiempoRelativo(n.created_at)}
+                    {/* Punto por-item del mockup aprobado: el gutter se
+                        reserva siempre (leída o no) para que marcar como
+                        leída solo apague el color del punto, sin correr
+                        el texto. Ver comentario de CSS junto a
+                        .campanita-item-punto. */}
+                    <span className="campanita-item-punto" aria-hidden="true" />
+                    <span className="campanita-item-texto">
+                      <span className="campanita-item-mensaje">{n.mensaje}</span>
+                      <span className="campanita-item-fecha">
+                        {formatearTiempoRelativo(n.created_at)}
+                      </span>
                     </span>
                   </button>
                 </li>

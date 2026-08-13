@@ -664,9 +664,9 @@ td button {
 
 .campanita-item {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: flex-start;
-  gap: 0.2rem;
+  gap: 0.5rem;
   width: 100%;
   text-align: left;
   padding: 0.6rem 0.85rem;
@@ -686,6 +686,39 @@ td button {
 
 .campanita-item-no-leida {
   background: var(--color-primary-soft);
+}
+
+/* Punto por-item del mockup aprobado por el usuario (además del tinte de
+   fondo de .campanita-item-no-leida: el tinte se lee a nivel de lista
+   completa, el punto a nivel de item individual — las dos señales juntas
+   son lo que mostraba el mockup elegido).
+   El gutter de 7px se reserva SIEMPRE, leída o no: si solo apareciera para
+   los no leídos, marcar un item como leído correría el texto del mensaje
+   hacia la izquierda en el momento del click, que es peor que cualquiera
+   de las dos alternativas hechas consistentemente. Acá "consistente" es
+   reservar el espacio siempre y solo cambiar el color de fondo del punto. */
+.campanita-item-punto {
+  flex: 0 0 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  /* Empuja el punto desde el tope de la fila (align-items: flex-start)
+     hasta el centro óptico de la primera línea del mensaje, en vez de
+     centrarlo en todo el bloque de dos líneas (mensaje + fecha). */
+  margin-top: 0.3rem;
+}
+
+.campanita-item-no-leida .campanita-item-punto {
+  background: var(--color-primary);
+}
+
+.campanita-item-texto {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  min-width: 0;
 }
 
 .campanita-item-mensaje {
