@@ -192,6 +192,7 @@ export default function Comprobantes({ embebida = false }) {
       clave: "monto",
       titulo: "Monto",
       className: "col-monto",
+      ancho: "14ch",
       celda: (c) => formatearMonto(c.monto),
     },
     {
@@ -219,6 +220,7 @@ export default function Comprobantes({ embebida = false }) {
       clave: "acciones",
       titulo: "",
       className: "col-acciones",
+      ancho: "9rem",
       celda: (c) => (
         <>
           {esAdmin && c.estado === "pendiente_verificacion" && (

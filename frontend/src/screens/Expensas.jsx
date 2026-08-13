@@ -153,6 +153,7 @@ export default function Expensas({ embebida = false }) {
       clave: "pendiente",
       titulo: "Pendiente",
       className: "col-monto",
+      ancho: "14ch",
       celda: (e) =>
         e.monto_pendiente >= 0.5 ? (
           <>
@@ -174,6 +175,7 @@ export default function Expensas({ embebida = false }) {
       clave: "acciones",
       titulo: "",
       className: "col-acciones",
+      ancho: "9rem",
       celda: (e) => (
         <>
           <button type="button" onClick={() => setModalComprobantes(e)}>

@@ -165,11 +165,13 @@ export default function Gastos() {
       clave: "monto",
       titulo: "Monto",
       className: "col-monto",
+      ancho: "14ch",
       celda: (g) => formatearMonto(g.monto),
     },
     {
       clave: "pago",
       titulo: "Pago",
+      ancho: "10ch",
       celda: (g) =>
         g.pagado ? (
           formatFecha(g.fecha_pago)
@@ -185,6 +187,7 @@ export default function Gastos() {
       clave: "acciones",
       titulo: "",
       className: "col-acciones",
+      ancho: "9rem",
       celda: (g) =>
         cerrados.has(g.periodo) ? (
           <span title="Período cerrado — no editable">🔒</span>
