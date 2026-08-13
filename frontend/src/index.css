@@ -212,7 +212,8 @@ td button,
 .tab-panel,
 .selector-consorcio-boton,
 .selector-consorcio-item button,
-.menu-kebab-item {
+.menu-kebab-item,
+.campanita-item {
   text-transform: none;
   font-weight: 600;
   letter-spacing: normal;
@@ -551,46 +552,78 @@ td button {
   background: transparent;
   border: none;
   cursor: pointer;
-  font-size: 1.4rem;
   padding: 0.25rem 0.5rem;
   position: relative;
   min-height: 44px;
-  min-width: 44px;
+  min-width: 38px;
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
 }
 
 .campanita-boton:hover:not(:disabled) {
   background: var(--color-surface);
-  border-radius: var(--radius-sm);
 }
 
+.campanita-boton.abierto {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+/* Punto discreto (patrón Linear/Notion) en vez de badge numérico: el
+   usuario eligió esta dirección entre tres mockups. No mostrar el
+   conteo — count sigue guardado en estado por si hace falta más
+   adelante, pero la UI ahora solo lee count > 0. */
 .campanita-badge {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: 7px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
   background: var(--color-danger);
-  color: var(--color-surface);
-  border-radius: 50%;
-  padding: 0 0.35rem;
-  font-size: 0.625rem;
-  font-weight: 700;
-  min-width: 1.1rem;
-  line-height: 1.1rem;
-  text-align: center;
+  /* El borde del color de la superficie separa el punto del ícono: sin él,
+     el punto se funde con el trazo de la campana. */
+  border: 2px solid var(--color-surface);
 }
 
+/* Base (mobile): sheet a lo ancho, anclada abajo. Mismo patrón y misma
+   animación que SheetCuenta, que es lo que el usuario ya conoce. */
 .campanita-panel {
-  position: absolute;
-  top: 100%;
+  position: fixed;
+  left: 0;
   right: 0;
+  bottom: 0;
+  top: auto;
   z-index: 100;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  min-width: 20rem;
-  max-width: 90vw;
-  max-height: 25rem;
+  border-bottom: none;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  max-height: 70vh;
   overflow-y: auto;
   box-shadow: var(--shadow-md);
-  border-radius: var(--radius);
+  animation: sheetIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (min-width: 600px) {
+  .campanita-panel {
+    position: absolute;
+    top: 100%;
+    left: auto;
+    right: 0;
+    bottom: auto;
+    min-width: 20rem;
+    max-width: 90vw;
+    max-height: 25rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    animation: none;
+  }
 }
 
 .campanita-panel-header {
@@ -630,7 +663,15 @@ td button {
 }
 
 .campanita-item {
-  padding: 0.75rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 0.85rem;
+  background: transparent;
+  border: none;
   border-bottom: 1px solid var(--color-border);
   cursor: pointer;
 }
@@ -648,15 +689,14 @@ td button {
 }
 
 .campanita-item-mensaje {
-  margin: 0 0 0.25rem 0;
-  font-size: 0.8125rem;
-  font-weight: 700;
+  font-size: 0.78rem;
+  font-weight: 600;
   color: var(--color-text);
+  line-height: 1.35;
 }
 
 .campanita-item-fecha {
-  margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.68rem;
   font-weight: 600;
   color: var(--color-text-muted);
 }

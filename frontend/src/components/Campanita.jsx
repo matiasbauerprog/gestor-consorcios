@@ -6,6 +6,7 @@ import {
   marcarLeida,
   marcarTodasLeidas,
 } from "../api/notificaciones";
+import { formatearTiempoRelativo } from "../utils/tiempoRelativo";
 
 const POLL_INTERVAL_MS = 60_000;
 
@@ -61,12 +62,29 @@ export default function Campanita() {
       <button
         type="button"
         onClick={toggle}
-        className="campanita-boton"
-        aria-label="Notificaciones"
+        className={`campanita-boton${abierto ? " abierto" : ""}`}
+        aria-label={count > 0 ? "Notificaciones sin leer" : "Notificaciones"}
         aria-expanded={abierto}
       >
-        🔔
-        {count > 0 && <span className="campanita-badge">{count}</span>}
+        <svg
+          width="19"
+          height="19"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+        </svg>
+        {/* Punto discreto (patrón Linear/Notion), elegido por el usuario
+            sobre un badge numérico. count sigue viniendo del backend y
+            guardándose en estado: la UI solo lee count > 0. No reintroducir
+            el número acá. */}
+        {count > 0 && <span className="campanita-badge" aria-hidden="true" />}
       </button>
 
       {abierto && (
@@ -88,15 +106,17 @@ export default function Campanita() {
           ) : (
             <ul className="campanita-lista">
               {items.map((n) => (
-                <li
-                  key={n.id}
-                  onClick={() => handleClickNotif(n)}
-                  className={`campanita-item${n.leida ? "" : " campanita-item-no-leida"}`}
-                >
-                  <p className="campanita-item-mensaje">{n.mensaje}</p>
-                  <p className="campanita-item-fecha">
-                    {new Date(n.created_at).toLocaleString("es-AR")}
-                  </p>
+                <li key={n.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleClickNotif(n)}
+                    className={`campanita-item${n.leida ? "" : " campanita-item-no-leida"}`}
+                  >
+                    <span className="campanita-item-mensaje">{n.mensaje}</span>
+                    <span className="campanita-item-fecha">
+                      {formatearTiempoRelativo(n.created_at)}
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>
