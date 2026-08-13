@@ -5,6 +5,7 @@ import ModalDetallePeticion from "../components/ModalDetallePeticion";
 import TablaResponsive from "../components/TablaResponsive";
 import Tarjeta from "../components/Tarjeta";
 import { formatFecha } from "../utils/fechas";
+import { ANCHO_FECHA } from "../utils/anchosColumnas";
 
 const ESTADOS = ["abierta", "convertida_en_trabajo", "rechazada", "cancelada"];
 
@@ -153,7 +154,7 @@ export default function Peticiones() {
             clave: "fecha",
             titulo: "Fecha",
             prioridad: 3,
-            ancho: "12ch",
+            ancho: ANCHO_FECHA,
             celda: (p) => formatFecha(p.fecha_creacion),
           },
           {

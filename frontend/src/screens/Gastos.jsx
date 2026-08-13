@@ -18,6 +18,7 @@ import { listarPeriodos } from "../api/periodos";
 import { listarCajas } from "../api/cajas";
 import { formatFecha } from "../utils/fechas";
 import { formatearMonto } from "../utils/montos";
+import { ANCHO_FECHA, ANCHO_MONTO } from "../utils/anchosColumnas";
 
 const RUBROS = [
   { value: "sueldos_y_cargas_sociales", label: "Sueldos y cargas sociales" },
@@ -169,14 +170,19 @@ export default function Gastos() {
       titulo: "Monto",
       className: "col-monto",
       prioridad: 1,
-      ancho: "14ch",
+      ancho: ANCHO_MONTO,
       celda: (g) => formatearMonto(g.monto),
     },
     {
+      // No es puramente una columna de fecha (a veces muestra "Sin pagar" o
+      // un botón "Confirmar"), pero cuando SÍ muestra fecha necesita el
+      // mismo ancho que cualquier otra — y "Sin pagar" (9 caracteres) entra
+      // cómodo en ese mismo ancho. El botón no importa: `:has(button)` lo
+      // exime del recorte con ellipsis (ver comentario en index.css).
       clave: "pago",
       titulo: "Pago",
       prioridad: 2,
-      ancho: "10ch",
+      ancho: ANCHO_FECHA,
       celda: (g) =>
         g.pagado ? (
           formatFecha(g.fecha_pago)

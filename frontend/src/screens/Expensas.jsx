@@ -15,6 +15,7 @@ import MenuAcciones from "../components/MenuAcciones";
 import { formatFecha } from "../utils/fechas";
 import { formatearInteres, formatearMonto } from "../utils/montos";
 import { abrirPdfExpensa } from "../api/pdf";
+import { ANCHO_MONTO } from "../utils/anchosColumnas";
 
 export default function Expensas({ embebida = false }) {
   const { user, token } = useAuth();
@@ -165,7 +166,7 @@ export default function Expensas({ embebida = false }) {
       titulo: "Pendiente",
       className: "col-monto",
       prioridad: 1,
-      ancho: "14ch",
+      ancho: ANCHO_MONTO,
       celda: (e) =>
         e.monto_pendiente >= 0.5 ? (
           <>

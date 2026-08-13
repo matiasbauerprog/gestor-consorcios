@@ -4,7 +4,8 @@ import { listarCajas } from "../api/cajas";
 import ModalNuevaTransferencia from "../components/ModalNuevaTransferencia";
 import Tarjeta from "../components/Tarjeta";
 import TablaResponsive from "../components/TablaResponsive";
-import { formatFecha } from "../utils/fechas";
+import { formatFecha, formatFechaCorta } from "../utils/fechas";
+import { ANCHO_FECHA_CORTA, ANCHO_MONTO } from "../utils/anchosColumnas";
 
 function fmtMoney(n) {
   return Number(n).toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
@@ -33,13 +34,16 @@ export default function Transferencias() {
       </header>
       <TablaResponsive
         columnas={[
-          { clave: "fecha", titulo: "Fecha", prioridad: 1, ancho: "12ch",
-            celda: (t) => formatFecha(t.fecha) },
+          // Fecha corta: cuatro columnas de prioridad 1 compiten por ancho
+          // acá (fecha/origen/destino/monto) — el año completo no aporta
+          // nada que la fecha corta no dé.
+          { clave: "fecha", titulo: "Fecha", prioridad: 1, ancho: ANCHO_FECHA_CORTA,
+            celda: (t) => formatFechaCorta(t.fecha) },
           { clave: "origen", titulo: "Origen", prioridad: 1, ancho: "auto",
             celda: (t) => nombreCaja(t.caja_origen_id) },
           { clave: "destino", titulo: "Destino", prioridad: 1, ancho: "auto",
             celda: (t) => nombreCaja(t.caja_destino_id) },
-          { clave: "monto", titulo: "Monto", prioridad: 1, ancho: "14ch", className: "col-monto",
+          { clave: "monto", titulo: "Monto", prioridad: 1, ancho: ANCHO_MONTO, className: "col-monto",
             celda: (t) => fmtMoney(t.monto) },
           { clave: "descripcion", titulo: "Descripción", prioridad: 3, ancho: "auto",
             celda: (t) => t.descripcion },

@@ -5,6 +5,7 @@ import ModalEnvioPdfs from "../components/ModalEnvioPdfs";
 import TablaResponsive from "../components/TablaResponsive";
 import Tarjeta from "../components/Tarjeta";
 import { formatFechaHora } from "../utils/fechas";
+import { ANCHO_MONTO } from "../utils/anchosColumnas";
 
 function formatMoney(n) {
   return Number(n).toLocaleString("es-AR", {
@@ -52,7 +53,7 @@ export default function Periodos() {
             clave: "total",
             titulo: "Total expensado",
             className: "col-monto",
-            ancho: "15ch",
+            ancho: ANCHO_MONTO,
             celda: (p) => formatMoney(p.total_expensado),
           },
           {
@@ -60,7 +61,7 @@ export default function Periodos() {
             titulo: "Intereses",
             prioridad: 3,
             className: "col-monto",
-            ancho: "13ch",
+            ancho: ANCHO_MONTO,
             celda: (p) => formatMoney(p.total_intereses),
           },
           {

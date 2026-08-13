@@ -6,7 +6,8 @@ import TablaResponsive from "../components/TablaResponsive";
 import MenuAcciones from "../components/MenuAcciones";
 import ModalCaja from "../components/ModalCaja";
 import ModalAjusteCaja from "../components/ModalAjusteCaja";
-import { formatFecha } from "../utils/fechas";
+import { formatFechaCorta } from "../utils/fechas";
+import { ANCHO_FECHA_CORTA, ANCHO_MONTO } from "../utils/anchosColumnas";
 
 function fmtMoney(n) {
   return Number(n).toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
@@ -58,7 +59,7 @@ export default function Cajas() {
             celda: (c) => c.tipo },
           { clave: "descripcion", titulo: "Descripción", prioridad: 3, ancho: "auto",
             celda: (c) => c.descripcion || "—" },
-          { clave: "saldo", titulo: "Saldo", ancho: "14ch", className: "col-monto",
+          { clave: "saldo", titulo: "Saldo", ancho: ANCHO_MONTO, className: "col-monto",
             celda: (c) => fmtMoney(c.saldo_actual) },
           { clave: "activa", titulo: "Activa", prioridad: 3, ancho: "8ch",
             celda: (c) => (c.activa ? "Sí" : "No") },
@@ -101,11 +102,15 @@ export default function Cajas() {
           <button type="button" onClick={() => setDetalleCaja(null)}>Cerrar</button>
           <TablaResponsive
             columnas={[
-              { clave: "fecha", titulo: "Fecha", prioridad: 1, ancho: "12ch",
-                celda: (m) => formatFecha(m.fecha) },
+              // Fecha corta: este panel vive dentro de la <Tarjeta> de
+              // "Movimientos de ..." (contenedor angosto), y compite con
+              // Monto por prioridad 1 — el año completo no aporta nada
+              // (movimientos recientes del mismo consorcio).
+              { clave: "fecha", titulo: "Fecha", prioridad: 1, ancho: ANCHO_FECHA_CORTA,
+                celda: (m) => formatFechaCorta(m.fecha) },
               { clave: "tipo", titulo: "Tipo", prioridad: 2, ancho: "12ch",
                 celda: (m) => m.tipo },
-              { clave: "monto", titulo: "Monto", prioridad: 1, ancho: "14ch", className: "col-monto",
+              { clave: "monto", titulo: "Monto", prioridad: 1, ancho: ANCHO_MONTO, className: "col-monto",
                 celda: (m) => fmtMoney(m.monto) },
               { clave: "descripcion", titulo: "Descripción", prioridad: 3, ancho: "auto",
                 celda: (m) => m.descripcion },
@@ -119,7 +124,7 @@ export default function Cajas() {
               // caja dentro de otra caja. `.lista-cards` ya separa cada
               // fila con su propio gap.
               <div>
-                <p className="meta"><strong>{formatFecha(m.fecha)}</strong> · {m.tipo} · {fmtMoney(m.monto)}</p>
+                <p className="meta"><strong>{formatFechaCorta(m.fecha)}</strong> · {m.tipo} · {fmtMoney(m.monto)}</p>
                 {m.descripcion && <p className="meta">{m.descripcion}</p>}
               </div>
             )}

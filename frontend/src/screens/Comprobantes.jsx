@@ -17,6 +17,7 @@ import SelectorDepartamento from "../components/SelectorDepartamento";
 import Tarjeta from "../components/Tarjeta";
 import { formatFecha } from "../utils/fechas";
 import { formatearMonto } from "../utils/montos";
+import { ANCHO_FECHA, ANCHO_MONTO } from "../utils/anchosColumnas";
 
 const ESTADOS = [
   { value: "", label: "Todos" },
@@ -185,7 +186,7 @@ export default function Comprobantes({ embebida = false }) {
   }
 
   const columnas = [
-    { clave: "fecha", titulo: "Fecha", prioridad: 3, ancho: "12ch", celda: (c) => formatFecha(c.fecha_pago) },
+    { clave: "fecha", titulo: "Fecha", prioridad: 3, ancho: ANCHO_FECHA, celda: (c) => formatFecha(c.fecha_pago) },
     ...(esAdmin
       ? [{
           clave: "depto",
@@ -200,7 +201,7 @@ export default function Comprobantes({ embebida = false }) {
       titulo: "Monto",
       className: "col-monto",
       prioridad: 1,
-      ancho: "14ch",
+      ancho: ANCHO_MONTO,
       celda: (c) => formatearMonto(c.monto),
     },
     {

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { listarCuentas } from "../api/movimientos";
 import Tarjeta from "../components/Tarjeta";
 import TablaResponsive from "../components/TablaResponsive";
+import { ANCHO_MONTO_DECIMAL } from "../utils/anchosColumnas";
 
 function formatMoney(n) {
   return Number(n).toLocaleString("es-AR", {
@@ -90,7 +91,9 @@ export default function CuentasCorrientes() {
             ) },
           { clave: "ubicacion", titulo: "Ubicación", prioridad: 3, ancho: "auto",
             celda: (c) => c.ubicacion || "—" },
-          { clave: "saldo", titulo: "Saldo", prioridad: 1, ancho: "15ch", className: "col-monto",
+          // `formatMoney` acá deja 2 decimales (sin `maximumFractionDigits`)
+          // — ANCHO_MONTO_DECIMAL, no ANCHO_MONTO.
+          { clave: "saldo", titulo: "Saldo", prioridad: 1, ancho: ANCHO_MONTO_DECIMAL, className: "col-monto",
             celda: (c) => {
               const cfg = ESTILOS_ESTADO[estadoDeCuenta(c)];
               return (

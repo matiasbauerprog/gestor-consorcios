@@ -4,7 +4,8 @@ import { abrirPdfMovimientos, obtenerEstadoFinanciero } from "../api/estadoFinan
 import Tarjeta from "../components/Tarjeta";
 import TablaResponsive from "../components/TablaResponsive";
 import ModalNuevaTransferencia from "../components/ModalNuevaTransferencia";
-import { formatFecha } from "../utils/fechas";
+import { formatFechaCorta } from "../utils/fechas";
+import { ANCHO_FECHA_CORTA, ANCHO_MONTO } from "../utils/anchosColumnas";
 
 function primerDiaDelMes(d = new Date()) {
   return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
@@ -78,13 +79,16 @@ export default function EstadoFinanciero() {
         </div>
         <TablaResponsive
           columnas={[
-            { clave: "fecha", titulo: "Fecha", prioridad: 1, ancho: "12ch",
-              celda: (m) => formatFecha(m.fecha) },
+            // Fecha corta: esta tabla vive dentro de la <Tarjeta> "Últimos
+            // 20 movimientos", un contenedor más angosto que .app-content
+            // (ver nota de la tarea sobre @container) — cada ch cuenta.
+            { clave: "fecha", titulo: "Fecha", prioridad: 1, ancho: ANCHO_FECHA_CORTA,
+              celda: (m) => formatFechaCorta(m.fecha) },
             { clave: "caja", titulo: "Caja", prioridad: 2, ancho: "auto",
               celda: (m) => data.cajas.find((c) => c.id === m.caja_id)?.nombre || m.caja_id },
             { clave: "tipo", titulo: "Tipo", prioridad: 3, ancho: "12ch",
               celda: (m) => m.tipo },
-            { clave: "monto", titulo: "Monto", prioridad: 1, ancho: "14ch", className: "col-monto",
+            { clave: "monto", titulo: "Monto", prioridad: 1, ancho: ANCHO_MONTO, className: "col-monto",
               celda: (m) => fmtMoney(m.monto) },
             { clave: "descripcion", titulo: "Descripción", prioridad: 3, ancho: "auto",
               celda: (m) => m.descripcion },
@@ -99,7 +103,7 @@ export default function EstadoFinanciero() {
             const caja = data.cajas.find((c) => c.id === m.caja_id);
             return (
               <div>
-                <p className="meta"><strong>{fmtMoney(m.monto)}</strong> · {formatFecha(m.fecha)}</p>
+                <p className="meta"><strong>{fmtMoney(m.monto)}</strong> · {formatFechaCorta(m.fecha)}</p>
                 <p className="meta">{caja?.nombre || m.caja_id} · {m.tipo}</p>
                 {m.descripcion && <p className="meta">{m.descripcion}</p>}
               </div>

@@ -2916,9 +2916,27 @@ td.monto {
    dos clases) le gana en especificidad a la regla `:has(button)`/`:has(a)`
    de arriba (0,1,3), la anula en silencio, y un control queda recortado e
    inalcanzable. Si hace falta achicar el ancho visual, hacerlo con `ancho`
-   en la columna, no reintroduciendo `nowrap` acá. */
+   en la columna, no reintroduciendo `nowrap` acá.
+
+   `overflow: visible` vive al lado por la misma razón: `.tabla-datos tbody
+   td` (arriba) trae `overflow: hidden` para poder recortar con ellipsis el
+   texto largo. `MenuAcciones` abre su lista (`.menu-kebab-lista`) con
+   `position: absolute` DENTRO de esta celda — su "contained block" es un
+   descendiente de una caja con `overflow: hidden`, así que el navegador
+   recorta el menú al alto/ancho de la celda (~40px) sin importar el
+   `z-index`: recorte (`overflow`) y apilado (`z-index`/stacking context)
+   son dos mecanismos distintos, y `z-index: 20` no escapa un `overflow:
+   hidden` ajeno. Esta columna nunca quiere ellipsis (son controles, no
+   texto), así que perder el recorte acá no tiene contraindicación — es la
+   misma lógica que ya sacó `nowrap` de esta celda, aplicada a la propiedad
+   que faltaba. Selector ganador verificado contra toda la cascada: ningún
+   otro selector en el archivo apunta a `.col-acciones` dentro de
+   `.tabla-datos` con `overflow`, así que esta regla (0,2,0) es la única
+   que toca la propiedad acá y le gana sin ambigüedad a `.tabla-datos
+   tbody td` (0,1,2). */
 .tabla-datos .col-acciones {
   text-align: right;
+  overflow: visible;
 }
 
 /* ---------- Escalones de la tabla adaptativa ---------- */
