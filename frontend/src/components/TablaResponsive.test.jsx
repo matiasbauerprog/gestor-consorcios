@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import TablaResponsive from "./TablaResponsive";
-import { setAnchoViewport } from "../test/setup";
+import { setAnchoViewport, setAnchoContenedor } from "../test/setup";
 
 const FILAS = [
   { id: 1, fecha: "12/08", concepto: "Limpieza", monto: "$84.500" },
@@ -77,13 +77,23 @@ describe("TablaResponsive — anchos y modelo de columnas", () => {
   });
 });
 
+// Estos tests ejercitan la estructura de la fila de detalle: el chevron, el
+// colapso inicial, el wiring aria-controls. Esa estructura solo existe cuando
+// el ResizeObserver descartó alguna columna (ver el describe de "escalones"
+// más abajo), así que cada test fija un ancho de contenedor por debajo de
+// 1000px ANTES de montar — la única columna no-prioridad-1 de `COLUMNAS` es
+// "Concepto" (prioridad 3), que se cae bajo ese umbral. El comportamiento que
+// protegen (apertura/cierre, ids únicos, colapso inicial) no cambió; lo único
+// que cambió es que ahora depende de un ancho, y antes no.
 describe("TablaResponsive — fila de detalle", () => {
   it("renderiza una fila de detalle por fila de datos", () => {
+    setAnchoContenedor(900);
     const { container } = montar();
     expect(container.querySelectorAll("tr.fila-detalle")).toHaveLength(2);
   });
 
   it("mete en el detalle solo las columnas de prioridad 2 y 3", () => {
+    setAnchoContenedor(900);
     const { container } = montar();
     const pares = container.querySelectorAll("tr.fila-detalle .detalle-par");
     // 2 filas × 1 columna de prioridad 3 (Concepto). Fecha y Monto son prio 1.
@@ -94,6 +104,7 @@ describe("TablaResponsive — fila de detalle", () => {
   });
 
   it("arranca con el detalle colapsado", () => {
+    setAnchoContenedor(900);
     const { container } = montar();
     expect(container.querySelector("tr.fila-detalle")).toHaveAttribute("hidden");
     expect(screen.getAllByRole("button", { name: /ver más datos/i })[0])
@@ -101,6 +112,7 @@ describe("TablaResponsive — fila de detalle", () => {
   });
 
   it("el chevron abre y cierra su fila", async () => {
+    setAnchoContenedor(900);
     const user = userEvent.setup();
     const { container } = montar();
     const chevron = screen.getAllByRole("button", { name: /ver más datos/i })[0];
@@ -115,6 +127,7 @@ describe("TablaResponsive — fila de detalle", () => {
   });
 
   it("cada chevron apunta a su propia fila de detalle", () => {
+    setAnchoContenedor(900);
     const { container } = montar();
     const chevrones = screen.getAllByRole("button", { name: /ver más datos/i });
     const detalles = container.querySelectorAll("tr.fila-detalle");
@@ -128,5 +141,72 @@ describe("TablaResponsive — fila de detalle", () => {
     const { container } = montar({ columnas: soloPrio1 });
     expect(container.querySelectorAll("tr.fila-detalle")).toHaveLength(0);
     expect(container.querySelector(".col-chevron")).toBeNull();
+  });
+});
+
+describe("TablaResponsive — escalones por ancho de contenedor", () => {
+  const FILA_ESC = [{ id: 1, fecha: "12/08", proveedor: "ACME", rubro: "Limpieza", monto: "$1.000" }];
+
+  const COLUMNAS_ESC = [
+    { clave: "fecha", titulo: "Fecha", celda: (f) => f.fecha },
+    { clave: "proveedor", titulo: "Proveedor", celda: (f) => f.proveedor, prioridad: 3 },
+    { clave: "rubro", titulo: "Rubro", celda: (f) => f.rubro, prioridad: 2 },
+    { clave: "monto", titulo: "Monto", celda: (f) => f.monto },
+  ];
+
+  function montarEsc(ancho) {
+    if (ancho !== undefined) setAnchoContenedor(ancho);
+    return render(
+      <TablaResponsive
+        columnas={COLUMNAS_ESC}
+        filas={FILA_ESC}
+        claveFila={(f) => f.id}
+        renderTarjeta={(f) => <p>{f.proveedor}</p>}
+      />,
+    );
+  }
+
+  it("a un ancho amplio se ven las 4 columnas y no hay chevron", () => {
+    const { container } = montarEsc(1440);
+    expect(container.querySelectorAll("thead th")).toHaveLength(4);
+    expect(container.querySelector(".col-chevron")).toBeNull();
+    expect(container.querySelectorAll("tr.fila-detalle")).toHaveLength(0);
+  });
+
+  it("bajo 1000px la columna de prioridad 3 sale de la tabla y pasa al detalle", () => {
+    const { container } = montarEsc(900);
+    expect(container.querySelector('thead th[data-prio="3"]')).toBeNull();
+    expect(container.querySelector('tbody td[data-prio="3"]')).toBeNull();
+    // Prioridad 2 (Rubro) sigue en la tabla: todavía no cruzó su propio umbral.
+    expect(container.querySelector('thead th[data-prio="2"]')).not.toBeNull();
+    const par = container.querySelector(".fila-detalle .detalle-par");
+    expect(par).toHaveAttribute("data-prio", "3");
+    expect(par).toHaveTextContent("Proveedor");
+    expect(par).toHaveTextContent("ACME");
+  });
+
+  it("bajo 760px también sale la de prioridad 2, junto con la de prioridad 3", () => {
+    const { container } = montarEsc(700);
+    expect(container.querySelector('thead th[data-prio="3"]')).toBeNull();
+    expect(container.querySelector('thead th[data-prio="2"]')).toBeNull();
+    const pares = container.querySelectorAll(".fila-detalle .detalle-par");
+    expect(pares).toHaveLength(2);
+    const prioridades = [...pares].map((p) => p.getAttribute("data-prio")).sort();
+    expect(prioridades).toEqual(["2", "3"]);
+  });
+
+  it("el colSpan de la fila de detalle es la cantidad de columnas visibles más el chevron", () => {
+    const { container } = montarEsc(700);
+    // A 700px quedan visibles Fecha y Monto (prioridad 1) → 2 + 1 (chevron) = 3.
+    expect(container.querySelector(".fila-detalle td")).toHaveAttribute("colspan", "3");
+  });
+
+  it("el chevron solo aparece si el ancho actual descartó alguna columna", () => {
+    const ancha = montarEsc(1440);
+    expect(ancha.container.querySelector(".col-chevron")).toBeNull();
+    ancha.unmount();
+
+    const angosta = montarEsc(900);
+    expect(angosta.container.querySelector(".col-chevron")).not.toBeNull();
   });
 });

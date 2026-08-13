@@ -1,5 +1,16 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useEsTablet } from "../hooks/useBreakpoint";
+
+/** Prioridad 2 se cae bajo 760px de contenedor; prioridad 3, bajo 1000px.
+ *  Prioridad 1 nunca se cae. Antes de la primera medición (`ancho === null`)
+ *  se consideran todas visibles: un primer paint de más es preferible a uno
+ *  de menos que salte apenas el ResizeObserver reporta el ancho real. */
+function prioridadVisible(prioridad, ancho) {
+  if (prioridad <= 1) return true;
+  if (ancho === null) return true;
+  if (prioridad === 2) return ancho >= 760;
+  return ancho >= 1000;
+}
 
 /**
  * Una misma colección en dos densidades: tabla de ≥600px para arriba, tarjetas
@@ -16,8 +27,15 @@ import { useEsTablet } from "../hooks/useBreakpoint";
  * columnas en `auto` se reparten en partes iguales lo que sobra después de
  * las de ancho fijo, que es exactamente el reparto proporcional buscado.
  *
- * El `data-prio` de cada celda es lo que el CSS usa para esconderla cuando el
- * contenedor se angosta; ver el bloque `@container` en index.css.
+ * El `data-prio` de cada celda queda para debugging/estilo, pero quién decide
+ * si la columna se dibuja es este componente, no el CSS: una celda en
+ * `display: none` no ocupa lugar en la grilla, así que con `table-layout:
+ * fixed` el `<colgroup>` (que asigna ancho por posición) se desalinea apenas
+ * se esconde una columna que no es la última. La tabla mide su propio
+ * contenedor con `ResizeObserver` y solo dibuja las columnas que entran —
+ * las que no entran nunca llegan a generar una celda, así que no hay nada
+ * que desalinear. Ver el detalle en el spec (sección "El mecanismo de
+ * ocultamiento").
  */
 export default function TablaResponsive({
   columnas,
@@ -27,12 +45,29 @@ export default function TablaResponsive({
   vacio = "No hay nada para mostrar.",
 }) {
   const esTablet = useEsTablet();
-
   const [expandidas, setExpandidas] = useState(() => new Set());
+  const wrapperRef = useRef(null);
+  /** `null` = todavía no midió: se tratan todas las columnas como visibles. */
+  const [anchoContenedor, setAnchoContenedor] = useState(null);
 
-  /** Solo hay algo que esconder si alguna columna no es prioridad 1. */
-  const columnasOcultables = columnas.filter((c) => (c.prioridad ?? 1) > 1);
-  const hayDetalle = columnasOcultables.length > 0;
+  const hayFilas = filas.length > 0;
+  const mostrarTabla = esTablet && hayFilas;
+
+  // El ref solo se attachea en la rama de tabla, así que el observer se
+  // (re)conecta cada vez que `mostrarTabla` pasa a true — incluyendo la
+  // primera vez que el layout deja de ser tarjetas.
+  useEffect(() => {
+    if (!mostrarTabla) return undefined;
+    const el = wrapperRef.current;
+    if (!el) return undefined;
+
+    const observer = new ResizeObserver((entries) => {
+      const [entry] = entries;
+      if (entry) setAnchoContenedor(entry.contentRect.width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [mostrarTabla]);
 
   function alternar(clave) {
     setExpandidas((prev) => {
@@ -43,7 +78,7 @@ export default function TablaResponsive({
     });
   }
 
-  if (filas.length === 0) {
+  if (!hayFilas) {
     return <p className="lista-vacia">{vacio}</p>;
   }
 
@@ -57,19 +92,28 @@ export default function TablaResponsive({
     );
   }
 
+  const columnasVisibles = columnas.filter((c) =>
+    prioridadVisible(c.prioridad ?? 1, anchoContenedor),
+  );
+  const columnasOcultas = columnas.filter(
+    (c) => !prioridadVisible(c.prioridad ?? 1, anchoContenedor),
+  );
+  const hayDetalle = columnasOcultas.length > 0;
+  const colSpanDetalle = columnasVisibles.length + 1;
+
   return (
-    <div className="tabla-datos-scroll">
+    <div className="tabla-datos-scroll" ref={wrapperRef}>
       <table className="tabla-datos">
         <colgroup>
           {hayDetalle && <col className="col-chevron" style={{ width: "2.75rem" }} />}
-          {columnas.map((c) => (
+          {columnasVisibles.map((c) => (
             <col key={c.clave} style={{ width: c.ancho ?? "auto" }} />
           ))}
         </colgroup>
         <thead>
           <tr>
             {hayDetalle && <th className="col-chevron"><span className="sr-only">Detalle</span></th>}
-            {columnas.map((c) => (
+            {columnasVisibles.map((c) => (
               <th key={c.clave} className={c.className} data-prio={c.prioridad ?? 1}>
                 {c.titulo}
               </th>
@@ -101,7 +145,7 @@ export default function TablaResponsive({
                     </button>
                   </td>
                 )}
-                {columnas.map((c) => (
+                {columnasVisibles.map((c) => (
                   <td key={c.clave} className={c.className} data-prio={c.prioridad ?? 1}>
                     {c.celda(fila)}
                   </td>
@@ -109,8 +153,8 @@ export default function TablaResponsive({
               </tr>,
               hayDetalle && (
                 <tr key={`${clave}-detalle`} id={idDetalle} className="fila-detalle" hidden={!abierta}>
-                  <td colSpan={columnas.length + 1}>
-                    {columnasOcultables.map((c) => (
+                  <td colSpan={colSpanDetalle}>
+                    {columnasOcultas.map((c) => (
                       <div key={c.clave} className="detalle-par" data-prio={c.prioridad}>
                         <span className="detalle-etiqueta">{c.titulo}</span>
                         <span className="detalle-valor">{c.celda(fila)}</span>

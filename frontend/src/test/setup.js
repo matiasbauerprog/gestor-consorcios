@@ -18,8 +18,19 @@ function evaluar(query) {
   return false;
 }
 
+/** Ancho simulado del contenedor que mide `ResizeObserver` (TablaResponsive).
+ *  Los tests lo cambian con `setAnchoContenedor`, SIEMPRE antes de montar: a
+ *  diferencia de un ResizeObserver real, este stub no vuelve a notificar
+ *  después de `observe()`, así que un cambio posterior al montaje no llega. */
+let anchoContenedorActual = 1440;
+
+export function setAnchoContenedor(px) {
+  anchoContenedorActual = px;
+}
+
 beforeEach(() => {
   anchoActual = 1440;
+  anchoContenedorActual = 1440;
 });
 
 vi.stubGlobal("matchMedia", (query) => ({
@@ -32,3 +43,24 @@ vi.stubGlobal("matchMedia", (query) => ({
   removeListener: () => {},
   dispatchEvent: () => false,
 }));
+
+/** jsdom no implementa ResizeObserver. El stub entrega el ancho configurado
+ *  por `setAnchoContenedor` apenas se llama a `observe()`, para que un valor
+ *  seteado antes del montaje quede reflejado en el primer render con
+ *  medición (el componente arranca con `null` y lo actualiza al recibir la
+ *  primera notificación). */
+class ResizeObserverStub {
+  constructor(callback) {
+    this.callback = callback;
+  }
+
+  observe(target) {
+    this.callback([{ target, contentRect: { width: anchoContenedorActual } }]);
+  }
+
+  unobserve() {}
+
+  disconnect() {}
+}
+
+vi.stubGlobal("ResizeObserver", ResizeObserverStub);

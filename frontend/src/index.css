@@ -2808,12 +2808,6 @@ td.monto {
    Renombrar es lo único que deja ambas densidades como estaban; reusar la regla
    vieja habría cambiado el espaciado de las tres pantallas convertidas. */
 .tabla-datos-scroll {
-  /* La tabla mide ESTE contenedor, no el viewport: con el sidebar de 230px
-     (línea 2055) el viewport miente por un margen fijo en admin y por nada en
-     la vista depto. Un corte por @media necesitaría dos calibraciones para la
-     misma tabla; con @container hay una sola y siempre correcta. */
-  container-type: inline-size;
-  container-name: tabla;
   margin-bottom: 1rem;
 }
 
@@ -2881,15 +2875,18 @@ td.monto {
 
 /* ---------- Escalones de la tabla adaptativa ---------- */
 
-/* La fila de detalle nace escondida: solo la muestra el @container que
-   corresponde. Sin esta regla base, todos los pares saldrían siempre. */
+/* Fondo y padding propios de la celda que envuelve los pares etiqueta/valor
+   de la fila de detalle (distinta del padding de `.tabla-datos tbody td`). */
 .fila-detalle > td {
   padding: 0 0.75rem 0.7rem;
   background: var(--color-bg);
 }
 
+/* TablaResponsive ya solo renderiza los pares de las columnas que el
+   ResizeObserver descartó de la fila principal, así que no hace falta
+   esconder nada acá: si el `<div>` existe, se muestra. */
 .detalle-par {
-  display: none;
+  display: flex;
   gap: 0.5rem;
   align-items: baseline;
   padding: 0.15rem 0;
@@ -2941,32 +2938,6 @@ td.monto {
 
 .chevron-detalle[aria-expanded="true"] svg {
   transform: rotate(90deg);
-}
-
-/* Prioridad 3: se va primero, bajo 1000px de contenedor.
-   El selector de ocultamiento baja por > thead/tbody > tr para NO alcanzar los
-   .detalle-par, que viven adentro de la misma tabla y llevan el mismo
-   data-prio. Sin ese acotamiento las dos reglas empatan en especificidad y el
-   resultado queda a merced del orden. */
-@container tabla (max-width: 999.98px) {
-  .tabla-datos > thead > tr > [data-prio="3"],
-  .tabla-datos > tbody > tr.fila-datos > [data-prio="3"] { display: none; }
-  .fila-detalle .detalle-par[data-prio="3"] { display: flex; }
-}
-
-/* Prioridad 2: se va bajo 760px de contenedor. */
-@container tabla (max-width: 759.98px) {
-  .tabla-datos > thead > tr > [data-prio="2"],
-  .tabla-datos > tbody > tr.fila-datos > [data-prio="2"] { display: none; }
-  .fila-detalle .detalle-par[data-prio="2"] { display: flex; }
-}
-
-/* Con todo a la vista no queda nada que expandir: se va el chevron, y también
-   la fila de detalle por si el usuario la había abierto antes de agrandar. */
-@container tabla (min-width: 1000px) {
-  .tabla-datos > thead > tr > .col-chevron,
-  .tabla-datos > tbody > tr > .col-chevron { display: none; }
-  .fila-detalle { display: none; }
 }
 
 .lista-vacia {
