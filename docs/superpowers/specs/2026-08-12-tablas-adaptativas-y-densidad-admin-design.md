@@ -142,16 +142,20 @@ estire la fila).
 `<tr class="fila-detalle">` con un `<td colSpan>` que lista como pares
 etiqueta/valor exactamente las columnas que quedaron afuera en el ancho actual.
 
-El chevron vive en una columna propia al inicio, y se oculta por `@container` en
-el escalón donde ya no queda ninguna columna escondida. Es un `<button>` con
-`aria-expanded` y `aria-controls` apuntando al `id` de su fila de detalle.
+El chevron vive en una columna propia al inicio, y **no se renderiza** en los
+anchos donde no quedó ninguna columna afuera — no se oculta por CSS, no existe.
+Es un `<button>` con `aria-expanded` y `aria-controls` apuntando al `id` de su
+fila de detalle.
 
-Estado: un `Set` de ids expandidos en `useState` dentro del componente. Se
-resetea cuando cambia la identidad del conjunto de filas.
+Estado: un `Set` de ids expandidos en `useState` dentro del componente. Hoy no se
+resetea al cambiar el conjunto de filas; una clave huérfana no es observable
+(sin fila que la use, no se renderiza nada), así que queda como deuda anotada y
+no como bug.
 
-Costo: el DOM de las celdas de prioridad 2-3 se renderiza dos veces. Para listas
-de decenas de filas es irrelevante, y la copia oculta está en `display: none`,
-que la saca del árbol de accesibilidad.
+Sin costo de DOM duplicado: en la fila de detalle vive exactamente lo que no está
+en la tabla, nunca las dos cosas a la vez. El diseño viejo sí duplicaba —
+renderizaba toda columna de prioridad 2-3 arriba y abajo en todos los anchos, y
+escondía una de las dos copias con `display: none`.
 
 ### 1.4 Fix global del `<thead>`
 
