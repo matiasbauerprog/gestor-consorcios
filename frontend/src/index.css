@@ -292,6 +292,49 @@ table {
   border-radius: var(--radius);
 }
 
+/* ---------- Tablas LEGACY (no migradas a TablaResponsive) ---------- */
+/*
+ * Este par de reglas (acá + su contraparte en el media query de 960px, más
+ * abajo) es una RESTAURACIÓN, no una mejora: existía como parte de la regla
+ * `table` de arriba antes de esta rama y se borró junto con su contraparte
+ * de desktop al construir TablaResponsive, dejando sin ningún control de
+ * desborde horizontal a las tablas que esta rama NO migró — `.app-content`
+ * y `body` no declaran `overflow-x`, así que cualquiera de esas tablas más
+ * ancha que su contenedor corre la página ENTERA de costado en vez de
+ * scrollear solo la tabla.
+ *
+ * `:not(.tabla-datos)` es lo que separa las dos generaciones: `.tabla-datos`
+ * (TablaResponsive) resuelve su propio desborde recortando columnas al
+ * ancho medido por ResizeObserver y nunca necesitó este scroll; las trece
+ * tablas que siguen sin convertir (PadronDeptos, MiCuenta,
+ * DepartamentoCuenta, Liquidaciones ×2, Trabajos, TrabajosRecurrentes,
+ * ModalDetalleTrabajo, ReporteEstadoFinanciero ×2, ReporteGastosPeriodo ×2,
+ * ReporteMorosos, ReporteProveedores, SuperAdminAuditLog) sí lo necesitan,
+ * exactamente como lo necesitaban en `master` antes de esta rama.
+ * `Coeficientes.jsx` no depende de esto — trae su propio wrapper
+ * `.tabla-scroll` con `overflow-x: auto` propio.
+ *
+ * BORRAR este bloque (las dos reglas) el día que las trece tablas
+ * restantes se conviertan a TablaResponsive. Hasta entonces existe
+ * únicamente para sostenerlas en su comportamiento pre-rama, no para
+ * mejorarlas.
+ */
+table:not(.tabla-datos) {
+  display: block;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+@media (min-width: 960px) {
+  /* A este ancho el sidebar deja de robarle espacio angosto al contenido y
+     la mayoría de estas tablas ya entran sin scroll — vuelven a renderizar
+     como tabla real en vez de forzar el modo caja-con-scroll de mobile. */
+  table:not(.tabla-datos) {
+    display: table;
+    overflow: hidden;
+  }
+}
+
 th {
   text-align: left;
   font-size: 0.625rem;
@@ -301,16 +344,6 @@ th {
   color: var(--color-text-muted);
   padding: 0.6rem 0.8rem;
   border-bottom: 1px solid var(--color-border);
-}
-
-/* Pegajoso solo en el encabezado real (thead): la matriz de coeficientes
-   usa <th scope="row"> dentro del tbody para los rótulos de fila, y un `th`
-   suelto acá los pegaría a todos arriba, apilados unos sobre otros. */
-thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: var(--color-surface);
 }
 
 td {
@@ -3026,6 +3059,29 @@ td.monto {
   text-transform: uppercase;
   color: var(--color-text-muted);
   border-bottom: 1px solid var(--color-border);
+  /* Pegajoso SOLO acá, no en `th` global: la matriz de coeficientes usa
+     `<th scope="row">` dentro del tbody para los rótulos de fila, y un
+     `thead th` global los pegaría a todos arriba, apilados unos sobre
+     otros. Tampoco alcanza con ponerlo en un `thead th` global sin más:
+     las trece tablas legacy (ver el bloque `table:not(.tabla-datos)` más
+     arriba) vuelven a `display: block` en mobile, y un `thead` pegajoso
+     ahí recrea el bug de desalineación de encabezado que esta rama entera
+     existe para resolver — en pantallas que en `master` nunca tuvieron
+     header pegajoso, porque nunca lo necesitaron. */
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-surface);
+  /* `border-bottom` de arriba no sobrevive: bajo `border-collapse:
+     collapse` el borde inferior de la fila de headers no le pertenece a
+     cada `th` como caja propia sino a la tabla (se resuelve una sola vez
+     contra el borde superior de la fila siguiente), así que no viaja con
+     el `th` cuando `position: sticky` lo despega de su lugar en el
+     documento y lo repinta flotando sobre el resto. El `box-shadow`
+     inset SÍ es parte de la caja del propio `th` — no compite en el
+     collapsing de bordes, así que se queda pegado al elemento pegajoso en
+     vez de al layout de la tabla. */
+  box-shadow: inset 0 -1px 0 var(--color-border);
   /* NO reponer `white-space: nowrap` acá. Bajo `table-layout: fixed` el
      contenido del <th> no participa del cálculo de ancho de columna (ver
      comentario en `.tabla-datos` arriba), así que dejarlo envolver a dos
