@@ -51,19 +51,43 @@ export const ANCHO_FECHA = "17ch";
 export const ANCHO_FECHA_CORTA = "14ch";
 
 /** Monto sin centavos (0 decimales — `formatearMonto`, `fmtMoney` locales),
- *  peor caso con signo y 7 dígitos: "-$ 1.234.567" (12 caracteres):
- *  (12×8.2×1.2 + 24) / 7.15 ≈ 19.9 → 20ch.
- *  Margen final: 20ch deja ≈119px vs. 98.4px crudos → ~21%.
- *  Se usa el mismo ancho exista o no un caso negativo real en cada
- *  pantalla puntual — un solo número conservador para las ocho pantallas
- *  que lo consumen, en vez de auditar el signo columna por columna. */
-export const ANCHO_MONTO = "20ch";
+ *  peor caso con signo y 9 DÍGITOS SIGNIFICATIVOS: "-$ 123.456.789" (14
+ *  caracteres): (14×8.2×1.2 + 24) / 7.15 ≈ 22.6 → 23ch.
+ *  Margen final: 23ch deja ≈140.4px vs. 114.8px crudos → ~22%.
+ *
+ *  El techo de 9 dígitos es una DECISIÓN sobre la magnitud de la moneda, no
+ *  una medición de ningún dato real — nada en `backend/models.py` acota
+ *  `Caja.saldo_actual` / `saldo_inicial` / `saldo_total` (son floats sin
+ *  límite). La app es argentina, los montos son en pesos, y en una moneda
+ *  con inflación una tesorería de consorcio o un gasto edilicio agregado
+ *  llega a 8 dígitos de rutina y a 9 dentro de la vida útil del software.
+ *  Un monto truncado es exactamente el modo de falla que todo este ejercicio
+ *  de anchos existe para evitar, y es peor que una etiqueta cortada: "$
+ *  12.345.6…" se lee como un número más chico, no como un error. Que este
+ *  número se vea generoso es intencional — no "optimizarlo" de nuevo para
+ *  abajo sin repetir esta cuenta con un techo de dígitos más alto.
+ *
+ *  Se usa el mismo ancho exista o no un caso negativo real en cada pantalla
+ *  puntual — un solo número conservador para las siete pantallas que lo
+ *  consumen, en vez de auditar el signo columna por columna. */
+export const ANCHO_MONTO = "23ch";
 
 /** Monto con centavos (CuentasCorrientes: `Number.toLocaleString` sin
- *  `maximumFractionDigits`, que en es-AR deja 2 decimales), peor caso con
- *  signo y 7 dígitos: "-$ 1.234.567,89" (15 caracteres):
- *  (15×8.2×1.2 + 24) / 7.15 ≈ 24.0 → 24ch.
- *  Margen final: 24ch deja ≈147.6px vs. 123px crudos → ~20%.
+ *  `maximumFractionDigits`, que en es-AR deja 2 decimales), mismo techo de
+ *  9 dígitos significativos (ver `ANCHO_MONTO` — decisión de magnitud, no
+ *  medición) con signo: "-$ 123.456.789,99" (17 caracteres):
+ *  (17×8.2×1.2 + 24) / 7.15 ≈ 26.7 → 27ch.
+ *  Margen final: 27ch deja ≈169.1px vs. 139.4px crudos → ~21%.
  *  El signo no es hipotético acá: el estado "a favor" de una cuenta
  *  corriente es justamente `saldo_total < 0`. */
-export const ANCHO_MONTO_DECIMAL = "24ch";
+export const ANCHO_MONTO_DECIMAL = "27ch";
+
+/** Período `"YYYY-MM"` (p. ej. "2026-08", 7 caracteres) — string de formato
+ *  fijo que NO pasa por `formatFecha`/`formatFechaCorta` (es una clave de
+ *  mes, no una fecha formateada), pero aparece en más de una pantalla
+ *  (Expensas, Periodos) con el mismo argumento que ya justificó
+ *  `ANCHO_FECHA`: un solo ancho calculado una vez en vez de repetido (o
+ *  subestimado) por pantalla.
+ *  (7×8.2×1.2 + 24) / 7.15 ≈ 13.0 → 13ch.
+ *  Margen final: 13ch deja ≈68.9px vs. 57.4px crudos → ~20%. */
+export const ANCHO_PERIODO = "13ch";

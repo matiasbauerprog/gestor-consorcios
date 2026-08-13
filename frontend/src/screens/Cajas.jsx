@@ -27,11 +27,12 @@ const ETIQUETAS_TIPO_CAJA = {
   otro: "Otro",
 };
 
-// "Fondo de reparación" (20 caracteres) es la etiqueta más larga. Misma
+// "Fondo de reparación" (19 caracteres) es la etiqueta más larga. Misma
 // aritmética que utils/anchosColumnas.js (celda bold 700, 0.8125rem, ch≈
-// 7.15px, padding 24px): (20×8.2×1.2 + 24) / 7.15 ≈ 30.9 → 30ch (mismo
+// 7.15px, padding 24px): (19×8.2×1.2 + 24) / 7.15 ≈ 29.5 → 30ch (mismo
 // valor que ya usa la columna Estado de Peticiones.jsx para un string de
-// largo casi idéntico, 21 caracteres — margen final consistente, ~16%).
+// largo casi idéntico, 21 caracteres). Margen final: 30ch deja ≈190.5px
+// vs. 155.8px crudos → ~22%.
 const ANCHO_TIPO_CAJA = "30ch";
 
 export default function Cajas() {

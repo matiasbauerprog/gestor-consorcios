@@ -5,7 +5,7 @@ import ModalEnvioPdfs from "../components/ModalEnvioPdfs";
 import TablaResponsive from "../components/TablaResponsive";
 import Tarjeta from "../components/Tarjeta";
 import { formatFechaHora } from "../utils/fechas";
-import { ANCHO_MONTO } from "../utils/anchosColumnas";
+import { ANCHO_MONTO, ANCHO_PERIODO } from "../utils/anchosColumnas";
 
 function formatMoney(n) {
   return Number(n).toLocaleString("es-AR", {
@@ -33,7 +33,7 @@ export default function Periodos() {
       <h2>Historial de cierres</h2>
       <TablaResponsive
         columnas={[
-          { clave: "periodo", titulo: "Período", ancho: "10ch", celda: (p) => p.periodo },
+          { clave: "periodo", titulo: "Período", ancho: ANCHO_PERIODO, celda: (p) => p.periodo },
           {
             clave: "cerrado",
             titulo: "Cerrado el",

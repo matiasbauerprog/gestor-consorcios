@@ -15,7 +15,7 @@ import MenuAcciones from "../components/MenuAcciones";
 import { formatFecha } from "../utils/fechas";
 import { formatearInteres, formatearMonto } from "../utils/montos";
 import { abrirPdfExpensa } from "../api/pdf";
-import { ANCHO_MONTO } from "../utils/anchosColumnas";
+import { ANCHO_MONTO, ANCHO_PERIODO } from "../utils/anchosColumnas";
 
 export default function Expensas({ embebida = false }) {
   const { user, token } = useAuth();
@@ -130,7 +130,7 @@ export default function Expensas({ embebida = false }) {
   }
 
   const columnas = [
-    { clave: "periodo", titulo: "Período", prioridad: 1, ancho: "10ch", celda: (e) => e.periodo },
+    { clave: "periodo", titulo: "Período", prioridad: 1, ancho: ANCHO_PERIODO, celda: (e) => e.periodo },
     ...(esAdmin
       ? [{
           clave: "depto",
