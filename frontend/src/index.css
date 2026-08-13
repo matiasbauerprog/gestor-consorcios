@@ -289,10 +289,6 @@ table {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  /* Mobile: la tabla scrollea horizontal dentro de su caja, sin desbordar la pantalla */
-  display: block;
-  overflow-x: auto;
-  overflow-y: hidden;
 }
 
 th {
@@ -304,6 +300,16 @@ th {
   color: var(--color-text-muted);
   padding: 0.6rem 0.8rem;
   border-bottom: 1px solid var(--color-border);
+}
+
+/* Pegajoso solo en el encabezado real (thead): la matriz de coeficientes
+   usa <th scope="row"> dentro del tbody para los rótulos de fila, y un `th`
+   suelto acá los pegaría a todos arriba, apilados unos sobre otros. */
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-surface);
 }
 
 td {
@@ -2038,12 +2044,6 @@ td.monto {
 
   .app-body {
     flex-direction: row;
-  }
-
-  /* Las tablas vuelven a renderizar como tabla (ya entran sin scroll) */
-  table {
-    display: table;
-    overflow: hidden;
   }
 
   /* El selector de consorcio vuelve a la barra del header en desktop;
