@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useEsTablet } from "../hooks/useBreakpoint";
 
 /**
@@ -27,6 +28,21 @@ export default function TablaResponsive({
 }) {
   const esTablet = useEsTablet();
 
+  const [expandidas, setExpandidas] = useState(() => new Set());
+
+  /** Solo hay algo que esconder si alguna columna no es prioridad 1. */
+  const columnasOcultables = columnas.filter((c) => (c.prioridad ?? 1) > 1);
+  const hayDetalle = columnasOcultables.length > 0;
+
+  function alternar(clave) {
+    setExpandidas((prev) => {
+      const siguiente = new Set(prev);
+      if (siguiente.has(clave)) siguiente.delete(clave);
+      else siguiente.add(clave);
+      return siguiente;
+    });
+  }
+
   if (filas.length === 0) {
     return <p className="lista-vacia">{vacio}</p>;
   }
@@ -45,12 +61,14 @@ export default function TablaResponsive({
     <div className="tabla-datos-scroll">
       <table className="tabla-datos">
         <colgroup>
+          {hayDetalle && <col className="col-chevron" style={{ width: "2.75rem" }} />}
           {columnas.map((c) => (
             <col key={c.clave} style={{ width: c.ancho ?? "auto" }} />
           ))}
         </colgroup>
         <thead>
           <tr>
+            {hayDetalle && <th className="col-chevron"><span className="sr-only">Detalle</span></th>}
             {columnas.map((c) => (
               <th key={c.clave} className={c.className} data-prio={c.prioridad ?? 1}>
                 {c.titulo}
@@ -59,15 +77,50 @@ export default function TablaResponsive({
           </tr>
         </thead>
         <tbody>
-          {filas.map((fila) => (
-            <tr key={claveFila(fila)} className="fila-datos">
-              {columnas.map((c) => (
-                <td key={c.clave} className={c.className} data-prio={c.prioridad ?? 1}>
-                  {c.celda(fila)}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {filas.map((fila) => {
+            const clave = claveFila(fila);
+            const abierta = expandidas.has(clave);
+            const idDetalle = `detalle-${clave}`;
+            return [
+              <tr key={clave} className="fila-datos">
+                {hayDetalle && (
+                  <td className="col-chevron">
+                    <button
+                      type="button"
+                      className="chevron-detalle"
+                      aria-expanded={abierta}
+                      aria-controls={idDetalle}
+                      aria-label={abierta ? "Ocultar más datos" : "Ver más datos"}
+                      onClick={() => alternar(clave)}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                           stroke="currentColor" strokeWidth="2.5"
+                           strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="m9 18 6-6-6-6" />
+                      </svg>
+                    </button>
+                  </td>
+                )}
+                {columnas.map((c) => (
+                  <td key={c.clave} className={c.className} data-prio={c.prioridad ?? 1}>
+                    {c.celda(fila)}
+                  </td>
+                ))}
+              </tr>,
+              hayDetalle && (
+                <tr key={`${clave}-detalle`} id={idDetalle} className="fila-detalle" hidden={!abierta}>
+                  <td colSpan={columnas.length + 1}>
+                    {columnasOcultables.map((c) => (
+                      <div key={c.clave} className="detalle-par" data-prio={c.prioridad}>
+                        <span className="detalle-etiqueta">{c.titulo}</span>
+                        <span className="detalle-valor">{c.celda(fila)}</span>
+                      </div>
+                    ))}
+                  </td>
+                </tr>
+              ),
+            ];
+          })}
         </tbody>
       </table>
     </div>
