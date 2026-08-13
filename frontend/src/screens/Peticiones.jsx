@@ -130,11 +130,23 @@ export default function Peticiones() {
           { clave: "titulo", titulo: "Título", ancho: "auto", celda: (p) => p.titulo },
           {
             // "Convertida en trabajo" (21 caracteres) es la etiqueta más
-            // larga de ETIQUETAS_ESTADO — el ancho se mide desde ahí, no
-            // desde las más cortas ("Abierta", "Rechazada", "Cancelada").
+            // larga de ETIQUETAS_ESTADO. `ancho` fija el borde exterior de
+            // la columna (table-layout: fixed + box-sizing: border-box
+            // global), así que el padding horizontal de la celda
+            // (.tabla-datos tbody td: 0.75rem × 2 = 1.5rem = 24px) sale de
+            // ese ancho antes de que se dibuje una sola letra. Además `ch`
+            // mide el glyph "0", más angosto que el ancho medio de una
+            // letra en negrita (`td` es font-weight:700) — contar
+            // "caracteres + margen chico" subestima. Cuenta real: contenido
+            // ≈ 21 car. × ~8.2px/car (negrita, 0.8125rem) ≈ 172px, +20%
+            // de colchón ≈ 206px, + 24px de padding ≈ 230px totales,
+            // / ~7.15px por ch (ancho de "0" a este tamaño) ≈ 32ch. Se deja
+            // en 30ch: da igual ~190px de contenido (~9px/car), holgado
+            // sobre la estimación de 172px sin regalarle todo el margen a
+            // esta columna a costa del título.
             clave: "estado",
             titulo: "Estado",
-            ancho: "23ch",
+            ancho: "30ch",
             celda: (p) => ETIQUETAS_ESTADO[p.estado] || p.estado,
           },
           {
