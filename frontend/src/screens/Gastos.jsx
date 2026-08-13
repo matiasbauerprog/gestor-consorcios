@@ -253,12 +253,12 @@ export default function Gastos() {
           </button>
           {cerrados.has(periodo) ? (
             <span className="estado-badge" title="Este período ya fue cerrado">
-              <span className="estado-punto" style={{ background: "#6b7280" }} aria-hidden="true" />
+              <span className="estado-punto estado-punto--cerrado" aria-hidden="true" />
               Cerrado
             </span>
           ) : (
             <span className="estado-badge" title="Los gastos de este período aún se pueden modificar">
-              <span className="estado-punto" style={{ background: "#16a34a" }} aria-hidden="true" />
+              <span className="estado-punto estado-punto--abierto" aria-hidden="true" />
               Abierto
             </span>
           )}

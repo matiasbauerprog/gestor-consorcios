@@ -1117,6 +1117,17 @@ td.monto {
   background: var(--color-text-muted);
 }
 
+/* Mismo criterio para el puntito de la barra de período (Gastos): antes
+   Gastos.jsx aplicaba `style={{ background: "#16a34a" }}` / "#6b7280" a
+   mano, con un verde que no era el de la paleta. */
+.estado-punto--abierto {
+  background: var(--color-success);
+}
+
+.estado-punto--cerrado {
+  background: var(--color-text-muted);
+}
+
 /* Mismo criterio para el importe del saldo en la columna/tarjeta de Cuentas
    corrientes: el color depende del estado de la cuenta, siempre vía token. */
 .saldo-cuenta {
@@ -1251,8 +1262,11 @@ td.monto {
   font-size: 1rem;
   font-weight: 600;
   padding: 0.3rem 0.5rem;
-  width: 9.5rem;
-  min-width: 0;
+  /* Chrome renderiza "agosto de 2026" y no entraba en los 9.5rem fijos que
+     había acá: el mes salía cortado. El piso evita que el campo cambie de
+     tamaño entre meses de nombre corto y largo. */
+  width: auto;
+  min-width: 9.5rem;
 }
 
 .periodo-nav {
@@ -1260,7 +1274,7 @@ td.monto {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 0.2rem 0.6rem;
-  font-size: 1rem;
+  font-size: 0.875rem;
   color: var(--color-text-muted);
   cursor: pointer;
   /* Glifo "‹"/"›" a tamaño visual sin cambios; el hit area se agranda a
