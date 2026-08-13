@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listarCuentas } from "../api/movimientos";
+import Tarjeta from "../components/Tarjeta";
+import TablaResponsive from "../components/TablaResponsive";
 
 function formatMoney(n) {
   return Number(n).toLocaleString("es-AR", {
@@ -15,10 +17,13 @@ function estadoDeCuenta(cuenta) {
   return "al_dia";
 }
 
+// `clase` alimenta los modificadores `.estado-punto--*` / `.saldo-cuenta--*`
+// de index.css — el color siempre sale de un token `var(--color-...)`, nunca
+// de un hex hardcodeado acá.
 const ESTILOS_ESTADO = {
-  en_mora: { color: "#b3261e", label: "En mora" },
-  a_favor: { color: "#16a34a", label: "A favor" },
-  al_dia: { color: "#6b7280", label: "Al día" },
+  en_mora: { clase: "en-mora", label: "En mora" },
+  a_favor: { clase: "a-favor", label: "A favor" },
+  al_dia: { clase: "al-dia", label: "Al día" },
 };
 
 export default function CuentasCorrientes() {
@@ -77,49 +82,62 @@ export default function CuentasCorrientes() {
         />
       </div>
 
-      {filtradas.length === 0 ? (
-        <p>Sin resultados.</p>
-      ) : (
-        <table className="tabla-padron">
-          <thead>
-            <tr>
-              <th className="col-unidad">Unidad</th>
-              <th>Ubicación</th>
-              <th style={{ textAlign: "right" }}>Saldo</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtradas.map((c) => {
-              const est = estadoDeCuenta(c);
-              const cfg = ESTILOS_ESTADO[est];
+      <TablaResponsive
+        columnas={[
+          { clave: "unidad", titulo: "Unidad", prioridad: 1, ancho: "12ch",
+            celda: (c) => (
+              <Link to={`/departamentos/${c.departamento_id}/cuenta`}>{c.codigo}</Link>
+            ) },
+          { clave: "ubicacion", titulo: "Ubicación", prioridad: 3, ancho: "auto",
+            celda: (c) => c.ubicacion || "—" },
+          { clave: "saldo", titulo: "Saldo", prioridad: 1, ancho: "15ch", className: "col-monto",
+            celda: (c) => {
+              const cfg = ESTILOS_ESTADO[estadoDeCuenta(c)];
               return (
-                <tr key={c.departamento_id}>
-                  <td className="col-unidad">
-                    <Link to={`/departamentos/${c.departamento_id}/cuenta`}>
-                      {c.codigo}
-                    </Link>
-                  </td>
-                  <td>{c.ubicacion || "—"}</td>
-                  <td style={{ textAlign: "right", color: cfg.color, fontWeight: 600 }}>
-                    {formatMoney(c.saldo_total)}
-                  </td>
-                  <td>
-                    <span className="estado-badge">
-                      <span
-                        className="estado-punto"
-                        style={{ background: cfg.color }}
-                        aria-hidden="true"
-                      />
-                      {cfg.label}
-                    </span>
-                  </td>
-                </tr>
+                <span className={`saldo-cuenta saldo-cuenta--${cfg.clase}`}>
+                  {formatMoney(c.saldo_total)}
+                </span>
               );
-            })}
-          </tbody>
-        </table>
-      )}
+            } },
+          { clave: "estado", titulo: "Estado", prioridad: 1, ancho: "14ch",
+            celda: (c) => {
+              const cfg = ESTILOS_ESTADO[estadoDeCuenta(c)];
+              return (
+                <span className="estado-badge">
+                  <span
+                    className={`estado-punto estado-punto--${cfg.clase}`}
+                    aria-hidden="true"
+                  />
+                  {cfg.label}
+                </span>
+              );
+            } },
+        ]}
+        filas={filtradas}
+        claveFila={(c) => c.departamento_id}
+        vacio="Sin resultados."
+        renderTarjeta={(c) => {
+          const cfg = ESTILOS_ESTADO[estadoDeCuenta(c)];
+          return (
+            <Tarjeta>
+              <h3>
+                <Link to={`/departamentos/${c.departamento_id}/cuenta`}>{c.codigo}</Link>
+              </h3>
+              <p className="meta">{c.ubicacion || "—"}</p>
+              <p className={`meta saldo-cuenta saldo-cuenta--${cfg.clase}`}>
+                {formatMoney(c.saldo_total)}
+              </p>
+              <span className="estado-badge">
+                <span
+                  className={`estado-punto estado-punto--${cfg.clase}`}
+                  aria-hidden="true"
+                />
+                {cfg.label}
+              </span>
+            </Tarjeta>
+          );
+        }}
+      />
     </main>
   );
 }

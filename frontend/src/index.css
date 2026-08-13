@@ -1101,6 +1101,40 @@ td.monto {
   border-radius: 50%;
 }
 
+/* Modificadores de color para el estado de una cuenta corriente. Antes
+   CuentasCorrientes.jsx calculaba `cfg.color` en JS (hex hardcodeado) y lo
+   aplicaba vía `style` — la regla del proyecto es que el color siempre sale
+   de `var(--color-...)`, nunca de un hex dentro de un componente. */
+.estado-punto--en-mora {
+  background: var(--color-danger);
+}
+
+.estado-punto--a-favor {
+  background: var(--color-success);
+}
+
+.estado-punto--al-dia {
+  background: var(--color-text-muted);
+}
+
+/* Mismo criterio para el importe del saldo en la columna/tarjeta de Cuentas
+   corrientes: el color depende del estado de la cuenta, siempre vía token. */
+.saldo-cuenta {
+  font-weight: 600;
+}
+
+.saldo-cuenta--en-mora {
+  color: var(--color-danger);
+}
+
+.saldo-cuenta--a-favor {
+  color: var(--color-success);
+}
+
+.saldo-cuenta--al-dia {
+  color: var(--color-text-muted);
+}
+
 /* ---------- Menu kebab ---------- */
 
 .menu-kebab {

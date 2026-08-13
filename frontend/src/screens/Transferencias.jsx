@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { listarTransferencias } from "../api/transferencias";
 import { listarCajas } from "../api/cajas";
 import ModalNuevaTransferencia from "../components/ModalNuevaTransferencia";
+import Tarjeta from "../components/Tarjeta";
+import TablaResponsive from "../components/TablaResponsive";
 import { formatFecha } from "../utils/fechas";
 
 function fmtMoney(n) {
@@ -29,24 +31,31 @@ export default function Transferencias() {
         <h2>Transferencias entre cajas</h2>
         <button type="button" onClick={() => setModal(true)}>+ Nueva transferencia</button>
       </header>
-      {transfers.length === 0 ? (
-        <p>Todavía no hay transferencias registradas.</p>
-      ) : (
-        <table>
-          <thead><tr><th>Fecha</th><th>Origen</th><th>Destino</th><th>Monto</th><th>Descripción</th></tr></thead>
-          <tbody>
-            {transfers.map((t) => (
-              <tr key={t.id}>
-                <td>{formatFecha(t.fecha)}</td>
-                <td>{nombreCaja(t.caja_origen_id)}</td>
-                <td>{nombreCaja(t.caja_destino_id)}</td>
-                <td>{fmtMoney(t.monto)}</td>
-                <td>{t.descripcion}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <TablaResponsive
+        columnas={[
+          { clave: "fecha", titulo: "Fecha", prioridad: 1, ancho: "12ch",
+            celda: (t) => formatFecha(t.fecha) },
+          { clave: "origen", titulo: "Origen", prioridad: 1, ancho: "auto",
+            celda: (t) => nombreCaja(t.caja_origen_id) },
+          { clave: "destino", titulo: "Destino", prioridad: 1, ancho: "auto",
+            celda: (t) => nombreCaja(t.caja_destino_id) },
+          { clave: "monto", titulo: "Monto", prioridad: 1, ancho: "14ch", className: "col-monto",
+            celda: (t) => fmtMoney(t.monto) },
+          { clave: "descripcion", titulo: "Descripción", prioridad: 3, ancho: "auto",
+            celda: (t) => t.descripcion },
+        ]}
+        filas={transfers}
+        claveFila={(t) => t.id}
+        vacio="Todavía no hay transferencias registradas."
+        renderTarjeta={(t) => (
+          <Tarjeta>
+            <h3>{fmtMoney(t.monto)}</h3>
+            <p className="meta">{formatFecha(t.fecha)}</p>
+            <p className="meta">{nombreCaja(t.caja_origen_id)} → {nombreCaja(t.caja_destino_id)}</p>
+            {t.descripcion && <p className="meta">{t.descripcion}</p>}
+          </Tarjeta>
+        )}
+      />
       {modal && (
         <ModalNuevaTransferencia
           cajas={cajas}

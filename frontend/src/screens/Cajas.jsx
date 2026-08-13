@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { listarCajas, eliminarCaja } from "../api/cajas";
 import { listarMovimientos } from "../api/movimientosCaja";
 import Tarjeta from "../components/Tarjeta";
+import TablaResponsive from "../components/TablaResponsive";
+import MenuAcciones from "../components/MenuAcciones";
 import ModalCaja from "../components/ModalCaja";
 import ModalAjusteCaja from "../components/ModalAjusteCaja";
 import { formatFecha } from "../utils/fechas";
@@ -44,47 +46,84 @@ export default function Cajas() {
         <button type="button" onClick={() => setModalCaja("nueva")}>+ Nueva caja</button>
       </header>
 
-      <table>
-        <thead>
-          <tr>
-            <th>Nombre</th><th>Tipo</th><th>Descripción</th><th>Saldo</th><th>Activa</th><th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {cajas.map((c) => (
-            <tr key={c.id}>
-              <td><button type="button" onClick={() => abrirDetalle(c)} style={{textDecoration: "underline"}}>{c.nombre}</button></td>
-              <td>{c.tipo}</td>
-              <td>{c.descripcion || "—"}</td>
-              <td>{fmtMoney(c.saldo_actual)}</td>
-              <td>{c.activa ? "Sí" : "No"}</td>
-              <td>
-                <button type="button" onClick={() => setModalCaja(c)}>Editar</button>
-                <button type="button" onClick={() => setModalAjuste(c)}>Ajuste</button>
-                <button type="button" onClick={() => borrar(c)}>Borrar</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <TablaResponsive
+        columnas={[
+          { clave: "nombre", titulo: "Nombre", ancho: "auto",
+            celda: (c) => (
+              <button type="button" className="boton-link" onClick={() => abrirDetalle(c)}>
+                {c.nombre}
+              </button>
+            ) },
+          { clave: "tipo", titulo: "Tipo", prioridad: 2, ancho: "12ch",
+            celda: (c) => c.tipo },
+          { clave: "descripcion", titulo: "Descripción", prioridad: 3, ancho: "auto",
+            celda: (c) => c.descripcion || "—" },
+          { clave: "saldo", titulo: "Saldo", ancho: "14ch", className: "col-monto",
+            celda: (c) => fmtMoney(c.saldo_actual) },
+          { clave: "activa", titulo: "Activa", prioridad: 3, ancho: "8ch",
+            celda: (c) => (c.activa ? "Sí" : "No") },
+          { clave: "acciones", titulo: "", ancho: "4rem", className: "col-acciones",
+            celda: (c) => (
+              <MenuAcciones
+                etiqueta={`Acciones de ${c.nombre}`}
+                acciones={[
+                  { label: "Editar", onSelect: () => setModalCaja(c) },
+                  { label: "Ajuste", onSelect: () => setModalAjuste(c) },
+                  { label: "Borrar", onSelect: () => borrar(c), peligro: true },
+                ]}
+              />
+            ) },
+        ]}
+        filas={cajas}
+        claveFila={(c) => c.id}
+        vacio="Todavía no hay cajas."
+        renderTarjeta={(c) => (
+          <Tarjeta>
+            <h3>{c.nombre}</h3>
+            <p className="meta">{c.tipo} · {fmtMoney(c.saldo_actual)}</p>
+            {c.descripcion && <p className="meta">{c.descripcion}</p>}
+            <p className="meta">{c.activa ? "Activa" : "Inactiva"}</p>
+            <div className="tarjeta-acciones">
+              <button type="button" onClick={() => abrirDetalle(c)}>Movimientos</button>
+              <button type="button" onClick={() => setModalCaja(c)}>Editar</button>
+              <button type="button" onClick={() => setModalAjuste(c)}>Ajuste</button>
+              <button type="button" className="boton-borrar" onClick={() => borrar(c)}>
+                Borrar
+              </button>
+            </div>
+          </Tarjeta>
+        )}
+      />
 
       {detalleCaja && (
         <Tarjeta>
           <h3>Movimientos de "{detalleCaja.nombre}"</h3>
           <button type="button" onClick={() => setDetalleCaja(null)}>Cerrar</button>
-          <table>
-            <thead><tr><th>Fecha</th><th>Tipo</th><th>Monto</th><th>Descripción</th></tr></thead>
-            <tbody>
-              {movimientos.map((m) => (
-                <tr key={m.id}>
-                  <td>{formatFecha(m.fecha)}</td>
-                  <td>{m.tipo}</td>
-                  <td>{fmtMoney(m.monto)}</td>
-                  <td>{m.descripcion}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <TablaResponsive
+            columnas={[
+              { clave: "fecha", titulo: "Fecha", prioridad: 1, ancho: "12ch",
+                celda: (m) => formatFecha(m.fecha) },
+              { clave: "tipo", titulo: "Tipo", prioridad: 2, ancho: "12ch",
+                celda: (m) => m.tipo },
+              { clave: "monto", titulo: "Monto", prioridad: 1, ancho: "14ch", className: "col-monto",
+                celda: (m) => fmtMoney(m.monto) },
+              { clave: "descripcion", titulo: "Descripción", prioridad: 3, ancho: "auto",
+                celda: (m) => m.descripcion },
+            ]}
+            filas={movimientos}
+            claveFila={(m) => m.id}
+            vacio="Sin movimientos."
+            renderTarjeta={(m) => (
+              // Sin <Tarjeta>: este panel ya vive dentro de la <Tarjeta> de
+              // "Movimientos de ...", y anidar otra por fila dibujaría una
+              // caja dentro de otra caja. `.lista-cards` ya separa cada
+              // fila con su propio gap.
+              <div>
+                <p className="meta"><strong>{formatFecha(m.fecha)}</strong> · {m.tipo} · {fmtMoney(m.monto)}</p>
+                {m.descripcion && <p className="meta">{m.descripcion}</p>}
+              </div>
+            )}
+          />
         </Tarjeta>
       )}
 
