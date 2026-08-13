@@ -143,11 +143,24 @@ export default function Expensas({ embebida = false }) {
     {
       // `ancho: "auto"` quedó sin el cálculo que sí recibió toda otra
       // columna de fecha/monto de esta rama (ver ANCHO_FECHA_MONTO en
-      // anchosColumnas.js) — a 1024px de contenedor (762px, prioridad 3
-      // caída, chevron presente) el fijo daba 451px y las dos columnas en
-      // auto se repartían 311px → 156px cada una, 132px utilizables contra
-      // los ≈180px que pide el contenido real ("DD/MM/YYYY · $ NNN.NNN"),
-      // truncando de punta a punta entre ~760px y ~1120px de contenedor.
+      // anchosColumnas.js) — a 1024px de viewport (746px de contenedor,
+      // prioridad 3 caída, chevron presente) el fijo daba 451px y las dos
+      // columnas en auto se repartían 311px → 156px cada una, 132px
+      // utilizables contra los ≈180px que pide el contenido real
+      // ("DD/MM/YYYY · $ NNN.NNN"), truncando de punta a punta entre
+      // ~760px y ~1120px de contenedor.
+      //
+      // `venc2` también es `prioridad: 3` (antes 2) — no un descuido: con
+      // `venc2` en prioridad 2 (visible desde 720px de contenedor) y
+      // `ANCHO_FECHA_MONTO` fijo en las dos, la franja 720–999px sumaba
+      // chevron 44 + periodo 92.95 + venc2 293.15 + estado 85.8 +
+      // pendiente 164.45 + acciones 64 = 744.35px de columnas fijas — más
+      // que el contenedor a 720px, desbordando la página de costado (el
+      // mismo bug que CRITICAL 1 restauró para las tablas legacy, ahora en
+      // una tabla migrada) y dejando a `depto` (prioridad 1, la columna
+      // que identifica la fila) con menos de 2px donde antes tenía
+      // ~147-198px. Las dos columnas solo aparecen juntas desde 1000px de
+      // contenedor para arriba — ver el comentario de `venc2`.
       clave: "venc1",
       titulo: "1° venc",
       prioridad: 3,
@@ -155,9 +168,14 @@ export default function Expensas({ embebida = false }) {
       celda: (e) => `${formatFecha(e.fecha_primer_vencimiento)} · ${formatearMonto(e.monto_primer_vencimiento)}`,
     },
     {
+      // `prioridad: 3`, NO 2: ver el comentario largo en `venc1` de arriba.
+      // Con las dos columnas en el mismo escalón (≥1000px de contenedor) la
+      // franja intermedia (720–999px) vuelve a sumar solo periodo+estado+
+      // pendiente+acciones+chevron ≈451px fijos, y `depto` recupera su
+      // ancho.
       clave: "venc2",
       titulo: "2° venc",
-      prioridad: 2,
+      prioridad: 3,
       ancho: ANCHO_FECHA_MONTO,
       celda: (e) => `${formatFecha(e.fecha_segundo_vencimiento)} · ${formatearMonto(e.monto_segundo_vencimiento)}`,
     },

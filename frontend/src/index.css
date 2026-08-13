@@ -3230,11 +3230,20 @@ td.monto {
    tabla de la app muestra en su última fila. Selecciona en cambio la fila
    de datos que tiene una `.fila-detalle` como hermano siguiente Y esa
    `.fila-detalle` es a su vez la última hija: esa es la fila de datos real
-   que necesita perder el borde. Bajo `border-collapse: collapse` el borde
-   de celda (`td`) tiene prioridad sobre el de fila (`.tabla-datos tbody tr`
-   de arriba), así que alcanza con pisarlo acá. */
+   que necesita perder el borde.
+
+   `border-bottom: none` (no `hidden`) es INERTE acá: bajo `border-collapse:
+   collapse` la resolución de conflictos le da al estilo `none` la prioridad
+   MÁS BAJA de todas — pierde contra cualquier borde con estilo real, incluido
+   el `1px solid` que `.tabla-datos tbody tr` (arriba) pone en la FILA. "el
+   borde de celda le gana al de fila" solo es cierto cuando ambos bordes
+   compiten con ancho y estilo iguales; acá no compiten, `none` se retira
+   directo de la carrera. `hidden` sí es un estilo con la prioridad MÁS ALTA
+   de la resolución — le gana a cualquier borde de fila/columna/tabla sin
+   importar su ancho, así que es la única forma de "borrar" un borde ajeno
+   bajo collapse. */
 .fila-datos:has(+ .fila-detalle:last-child) td {
-  border-bottom: none;
+  border-bottom: hidden;
 }
 
 /* Fondo y padding propios de la celda que envuelve los pares etiqueta/valor

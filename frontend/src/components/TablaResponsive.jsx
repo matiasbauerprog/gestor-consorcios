@@ -33,16 +33,15 @@ import { useEsTablet } from "../hooks/useBreakpoint";
  *  760 chocaba de lleno contra el caso de 768px: 720px de contenedor real
  *  quedaba 40px por DEBAJO del umbral, así que la tablet portrait — el
  *  ancho que motivó todo este trabajo — caía al escalón mínimo (solo
- *  prioridad 1) en vez del intermedio. 720 dejaba a la tablet apenas en el
- *  filo (720 >= 720, `>=` es inclusive) y le daba a 1024px un margen de
- *  falso-negativo de apenas 2px con el redondeo de 32px de padding que se
- *  usó en esa cuenta original — con el padding real (48px) el margen en
- *  1024px es de 26px, pero 720 sigue siendo el número que le da a la
- *  tablet portrait su escalón intermedio con margen real en vez de quedar
- *  en el filo exacto. Cualquier cambio futuro a `--ancho-sidebar`, al
- *  padding de `.app-content`, o un gutter de scrollbar overlay que le robe
- *  ancho al contenedor debe volver a correr esta cuenta para los cuatro
- *  anchos de arriba antes de tocar el número. */
+ *  prioridad 1) en vez del intermedio. 720 le da a la tablet su escalón
+ *  intermedio, pero EXACTO en el filo (720 >= 720, `>=` es inclusive) —
+ *  CERO margen, no "margen real": cualquier cambio futuro a
+ *  `--ancho-sidebar`, al padding de `.app-content`, o un gutter de
+ *  scrollbar overlay que le robe aunque sea 1px al contenedor tira a la
+ *  tablet de vuelta al escalón mínimo. Por eso este número no se "ajusta"
+ *  la próxima vez — se vuelve a DERIVAR desde cero, corriendo de nuevo la
+ *  cuenta completa de arriba para los cuatro anchos de viewport, porque no
+ *  hay colchón que absorba un cambio chico. */
 function prioridadVisible(prioridad, ancho) {
   if (prioridad <= 1) return true;
   if (ancho === null) return true;
