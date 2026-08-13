@@ -1169,6 +1169,15 @@ td.monto {
   color: var(--color-danger);
 }
 
+/* El `button:disabled` global solo atenúa opacidad — no alcanza para anular
+   el hover propio de `.menu-kebab-item`, que es más específico y se sigue
+   aplicando aunque el botón esté disabled (no chequea :not(:disabled)).
+   Sin esto, un item deshabilitado se ilumina al pasar el mouse como si
+   fuera clickeable. */
+.menu-kebab-item:disabled:hover {
+  background: transparent;
+}
+
 /* ---------- Barra de período (Gastos) ---------- */
 
 .barra-periodo {

@@ -231,13 +231,20 @@ export default function Comprobantes({ embebida = false }) {
       prioridad: 1,
       ancho: "4rem",
       celda: (c) => {
-        const enProceso = accionandoId === c.id;
         const acciones = [
-          ...(esAdmin && c.estado === "pendiente_verificacion" && !enProceso && !cargandoCajas
-            ? [{ label: "Aprobar", onSelect: () => handleAprobarClick(c) }]
-            : []),
-          ...(esAdmin && c.estado === "pendiente_verificacion" && !enProceso
-            ? [{ label: "Rechazar", onSelect: () => handleDecision(c.id, "rechazado") }]
+          ...(esAdmin && c.estado === "pendiente_verificacion"
+            ? [
+                {
+                  label: "Aprobar",
+                  onSelect: () => handleAprobarClick(c),
+                  disabled: accionandoId === c.id || cargandoCajas,
+                },
+                {
+                  label: "Rechazar",
+                  onSelect: () => handleDecision(c.id, "rechazado"),
+                  disabled: accionandoId === c.id,
+                },
+              ]
             : []),
           { label: "Eliminar", onSelect: () => setModalEliminar(c), peligro: true },
         ];

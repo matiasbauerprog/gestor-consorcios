@@ -5,6 +5,14 @@ import { useEffect, useRef, useState } from "react";
  * visibles se comen 200-250px de ancho — una columna de datos entera — y dejan
  * Eliminar a un click de Editar.
  *
+ * Cada elemento de `acciones` es `{ label, onSelect, peligro?, disabled? }`.
+ * `disabled` es la forma correcta de expresar "esta acción existe pero no se
+ * puede ejecutar ahora" (p. ej. una operación en curso). NO es lo mismo que
+ * omitir la acción del array: omitirla dice "esta acción no existe acá",
+ * `disabled: true` dice "existe, todavía no". El `<button disabled>` nativo
+ * ya se encarga de que ni el click ni el teclado disparen `onSelect` ni
+ * cierren el menú — no hace falta lógica extra acá.
+ *
  * El estilo ya vive en index.css como `.menu-kebab*`.
  */
 export default function MenuAcciones({ acciones, etiqueta = "Acciones" }) {
@@ -72,6 +80,7 @@ export default function MenuAcciones({ acciones, etiqueta = "Acciones" }) {
                 type="button"
                 role="menuitem"
                 className={`menu-kebab-item${a.peligro ? " peligro" : ""}`}
+                disabled={a.disabled}
                 onClick={() => ejecutar(a)}
               >
                 {a.label}
