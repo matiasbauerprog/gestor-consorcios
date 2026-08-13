@@ -101,25 +101,43 @@ export const ANCHO_PERIODO = "13ch";
  *  mismo error que motivó este archivo, aplicado a un caso compuesto en vez
  *  de a una fecha o un monto sueltos.
  *
- *  L = 10 (`formatFecha`, `DD/MM/YYYY`) + 3 (` · `, espacio-punto medio-
- *  espacio) + 14 (`formatearMonto` peor caso con signo y 9 dígitos
- *  significativos, ver `ANCHO_MONTO`) = 27 caracteres.
+ *  A DIFERENCIA de todas las demás constantes de este archivo, esta usa el
+ *  caso TÍPICO, no el peor caso conjunto — decisión deliberada, no un
+ *  descuido, y specífica a `venc1`/`venc2`: en `Expensas.jsx` esas dos
+ *  columnas son contexto ("¿cuándo y cuánto vencía?"), no el número que el
+ *  usuario vino a buscar en esa pantalla — ese es `pendiente` (el saldo
+ *  pendiente actual), que tiene su propio `ANCHO_MONTO` sin recortar. Con
+ *  dos columnas fecha+monto en la misma fila (`periodo`, `depto`, `venc1`,
+ *  `venc2`, `estado`, `pendiente`, `acciones`), dimensionar `venc1`/`venc2`
+ *  al peor caso conjunto (signo + 9 dígitos en las dos a la vez, L=27,
+ *  41ch) deja tan poco margen en el contenedor que `depto` — prioridad 1,
+ *  la columna que identifica a QUÉ UNIDAD pertenece la expensa — se cae a
+ *  ~8px utilizables en un viewport de 1280px (contenedor 1002px), un
+ *  desenlace peor que el truncado que este archivo entero existe para
+ *  evitar. Sacrificar el último dígito de una columna de contexto para
+ *  garantizarlo en las dos a la vez es el trade-off equivocado — el que
+ *  este archivo en general evita para fecha/monto es distinto: ahí SÍ
+ *  importa el peor caso porque esas columnas suelen ser las únicas de su
+ *  tipo en la fila, no dos columnas compitiendo por el mismo contenedor
+ *  contra una columna de prioridad 1.
  *
- *  Ojo: NO es la suma de `ANCHO_FECHA` (17ch) + `ANCHO_MONTO` (23ch) =
- *  40ch — sumar esos dos ya cuenta el padding de celda (24px) y el 20% de
- *  colchón DOS veces, una por cada mitad, cuando la celda compuesta tiene
- *  un solo padding y necesita un solo colchón sobre el string completo. La
- *  cuenta correcta aplica la fórmula UNA vez sobre L=27:
- *  (27×8.2×1.2 + 24) / 7.15 ≈ 40.5 → 41ch.
- *  Margen final: 41ch deja ≈269.15px vs. 265.68px crudos → ~1.3%. El
- *  colchón real es chico a propósito acá — un colchón del ~20% como en las
- *  columnas sueltas (`ANCHO_FECHA`/`ANCHO_MONTO`) sería redundante: el peor
- *  caso de fecha (10 caracteres, sin variación real — `formatFecha` siempre
- *  da `DD/MM/YYYY`) y el peor caso de monto (9 dígitos, ya un techo
- *  deliberadamente generoso) casi nunca ocurren los DOS a la vez en la
- *  misma fila, así que el 20% de cada mitad ya presupuesta el colchón que
- *  haría falta acá. */
-export const ANCHO_FECHA_MONTO = "41ch";
+ *  L = 10 (`formatFecha`, `DD/MM/YYYY`) + 3 (` · `, espacio-punto medio-
+ *  espacio) + 9 (`formatearMonto` caso típico, p. ej. "$ 145.300" — NO el
+ *  peor caso con signo y 9 dígitos de `ANCHO_MONTO`) = 22 caracteres.
+ *  (22×8.2×1.2 + 24) / 7.15 ≈ 33.6 → 34ch.
+ *  Margen final: 34ch deja ≈219.9px vs. 216.48px crudos (sin el 20% de
+ *  colchón que ya incluye la fórmula) → colchón real ~1.6%, chico a
+ *  propósito por la misma razón que documentaba la versión anterior de
+ *  este comentario: fecha y monto rara vez tocan sus propios peores casos
+ *  a la vez en la misma fila, así que el margen de la fórmula ya alcanza.
+ *  Un vencimiento con signo negativo o 8-9 dígitos truncará con ellipsis
+ *  en estas dos columnas — aceptable, es contexto, no el monto que importa
+ *  en esta pantalla. Si un futuro cambio necesita que `venc1`/`venc2`
+ *  nunca trunquen, la solución correcta es separar fecha y monto en dos
+ *  columnas (cada una con su propio `ANCHO_FECHA`/`ANCHO_MONTO` de peor
+ *  caso), no volver a subir este número — eso es lo que vuelve a hundir a
+ *  `depto`. */
+export const ANCHO_FECHA_MONTO = "34ch";
 
 /** CUIT/CUIL `"XX-XXXXXXXX-X"` (p. ej. "30-12345678-9", 13 caracteres) —
  *  igual que `ANCHO_PERIODO`, un string de formato FIJO (regex
