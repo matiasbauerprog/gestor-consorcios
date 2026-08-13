@@ -210,3 +210,44 @@ describe("TablaResponsive — escalones por ancho de contenedor", () => {
     expect(angosta.container.querySelector(".col-chevron")).not.toBeNull();
   });
 });
+
+// Dos <TablaResponsive> en la misma página cuyo dominio de claves se solapa
+// (p. ej. Cajas.jsx: la tabla de cajas y la de movimientos, ambas con
+// claveFila numérico) generaban antes `id={`detalle-${clave}`}` sin
+// namespacing por instancia — "detalle-1" existía dos veces en el DOM y
+// `aria-controls` quedaba ambiguo. Este describe prueba que cada instancia
+// namespacea sus ids de detalle con `useId()`.
+describe("TablaResponsive — namespacing de ids entre instancias", () => {
+  it("dos tablas con claves de fila solapadas no repiten id de detalle", () => {
+    setAnchoContenedor(900);
+    const { container } = render(
+      <>
+        <TablaResponsive
+          columnas={COLUMNAS}
+          filas={FILAS}
+          claveFila={(f) => f.id}
+          renderTarjeta={(f) => <p>{f.concepto}</p>}
+        />
+        <TablaResponsive
+          columnas={COLUMNAS}
+          filas={FILAS}
+          claveFila={(f) => f.id}
+          renderTarjeta={(f) => <p>{f.concepto}</p>}
+        />
+      </>,
+    );
+
+    const detalles = container.querySelectorAll("tr.fila-detalle");
+    expect(detalles).toHaveLength(4); // 2 filas × 2 instancias
+    const ids = [...detalles].map((d) => d.id);
+    expect(new Set(ids).size).toBe(ids.length);
+
+    // aria-controls de cada chevron sigue apuntando a un id existente y
+    // propio de esa fila (no al de la otra instancia).
+    const chevrones = container.querySelectorAll(".chevron-detalle");
+    chevrones.forEach((chevron) => {
+      const controla = chevron.getAttribute("aria-controls");
+      expect(container.querySelector(`#${CSS.escape(controla)}`)).not.toBeNull();
+    });
+  });
+});

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useEsTablet } from "../hooks/useBreakpoint";
 
 /** Prioridad 2 se cae bajo 760px de contenedor; prioridad 3, bajo 1000px.
@@ -45,6 +45,13 @@ export default function TablaResponsive({
   vacio = "No hay nada para mostrar.",
 }) {
   const esTablet = useEsTablet();
+  // Namespacea los ids de fila de detalle por instancia montada: dos
+  // <TablaResponsive> en la misma página (p. ej. Cajas.jsx: cajas y
+  // movimientos) pueden compartir dominio de `claveFila` (ambas numéricas),
+  // y sin este prefijo `detalle-${clave}` colisionaría en el DOM entre
+  // instancias, dejando `aria-controls` ambiguo. `useId` es estable entre
+  // renders y único por componente montado.
+  const idInstancia = useId();
   const [expandidas, setExpandidas] = useState(() => new Set());
   const wrapperRef = useRef(null);
   /** `null` = todavía no midió: se tratan todas las columnas como visibles. */
@@ -124,7 +131,7 @@ export default function TablaResponsive({
           {filas.map((fila) => {
             const clave = claveFila(fila);
             const abierta = expandidas.has(clave);
-            const idDetalle = `detalle-${clave}`;
+            const idDetalle = `detalle${idInstancia}-${clave}`;
             return [
               <tr key={clave} className="fila-datos">
                 {hayDetalle && (
