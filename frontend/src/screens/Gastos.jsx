@@ -203,7 +203,7 @@ export default function Gastos() {
               { label: "Editar", onSelect: () => setModal({ tipo: "editar", gasto: g }) },
               { label: "Eliminar", onSelect: () => handleBorrar(g), peligro: true },
             ]}
-            etiqueta={`Acciones de ${g.concepto}`}
+            etiqueta={`Acciones de ${g.concepto} — ${proveedorPorId(g.proveedor_id)} — ${formatearMonto(g.monto)}`}
           />
         ),
     },

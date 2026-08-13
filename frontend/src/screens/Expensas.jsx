@@ -55,6 +55,11 @@ export default function Expensas({ embebida = false }) {
 
   const deptoById = Object.fromEntries(departamentos.map((d) => [d.id, d]));
 
+  function deptoLabel(departamentoId) {
+    const d = deptoById[departamentoId];
+    return d ? `${d.codigo} — ${d.descripcion}` : `#${departamentoId}`;
+  }
+
   const expensasFiltradas = filtroPeriodo
     ? expensas.filter(e => e.periodo === filtroPeriodo)
     : expensas;
@@ -131,10 +136,7 @@ export default function Expensas({ embebida = false }) {
           titulo: "Departamento",
           prioridad: 1,
           ancho: "auto",
-          celda: (e) => {
-            const d = deptoById[e.departamento_id];
-            return d ? `${d.codigo} — ${d.descripcion}` : `#${e.departamento_id}`;
-          },
+          celda: (e) => deptoLabel(e.departamento_id),
         }]
       : []),
     {
@@ -198,7 +200,11 @@ export default function Expensas({ embebida = false }) {
         return (
           <MenuAcciones
             acciones={acciones}
-            etiqueta={`Acciones de la expensa de ${e.periodo}`}
+            etiqueta={
+              esAdmin
+                ? `Acciones de la expensa de ${e.periodo} — ${deptoLabel(e.departamento_id)}`
+                : `Acciones de la expensa de ${e.periodo}`
+            }
           />
         );
       },

@@ -145,4 +145,10 @@ describe("MenuAcciones", () => {
       expect(screen.getByRole("menu")).toBeInTheDocument();
     });
   });
+
+  it("con acciones vacío no renderiza ni el trigger", () => {
+    const { container } = render(<MenuAcciones acciones={[]} />);
+    expect(screen.queryByRole("button", { name: "Acciones" })).toBeNull();
+    expect(container).toBeEmptyDOMElement();
+  });
 });
