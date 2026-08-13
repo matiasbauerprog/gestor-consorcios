@@ -242,12 +242,18 @@ describe("TablaResponsive — namespacing de ids entre instancias", () => {
     const ids = [...detalles].map((d) => d.id);
     expect(new Set(ids).size).toBe(ids.length);
 
-    // aria-controls de cada chevron sigue apuntando a un id existente y
-    // propio de esa fila (no al de la otra instancia).
+    // aria-controls de cada chevron apunta a EXACTAMENTE un elemento del
+    // documento. `querySelector` no alcanza acá: con un id duplicado
+    // (el bug que este describe reproduce) igual devuelve "un" match — el
+    // primero — así que esa aserción pasaría incluso sin el fix de useId.
+    // `querySelectorAll(...).length === 1` es la que de verdad exige
+    // unicidad: con el id duplicado, el selector `#detalle-1` matchea LOS
+    // DOS `<tr>` que comparten ese id (los selectores de id no exigen
+    // unicidad, a diferencia del propio atributo `id`), y el length da 2.
     const chevrones = container.querySelectorAll(".chevron-detalle");
     chevrones.forEach((chevron) => {
       const controla = chevron.getAttribute("aria-controls");
-      expect(container.querySelector(`#${CSS.escape(controla)}`)).not.toBeNull();
+      expect(container.querySelectorAll(`#${CSS.escape(controla)}`)).toHaveLength(1);
     });
   });
 });
