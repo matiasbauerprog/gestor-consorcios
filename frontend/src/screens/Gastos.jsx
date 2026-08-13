@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Tarjeta from "../components/Tarjeta";
 import ModalPagarGasto from "../components/ModalPagarGasto";
 import TablaResponsive from "../components/TablaResponsive";
+import MenuAcciones from "../components/MenuAcciones";
 import {
   listarGastos,
   crearGasto,
@@ -149,28 +150,32 @@ export default function Gastos() {
   }
 
   const columnas = [
-    { clave: "concepto", titulo: "Concepto", celda: (g) => g.concepto },
-    { clave: "rubro", titulo: "Rubro", celda: (g) => labelRubro(g.rubro) },
-    { clave: "proveedor", titulo: "Proveedor", celda: (g) => proveedorPorId(g.proveedor_id) },
+    { clave: "concepto", titulo: "Concepto", prioridad: 1, ancho: "auto", celda: (g) => g.concepto },
+    { clave: "rubro", titulo: "Rubro", prioridad: 2, ancho: "auto", celda: (g) => labelRubro(g.rubro) },
+    { clave: "proveedor", titulo: "Proveedor", prioridad: 3, ancho: "auto", celda: (g) => proveedorPorId(g.proveedor_id) },
     {
       clave: "destino",
       titulo: "Clase / Depto",
+      prioridad: 3,
+      ancho: "auto",
       celda: (g) =>
         g.clase_prorrateo_id !== null
           ? `Clase ${clasePorId(g.clase_prorrateo_id)}`
           : `Depto ${deptoPorId(g.departamento_id)}`,
     },
-    { clave: "caja", titulo: "Caja", celda: (g) => cajaPorId(g.caja_id) },
+    { clave: "caja", titulo: "Caja", prioridad: 3, ancho: "auto", celda: (g) => cajaPorId(g.caja_id) },
     {
       clave: "monto",
       titulo: "Monto",
       className: "col-monto",
+      prioridad: 1,
       ancho: "14ch",
       celda: (g) => formatearMonto(g.monto),
     },
     {
       clave: "pago",
       titulo: "Pago",
+      prioridad: 2,
       ancho: "10ch",
       celda: (g) =>
         g.pagado ? (
@@ -187,19 +192,19 @@ export default function Gastos() {
       clave: "acciones",
       titulo: "",
       className: "col-acciones",
-      ancho: "9rem",
+      prioridad: 1,
+      ancho: "4rem",
       celda: (g) =>
         cerrados.has(g.periodo) ? (
           <span title="Período cerrado — no editable">🔒</span>
         ) : (
-          <>
-            <button type="button" onClick={() => setModal({ tipo: "editar", gasto: g })}>
-              Editar
-            </button>
-            <button type="button" className="boton-borrar" onClick={() => handleBorrar(g)}>
-              Eliminar
-            </button>
-          </>
+          <MenuAcciones
+            acciones={[
+              { label: "Editar", onSelect: () => setModal({ tipo: "editar", gasto: g }) },
+              { label: "Eliminar", onSelect: () => handleBorrar(g), peligro: true },
+            ]}
+            etiqueta={`Acciones de ${g.concepto}`}
+          />
         ),
     },
   ];

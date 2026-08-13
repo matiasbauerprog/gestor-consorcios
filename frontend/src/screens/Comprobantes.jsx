@@ -11,6 +11,7 @@ import { obtenerConfiguracion } from "../api/configuracion";
 import { API_BASE } from "../api/client";
 import BadgeEstado from "../components/BadgeEstado";
 import TablaResponsive from "../components/TablaResponsive";
+import MenuAcciones from "../components/MenuAcciones";
 import Modal from "../components/Modal";
 import SelectorDepartamento from "../components/SelectorDepartamento";
 import Tarjeta from "../components/Tarjeta";
@@ -180,11 +181,13 @@ export default function Comprobantes({ embebida = false }) {
   }, [filtroEstado, filtroDepto, esAdmin]);
 
   const columnas = [
-    { clave: "fecha", titulo: "Fecha", celda: (c) => formatFecha(c.fecha_pago) },
+    { clave: "fecha", titulo: "Fecha", prioridad: 1, ancho: "12ch", celda: (c) => formatFecha(c.fecha_pago) },
     ...(esAdmin
       ? [{
           clave: "depto",
           titulo: "Departamento",
+          prioridad: 1,
+          ancho: "auto",
           celda: (c) => c.departamento_codigo || (c.departamento_id ? `#${c.departamento_id}` : "—"),
         }]
       : []),
@@ -192,17 +195,22 @@ export default function Comprobantes({ embebida = false }) {
       clave: "monto",
       titulo: "Monto",
       className: "col-monto",
+      prioridad: 1,
       ancho: "14ch",
       celda: (c) => formatearMonto(c.monto),
     },
     {
       clave: "estado",
       titulo: "Estado",
+      prioridad: 1,
+      ancho: "12ch",
       celda: (c) => <BadgeEstado estado={c.estado} />,
     },
     {
       clave: "archivo",
       titulo: "Comprobante",
+      prioridad: 3,
+      ancho: "8rem",
       celda: (c) =>
         c.archivo_path ? (
           <a href={`${API_BASE}${c.archivo_path}`} target="_blank" rel="noopener noreferrer">
@@ -220,33 +228,26 @@ export default function Comprobantes({ embebida = false }) {
       clave: "acciones",
       titulo: "",
       className: "col-acciones",
-      ancho: "9rem",
-      celda: (c) => (
-        <>
-          {esAdmin && c.estado === "pendiente_verificacion" && (
-            <>
-              <button
-                type="button"
-                onClick={() => handleAprobarClick(c)}
-                disabled={accionandoId === c.id || cargandoCajas}
-              >
-                {accionandoId === c.id ? "…" : "Aprobar"}
-              </button>
-              <button
-                type="button"
-                className="boton-borrar"
-                onClick={() => handleDecision(c.id, "rechazado")}
-                disabled={accionandoId === c.id}
-              >
-                {accionandoId === c.id ? "…" : "Rechazar"}
-              </button>
-            </>
-          )}
-          <button type="button" className="boton-peligro" onClick={() => setModalEliminar(c)}>
-            Eliminar
-          </button>
-        </>
-      ),
+      prioridad: 1,
+      ancho: "4rem",
+      celda: (c) => {
+        const enProceso = accionandoId === c.id;
+        const acciones = [
+          ...(esAdmin && c.estado === "pendiente_verificacion" && !enProceso && !cargandoCajas
+            ? [{ label: "Aprobar", onSelect: () => handleAprobarClick(c) }]
+            : []),
+          ...(esAdmin && c.estado === "pendiente_verificacion" && !enProceso
+            ? [{ label: "Rechazar", onSelect: () => handleDecision(c.id, "rechazado") }]
+            : []),
+          { label: "Eliminar", onSelect: () => setModalEliminar(c), peligro: true },
+        ];
+        return (
+          <MenuAcciones
+            acciones={acciones}
+            etiqueta={`Acciones del comprobante del ${formatFecha(c.fecha_pago)}`}
+          />
+        );
+      },
     },
   ];
 

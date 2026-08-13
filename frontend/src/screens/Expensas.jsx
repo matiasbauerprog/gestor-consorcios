@@ -11,6 +11,7 @@ import SelectorDepartamento from "../components/SelectorDepartamento";
 import TarjetaExpensa from "../components/TarjetaExpensa";
 import TablaResponsive from "../components/TablaResponsive";
 import BadgeEstado from "../components/BadgeEstado";
+import MenuAcciones from "../components/MenuAcciones";
 import { formatFecha } from "../utils/fechas";
 import { formatearInteres, formatearMonto } from "../utils/montos";
 import { abrirPdfExpensa } from "../api/pdf";
@@ -123,11 +124,13 @@ export default function Expensas({ embebida = false }) {
   }
 
   const columnas = [
-    { clave: "periodo", titulo: "Período", celda: (e) => e.periodo },
+    { clave: "periodo", titulo: "Período", prioridad: 1, ancho: "10ch", celda: (e) => e.periodo },
     ...(esAdmin
       ? [{
           clave: "depto",
           titulo: "Departamento",
+          prioridad: 1,
+          ancho: "auto",
           celda: (e) => {
             const d = deptoById[e.departamento_id];
             return d ? `${d.codigo} — ${d.descripcion}` : `#${e.departamento_id}`;
@@ -137,22 +140,29 @@ export default function Expensas({ embebida = false }) {
     {
       clave: "venc1",
       titulo: "1° venc",
+      prioridad: 3,
+      ancho: "auto",
       celda: (e) => `${formatFecha(e.fecha_primer_vencimiento)} · ${formatearMonto(e.monto_primer_vencimiento)}`,
     },
     {
       clave: "venc2",
       titulo: "2° venc",
+      prioridad: 2,
+      ancho: "auto",
       celda: (e) => `${formatFecha(e.fecha_segundo_vencimiento)} · ${formatearMonto(e.monto_segundo_vencimiento)}`,
     },
     {
       clave: "estado",
       titulo: "Estado",
+      prioridad: 1,
+      ancho: "12ch",
       celda: (e) => <BadgeEstado estado={e.estado_calculado} />,
     },
     {
       clave: "pendiente",
       titulo: "Pendiente",
       className: "col-monto",
+      prioridad: 1,
       ancho: "14ch",
       celda: (e) =>
         e.monto_pendiente >= 0.5 ? (
@@ -175,26 +185,23 @@ export default function Expensas({ embebida = false }) {
       clave: "acciones",
       titulo: "",
       className: "col-acciones",
-      ancho: "9rem",
-      celda: (e) => (
-        <>
-          <button type="button" onClick={() => setModalComprobantes(e)}>
-            Comprobantes
-          </button>
-          <button type="button" onClick={() => handleAbrirPdf(e)}>
-            PDF
-          </button>
-          {esAdmin && (
-            <button
-              type="button"
-              className="boton-peligro"
-              onClick={() => setModalEliminar(e)}
-            >
-              Eliminar
-            </button>
-          )}
-        </>
-      ),
+      prioridad: 1,
+      ancho: "4rem",
+      celda: (e) => {
+        const acciones = [
+          { label: "Comprobantes", onSelect: () => setModalComprobantes(e) },
+          { label: "PDF", onSelect: () => handleAbrirPdf(e) },
+          ...(esAdmin
+            ? [{ label: "Eliminar", onSelect: () => setModalEliminar(e), peligro: true }]
+            : []),
+        ];
+        return (
+          <MenuAcciones
+            acciones={acciones}
+            etiqueta={`Acciones de la expensa de ${e.periodo}`}
+          />
+        );
+      },
     },
   ];
 
