@@ -1129,15 +1129,17 @@ La columna `pendiente` tiene `<br>` y un `<span className="meta">`; para que el 
 
 - [ ] **Step 2: Comprobantes**
 
+> Corregido durante la ejecución (2026-08-13): la columna se llama `archivo`, no `comprobante`. Y sube de prioridad 3 a **2**, con `fecha` bajando a 3: en la pantalla donde se aprueban pagos, la miniatura del comprobante ES el insumo de la decisión — esconderla obliga a desplegar la fila, mirarla, colapsarla y recién ahí abrir el menú. La fecha exacta de pago es un dato que se consulta después de encontrar la fila.
+
 En `Comprobantes.jsx:183`:
 
 | clave | prioridad | ancho |
 |---|---|---|
-| `fecha` | 1 | `12ch` |
+| `fecha` | 3 | `12ch` |
 | `depto` | 1 | `auto` |
 | `monto` | 1 | `14ch` |
 | `estado` | 1 | `12ch` |
-| `comprobante` | 3 | `8rem` |
+| `archivo` | 2 | `8rem` |
 | acciones (`titulo: ""`) | 1 | `9rem` |
 
 - [ ] **Step 3: Gastos**
