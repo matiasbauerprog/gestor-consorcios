@@ -19,6 +19,7 @@
 - **Sin overflow horizontal.** `document.documentElement.scrollWidth === clientWidth` en toda pantalla tocada.
 - **Anchos verificados:** 375px, 768px, 1024px, 1440px. El de 375px es innegociable — es el que revisa el usuario.
 - **Backend intocable.** `pytest -v` debe seguir verde sin que nadie lo mire.
+- **El lint NO parte de cero.** Baseline medido en `master` el 2026-08-12: **87 problemas (69 errores, 18 warnings)** — 45 `react-hooks/set-state-in-effect`, 21 `react-hooks/exhaustive-deps`, 1 `react-refresh/only-export-components`. Son preexistentes y **no se arreglan en este plan**. El criterio en cada tarea es **no agregar problemas nuevos**: si `npm run lint` sube de 87, hay que mirarlo; si se mantiene o baja, está bien. Nunca interpretar el conteo distinto de cero como una falla de la tarea.
 - **Escalones de `@container`** (idénticos en todo el plan, container name `tabla`): prioridad 3 se oculta bajo 1000px, prioridad 2 bajo 760px. Prioridad 1 nunca se oculta.
 - **Anchos de columna: `auto`, longitudes (`ch`, `rem`) o porcentajes. Nunca `fr`** — es una unidad de grid y en un `<col>` el navegador la descarta sin avisar. Montos, fechas y columnas de acciones siempre en `ch`/`rem` para que no puedan quedar recortadas.
 - **Commits en español**, tiempo presente, prefijo `feat:` / `fix:` / `refactor:` / `test:` / `chore:`.
@@ -225,7 +226,7 @@ Expected: PASS — 8 tests.
 - [ ] **Step 9: Verificar que el build sigue funcionando**
 
 Run: `cd frontend && npm run build && npm run lint`
-Expected: ambos sin errores. Vitest no debe haber roto la config de Vite.
+Expected: el build termina sin errores (Vitest no debe haber roto la config de Vite). El lint termina en `✖ 87 problems` o menos — baseline preexistente de master, no una falla de esta tarea.
 
 - [ ] **Step 10: Commit**
 
@@ -1157,7 +1158,7 @@ En el array `columnas` de `Reservas.jsx`: `amenity` y `fecha` prioridad 1, `hora
 - [ ] **Step 5: Correr los tests**
 
 Run: `cd frontend && npm test && npm run lint`
-Expected: PASS, sin warnings nuevos de eslint.
+Expected: tests PASS. El lint termina en `✖ 87 problems` o menos — ese es el baseline preexistente de master, no una falla de esta tarea. Si sube de 87, revisar qué se agregó.
 
 - [ ] **Step 6: Verificar en el browser**
 
@@ -1303,7 +1304,7 @@ Agregar los imports de `TablaResponsive` y `Tarjeta`. Reemplazar el bloque `<tab
 - [ ] **Step 3: Correr tests y lint**
 
 Run: `cd frontend && npm test && npm run lint`
-Expected: PASS, sin warnings nuevos.
+Expected: tests PASS. El lint termina en `✖ 87 problems` o menos — baseline preexistente, no una falla de esta tarea.
 
 - [ ] **Step 4: Verificar en el browser**
 
@@ -1461,7 +1462,7 @@ Los `style` inline de las líneas 100 y 103-105 se van: el alineado a la derecha
 - [ ] **Step 6: Correr tests y lint**
 
 Run: `cd frontend && npm test && npm run lint`
-Expected: PASS.
+Expected: tests PASS. El lint termina en `✖ 87 problems` o menos — baseline preexistente, no una falla de esta tarea.
 
 - [ ] **Step 7: Verificar en el browser**
 
@@ -1532,7 +1533,7 @@ El `className={`tarjeta${a.activo ? "" : " inactivo"}`}` de la línea 55 se tras
 - [ ] **Step 3: Correr tests y lint**
 
 Run: `cd frontend && npm test && npm run lint`
-Expected: PASS.
+Expected: tests PASS. El lint termina en `✖ 87 problems` o menos — baseline preexistente, no una falla de esta tarea.
 
 - [ ] **Step 4: Verificar en el browser**
 
@@ -1595,7 +1596,7 @@ Proveedores **no** tiene acción de eliminar; no inventarla.
 - [ ] **Step 3: Correr tests y lint**
 
 Run: `cd frontend && npm test && npm run lint`
-Expected: PASS.
+Expected: tests PASS. El lint termina en `✖ 87 problems` o menos — baseline preexistente, no una falla de esta tarea.
 
 - [ ] **Step 4: Verificar en el browser**
 
@@ -1882,7 +1883,7 @@ El `@keyframes sheetIn` ya existe en `index.css:74` — no redefinirlo.
 - [ ] **Step 5: Correr tests, lint y build**
 
 Run: `cd frontend && npm test && npm run lint && npm run build`
-Expected: PASS.
+Expected: tests PASS, build sin errores. El lint termina en `✖ 87 problems` o menos — baseline preexistente.
 
 - [ ] **Step 6: Verificar en el browser**
 
@@ -1908,7 +1909,8 @@ git commit -m "feat: campanita con icono propio y punto discreto en vez de emoji
 Después de la última tarea, antes de dar el trabajo por cerrado:
 
 - [ ] `cd frontend && npm test` — todos verdes.
-- [ ] `cd frontend && npm run lint && npm run build` — sin errores.
+- [ ] `cd frontend && npm run build` — sin errores.
+- [ ] `cd frontend && npm run lint` — **87 problemas o menos**. Ese es el baseline de master medido antes de arrancar; el plan no arregla deuda de lint preexistente, solo se compromete a no sumarla.
 - [ ] `pytest -v` desde la raíz — verde. El backend no se tocó; esto confirma que sigue siendo cierto.
 - [ ] `cd frontend && grep -rn "#[0-9a-fA-F]\{3,6\}" src/screens/ src/components/` — revisar cada resultado. Los hex que queden tienen que estar justificados o migrados a `var(--color-…)`.
 - [ ] Recorrido completo a **375px** de las 14 pantallas tocadas, confirmando `document.documentElement.scrollWidth === document.documentElement.clientWidth` en cada una. Es el ancho que revisa el usuario.
