@@ -230,27 +230,29 @@ export default function Gastos() {
 
       <section className="barra-periodo">
         <div className="barra-periodo-selector">
-          <button
-            type="button"
-            className="periodo-nav"
-            aria-label="Período anterior"
-            onClick={() => moverPeriodo(-1)}
-          >
-            ‹
-          </button>
-          <input
-            type="month"
-            value={periodo}
-            onChange={(e) => e.target.value && setPeriodo(e.target.value)}
-          />
-          <button
-            type="button"
-            className="periodo-nav"
-            aria-label="Período siguiente"
-            onClick={() => moverPeriodo(1)}
-          >
-            ›
-          </button>
+          <div className="periodo-stepper">
+            <button
+              type="button"
+              className="periodo-nav"
+              aria-label="Período anterior"
+              onClick={() => moverPeriodo(-1)}
+            >
+              ‹
+            </button>
+            <input
+              type="month"
+              value={periodo}
+              onChange={(e) => e.target.value && setPeriodo(e.target.value)}
+            />
+            <button
+              type="button"
+              className="periodo-nav"
+              aria-label="Período siguiente"
+              onClick={() => moverPeriodo(1)}
+            >
+              ›
+            </button>
+          </div>
           {cerrados.has(periodo) ? (
             <span className="estado-badge" title="Este período ya fue cerrado">
               <span className="estado-punto estado-punto--cerrado" aria-hidden="true" />

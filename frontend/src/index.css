@@ -1255,38 +1255,65 @@ td.monto {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  /* A 375px el presupuesto horizontal de esta fila (~314px, ver cálculo en
-     el commit) no alcanza para las dos flechas de 44px + un mes largo en
-     una sola línea. En vez de negociar contra el piso del input, se deja
-     que el badge (o la segunda flecha) baje de línea: nunca hay overflow
-     horizontal, como máximo la fila crece en alto. */
+  /* "‹ mes ›" es una sola unidad — separados, las flechas no significan
+     nada. Por eso el que envuelve acá es .barra-periodo-selector (el
+     padre de .periodo-stepper y .estado-badge), no .periodo-stepper: el
+     único corte permitido es entre el stepper completo y el badge, nunca
+     dentro del stepper. A 375px el badge puede terminar en su propia
+     línea; ver cálculo de presupuesto en el commit. */
   flex-wrap: wrap;
   min-width: 0;
 }
 
-.barra-periodo-selector input[type="month"] {
+.periodo-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  /* nowrap explícito: este grupo (‹, mes, ›) tiene que moverse entero. Si
+     .barra-periodo-selector se queda sin lugar, el que baja de línea es
+     .estado-badge completo, nunca una de las flechas sola. */
+  flex-wrap: nowrap;
+}
+
+.periodo-stepper input[type="month"] {
   font-size: 1rem;
   font-weight: 600;
   padding: 0.3rem 0.5rem;
   /* Chrome renderiza "agosto de 2026" y no entraba en los 9.5rem fijos que
-     había acá: el mes salía cortado.
-     El piso NO puede ser igual al viejo width fijo (9.5rem) — ese es
-     justo el valor que ya demostró ser chico. Se derivó así:
-     - Peor caso real: "septiembre de 2026" (18 caracteres), el nombre de
-       mes más largo del rango mayo–septiembre que usa este selector.
-     - Sin poder medir en un Chrome real desde este entorno (extensión no
-       conectada), se estimó el ancho de texto con un ratio de ~0.55em por
-       carácter para Plus Jakarta Sans 600 a 1rem, calibrado contra el
-       propio bug: a los 9.5rem viejos "agosto de 2026" (14 caracteres)
-       perdía solo el último dígito, no una palabra entera, lo que acota
-       el ratio real de ancho por carácter.
-     - 18 car. × ~0.55em × 16px ≈ 158px de texto + ~20px del ícono nativo
-       del picker + 1rem de padding horizontal + 2px de borde (border-box)
-       ⇒ ~196px de necesidad, con margen ⇒ 14rem (224px) de piso.
-     Sigue siendo una estimación, no una medición en navegador: dejar
-     margen es intencional. */
+     había acá: el mes salía cortado. width:auto (no width fijo) es lo que
+     saca el corte de raíz: el campo se dimensiona según el valor actual,
+     el piso de acá abajo es sólo un mínimo, nunca un techo.
+     Mobile-first: esta base cubre <600px, donde .periodo-stepper entero
+     (‹ + mes + › como unidad indivisible, ver .periodo-stepper) tiene que
+     entrar en el presupuesto de ~314px que deja la barra a 375px. Las dos
+     flechas + sus 2 gaps internos ya consumen 104px fijos, dejan ~210px
+     para el input — 12rem (192px) deja ~18px de margen sobre esa cuenta.
+     Con un piso más chico el campo puede "saltar" de ancho entre meses
+     cortos y largos en mobile; se acepta ese trade-off ahí porque la
+     alternativa (mantener el piso "sin salto" de escritorio) desborda el
+     stepper a 375px — ver la cuenta completa en el commit. */
   width: auto;
-  min-width: 14rem;
+  min-width: 12rem;
+}
+
+@media (min-width: 600px) {
+  .periodo-stepper input[type="month"] {
+    /* Desde acá sobra presupuesto horizontal (la barra ya no compite por
+       espacio con el resto de la fila), así que el piso pasa al valor
+       derivado del peor caso real, "septiembre de 2026" (18 caracteres,
+       el mes más largo del rango mayo–septiembre que usa este selector):
+       18 car. × ~0.55em × 16px ≈ 158px de texto + ~20px del ícono nativo
+       del picker + 1rem de padding horizontal + 2px de borde (border-box)
+       ⇒ ~196px de necesidad, con margen ⇒ 14rem (224px). El ratio de
+       ~0.55em/carácter para Plus Jakarta Sans 600 a 1rem está calibrado
+       contra el propio bug: a los 9.5rem viejos "agosto de 2026" (14
+       caracteres) perdía sólo el último dígito, no una palabra entera.
+       Sigue siendo una estimación, no una medición en navegador — no hay
+       extensión de Chrome conectada en este entorno para medir en vivo.
+       Con este piso el campo deja de "saltar" de ancho entre meses de
+       nombre corto y largo. */
+    min-width: 14rem;
+  }
 }
 
 .periodo-nav {
