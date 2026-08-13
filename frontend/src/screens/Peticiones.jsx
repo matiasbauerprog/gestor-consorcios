@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { listarPeticiones, crearPeticion } from "../api/peticiones";
 import { useAuth } from "../auth/AuthContext";
 import ModalDetallePeticion from "../components/ModalDetallePeticion";
+import TablaResponsive from "../components/TablaResponsive";
+import Tarjeta from "../components/Tarjeta";
 import { formatFecha } from "../utils/fechas";
 
 const ESTADOS = ["abierta", "convertida_en_trabajo", "rechazada", "cancelada"];
@@ -115,40 +117,56 @@ export default function Peticiones() {
         </form>
       )}
 
-      <table className="tabla-listado">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Depto</th>
-            <th>Título</th>
-            <th>Estado</th>
-            <th>Fecha</th>
-          </tr>
-        </thead>
-        <tbody>
-          {visibles.length === 0 ? (
-            <tr>
-              <td colSpan={5} className="vacio">
-                Sin peticiones.
-              </td>
-            </tr>
-          ) : (
-            visibles.map((p) => (
-              <tr
-                key={p.id}
-                onClick={() => setModal(p)}
-                style={{ cursor: "pointer" }}
-              >
-                <td>{p.id}</td>
-                <td>{p.departamento_id}</td>
-                <td>{p.titulo}</td>
-                <td>{ETIQUETAS_ESTADO[p.estado] || p.estado}</td>
-                <td>{formatFecha(p.fecha_creacion)}</td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+      <TablaResponsive
+        columnas={[
+          { clave: "id", titulo: "#", ancho: "6ch", celda: (p) => p.id },
+          {
+            clave: "depto",
+            titulo: "Depto",
+            prioridad: 2,
+            ancho: "9ch",
+            celda: (p) => p.departamento_id,
+          },
+          { clave: "titulo", titulo: "Título", ancho: "auto", celda: (p) => p.titulo },
+          {
+            clave: "estado",
+            titulo: "Estado",
+            ancho: "13ch",
+            celda: (p) => ETIQUETAS_ESTADO[p.estado] || p.estado,
+          },
+          {
+            clave: "fecha",
+            titulo: "Fecha",
+            prioridad: 3,
+            ancho: "12ch",
+            celda: (p) => formatFecha(p.fecha_creacion),
+          },
+          {
+            clave: "acciones",
+            titulo: "",
+            className: "col-acciones",
+            ancho: "7rem",
+            celda: (p) => (
+              <button type="button" onClick={() => setModal(p)}>Ver</button>
+            ),
+          },
+        ]}
+        filas={visibles}
+        claveFila={(p) => p.id}
+        vacio="Sin peticiones."
+        renderTarjeta={(p) => (
+          <Tarjeta>
+            <h3>#{p.id} · {p.titulo}</h3>
+            <p className="meta">
+              Depto {p.departamento_id} · {formatFecha(p.fecha_creacion)}
+            </p>
+            <p className="meta">{ETIQUETAS_ESTADO[p.estado] || p.estado}</p>
+            <div className="tarjeta-acciones">
+              <button type="button" onClick={() => setModal(p)}>Ver detalle</button>
+            </div>
+          </Tarjeta>
+        )}
+      />
 
       {modal && (
         <ModalDetallePeticion

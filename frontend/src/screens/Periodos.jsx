@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listarPeriodos } from "../api/periodos";
 import ModalEnvioPdfs from "../components/ModalEnvioPdfs";
-import { formatFecha, formatFechaHora } from "../utils/fechas";
+import TablaResponsive from "../components/TablaResponsive";
+import Tarjeta from "../components/Tarjeta";
+import { formatFechaHora } from "../utils/fechas";
 
 function formatMoney(n) {
   return Number(n).toLocaleString("es-AR", {
@@ -28,48 +30,88 @@ export default function Periodos() {
   return (
     <section>
       <h2>Historial de cierres</h2>
-      {periodos.length === 0 ? (
-        <p>Todavía no hay períodos cerrados.</p>
-      ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Período</th>
-              <th>Cerrado el</th>
-              <th>Boletas</th>
-              <th>Total expensado</th>
-              <th>Intereses</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {periodos.map((p) => (
-              <tr key={p.periodo}>
-                <td>{p.periodo}</td>
-                <td>{formatFechaHora(p.fecha_cierre)}</td>
-                <td>{p.cantidad_expensas}</td>
-                <td>{formatMoney(p.total_expensado)}</td>
-                <td>{formatMoney(p.total_intereses)}</td>
-                <td>
-                  <div style={{ display: "flex", gap: "0.5em", flexWrap: "wrap" }}>
-                    <Link to={`/expensas?periodo=${p.periodo}`}>Ver expensas</Link>
-                    <button
-                      type="button"
-                      onClick={() => setModalEnvio({
-                        periodo: p.periodo,
-                        cantidadExpensas: p.cantidad_expensas,
-                        periodoCerrado: true,
-                      })}
-                    >
-                      ✉ Enviar PDFs
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <TablaResponsive
+        columnas={[
+          { clave: "periodo", titulo: "Período", ancho: "10ch", celda: (p) => p.periodo },
+          {
+            clave: "cerrado",
+            titulo: "Cerrado el",
+            prioridad: 2,
+            ancho: "auto",
+            celda: (p) => formatFechaHora(p.fecha_cierre),
+          },
+          {
+            clave: "boletas",
+            titulo: "Boletas",
+            prioridad: 3,
+            ancho: "9ch",
+            className: "col-monto",
+            celda: (p) => p.cantidad_expensas,
+          },
+          {
+            clave: "total",
+            titulo: "Total expensado",
+            className: "col-monto",
+            ancho: "15ch",
+            celda: (p) => formatMoney(p.total_expensado),
+          },
+          {
+            clave: "intereses",
+            titulo: "Intereses",
+            prioridad: 3,
+            className: "col-monto",
+            ancho: "13ch",
+            celda: (p) => formatMoney(p.total_intereses),
+          },
+          {
+            clave: "acciones",
+            titulo: "",
+            className: "col-acciones",
+            ancho: "11rem",
+            celda: (p) => (
+              <>
+                <Link to={`/expensas?periodo=${p.periodo}`}>Ver expensas</Link>{" "}
+                <button
+                  type="button"
+                  onClick={() => setModalEnvio({
+                    periodo: p.periodo,
+                    cantidadExpensas: p.cantidad_expensas,
+                    periodoCerrado: true,
+                  })}
+                >
+                  ✉ Enviar PDFs
+                </button>
+              </>
+            ),
+          },
+        ]}
+        filas={periodos}
+        claveFila={(p) => p.periodo}
+        vacio="Todavía no hay períodos cerrados."
+        renderTarjeta={(p) => (
+          <Tarjeta>
+            <h3>{p.periodo}</h3>
+            <p className="meta">Cerrado el {formatFechaHora(p.fecha_cierre)}</p>
+            <p className="meta">
+              {p.cantidad_expensas} boletas · {formatMoney(p.total_expensado)}
+            </p>
+            <p className="meta">Intereses: {formatMoney(p.total_intereses)}</p>
+            <div className="tarjeta-acciones">
+              <Link to={`/expensas?periodo=${p.periodo}`}>Ver expensas</Link>
+              <button
+                type="button"
+                onClick={() => setModalEnvio({
+                  periodo: p.periodo,
+                  cantidadExpensas: p.cantidad_expensas,
+                  periodoCerrado: true,
+                })}
+              >
+                ✉ Enviar PDFs
+              </button>
+            </div>
+          </Tarjeta>
+        )}
+      />
       {modalEnvio && (
         <ModalEnvioPdfs
           periodo={modalEnvio.periodo}
