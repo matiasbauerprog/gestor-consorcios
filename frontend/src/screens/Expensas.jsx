@@ -15,7 +15,7 @@ import MenuAcciones from "../components/MenuAcciones";
 import { formatFecha } from "../utils/fechas";
 import { formatearInteres, formatearMonto } from "../utils/montos";
 import { abrirPdfExpensa } from "../api/pdf";
-import { ANCHO_MONTO, ANCHO_PERIODO } from "../utils/anchosColumnas";
+import { ANCHO_FECHA_MONTO, ANCHO_MONTO, ANCHO_PERIODO } from "../utils/anchosColumnas";
 
 export default function Expensas({ embebida = false }) {
   const { user, token } = useAuth();
@@ -141,17 +141,24 @@ export default function Expensas({ embebida = false }) {
         }]
       : []),
     {
+      // `ancho: "auto"` quedó sin el cálculo que sí recibió toda otra
+      // columna de fecha/monto de esta rama (ver ANCHO_FECHA_MONTO en
+      // anchosColumnas.js) — a 1024px de contenedor (762px, prioridad 3
+      // caída, chevron presente) el fijo daba 451px y las dos columnas en
+      // auto se repartían 311px → 156px cada una, 132px utilizables contra
+      // los ≈180px que pide el contenido real ("DD/MM/YYYY · $ NNN.NNN"),
+      // truncando de punta a punta entre ~760px y ~1120px de contenedor.
       clave: "venc1",
       titulo: "1° venc",
       prioridad: 3,
-      ancho: "auto",
+      ancho: ANCHO_FECHA_MONTO,
       celda: (e) => `${formatFecha(e.fecha_primer_vencimiento)} · ${formatearMonto(e.monto_primer_vencimiento)}`,
     },
     {
       clave: "venc2",
       titulo: "2° venc",
       prioridad: 2,
-      ancho: "auto",
+      ancho: ANCHO_FECHA_MONTO,
       celda: (e) => `${formatFecha(e.fecha_segundo_vencimiento)} · ${formatearMonto(e.monto_segundo_vencimiento)}`,
     },
     {

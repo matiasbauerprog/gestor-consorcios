@@ -44,6 +44,49 @@ function labelRubro(value) {
   return RUBROS.find((r) => r.value === value)?.label || value;
 }
 
+// Anchos LOCALES a esta pantalla (no van a anchosColumnas.js: esa cuenta es
+// para fecha/monto/período/CUIT — datos donde truncar es un error real; acá
+// son ETIQUETAS, donde anchosColumnas.js mismo documenta la distinción
+// ("inaceptable en una fecha o un importe, a diferencia de una etiqueta
+// larga"). Truncar una etiqueta con ellipsis es aceptable.
+//
+// Por qué hacían falta anchos fijos acá: con las 5 columnas de texto
+// (concepto, rubro, proveedor, destino, caja) en `auto`, a 1440px de
+// viewport (contenedor real ≈1162px: 1440 − 230 sidebar − 48 padding de
+// `.app-content` en ≥960px, `index.css`) el reparto sobrante después de
+// monto+pago+acciones (≈350px fijos) daba ≈162px por columna — ≈138px
+// utilizables tras el padding, menos de lo que necesita CUALQUIERA de las
+// cinco, incluidas concepto (identifica la fila) y proveedor (razón
+// social, la otra columna que hace falta para escanear la lista). Sacar
+// rubro/destino/caja del reparto (fijas + `prioridad: 3`, igual que
+// proveedor) deja a concepto y proveedor como las únicas dos en `auto`,
+// con mucho más margen. Cada constante usa la fórmula de anchosColumnas.js
+// con un L elegido para el caso TÍPICO (no el peor caso absoluto — ese es
+// justamente el privilegio de ser etiqueta y no monto/fecha).
+
+/** Rubro: 9 valores fijos (`RUBROS`, arriba). L=13 cubre cómodo "Seguros"
+ *  (7) y dos tercios de "Gastos bancarios"/"Gastos generales" (16 cada
+ *  uno, truncan ~2 caracteres); los tres más largos ("Sueldos y cargas
+ *  sociales" 25, "Gastos de administración" 24, "Mantenimiento partes
+ *  comunes" 28) truncan más — aceptable, es una etiqueta.
+ *  (13×8.2×1.2 + 24) / 7.15 ≈ 21.2 → 22ch. */
+const ANCHO_RUBRO = "22ch";
+
+/** Destino (`Clase ${codigo}` / `Depto ${codigo}`). L=7 cubre "Clase A"
+ *  entero (los 4 códigos de clase del seed son de 1 carácter: A–D,
+ *  `backend/seed.py`); los códigos de depto reales del seed ("UF-1A",
+ *  "UF-2B", `backend/seed.py`) dan "Depto UF-1A" (11 caracteres) y
+ *  truncan unos pocos caracteres — aceptable, es una etiqueta.
+ *  (7×8.2×1.2 + 24) / 7.15 ≈ 13.0 → 13ch. */
+const ANCHO_DESTINO = "13ch";
+
+/** Caja: nombre libre (`Caja.nombre`, sin formato fijo — `backend/models.py`).
+ *  Los tres nombres reales del seed (`backend/seed.py`) son "Banco
+ *  Provincia" (16), "Caja chica" (10) y "Fondo de reparación" (19). L=10
+ *  cubre "Caja chica" entero; los otros dos truncan — aceptable.
+ *  (10×8.2×1.2 + 24) / 7.15 ≈ 17.1 → 18ch. */
+const ANCHO_CAJA = "18ch";
+
 export default function Gastos() {
   const navigate = useNavigate();
   const [gastos, setGastos] = useState([]);
@@ -152,19 +195,30 @@ export default function Gastos() {
 
   const columnas = [
     { clave: "concepto", titulo: "Concepto", prioridad: 1, ancho: "auto", celda: (g) => g.concepto },
-    { clave: "rubro", titulo: "Rubro", prioridad: 2, ancho: "auto", celda: (g) => labelRubro(g.rubro) },
+    // `prioridad: 3` (antes 2) y ancho fijo (antes "auto"): ver el comentario
+    // de ANCHO_RUBRO/ANCHO_DESTINO/ANCHO_CAJA arriba — demovida junto con
+    // proveedor/destino/caja, ninguna de las cuatro "identifica la fila ni
+    // es el número que el usuario vino a buscar" (eso es concepto+monto,
+    // prioridad 1); las cuatro son datos que se buscan una vez encontrada
+    // la fila.
+    { clave: "rubro", titulo: "Rubro", prioridad: 3, ancho: ANCHO_RUBRO, celda: (g) => labelRubro(g.rubro) },
+    // Se queda en `auto` (a diferencia de rubro/destino/caja): a diferencia
+    // de esas tres, la razón social no tiene un largo típico acotado — es
+    // texto libre de proveedor — así que un ancho fijo la truncaría siempre
+    // en vez de solo en el caso largo. Con rubro/destino/caja ya afuera del
+    // reparto, esta columna y "concepto" quedan como las únicas dos en auto.
     { clave: "proveedor", titulo: "Proveedor", prioridad: 3, ancho: "auto", celda: (g) => proveedorPorId(g.proveedor_id) },
     {
       clave: "destino",
       titulo: "Clase / Depto",
       prioridad: 3,
-      ancho: "auto",
+      ancho: ANCHO_DESTINO,
       celda: (g) =>
         g.clase_prorrateo_id !== null
           ? `Clase ${clasePorId(g.clase_prorrateo_id)}`
           : `Depto ${deptoPorId(g.departamento_id)}`,
     },
-    { clave: "caja", titulo: "Caja", prioridad: 3, ancho: "auto", celda: (g) => cajaPorId(g.caja_id) },
+    { clave: "caja", titulo: "Caja", prioridad: 3, ancho: ANCHO_CAJA, celda: (g) => cajaPorId(g.caja_id) },
     {
       clave: "monto",
       titulo: "Monto",

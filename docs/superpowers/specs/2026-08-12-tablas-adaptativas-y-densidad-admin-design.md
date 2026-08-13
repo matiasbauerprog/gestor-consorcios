@@ -99,8 +99,23 @@ viewport necesitaría dos calibraciones distintas para la misma tabla.
 | Ancho del contenedor | Se ve |
 |---|---|
 | ≥ 600px | Prioridad 1 |
-| ≥ 760px | + prioridad 2 |
+| ≥ 720px | + prioridad 2 |
 | ≥ 1000px | Todo |
+
+**Corrección post-revisión (2026-08-13): el umbral de prioridad 2 bajó de 760
+a 720.** El contenedor no es el viewport: es viewport menos sidebar (230px,
+solo desde 960px) menos el padding horizontal de `.app-content`, que cambia
+en dos breakpoints propios (`index.css`, reglas `.app-content`): 1rem por
+lado bajo 600px (32px totales), 1.5rem por lado desde 600px (48px totales,
+tanto en el rango 600–959px como en ≥960px). Un viewport de 768px — la
+tablet portrait que motivó todo este trabajo — da un contenedor real de
+768 − 48 = **720px**, 40px por debajo del umbral viejo de 760: la tablet
+caía al escalón mínimo (solo prioridad 1) por un accidente de aritmética,
+no por una decisión de diseño. 720 (con `>=` inclusive) le devuelve su
+escalón intermedio. El detalle completo, incluyendo la cuenta para 375,
+1024 y 1440px, vive en el docblock de `prioridadVisible` en
+`TablaResponsive.jsx` — actualizar ahí primero si este número vuelve a
+moverse.
 
 **El corte tarjetas ↔ tabla es la excepción y sigue siendo por viewport.** Lo
 resuelve `useEsTablet` (`hooks/useBreakpoint.js:24`, `min-width: 600px`) en JS,

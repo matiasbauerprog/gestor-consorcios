@@ -1,14 +1,52 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useEsTablet } from "../hooks/useBreakpoint";
 
-/** Prioridad 2 se cae bajo 760px de contenedor; prioridad 3, bajo 1000px.
+/** Prioridad 2 se cae bajo 720px de contenedor; prioridad 3, bajo 1000px.
  *  Prioridad 1 nunca se cae. Antes de la primera medición (`ancho === null`)
  *  se consideran todas visibles: un primer paint de más es preferible a uno
- *  de menos que salte apenas el ResizeObserver reporta el ancho real. */
+ *  de menos que salte apenas el ResizeObserver reporta el ancho real.
+ *
+ *  Por qué 720 y no 760 (el número original): el contenedor que mide el
+ *  ResizeObserver no es el viewport — es el viewport menos el sidebar
+ *  (230px, solo desde 960px para arriba: `.app-sidebar` en index.css) menos
+ *  el padding horizontal de `.app-content`, que cambia de valor en dos
+ *  breakpoints propios (`index.css`, reglas `.app-content`):
+ *
+ *    <600px   (sin sidebar): padding 1rem   por lado → 32px totales
+ *    600–959px (sin sidebar): padding 1.5rem por lado → 48px totales
+ *    ≥960px    (CON sidebar): padding 1.5rem por lado → 48px totales
+ *
+ *  Contenedor = viewport − sidebar (si aplica) − padding horizontal total.
+ *  Para los cuatro anchos de viewport que este componente declara verificar:
+ *
+ *    375px  (mobile, <600px):  esTablet=false → renderiza cards, no tabla.
+ *                               Contenedor teórico: 375 − 32 = 343px.
+ *    768px  (tablet, 600–959): sin sidebar. 768 − 48 = 720px.
+ *    1024px (desktop, ≥960):   1024 − 230 − 48 = 746px.
+ *    1440px (desktop, ≥960):   1440 − 230 − 48 = 1162px (asumiendo
+ *                               `.app-content:has(.pantalla-ancha)`, tope
+ *                               1600px, que no se activa acá; sin esa clase
+ *                               el tope es 960px y el contenedor da
+ *                               960 − 48 = 912px en su lugar — igual arriba
+ *                               de 720 y por debajo de 1000).
+ *
+ *  760 chocaba de lleno contra el caso de 768px: 720px de contenedor real
+ *  quedaba 40px por DEBAJO del umbral, así que la tablet portrait — el
+ *  ancho que motivó todo este trabajo — caía al escalón mínimo (solo
+ *  prioridad 1) en vez del intermedio. 720 dejaba a la tablet apenas en el
+ *  filo (720 >= 720, `>=` es inclusive) y le daba a 1024px un margen de
+ *  falso-negativo de apenas 2px con el redondeo de 32px de padding que se
+ *  usó en esa cuenta original — con el padding real (48px) el margen en
+ *  1024px es de 26px, pero 720 sigue siendo el número que le da a la
+ *  tablet portrait su escalón intermedio con margen real en vez de quedar
+ *  en el filo exacto. Cualquier cambio futuro a `--ancho-sidebar`, al
+ *  padding de `.app-content`, o un gutter de scrollbar overlay que le robe
+ *  ancho al contenedor debe volver a correr esta cuenta para los cuatro
+ *  anchos de arriba antes de tocar el número. */
 function prioridadVisible(prioridad, ancho) {
   if (prioridad <= 1) return true;
   if (ancho === null) return true;
-  if (prioridad === 2) return ancho >= 760;
+  if (prioridad === 2) return ancho >= 720;
   return ancho >= 1000;
 }
 

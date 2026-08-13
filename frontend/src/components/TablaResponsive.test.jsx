@@ -185,7 +185,7 @@ describe("TablaResponsive — escalones por ancho de contenedor", () => {
     expect(par).toHaveTextContent("ACME");
   });
 
-  it("bajo 760px también sale la de prioridad 2, junto con la de prioridad 3", () => {
+  it("bajo 720px también sale la de prioridad 2, junto con la de prioridad 3", () => {
     const { container } = montarEsc(700);
     expect(container.querySelector('thead th[data-prio="3"]')).toBeNull();
     expect(container.querySelector('thead th[data-prio="2"]')).toBeNull();
@@ -193,6 +193,18 @@ describe("TablaResponsive — escalones por ancho de contenedor", () => {
     expect(pares).toHaveLength(2);
     const prioridades = [...pares].map((p) => p.getAttribute("data-prio")).sort();
     expect(prioridades).toEqual(["2", "3"]);
+  });
+
+  // Caso motivador del umbral: un viewport de 768px (tablet portrait) da un
+  // contenedor real de 720px (768 − 48px de padding de `.app-content` en el
+  // rango 600–959px; ver la cuenta completa en el docblock de
+  // `prioridadVisible` en TablaResponsive.jsx). Con el umbral viejo de 760
+  // ese contenedor caía en el escalón mínimo; con 720 (comparación `>=`,
+  // inclusive) se queda con su escalón intermedio.
+  it("a 720px de contenedor (tablet portrait real) la prioridad 2 todavía se ve", () => {
+    const { container } = montarEsc(720);
+    expect(container.querySelector('thead th[data-prio="2"]')).not.toBeNull();
+    expect(container.querySelector('thead th[data-prio="3"]')).toBeNull();
   });
 
   it("el colSpan de la fila de detalle es la cantidad de columnas visibles más el chevron", () => {

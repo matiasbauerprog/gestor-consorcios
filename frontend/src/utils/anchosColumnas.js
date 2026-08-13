@@ -92,6 +92,35 @@ export const ANCHO_MONTO_DECIMAL = "27ch";
  *  Margen final: 13ch deja ≈68.9px vs. 57.4px crudos → ~20%. */
 export const ANCHO_PERIODO = "13ch";
 
+/** Fecha + monto compuestos en una sola celda (`` `${formatFecha(...)} ·
+ *  ${formatearMonto(...)}` ``, patrón usado por `Expensas.jsx` en las
+ *  columnas `venc1`/`venc2` — "1° venc"/"2° venc" muestran fecha e importe
+ *  del vencimiento juntos, no en columnas separadas). Estas dos columnas
+ *  quedaron en `auto` cuando se migró la pantalla mientras que TODA otra
+ *  fecha y TODO otro monto de esta rama recibió un ancho calculado — el
+ *  mismo error que motivó este archivo, aplicado a un caso compuesto en vez
+ *  de a una fecha o un monto sueltos.
+ *
+ *  L = 10 (`formatFecha`, `DD/MM/YYYY`) + 3 (` · `, espacio-punto medio-
+ *  espacio) + 14 (`formatearMonto` peor caso con signo y 9 dígitos
+ *  significativos, ver `ANCHO_MONTO`) = 27 caracteres.
+ *
+ *  Ojo: NO es la suma de `ANCHO_FECHA` (17ch) + `ANCHO_MONTO` (23ch) =
+ *  40ch — sumar esos dos ya cuenta el padding de celda (24px) y el 20% de
+ *  colchón DOS veces, una por cada mitad, cuando la celda compuesta tiene
+ *  un solo padding y necesita un solo colchón sobre el string completo. La
+ *  cuenta correcta aplica la fórmula UNA vez sobre L=27:
+ *  (27×8.2×1.2 + 24) / 7.15 ≈ 40.5 → 41ch.
+ *  Margen final: 41ch deja ≈269.15px vs. 265.68px crudos → ~1.3%. El
+ *  colchón real es chico a propósito acá — un colchón del ~20% como en las
+ *  columnas sueltas (`ANCHO_FECHA`/`ANCHO_MONTO`) sería redundante: el peor
+ *  caso de fecha (10 caracteres, sin variación real — `formatFecha` siempre
+ *  da `DD/MM/YYYY`) y el peor caso de monto (9 dígitos, ya un techo
+ *  deliberadamente generoso) casi nunca ocurren los DOS a la vez en la
+ *  misma fila, así que el 20% de cada mitad ya presupuesta el colchón que
+ *  haría falta acá. */
+export const ANCHO_FECHA_MONTO = "41ch";
+
 /** CUIT/CUIL `"XX-XXXXXXXX-X"` (p. ej. "30-12345678-9", 13 caracteres) —
  *  igual que `ANCHO_PERIODO`, un string de formato FIJO (regex
  *  `^\d{2}-\d{8}-\d{1}$` en `backend/schemas.py`, columna `String(13)` en
