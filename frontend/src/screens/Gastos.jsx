@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Tarjeta from "../components/Tarjeta";
 import ModalPagarGasto from "../components/ModalPagarGasto";
-import ListaResponsive from "../components/ListaResponsive";
+import TablaResponsive from "../components/TablaResponsive";
 import {
   listarGastos,
   crearGasto,
@@ -301,7 +301,7 @@ export default function Gastos() {
       {cargando && <p>Cargando…</p>}
 
       {!cargando && (
-      <ListaResponsive
+      <TablaResponsive
         columnas={columnas}
         filas={gastos}
         claveFila={(g) => g.id}

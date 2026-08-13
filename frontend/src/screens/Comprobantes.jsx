@@ -10,7 +10,7 @@ import { listarCajas } from "../api/cajas";
 import { obtenerConfiguracion } from "../api/configuracion";
 import { API_BASE } from "../api/client";
 import BadgeEstado from "../components/BadgeEstado";
-import ListaResponsive from "../components/ListaResponsive";
+import TablaResponsive from "../components/TablaResponsive";
 import Modal from "../components/Modal";
 import SelectorDepartamento from "../components/SelectorDepartamento";
 import Tarjeta from "../components/Tarjeta";
@@ -275,7 +275,7 @@ export default function Comprobantes({ embebida = false }) {
       {errorAccion && <p role="alert" className="error-banner">{errorAccion}</p>}
 
       {!cargando && (
-      <ListaResponsive
+      <TablaResponsive
         columnas={columnas}
         filas={comprobantes}
         claveFila={(c) => c.id}

@@ -2787,7 +2787,7 @@ td.monto {
   }
 }
 
-/* ---------- ListaResponsive: tabla de ≥600px para arriba ---------- */
+/* ---------- TablaResponsive: tabla de ≥600px para arriba ---------- */
 
 /* Se llama `.tabla-datos-scroll` y no `.tabla-scroll` porque esa clase ya
    existe (matriz de coeficientes, con `margin: 1rem 0`). Redefinirla le sacaba
@@ -2795,19 +2795,24 @@ td.monto {
    Renombrar es lo único que deja ambas densidades como estaban; reusar la regla
    vieja habría cambiado el espaciado de las tres pantallas convertidas. */
 .tabla-datos-scroll {
-  overflow-x: auto;
+  /* La tabla mide ESTE contenedor, no el viewport: con el sidebar de 230px
+     (línea 2055) el viewport miente por un margen fijo en admin y por nada en
+     la vista depto. Un corte por @media necesitaría dos calibraciones para la
+     misma tabla; con @container hay una sola y siempre correcta. */
+  container-type: inline-size;
+  container-name: tabla;
   margin-bottom: 1rem;
 }
 
 .tabla-datos {
   width: 100%;
-  /* Sin este min-width la tabla se queda clavada en el 100% del contenedor y el
-     contenido que no entra se desborda de la celda en silencio: la columna de
-     acciones quedaba cortada y el `overflow-x: auto` del wrapper nunca llegaba a
-     disparar la barra, porque para el wrapper la tabla seguía midiendo 100%.
-     Con max-content la tabla crece hasta lo que realmente necesita y entonces sí
-     el wrapper scrollea en vez de esconder la última columna. */
-  min-width: max-content;
+  /* Antes acá vivía `min-width: max-content`, que le prohibía a la tabla
+     comprimirse y forzaba scroll horizontal apenas la pantalla se angostaba.
+     Con `fixed` las columnas se reparten el ancho según el <colgroup> en vez
+     de exigir el de su contenido más largo. Efecto lateral buscado: el
+     `white-space: nowrap` de los <th> deja de empujar el ancho de la tabla,
+     porque en layout fijo el contenido ya no participa del cálculo. */
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.8125rem;
 }
@@ -2835,6 +2840,9 @@ td.monto {
 .tabla-datos tbody td {
   padding: 0.6rem 0.75rem;
   vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Los importes se leen mejor alineados a la derecha y tabulados. */

@@ -9,7 +9,7 @@ import ModalComprobantesExpensa from "../components/ModalComprobantesExpensa";
 import ModalEnvioPdfs from "../components/ModalEnvioPdfs";
 import SelectorDepartamento from "../components/SelectorDepartamento";
 import TarjetaExpensa from "../components/TarjetaExpensa";
-import ListaResponsive from "../components/ListaResponsive";
+import TablaResponsive from "../components/TablaResponsive";
 import BadgeEstado from "../components/BadgeEstado";
 import { formatFecha } from "../utils/fechas";
 import { formatearInteres, formatearMonto } from "../utils/montos";
@@ -275,7 +275,7 @@ export default function Expensas({ embebida = false }) {
       )}
 
       {!cargando && (
-        <ListaResponsive
+        <TablaResponsive
           columnas={columnas}
           filas={expensasFiltradas}
           claveFila={(e) => e.id}

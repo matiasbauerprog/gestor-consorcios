@@ -4,7 +4,7 @@ import { listarAmenities } from "../api/amenities";
 import { listarReservas, crearReserva, cancelarReserva } from "../api/reservas";
 import { useAuth } from "../auth/AuthContext";
 import { formatFecha } from "../utils/fechas";
-import ListaResponsive from "../components/ListaResponsive";
+import TablaResponsive from "../components/TablaResponsive";
 
 function fmtFecha(iso) {
   return new Date(iso).toLocaleString("es-AR", {
@@ -260,7 +260,7 @@ export default function Reservas() {
         <div className="reservas-col-listas">
           <section>
             <h3>Próximas reservas (todos los deptos)</h3>
-            <ListaResponsive
+            <TablaResponsive
               columnas={[
                 { clave: "inicio", titulo: "Desde", celda: (r) => fmtFecha(r.inicio) },
                 { clave: "fin", titulo: "Hasta", celda: (r) => fmtFecha(r.fin) },
@@ -281,7 +281,7 @@ export default function Reservas() {
           {esDepto && (
             <section>
               <h3>Mis reservas</h3>
-              <ListaResponsive
+              <TablaResponsive
                 columnas={[
                   { clave: "inicio", titulo: "Desde", celda: (r) => fmtFecha(r.inicio) },
                   { clave: "fin", titulo: "Hasta", celda: (r) => fmtFecha(r.fin) },
