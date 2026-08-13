@@ -13,6 +13,27 @@ function fmtMoney(n) {
   return Number(n).toLocaleString("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 }
 
+// Set completo de TipoCaja (backend/models.py) — efectivo, banco,
+// fondo_reparacion, otro. Antes de TablaResponsive esta columna mostraba el
+// enum crudo sin ancho fijo, así que "fondo_reparacion" se veía entero; con
+// `ancho` declarado (obligatorio bajo table-layout: fixed) el mismo valor
+// truncaba a "fondo_rep…" — una regresión nueva, no algo que ya viniera
+// roto. Mapear a etiqueta legible en vez de agrandar la columna para un
+// snake_case sin traducir.
+const ETIQUETAS_TIPO_CAJA = {
+  banco: "Banco",
+  efectivo: "Efectivo",
+  fondo_reparacion: "Fondo de reparación",
+  otro: "Otro",
+};
+
+// "Fondo de reparación" (20 caracteres) es la etiqueta más larga. Misma
+// aritmética que utils/anchosColumnas.js (celda bold 700, 0.8125rem, ch≈
+// 7.15px, padding 24px): (20×8.2×1.2 + 24) / 7.15 ≈ 30.9 → 30ch (mismo
+// valor que ya usa la columna Estado de Peticiones.jsx para un string de
+// largo casi idéntico, 21 caracteres — margen final consistente, ~16%).
+const ANCHO_TIPO_CAJA = "30ch";
+
 export default function Cajas() {
   const [cajas, setCajas] = useState([]);
   const [modalCaja, setModalCaja] = useState(null);
@@ -55,13 +76,17 @@ export default function Cajas() {
                 {c.nombre}
               </button>
             ) },
-          { clave: "tipo", titulo: "Tipo", prioridad: 2, ancho: "12ch",
-            celda: (c) => c.tipo },
+          { clave: "tipo", titulo: "Tipo", prioridad: 2, ancho: ANCHO_TIPO_CAJA,
+            celda: (c) => ETIQUETAS_TIPO_CAJA[c.tipo] || c.tipo },
           { clave: "descripcion", titulo: "Descripción", prioridad: 3, ancho: "auto",
             celda: (c) => c.descripcion || "—" },
           { clave: "saldo", titulo: "Saldo", ancho: ANCHO_MONTO, className: "col-monto",
             celda: (c) => fmtMoney(c.saldo_actual) },
-          { clave: "activa", titulo: "Activa", prioridad: 3, ancho: "8ch",
+          // 8ch se quedaba corto para el encabezado "ACTIVA" (mayúsculas +
+          // letter-spacing: 0.2em de .tabla-datos thead th) y se lo comía
+          // la columna vecina — el th no tiene overflow:hidden como el td.
+          // 11ch le da lugar sin tocar el texto del título.
+          { clave: "activa", titulo: "Activa", prioridad: 3, ancho: "11ch",
             celda: (c) => (c.activa ? "Sí" : "No") },
           { clave: "acciones", titulo: "", ancho: "4rem", className: "col-acciones",
             celda: (c) => (
@@ -81,7 +106,7 @@ export default function Cajas() {
         renderTarjeta={(c) => (
           <Tarjeta>
             <h3>{c.nombre}</h3>
-            <p className="meta">{c.tipo} · {fmtMoney(c.saldo_actual)}</p>
+            <p className="meta">{ETIQUETAS_TIPO_CAJA[c.tipo] || c.tipo} · {fmtMoney(c.saldo_actual)}</p>
             {c.descripcion && <p className="meta">{c.descripcion}</p>}
             <p className="meta">{c.activa ? "Activa" : "Inactiva"}</p>
             <div className="tarjeta-acciones">

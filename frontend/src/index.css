@@ -1135,6 +1135,19 @@ td.monto {
   color: var(--color-text-muted);
 }
 
+/* Solo en tarjeta: el <span> de la celda de tabla ya hereda el tamaño de
+   `.tabla-datos` (13px) y no debe achicarse. El <p> de la tarjeta, en
+   cambio, ya NO lleva la clase "meta" — `.tarjeta .meta` (0,2,0) le ganaba
+   en especificidad a `.saldo-cuenta--*` (0,1,0) sobre el mismo elemento y
+   el saldo se veía siempre gris (var(--color-text-muted) de `.meta`) sin
+   importar el estado real de la cuenta. Sacar "meta" resuelve el color;
+   esta regla repone el tamaño/margen que "meta" daba, sin reabrir el
+   problema de especificidad porque ya no compite por la propiedad `color`. */
+.tarjeta .saldo-cuenta {
+  font-size: 0.6875rem;
+  margin: 0 0 0.5rem;
+}
+
 /* ---------- Menu kebab ---------- */
 
 .menu-kebab {
@@ -2909,6 +2922,16 @@ td.monto {
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* Identificador de fila (p. ej. el código de unidad en CuentasCorrientes):
+   va destacado sobre sus vecinos, igual que en `.tabla-padron .col-unidad`
+   (la tabla vieja que este componente reemplaza). Todo `<td>` ya hereda
+   `font-weight: 700` de la regla genérica `td {...}` del archivo, así que
+   esto es cinturón y tirantes — pero lo deja explícito e intencional acá en
+   vez de depender de una regla lejana pensada para tablas planas. */
+.tabla-datos .col-unidad {
+  font-weight: 700;
 }
 
 /* Sin `white-space: nowrap` a propósito: esta columna son controles por

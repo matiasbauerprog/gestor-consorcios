@@ -85,7 +85,10 @@ export default function CuentasCorrientes() {
 
       <TablaResponsive
         columnas={[
-          { clave: "unidad", titulo: "Unidad", prioridad: 1, ancho: "12ch",
+          // `col-unidad` (además de fijar el ancho) trae `font-weight: 700`
+          // en index.css — el código de unidad es el identificador de la
+          // fila y va destacado, igual que en la tabla vieja.
+          { clave: "unidad", titulo: "Unidad", prioridad: 1, ancho: "12ch", className: "col-unidad",
             celda: (c) => (
               <Link to={`/departamentos/${c.departamento_id}/cuenta`}>{c.codigo}</Link>
             ) },
@@ -127,7 +130,13 @@ export default function CuentasCorrientes() {
                 <Link to={`/departamentos/${c.departamento_id}/cuenta`}>{c.codigo}</Link>
               </h3>
               <p className="meta">{c.ubicacion || "—"}</p>
-              <p className={`meta saldo-cuenta saldo-cuenta--${cfg.clase}`}>
+              {/* Sin "meta": `.tarjeta .meta` (0,2,0) fija color: var(--color-
+                  text-muted) y le ganaba a `.saldo-cuenta--*` (0,1,0) — el
+                  saldo se veía siempre gris en mobile, tapando todo el
+                  refactor de color. `.saldo-cuenta` trae su propio
+                  font-size/margin (index.css) para no perder el ritmo
+                  tipográfico de las demás líneas "meta" de la tarjeta. */}
+              <p className={`saldo-cuenta saldo-cuenta--${cfg.clase}`}>
                 {formatMoney(c.saldo_total)}
               </p>
               <span className="estado-badge">
