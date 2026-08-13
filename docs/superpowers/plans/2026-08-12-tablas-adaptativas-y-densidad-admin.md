@@ -1105,6 +1105,10 @@ git commit -m "feat: componente MenuAcciones que consume el estilo kebab existen
 
 Criterio: **prioridad 1** es lo que identifica la fila (fecha, período, código) más el número que la persona vino a ver (monto, estado). **Prioridad 3** es lo que solo importa una vez que ya encontraste la fila.
 
+**Decisión del usuario tomada durante la ejecución (2026-08-13): estas tres pantallas también pasan a `MenuAcciones`.** Expensas, Comprobantes y Gastos tienen dos o tres botones sueltos por fila. Quedarían como la única parte de la app con ese patrón mientras el resto usa el menú `⋯`, y esos botones se comen unos 140px de cada fila. La columna de acciones de las tres pasa a un único `MenuAcciones` y su `ancho` baja de `9rem` a `4rem` — el ancho liberado es lo que deja entrar una columna más de datos antes de que empiecen a esconderse.
+
+En mobile **no** se usa el menú: las tarjetas conservan sus botones sueltos, que es lo que corresponde a un target táctil.
+
 - [ ] **Step 1: Expensas**
 
 En el array `columnas` de `Expensas.jsx:125`, agregar a cada objeto:
