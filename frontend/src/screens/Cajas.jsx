@@ -83,11 +83,15 @@ export default function Cajas() {
             celda: (c) => c.descripcion || "—" },
           { clave: "saldo", titulo: "Saldo", ancho: ANCHO_MONTO, className: "col-monto",
             celda: (c) => fmtMoney(c.saldo_actual) },
-          // 8ch se quedaba corto para el encabezado "ACTIVA" (mayúsculas +
-          // letter-spacing: 0.2em de .tabla-datos thead th) y se lo comía
-          // la columna vecina — el th no tiene overflow:hidden como el td.
-          // 11ch le da lugar sin tocar el texto del título.
-          { clave: "activa", titulo: "Activa", prioridad: 3, ancho: "11ch",
+          // Presupuestado solo desde el dato ("Sí"/"No", 2 car.), no desde
+          // el label "ACTIVA": ese era el caso que motivó sacar `white-space:
+          // nowrap` de `.tabla-datos thead th` (index.css) — antes el
+          // header, en mayúsculas + letter-spacing: 0.2em, no entraba en
+          // 8ch y se derramaba sobre la columna vecina, así que se infló la
+          // columna a 11ch solo para el título. Con el header libre de
+          // envolver a dos líneas, el ancho vuelve al dato:
+          // (2×8.2×1.2 + 24) / 7.15 ≈ 6.1 → 7ch.
+          { clave: "activa", titulo: "Activa", prioridad: 3, ancho: "7ch",
             celda: (c) => (c.activa ? "Sí" : "No") },
           { clave: "acciones", titulo: "", ancho: "4rem", className: "col-acciones",
             celda: (c) => (

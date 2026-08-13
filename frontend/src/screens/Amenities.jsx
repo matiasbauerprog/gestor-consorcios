@@ -6,30 +6,30 @@ import TablaResponsive from "../components/TablaResponsive";
 import MenuAcciones from "../components/MenuAcciones";
 import { ANCHO_MONTO_DECIMAL } from "../utils/anchosColumnas";
 
-// Encabezados en mayúsculas + letter-spacing: 0.2em (`.tabla-datos thead
-// th`) piden más ancho del que sugiere el contenido de estas celdas —
-// fórmula calibrada contra el fix real de Cajas.jsx, donde el encabezado
-// "ACTIVA" (6 caracteres) no entraba en 8ch y sí en 11ch:
-// (6×7.5×1.2 + 24) / 7.15 ≈ 10.9 → 11ch, mismo valor que Cajas terminó
-// usando. Fórmula de encabezado: (n×7.5×1.2 + 24) / 7.15, redondeado para
-// arriba; se compara contra la fórmula de contenido de anchosColumnas.js
-// ((L×8.2×1.2 + 24) / 7.15) y se usa la mayor de las dos.
+// Estos anchos se presupuestan SOLO desde los datos, no desde el label del
+// encabezado. Antes se inflaban para que el título mayúscula/letter-spacing
+// de `.tabla-datos thead th` entrara en una sola línea sin derramarse sobre
+// la columna vecina (bug de `white-space: nowrap` bajo `table-layout:
+// fixed`). Con ese `nowrap` sacado de `index.css` (permite que el header
+// envuelva a dos líneas sin costo de layout), el label ya no compite por
+// ancho — se recuperan ~28ch en total, que van directo a la columna Nombre
+// (`auto`) al no tener que reservarse en estas cuatro.
 //
-// "Duración máx" (12 car.): encabezado ≈ 18.5 → 19ch. Contenido, techo de
-// 3 dígitos ("999 h", 5 car. — una política de horas de reserva no pasa de
-// tres cifras en la práctica): ≈ 10.2 → 11ch. Manda el encabezado.
-const ANCHO_DURACION = "19ch";
-// "Anticipación máx" (16 car.): encabezado ≈ 23.5 → 24ch. Contenido, mismo
-// techo de 3 dígitos ("999 días", 8 car.): ≈ 14.4 → 15ch. Manda el
-// encabezado.
-const ANCHO_ANTICIPACION = "24ch";
-// "Máx activas" (11 car.): encabezado ≈ 17.2 → 18ch. Contenido, techo de 2
-// dígitos ("99", 2 car. — un tope de reservas activas por depto no pasa de
-// dos cifras): ≈ 6.1 → 7ch. Manda el encabezado.
-const ANCHO_MAX_ACTIVAS = "18ch";
-// "Cancelación" (11 car.): encabezado ≈ 17.2 → 18ch. Contenido, mismo techo
-// de 3 dígitos ("999 h antes", 11 car.): ≈ 18.5 → 19ch. Manda el contenido
-// por un pelo.
+// Fórmula de contenido (igual a anchosColumnas.js): (L×8.2×1.2 + 24) / 7.15,
+// redondeado para arriba, L = longitud del string más largo posible.
+//
+// "999 h" (techo de 3 dígitos — una política de horas de reserva no pasa de
+// tres cifras en la práctica), 5 car.: (5×8.2×1.2 + 24) / 7.15 ≈ 10.2 → 11ch.
+const ANCHO_DURACION = "11ch";
+// "999 días" (mismo techo de 3 dígitos), 8 car.:
+// (8×8.2×1.2 + 24) / 7.15 ≈ 14.4 → 15ch.
+const ANCHO_ANTICIPACION = "15ch";
+// "99" (techo de 2 dígitos — un tope de reservas activas por depto no pasa
+// de dos cifras), 2 car.: (2×8.2×1.2 + 24) / 7.15 ≈ 6.1 → 7ch.
+const ANCHO_MAX_ACTIVAS = "7ch";
+// "999 h antes" (mismo techo de 3 dígitos), 11 car.:
+// (11×8.2×1.2 + 24) / 7.15 ≈ 18.5 → 19ch. Sin cambios: acá ya mandaba el
+// contenido, no el header.
 const ANCHO_CANCELACION = "19ch";
 
 export default function Amenities() {

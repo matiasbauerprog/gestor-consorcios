@@ -2889,7 +2889,31 @@ td.monto {
   text-transform: uppercase;
   color: var(--color-text-muted);
   border-bottom: 1px solid var(--color-border);
-  white-space: nowrap;
+  /* NO reponer `white-space: nowrap` acá. Bajo `table-layout: fixed` el
+     contenido del <th> no participa del cálculo de ancho de columna (ver
+     comentario en `.tabla-datos` arriba), así que dejarlo envolver a dos
+     líneas no cuesta nada de layout. `nowrap` sí cuesta: fuerza al título
+     a una sola línea y, a diferencia del <td>, el <th> no tiene
+     `overflow`/`text-overflow` — un título más ancho que su columna se
+     derrama sobre la celda vecina bajo layout fijo. Ese era exactamente
+     el bug que obligó a inflar columnas de datos solo para que entrara
+     su label (precedente: "ACTIVA" en Cajas.jsx necesitaba 11ch en vez
+     de 8ch únicamente por el ancho del título). El arreglo de fondo es
+     dejar que el header envuelva; los anchos de columna se presupuestan
+     desde los DATOS (ver anchosColumnas.js y los anchos locales de cada
+     pantalla), nunca desde el label. Si hace falta volver a poner
+     `nowrap`, el label vuelve a mandar sobre el ancho en vez de los
+     datos — angostá o reformulá el título en cambio.
+
+     `vertical-align: bottom`: con headers de una y de dos líneas
+     conviviendo en la misma <tr> (según qué título se banca envolver),
+     el default `baseline` alinea por la PRIMERA línea de cada celda —
+     un header de una línea queda flotando arriba, con un hueco entre su
+     texto y el `border-bottom`, mientras uno de dos líneas cuelga su
+     segunda línea bien abajo. `bottom` hace que la última línea de
+     cualquier header (una o dos) quede pegada al mismo borde inferior,
+     así toda la fila lee como un renglón parejo en vez de un serrucho. */
+  vertical-align: bottom;
 }
 
 .tabla-datos tbody tr {
