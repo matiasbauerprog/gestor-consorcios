@@ -125,7 +125,7 @@ export default function CuentasCorrientes() {
         renderTarjeta={(c) => {
           const cfg = ESTILOS_ESTADO[estadoDeCuenta(c)];
           return (
-            <Tarjeta>
+            <Tarjeta className="tarjeta-cuenta">
               <h3>
                 <Link to={`/departamentos/${c.departamento_id}/cuenta`}>{c.codigo}</Link>
               </h3>

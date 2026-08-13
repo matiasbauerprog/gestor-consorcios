@@ -707,6 +707,14 @@ td button {
   border: none;
   border-bottom: 1px solid var(--color-border);
   cursor: pointer;
+  /* El reset "ghost" de `button` (index.css, cerca de la línea 216) cubre
+     text-transform/font-weight/letter-spacing/box-shadow pero no
+     border-radius, así que este item hereda el `border-radius:
+     var(--radius-sm)` de la regla base de `button`. El item es una fila
+     de ancho completo pegada a los bordes del panel — con radio se ve
+     como un chiclet redondeado en vez de una banda continua, y el tinte
+     de no-leído (`.campanita-item-no-leida`) lo hace obvio. */
+  border-radius: 0;
 }
 
 .campanita-item:last-child {
@@ -1685,6 +1693,23 @@ td.monto {
   margin: 0 0 0.25rem;
   font-size: 0.8125rem;
   overflow-wrap: anywhere;
+}
+
+/* CuentasCorrientes: el <h3><a> es la ÚNICA ruta táctil hacia el detalle de
+   cuenta en la card mobile. Sin esto el área de toque es la caja de línea
+   del texto: 0.8125rem (13px) de fuente × ~1.15 de line-height por default
+   del navegador ≈ 15px de alto — muy por debajo de los 44px que el
+   proyecto exige para objetivos táctiles (frontend.md), y en la ÚNICA
+   pantalla que el usuario revisa personalmente. `padding` vertical agranda
+   el área de toque; `margin` negativo igual y opuesto cancela el espacio
+   extra para no correr el `<p>` de abajo ni la card. 0.9rem (14.4px) arriba
+   y abajo + ~15px de caja de línea ≈ 44px. Scopeado a `.tarjeta-cuenta`
+   (no a `.tarjeta h3 a` global) porque ninguna otra card de la app usa el
+   título como link — ensancharlo ahí afectaría cards que no lo necesitan. */
+.tarjeta-cuenta h3 a {
+  display: inline-block;
+  padding: 0.9rem 0;
+  margin: -0.9rem 0;
 }
 
 .tarjeta h4 {
@@ -3134,10 +3159,24 @@ td.monto {
   white-space: normal;
 }
 
-/* Los importes se leen mejor alineados a la derecha y tabulados. */
+/* Los importes se leen mejor alineados a la derecha y tabulados.
+   `white-space: nowrap` va en un selector aparte (0,2,2 con las dos
+   `:not(:has())`) en vez de acá adentro (0,2,0) a propósito: `.col-monto`
+   sola le gana en especificidad a `.tabla-datos tbody td:has(button)` /
+   `:has(a)` (0,1,3) por conteo de clases, así que si el día de mañana una
+   columna de monto agrega un botón (p. ej. "Confirmar pago"), `nowrap`
+   pisaría en silencio el `white-space: normal` que esas reglas necesitan
+   para no recortar el control — la misma trampa que ya obligó a sacar
+   `nowrap` de `.col-acciones` más abajo. `:not(:has(button)):not(:has(a))`
+   deja `.col-monto` fuera de esa trampa sin tener que acordarse de nada la
+   próxima vez: ninguna columna de monto actual tiene botón, así que hoy no
+   cambia nada visualmente. */
 .tabla-datos .col-monto {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.tabla-datos .col-monto:not(:has(button)):not(:has(a)) {
   white-space: nowrap;
 }
 
@@ -3181,11 +3220,35 @@ td.monto {
 
 /* ---------- Escalones de la tabla adaptativa ---------- */
 
+/* `tr:last-child td { border-bottom: none }` (arriba, regla global) asume
+   que la última <tr> del DOM es la última fila de datos. TablaResponsive
+   intercala una <tr class="fila-detalle"> después de cada fila siempre que
+   `hayDetalle` (existe en el DOM aunque esté escondida con el atributo
+   `hidden`), así que en esas tablas la última <tr> real es la de detalle,
+   no la de datos visible — la regla global le saca el borde a la fila
+   equivocada y la última fila de datos queda con un borde que ninguna otra
+   tabla de la app muestra en su última fila. Selecciona en cambio la fila
+   de datos que tiene una `.fila-detalle` como hermano siguiente Y esa
+   `.fila-detalle` es a su vez la última hija: esa es la fila de datos real
+   que necesita perder el borde. Bajo `border-collapse: collapse` el borde
+   de celda (`td`) tiene prioridad sobre el de fila (`.tabla-datos tbody tr`
+   de arriba), así que alcanza con pisarlo acá. */
+.fila-datos:has(+ .fila-detalle:last-child) td {
+  border-bottom: none;
+}
+
 /* Fondo y padding propios de la celda que envuelve los pares etiqueta/valor
-   de la fila de detalle (distinta del padding de `.tabla-datos tbody td`). */
+   de la fila de detalle (distinta del padding de `.tabla-datos tbody td`).
+   NO reusa `var(--color-bg)`: es el mismo tono que `.tabla-datos tbody
+   tr:hover` (arriba), y un panel expandido con el mismo fondo que una fila
+   apenas hovereada se lee como si no hubiera pasado nada al hacer click —
+   sobre todo con mouse, donde la fila puede quedar hovereada Y expandida a
+   la vez. El detalle es un estado más "asentado" que un hover de paso, así
+   que usa una mezcla más oscura/saturada con `--color-border` en vez del
+   tinte plano de `--color-bg`. */
 .fila-detalle > td {
   padding: 0 0.75rem 0.7rem;
-  background: var(--color-bg);
+  background: color-mix(in srgb, var(--color-bg) 60%, var(--color-border) 40%);
 }
 
 /* TablaResponsive ya solo renderiza los pares de las columnas que el
