@@ -1,11 +1,35 @@
 import { useEffect, useState } from "react";
 import Tarjeta from "../components/Tarjeta";
+import TablaResponsive from "../components/TablaResponsive";
 import {
   listarProveedores,
   crearProveedor,
   actualizarProveedor,
   eliminarProveedor,
 } from "../api/proveedores";
+import { ANCHO_CUIT } from "../utils/anchosColumnas";
+
+// "Inactivo" (8 caracteres) es el string más largo de esta columna. Mismo
+// cálculo que el ANCHO_ESTADO local de GastosHabituales.jsx y
+// ClasesProrrateo.jsx — no se centraliza en anchosColumnas.js porque el
+// texto exacto ("Activo/Inactivo" acá vs. "Activa/Inactiva" en
+// ClasesProrrateo.jsx) cambia de pantalla a pantalla, a diferencia de una
+// fecha, un monto o un CUIT que sí tienen un formato fijo único:
+// (8×8.2×1.2 + 24) / 7.15 ≈ 14.4 → 15ch.
+const ANCHO_ESTADO = "15ch";
+
+// Dos botones sueltos en la celda, NO MenuAcciones: esta fila solo tiene
+// dos acciones (Editar / Activar-Desactivar, sin Eliminar — Proveedores no
+// tiene esa acción), y el menú "⋯" se reserva para filas con tres o más
+// (ver Cajas.jsx / Amenities.jsx / GastosHabituales.jsx). "Desactivar" (10
+// caracteres) es la etiqueta más larga de las dos; 11rem reusa el ancho ya
+// probado en Periodos.jsx para una celda con dos controles ("Ver expensas"
+// + "✉ Enviar PDFs", más texto combinado que "Editar" + "Desactivar" acá),
+// así que entra sin necesidad de envolver en el caso común. Si algún día
+// hiciera falta más precisión, `.tabla-datos tbody td:has(button)` ya tiene
+// `white-space: normal` (index.css) — un ajuste corto solo agrega una
+// segunda línea, nunca corta ni fuerza scroll horizontal.
+const ANCHO_ACCIONES_PROVEEDOR = "11rem";
 
 export default function Proveedores() {
   const [proveedores, setProveedores] = useState([]);
@@ -61,29 +85,55 @@ export default function Proveedores() {
       </header>
 
       {error && <p role="alert" className="error-banner">{error}</p>}
-      {proveedores.length === 0 && <p>No hay proveedores con esos filtros.</p>}
 
-      <ul className="lista-config">
-        {proveedores.map((p) => (
-          <li key={p.id}>
-            <Tarjeta>
-              <h3>{p.razon_social}</h3>
-              {p.nombre_fantasia && <p className="meta">Nombre fantasía: {p.nombre_fantasia}</p>}
-              <p className="meta">CUIT: {p.cuit}</p>
-              {p.direccion && <p className="meta">Dirección: {p.direccion}</p>}
-              <p className="meta">Estado: {p.activo ? "Activo" : "Inactivo"}</p>
-              <div className="tarjeta-acciones">
+      <TablaResponsive
+        columnas={[
+          { clave: "razon", titulo: "Razón social", prioridad: 1, ancho: "auto",
+            celda: (p) => p.razon_social },
+          { clave: "fantasia", titulo: "Nombre fantasía", prioridad: 3, ancho: "auto",
+            celda: (p) => p.nombre_fantasia || "—" },
+          { clave: "cuit", titulo: "CUIT", prioridad: 1, ancho: ANCHO_CUIT,
+            celda: (p) => p.cuit },
+          { clave: "direccion", titulo: "Dirección", prioridad: 3, ancho: "auto",
+            celda: (p) => p.direccion || "—" },
+          { clave: "estado", titulo: "Estado", prioridad: 2, ancho: ANCHO_ESTADO,
+            celda: (p) => (p.activo ? "Activo" : "Inactivo") },
+          {
+            clave: "acciones", titulo: "", className: "col-acciones", prioridad: 1,
+            ancho: ANCHO_ACCIONES_PROVEEDOR,
+            celda: (p) => (
+              <>
                 <button type="button" onClick={() => setModal({ tipo: "editar", proveedor: p })}>
                   Editar
-                </button>
+                </button>{" "}
                 <button type="button" onClick={() => toggleActivo(p)}>
                   {p.activo ? "Desactivar" : "Activar"}
                 </button>
-              </div>
-            </Tarjeta>
-          </li>
-        ))}
-      </ul>
+              </>
+            ),
+          },
+        ]}
+        filas={proveedores}
+        claveFila={(p) => p.id}
+        vacio="No hay proveedores con esos filtros."
+        renderTarjeta={(p) => (
+          <Tarjeta>
+            <h3>{p.razon_social}</h3>
+            {p.nombre_fantasia && <p className="meta">Nombre fantasía: {p.nombre_fantasia}</p>}
+            <p className="meta">CUIT: {p.cuit}</p>
+            {p.direccion && <p className="meta">Dirección: {p.direccion}</p>}
+            <p className="meta">Estado: {p.activo ? "Activo" : "Inactivo"}</p>
+            <div className="tarjeta-acciones">
+              <button type="button" onClick={() => setModal({ tipo: "editar", proveedor: p })}>
+                Editar
+              </button>
+              <button type="button" onClick={() => toggleActivo(p)}>
+                {p.activo ? "Desactivar" : "Activar"}
+              </button>
+            </div>
+          </Tarjeta>
+        )}
+      />
 
       {modal?.tipo === "crear" && (
         <ModalProveedor

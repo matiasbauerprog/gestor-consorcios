@@ -91,3 +91,16 @@ export const ANCHO_MONTO_DECIMAL = "27ch";
  *  (7×8.2×1.2 + 24) / 7.15 ≈ 13.0 → 13ch.
  *  Margen final: 13ch deja ≈68.9px vs. 57.4px crudos → ~20%. */
 export const ANCHO_PERIODO = "13ch";
+
+/** CUIT/CUIL `"XX-XXXXXXXX-X"` (p. ej. "30-12345678-9", 13 caracteres) —
+ *  igual que `ANCHO_PERIODO`, un string de formato FIJO (regex
+ *  `^\d{2}-\d{8}-\d{1}$` en `backend/schemas.py`, columna `String(13)` en
+ *  `backend/models.py`: `Proveedor.cuit`, `AdministracionGlobal.cuit`,
+ *  `Consorcio.cuit`, `Administracion.cuit`), no un texto libre — el mismo
+ *  argumento que ya justificó centralizar fecha/monto/período: nunca varía
+ *  de largo, así que un solo ancho calculado acá evita que cada pantalla
+ *  (Proveedores, y cualquier futura tabla de Empleados/CUIL o
+ *  Administraciones) lo adivine de nuevo o lo subestime.
+ *  (13×8.2×1.2 + 24) / 7.15 ≈ 21.2 → 22ch.
+ *  Margen final: 22ch deja ≈133.3px vs. 106.6px crudos → ~25%. */
+export const ANCHO_CUIT = "22ch";

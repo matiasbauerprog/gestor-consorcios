@@ -1,11 +1,29 @@
 import { useEffect, useState } from "react";
 import Tarjeta from "../components/Tarjeta";
+import TablaResponsive from "../components/TablaResponsive";
+import MenuAcciones from "../components/MenuAcciones";
 import {
   listarClasesProrrateo,
   crearClaseProrrateo,
   actualizarClaseProrrateo,
   eliminarClaseProrrateo,
 } from "../api/clasesProrrateo";
+
+// El código admite hasta 8 caracteres (`maxLength={8}` en el form de abajo,
+// mismo tope que `ClaseProrrateo.codigo` en backend/models.py, String(8)).
+// Contenido, misma aritmética que utils/anchosColumnas.js:
+// (8×8.2×1.2 + 24) / 7.15 ≈ 14.4 → 15ch.
+const ANCHO_CODIGO = "15ch";
+
+// "Inactiva" (8 caracteres) es el string más largo de esta columna —
+// mismo cálculo y mismo valor que el ANCHO_ESTADO local de
+// GastosHabituales.jsx (no se centraliza en anchosColumnas.js porque el
+// texto exacto de esta columna cambia de pantalla a pantalla —
+// "Activa/Inactiva" acá, "Activo/Inactivo" en Proveedores.jsx — así que
+// no hay una sola constante de ancho+contenido reutilizable, a diferencia
+// de una fecha o un monto que sí tienen un formato fijo único):
+// (8×8.2×1.2 + 24) / 7.15 ≈ 14.4 → 15ch.
+const ANCHO_ESTADO = "15ch";
 
 export default function ClasesProrrateo() {
   const [clases, setClases] = useState([]);
@@ -54,30 +72,51 @@ export default function ClasesProrrateo() {
       </header>
 
       {error && <p role="alert" className="error-banner">{error}</p>}
-      {clases.length === 0 && <p>No hay clases cargadas.</p>}
 
-      <ul className="lista-config">
-        {clases.map((c) => (
-          <li key={c.id}>
-            <Tarjeta>
-              <h3>{c.codigo} · {c.nombre}</h3>
-              {c.descripcion && <p className="meta">{c.descripcion}</p>}
-              <p className="meta">Estado: {c.activa ? "Activa" : "Inactiva"}</p>
-              <div className="tarjeta-acciones">
-                <button type="button" onClick={() => setModal({ tipo: "editar", clase: c })}>
-                  Editar
-                </button>
-                <button type="button" onClick={() => toggleActiva(c)}>
-                  {c.activa ? "Desactivar" : "Activar"}
-                </button>
-                <button type="button" className="boton-borrar" onClick={() => borrar(c)}>
-                  Eliminar
-                </button>
-              </div>
-            </Tarjeta>
-          </li>
-        ))}
-      </ul>
+      <TablaResponsive
+        columnas={[
+          { clave: "codigo", titulo: "Código", prioridad: 1, ancho: ANCHO_CODIGO,
+            celda: (c) => c.codigo },
+          { clave: "nombre", titulo: "Nombre", prioridad: 1, ancho: "auto",
+            celda: (c) => c.nombre },
+          { clave: "descripcion", titulo: "Descripción", prioridad: 3, ancho: "auto",
+            celda: (c) => c.descripcion || "—" },
+          { clave: "estado", titulo: "Estado", prioridad: 2, ancho: ANCHO_ESTADO,
+            celda: (c) => (c.activa ? "Activa" : "Inactiva") },
+          { clave: "acciones", titulo: "", className: "col-acciones", prioridad: 1, ancho: "4rem",
+            celda: (c) => (
+              <MenuAcciones
+                etiqueta={`Acciones de la clase ${c.codigo} — ${c.nombre}`}
+                acciones={[
+                  { label: "Editar", onSelect: () => setModal({ tipo: "editar", clase: c }) },
+                  { label: c.activa ? "Desactivar" : "Activar", onSelect: () => toggleActiva(c) },
+                  { label: "Eliminar", onSelect: () => borrar(c), peligro: true },
+                ]}
+              />
+            ) },
+        ]}
+        filas={clases}
+        claveFila={(c) => c.id}
+        vacio="No hay clases cargadas."
+        renderTarjeta={(c) => (
+          <Tarjeta>
+            <h3>{c.codigo} · {c.nombre}</h3>
+            {c.descripcion && <p className="meta">{c.descripcion}</p>}
+            <p className="meta">Estado: {c.activa ? "Activa" : "Inactiva"}</p>
+            <div className="tarjeta-acciones">
+              <button type="button" onClick={() => setModal({ tipo: "editar", clase: c })}>
+                Editar
+              </button>
+              <button type="button" onClick={() => toggleActiva(c)}>
+                {c.activa ? "Desactivar" : "Activar"}
+              </button>
+              <button type="button" className="boton-borrar" onClick={() => borrar(c)}>
+                Eliminar
+              </button>
+            </div>
+          </Tarjeta>
+        )}
+      />
 
       {modal?.tipo === "crear" && (
         <ModalForm
