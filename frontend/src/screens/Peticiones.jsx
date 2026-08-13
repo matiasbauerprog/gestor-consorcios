@@ -129,9 +129,12 @@ export default function Peticiones() {
           },
           { clave: "titulo", titulo: "Título", ancho: "auto", celda: (p) => p.titulo },
           {
+            // "Convertida en trabajo" (21 caracteres) es la etiqueta más
+            // larga de ETIQUETAS_ESTADO — el ancho se mide desde ahí, no
+            // desde las más cortas ("Abierta", "Rechazada", "Cancelada").
             clave: "estado",
             titulo: "Estado",
-            ancho: "13ch",
+            ancho: "23ch",
             celda: (p) => ETIQUETAS_ESTADO[p.estado] || p.estado,
           },
           {

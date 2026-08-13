@@ -2877,9 +2877,14 @@ td.monto {
   white-space: nowrap;
 }
 
+/* Sin `white-space: nowrap` a propósito: esta columna son controles por
+   definición, nunca texto que quiera ellipsis. Con `nowrap` acá (0,2,0 —
+   dos clases) le gana en especificidad a la regla `:has(button)`/`:has(a)`
+   de arriba (0,1,3), la anula en silencio, y un control queda recortado e
+   inalcanzable. Si hace falta achicar el ancho visual, hacerlo con `ancho`
+   en la columna, no reintroduciendo `nowrap` acá. */
 .tabla-datos .col-acciones {
   text-align: right;
-  white-space: nowrap;
 }
 
 /* ---------- Escalones de la tabla adaptativa ---------- */
