@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Tarjeta from "../components/Tarjeta";
+import TablaResponsive from "../components/TablaResponsive";
+import MenuAcciones from "../components/MenuAcciones";
 import {
   listarGastosHabituales,
   crearGastoHabitual,
@@ -10,6 +12,7 @@ import {
 import { listarClasesProrrateo } from "../api/clasesProrrateo";
 import { listarProveedores } from "../api/proveedores";
 import { listarCajas } from "../api/cajas";
+import { ANCHO_MONTO_DECIMAL } from "../utils/anchosColumnas";
 
 const RUBROS = [
   { value: "sueldos_y_cargas_sociales", label: "Sueldos y cargas sociales" },
@@ -34,6 +37,15 @@ const FORMAS_PAGO = [
 function labelRubro(value) {
   return RUBROS.find((r) => r.value === value)?.label || value;
 }
+
+// "Inactiva" (8 caracteres) es el string más largo de esta columna: contenido
+// ≈ (8×8.2×1.2 + 24) / 7.15 ≈ 14.4 → 15ch (misma aritmética que
+// utils/anchosColumnas.js). El encabezado "Estado" en mayúsculas +
+// letter-spacing: 0.2em (`.tabla-datos thead th`) pediría bastante menos
+// (6 caracteres: (6×7.5×1.2 + 24) / 7.15 ≈ 10.9 → 11ch — fórmula calibrada
+// contra el fix real de Cajas.jsx, donde "ACTIVA" no entraba en 8ch y sí en
+// 11ch), así que acá manda el contenido, no el título.
+const ANCHO_ESTADO = "15ch";
 
 export default function GastosHabituales() {
   const navigate = useNavigate();
@@ -132,11 +144,70 @@ export default function GastosHabituales() {
 
       {error && <p role="alert" className="error-banner">{error}</p>}
       {cargando && <p>Cargando…</p>}
-      {!cargando && habituales.length === 0 && <p>No hay gastos recurrentes para mostrar.</p>}
 
-      <ul className="lista-config">
-        {habituales.map((h) => (
-          <li key={h.id}>
+      {!cargando && (
+        <TablaResponsive
+          columnas={[
+            { clave: "nombre", titulo: "Nombre", prioridad: 1, ancho: "auto", celda: (h) => h.nombre },
+            {
+              clave: "monto",
+              titulo: "Monto",
+              prioridad: 1,
+              ancho: ANCHO_MONTO_DECIMAL,
+              className: "col-monto",
+              celda: (h) => `$${h.monto.toLocaleString("es-AR")}`,
+            },
+            { clave: "rubro", titulo: "Rubro", prioridad: 2, ancho: "auto", celda: (h) => labelRubro(h.rubro) },
+            {
+              clave: "clase",
+              titulo: "Clase",
+              prioridad: 3,
+              ancho: "auto",
+              celda: (h) => clasePorId(h.clase_prorrateo_id),
+            },
+            {
+              clave: "proveedor",
+              titulo: "Proveedor",
+              prioridad: 3,
+              ancho: "auto",
+              celda: (h) => proveedorPorId(h.proveedor_id),
+            },
+            { clave: "caja", titulo: "Caja", prioridad: 3, ancho: "auto", celda: (h) => cajaPorId(h.caja_id) },
+            {
+              // La lista siempre está filtrada a "activas" o a "inactivas"
+              // (`recargar` pide `{activa: true}` o `{activa: false}`, nunca
+              // ambas mezcladas), así que este valor es constante entre las
+              // filas visibles — no sirve para comparar una fila contra otra,
+              // solo para confirmar en qué vista estoy una vez que ya
+              // encontré la fila. Por eso prioridad 3, no 2 como en el brief.
+              clave: "estado",
+              titulo: "Estado",
+              prioridad: 3,
+              ancho: ANCHO_ESTADO,
+              celda: (h) => (h.activa ? "Activa" : "Inactiva"),
+            },
+            {
+              clave: "acciones",
+              titulo: "",
+              className: "col-acciones",
+              prioridad: 1,
+              ancho: "4rem",
+              celda: (h) => (
+                <MenuAcciones
+                  etiqueta={`Acciones de ${h.nombre}`}
+                  acciones={[
+                    { label: "Editar", onSelect: () => setModal({ tipo: "editar", habitual: h }) },
+                    { label: h.activa ? "Desactivar" : "Activar", onSelect: () => toggleActiva(h) },
+                    { label: "Eliminar", onSelect: () => borrar(h), peligro: true },
+                  ]}
+                />
+              ),
+            },
+          ]}
+          filas={habituales}
+          claveFila={(h) => h.id}
+          vacio="No hay gastos recurrentes para mostrar."
+          renderTarjeta={(h) => (
             <Tarjeta>
               <h3>{h.nombre} — ${h.monto.toLocaleString("es-AR")}</h3>
               <p className="meta">Rubro: {labelRubro(h.rubro)}</p>
@@ -156,9 +227,9 @@ export default function GastosHabituales() {
                 </button>
               </div>
             </Tarjeta>
-          </li>
-        ))}
-      </ul>
+          )}
+        />
+      )}
 
       {modal && (
         <ModalHabitual

@@ -80,6 +80,19 @@
   box-sizing: border-box;
 }
 
+/* Texto solo para lectores de pantalla. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -199,7 +212,8 @@ td button,
 .tab-panel,
 .selector-consorcio-boton,
 .selector-consorcio-item button,
-.menu-kebab-item {
+.menu-kebab-item,
+.campanita-item {
   text-transform: none;
   font-weight: 600;
   letter-spacing: normal;
@@ -276,10 +290,49 @@ table {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  /* Mobile: la tabla scrollea horizontal dentro de su caja, sin desbordar la pantalla */
+}
+
+/* ---------- Tablas LEGACY (no migradas a TablaResponsive) ---------- */
+/*
+ * Este par de reglas (acá + su contraparte en el media query de 960px, más
+ * abajo) es una RESTAURACIÓN, no una mejora: existía como parte de la regla
+ * `table` de arriba antes de esta rama y se borró junto con su contraparte
+ * de desktop al construir TablaResponsive, dejando sin ningún control de
+ * desborde horizontal a las tablas que esta rama NO migró — `.app-content`
+ * y `body` no declaran `overflow-x`, así que cualquiera de esas tablas más
+ * ancha que su contenedor corre la página ENTERA de costado en vez de
+ * scrollear solo la tabla.
+ *
+ * `:not(.tabla-datos)` es lo que separa las dos generaciones: `.tabla-datos`
+ * (TablaResponsive) resuelve su propio desborde recortando columnas al
+ * ancho medido por ResizeObserver y nunca necesitó este scroll; las trece
+ * tablas que siguen sin convertir (PadronDeptos, MiCuenta,
+ * DepartamentoCuenta, Liquidaciones ×2, Trabajos, TrabajosRecurrentes,
+ * ModalDetalleTrabajo, ReporteEstadoFinanciero ×2, ReporteGastosPeriodo ×2,
+ * ReporteMorosos, ReporteProveedores, SuperAdminAuditLog) sí lo necesitan,
+ * exactamente como lo necesitaban en `master` antes de esta rama.
+ * `Coeficientes.jsx` no depende de esto — trae su propio wrapper
+ * `.tabla-scroll` con `overflow-x: auto` propio.
+ *
+ * BORRAR este bloque (las dos reglas) el día que las trece tablas
+ * restantes se conviertan a TablaResponsive. Hasta entonces existe
+ * únicamente para sostenerlas en su comportamiento pre-rama, no para
+ * mejorarlas.
+ */
+table:not(.tabla-datos) {
   display: block;
   overflow-x: auto;
   overflow-y: hidden;
+}
+
+@media (min-width: 960px) {
+  /* A este ancho el sidebar deja de robarle espacio angosto al contenido y
+     la mayoría de estas tablas ya entran sin scroll — vuelven a renderizar
+     como tabla real en vez de forzar el modo caja-con-scroll de mobile. */
+  table:not(.tabla-datos) {
+    display: table;
+    overflow: hidden;
+  }
 }
 
 th {
@@ -532,46 +585,78 @@ td button {
   background: transparent;
   border: none;
   cursor: pointer;
-  font-size: 1.4rem;
   padding: 0.25rem 0.5rem;
   position: relative;
   min-height: 44px;
-  min-width: 44px;
+  min-width: 38px;
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
 }
 
 .campanita-boton:hover:not(:disabled) {
   background: var(--color-surface);
-  border-radius: var(--radius-sm);
 }
 
+.campanita-boton.abierto {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+/* Punto discreto (patrón Linear/Notion) en vez de badge numérico: el
+   usuario eligió esta dirección entre tres mockups. No mostrar el
+   conteo — count sigue guardado en estado por si hace falta más
+   adelante, pero la UI ahora solo lee count > 0. */
 .campanita-badge {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: 7px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
   background: var(--color-danger);
-  color: var(--color-surface);
-  border-radius: 50%;
-  padding: 0 0.35rem;
-  font-size: 0.625rem;
-  font-weight: 700;
-  min-width: 1.1rem;
-  line-height: 1.1rem;
-  text-align: center;
+  /* El borde del color de la superficie separa el punto del ícono: sin él,
+     el punto se funde con el trazo de la campana. */
+  border: 2px solid var(--color-surface);
 }
 
+/* Base (mobile): sheet a lo ancho, anclada abajo. Mismo patrón y misma
+   animación que SheetCuenta, que es lo que el usuario ya conoce. */
 .campanita-panel {
-  position: absolute;
-  top: 100%;
+  position: fixed;
+  left: 0;
   right: 0;
+  bottom: 0;
+  top: auto;
   z-index: 100;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  min-width: 20rem;
-  max-width: 90vw;
-  max-height: 25rem;
+  border-bottom: none;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  max-height: 70vh;
   overflow-y: auto;
   box-shadow: var(--shadow-md);
-  border-radius: var(--radius);
+  animation: sheetIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (min-width: 600px) {
+  .campanita-panel {
+    position: absolute;
+    top: 100%;
+    left: auto;
+    right: 0;
+    bottom: auto;
+    min-width: 20rem;
+    max-width: 90vw;
+    max-height: 25rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    animation: none;
+  }
 }
 
 .campanita-panel-header {
@@ -611,9 +696,25 @@ td button {
 }
 
 .campanita-item {
-  padding: 0.75rem 0.8rem;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 0.85rem;
+  background: transparent;
+  border: none;
   border-bottom: 1px solid var(--color-border);
   cursor: pointer;
+  /* El reset "ghost" de `button` (index.css, cerca de la línea 216) cubre
+     text-transform/font-weight/letter-spacing/box-shadow pero no
+     border-radius, así que este item hereda el `border-radius:
+     var(--radius-sm)` de la regla base de `button`. El item es una fila
+     de ancho completo pegada a los bordes del panel — con radio se ve
+     como un chiclet redondeado en vez de una banda continua, y el tinte
+     de no-leído (`.campanita-item-no-leida`) lo hace obvio. */
+  border-radius: 0;
 }
 
 .campanita-item:last-child {
@@ -628,16 +729,48 @@ td button {
   background: var(--color-primary-soft);
 }
 
+/* Punto por-item del mockup aprobado por el usuario (además del tinte de
+   fondo de .campanita-item-no-leida: el tinte se lee a nivel de lista
+   completa, el punto a nivel de item individual — las dos señales juntas
+   son lo que mostraba el mockup elegido).
+   El gutter de 7px se reserva SIEMPRE, leída o no: si solo apareciera para
+   los no leídos, marcar un item como leído correría el texto del mensaje
+   hacia la izquierda en el momento del click, que es peor que cualquiera
+   de las dos alternativas hechas consistentemente. Acá "consistente" es
+   reservar el espacio siempre y solo cambiar el color de fondo del punto. */
+.campanita-item-punto {
+  flex: 0 0 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  /* Empuja el punto desde el tope de la fila (align-items: flex-start)
+     hasta el centro óptico de la primera línea del mensaje, en vez de
+     centrarlo en todo el bloque de dos líneas (mensaje + fecha). */
+  margin-top: 0.3rem;
+}
+
+.campanita-item-no-leida .campanita-item-punto {
+  background: var(--color-primary);
+}
+
+.campanita-item-texto {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
 .campanita-item-mensaje {
-  margin: 0 0 0.25rem 0;
-  font-size: 0.8125rem;
-  font-weight: 700;
+  font-size: 0.78rem;
+  font-weight: 600;
   color: var(--color-text);
+  line-height: 1.35;
 }
 
 .campanita-item-fecha {
-  margin: 0;
-  font-size: 0.6875rem;
+  font-size: 0.68rem;
   font-weight: 600;
   color: var(--color-text-muted);
 }
@@ -1082,6 +1215,64 @@ td.monto {
   border-radius: 50%;
 }
 
+/* Modificadores de color para el estado de una cuenta corriente. Antes
+   CuentasCorrientes.jsx calculaba `cfg.color` en JS (hex hardcodeado) y lo
+   aplicaba vía `style` — la regla del proyecto es que el color siempre sale
+   de `var(--color-...)`, nunca de un hex dentro de un componente. */
+.estado-punto--en-mora {
+  background: var(--color-danger);
+}
+
+.estado-punto--a-favor {
+  background: var(--color-success);
+}
+
+.estado-punto--al-dia {
+  background: var(--color-text-muted);
+}
+
+/* Mismo criterio para el puntito de la barra de período (Gastos): antes
+   Gastos.jsx aplicaba `style={{ background: "#16a34a" }}` / "#6b7280" a
+   mano, con un verde que no era el de la paleta. */
+.estado-punto--abierto {
+  background: var(--color-success);
+}
+
+.estado-punto--cerrado {
+  background: var(--color-text-muted);
+}
+
+/* Mismo criterio para el importe del saldo en la columna/tarjeta de Cuentas
+   corrientes: el color depende del estado de la cuenta, siempre vía token. */
+.saldo-cuenta {
+  font-weight: 600;
+}
+
+.saldo-cuenta--en-mora {
+  color: var(--color-danger);
+}
+
+.saldo-cuenta--a-favor {
+  color: var(--color-success);
+}
+
+.saldo-cuenta--al-dia {
+  color: var(--color-text-muted);
+}
+
+/* Solo en tarjeta: el <span> de la celda de tabla ya hereda el tamaño de
+   `.tabla-datos` (13px) y no debe achicarse. El <p> de la tarjeta, en
+   cambio, ya NO lleva la clase "meta" — `.tarjeta .meta` (0,2,0) le ganaba
+   en especificidad a `.saldo-cuenta--*` (0,1,0) sobre el mismo elemento y
+   el saldo se veía siempre gris (var(--color-text-muted) de `.meta`) sin
+   importar el estado real de la cuenta. Sacar "meta" resuelve el color;
+   esta regla repone el tamaño/margen que "meta" daba, sin reabrir el
+   problema de especificidad porque ya no compite por la propiedad `color`. */
+.tarjeta .saldo-cuenta {
+  font-size: 0.6875rem;
+  margin: 0 0 0.5rem;
+}
+
 /* ---------- Menu kebab ---------- */
 
 .menu-kebab {
@@ -1150,6 +1341,15 @@ td.monto {
   color: var(--color-danger);
 }
 
+/* El `button:disabled` global solo atenúa opacidad — no alcanza para anular
+   el hover propio de `.menu-kebab-item`, que es más específico y se sigue
+   aplicando aunque el botón esté disabled (no chequea :not(:disabled)).
+   Sin esto, un item deshabilitado se ilumina al pasar el mouse como si
+   fuera clickeable. */
+.menu-kebab-item:disabled:hover {
+  background: transparent;
+}
+
 /* ---------- Barra de período (Gastos) ---------- */
 
 .barra-periodo {
@@ -1169,15 +1369,65 @@ td.monto {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  /* "‹ mes ›" es una sola unidad — separados, las flechas no significan
+     nada. Por eso el que envuelve acá es .barra-periodo-selector (el
+     padre de .periodo-stepper y .estado-badge), no .periodo-stepper: el
+     único corte permitido es entre el stepper completo y el badge, nunca
+     dentro del stepper. A 375px el badge puede terminar en su propia
+     línea; ver cálculo de presupuesto en el commit. */
+  flex-wrap: wrap;
   min-width: 0;
 }
 
-.barra-periodo-selector input[type="month"] {
+.periodo-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  /* nowrap explícito: este grupo (‹, mes, ›) tiene que moverse entero. Si
+     .barra-periodo-selector se queda sin lugar, el que baja de línea es
+     .estado-badge completo, nunca una de las flechas sola. */
+  flex-wrap: nowrap;
+}
+
+.periodo-stepper input[type="month"] {
   font-size: 1rem;
   font-weight: 600;
   padding: 0.3rem 0.5rem;
-  width: 9.5rem;
-  min-width: 0;
+  /* Chrome renderiza "agosto de 2026" y no entraba en los 9.5rem fijos que
+     había acá: el mes salía cortado. width:auto (no width fijo) es lo que
+     saca el corte de raíz: el campo se dimensiona según el valor actual,
+     el piso de acá abajo es sólo un mínimo, nunca un techo.
+     Mobile-first: esta base cubre <600px, donde .periodo-stepper entero
+     (‹ + mes + › como unidad indivisible, ver .periodo-stepper) tiene que
+     entrar en el presupuesto de ~314px que deja la barra a 375px. Las dos
+     flechas + sus 2 gaps internos ya consumen 104px fijos, dejan ~210px
+     para el input — 12rem (192px) deja ~18px de margen sobre esa cuenta.
+     Con un piso más chico el campo puede "saltar" de ancho entre meses
+     cortos y largos en mobile; se acepta ese trade-off ahí porque la
+     alternativa (mantener el piso "sin salto" de escritorio) desborda el
+     stepper a 375px — ver la cuenta completa en el commit. */
+  width: auto;
+  min-width: 12rem;
+}
+
+@media (min-width: 600px) {
+  .periodo-stepper input[type="month"] {
+    /* Desde acá sobra presupuesto horizontal (la barra ya no compite por
+       espacio con el resto de la fila), así que el piso pasa al valor
+       derivado del peor caso real, "septiembre de 2026" (18 caracteres,
+       el mes más largo del rango mayo–septiembre que usa este selector):
+       18 car. × ~0.55em × 16px ≈ 158px de texto + ~20px del ícono nativo
+       del picker + 1rem de padding horizontal + 2px de borde (border-box)
+       ⇒ ~196px de necesidad, con margen ⇒ 14rem (224px). El ratio de
+       ~0.55em/carácter para Plus Jakarta Sans 600 a 1rem está calibrado
+       contra el propio bug: a los 9.5rem viejos "agosto de 2026" (14
+       caracteres) perdía sólo el último dígito, no una palabra entera.
+       Sigue siendo una estimación, no una medición en navegador — no hay
+       extensión de Chrome conectada en este entorno para medir en vivo.
+       Con este piso el campo deja de "saltar" de ancho entre meses de
+       nombre corto y largo. */
+    min-width: 14rem;
+  }
 }
 
 .periodo-nav {
@@ -1185,12 +1435,15 @@ td.monto {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 0.2rem 0.6rem;
-  font-size: 1rem;
+  font-size: 0.875rem;
   color: var(--color-text-muted);
   cursor: pointer;
-  /* Glifo "‹"/"›" a tamaño visual sin cambios; el hit area se agranda a
-     44px con min-width/height + centrado flex, misma técnica que
-     .menu-kebab-trigger, en vez del min-height:44px "musculoso". */
+  /* El glifo "‹"/"›" se achicó a propósito (1rem -> 0.875rem): a full
+     tamaño competía visualmente con el puntito de estado de al lado. El
+     área táctil de 44px es independiente del tamaño del glifo — se logra
+     con min-width/height + centrado flex, misma técnica que
+     .menu-kebab-trigger, en vez del min-height:44px "musculoso". Bajar el
+     font-size no reabre el problema de accesibilidad. */
   min-width: 44px;
   min-height: 44px;
   display: inline-flex;
@@ -1440,6 +1693,23 @@ td.monto {
   margin: 0 0 0.25rem;
   font-size: 0.8125rem;
   overflow-wrap: anywhere;
+}
+
+/* CuentasCorrientes: el <h3><a> es la ÚNICA ruta táctil hacia el detalle de
+   cuenta en la card mobile. Sin esto el área de toque es la caja de línea
+   del texto: 0.8125rem (13px) de fuente × ~1.15 de line-height por default
+   del navegador ≈ 15px de alto — muy por debajo de los 44px que el
+   proyecto exige para objetivos táctiles (frontend.md), y en la ÚNICA
+   pantalla que el usuario revisa personalmente. `padding` vertical agranda
+   el área de toque; `margin` negativo igual y opuesto cancela el espacio
+   extra para no correr el `<p>` de abajo ni la card. 0.9rem (14.4px) arriba
+   y abajo + ~15px de caja de línea ≈ 44px. Scopeado a `.tarjeta-cuenta`
+   (no a `.tarjeta h3 a` global) porque ninguna otra card de la app usa el
+   título como link — ensancharlo ahí afectaría cards que no lo necesitan. */
+.tarjeta-cuenta h3 a {
+  display: inline-block;
+  padding: 0.9rem 0;
+  margin: -0.9rem 0;
 }
 
 .tarjeta h4 {
@@ -2025,12 +2295,6 @@ td.monto {
 
   .app-body {
     flex-direction: row;
-  }
-
-  /* Las tablas vuelven a renderizar como tabla (ya entran sin scroll) */
-  table {
-    display: table;
-    overflow: hidden;
   }
 
   /* El selector de consorcio vuelve a la barra del header en desktop;
@@ -2787,7 +3051,7 @@ td.monto {
   }
 }
 
-/* ---------- ListaResponsive: tabla de ≥600px para arriba ---------- */
+/* ---------- TablaResponsive: tabla de ≥600px para arriba ---------- */
 
 /* Se llama `.tabla-datos-scroll` y no `.tabla-scroll` porque esa clase ya
    existe (matriz de coeficientes, con `margin: 1rem 0`). Redefinirla le sacaba
@@ -2795,19 +3059,18 @@ td.monto {
    Renombrar es lo único que deja ambas densidades como estaban; reusar la regla
    vieja habría cambiado el espaciado de las tres pantallas convertidas. */
 .tabla-datos-scroll {
-  overflow-x: auto;
   margin-bottom: 1rem;
 }
 
 .tabla-datos {
   width: 100%;
-  /* Sin este min-width la tabla se queda clavada en el 100% del contenedor y el
-     contenido que no entra se desborda de la celda en silencio: la columna de
-     acciones quedaba cortada y el `overflow-x: auto` del wrapper nunca llegaba a
-     disparar la barra, porque para el wrapper la tabla seguía midiendo 100%.
-     Con max-content la tabla crece hasta lo que realmente necesita y entonces sí
-     el wrapper scrollea en vez de esconder la última columna. */
-  min-width: max-content;
+  /* Antes acá vivía `min-width: max-content`, que le prohibía a la tabla
+     comprimirse y forzaba scroll horizontal apenas la pantalla se angostaba.
+     Con `fixed` las columnas se reparten el ancho según el <colgroup> en vez
+     de exigir el de su contenido más largo. Efecto lateral buscado: el
+     `white-space: nowrap` de los <th> deja de empujar el ancho de la tabla,
+     porque en layout fijo el contenido ya no participa del cálculo. */
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.8125rem;
 }
@@ -2821,7 +3084,54 @@ td.monto {
   text-transform: uppercase;
   color: var(--color-text-muted);
   border-bottom: 1px solid var(--color-border);
-  white-space: nowrap;
+  /* Pegajoso SOLO acá, no en `th` global: la matriz de coeficientes usa
+     `<th scope="row">` dentro del tbody para los rótulos de fila, y un
+     `thead th` global los pegaría a todos arriba, apilados unos sobre
+     otros. Tampoco alcanza con ponerlo en un `thead th` global sin más:
+     las trece tablas legacy (ver el bloque `table:not(.tabla-datos)` más
+     arriba) vuelven a `display: block` en mobile, y un `thead` pegajoso
+     ahí recrea el bug de desalineación de encabezado que esta rama entera
+     existe para resolver — en pantallas que en `master` nunca tuvieron
+     header pegajoso, porque nunca lo necesitaron. */
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-surface);
+  /* `border-bottom` de arriba no sobrevive: bajo `border-collapse:
+     collapse` el borde inferior de la fila de headers no le pertenece a
+     cada `th` como caja propia sino a la tabla (se resuelve una sola vez
+     contra el borde superior de la fila siguiente), así que no viaja con
+     el `th` cuando `position: sticky` lo despega de su lugar en el
+     documento y lo repinta flotando sobre el resto. El `box-shadow`
+     inset SÍ es parte de la caja del propio `th` — no compite en el
+     collapsing de bordes, así que se queda pegado al elemento pegajoso en
+     vez de al layout de la tabla. */
+  box-shadow: inset 0 -1px 0 var(--color-border);
+  /* NO reponer `white-space: nowrap` acá. Bajo `table-layout: fixed` el
+     contenido del <th> no participa del cálculo de ancho de columna (ver
+     comentario en `.tabla-datos` arriba), así que dejarlo envolver a dos
+     líneas no cuesta nada de layout. `nowrap` sí cuesta: fuerza al título
+     a una sola línea y, a diferencia del <td>, el <th> no tiene
+     `overflow`/`text-overflow` — un título más ancho que su columna se
+     derrama sobre la celda vecina bajo layout fijo. Ese era exactamente
+     el bug que obligó a inflar columnas de datos solo para que entrara
+     su label (precedente: "ACTIVA" en Cajas.jsx necesitaba 11ch en vez
+     de 8ch únicamente por el ancho del título). El arreglo de fondo es
+     dejar que el header envuelva; los anchos de columna se presupuestan
+     desde los DATOS (ver anchosColumnas.js y los anchos locales de cada
+     pantalla), nunca desde el label. Si hace falta volver a poner
+     `nowrap`, el label vuelve a mandar sobre el ancho en vez de los
+     datos — angostá o reformulá el título en cambio.
+
+     `vertical-align: bottom`: con headers de una y de dos líneas
+     conviviendo en la misma <tr> (según qué título se banca envolver),
+     el default `baseline` alinea por la PRIMERA línea de cada celda —
+     un header de una línea queda flotando arriba, con un hueco entre su
+     texto y el `border-bottom`, mientras uno de dos líneas cuelga su
+     segunda línea bien abajo. `bottom` hace que la última línea de
+     cualquier header (una o dos) quede pegada al mismo borde inferior,
+     así toda la fila lee como un renglón parejo en vez de un serrucho. */
+  vertical-align: bottom;
 }
 
 .tabla-datos tbody tr {
@@ -2835,18 +3145,177 @@ td.monto {
 .tabla-datos tbody td {
   padding: 0.6rem 0.75rem;
   vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* Los importes se leen mejor alineados a la derecha y tabulados. */
+/* Las celdas de texto se recortan con ellipsis; las que tienen controles NO
+   pueden recortarse, porque un botón cortado deja de ser clickeable. Envuelven
+   a varias líneas en vez de cortarse: la fila crece de alto y nada queda
+   inalcanzable, sea cual sea el ancho de la columna. */
+.tabla-datos tbody td:has(button),
+.tabla-datos tbody td:has(a) {
+  white-space: normal;
+}
+
+/* Los importes se leen mejor alineados a la derecha y tabulados.
+   `white-space: nowrap` va en un selector aparte (0,2,2 con las dos
+   `:not(:has())`) en vez de acá adentro (0,2,0) a propósito: `.col-monto`
+   sola le gana en especificidad a `.tabla-datos tbody td:has(button)` /
+   `:has(a)` (0,1,3) por conteo de clases, así que si el día de mañana una
+   columna de monto agrega un botón (p. ej. "Confirmar pago"), `nowrap`
+   pisaría en silencio el `white-space: normal` que esas reglas necesitan
+   para no recortar el control — la misma trampa que ya obligó a sacar
+   `nowrap` de `.col-acciones` más abajo. `:not(:has(button)):not(:has(a))`
+   deja `.col-monto` fuera de esa trampa sin tener que acordarse de nada la
+   próxima vez: ninguna columna de monto actual tiene botón, así que hoy no
+   cambia nada visualmente. */
 .tabla-datos .col-monto {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.tabla-datos .col-monto:not(:has(button)):not(:has(a)) {
   white-space: nowrap;
 }
 
+/* Identificador de fila (p. ej. el código de unidad en CuentasCorrientes):
+   va destacado sobre sus vecinos, igual que en `.tabla-padron .col-unidad`
+   (la tabla vieja que este componente reemplaza). Todo `<td>` ya hereda
+   `font-weight: 700` de la regla genérica `td {...}` del archivo, así que
+   esto es cinturón y tirantes — pero lo deja explícito e intencional acá en
+   vez de depender de una regla lejana pensada para tablas planas. */
+.tabla-datos .col-unidad {
+  font-weight: 700;
+}
+
+/* Sin `white-space: nowrap` a propósito: esta columna son controles por
+   definición, nunca texto que quiera ellipsis. Con `nowrap` acá (0,2,0 —
+   dos clases) le gana en especificidad a la regla `:has(button)`/`:has(a)`
+   de arriba (0,1,3), la anula en silencio, y un control queda recortado e
+   inalcanzable. Si hace falta achicar el ancho visual, hacerlo con `ancho`
+   en la columna, no reintroduciendo `nowrap` acá.
+
+   `overflow: visible` vive al lado por la misma razón: `.tabla-datos tbody
+   td` (arriba) trae `overflow: hidden` para poder recortar con ellipsis el
+   texto largo. `MenuAcciones` abre su lista (`.menu-kebab-lista`) con
+   `position: absolute` DENTRO de esta celda — su "contained block" es un
+   descendiente de una caja con `overflow: hidden`, así que el navegador
+   recorta el menú al alto/ancho de la celda (~40px) sin importar el
+   `z-index`: recorte (`overflow`) y apilado (`z-index`/stacking context)
+   son dos mecanismos distintos, y `z-index: 20` no escapa un `overflow:
+   hidden` ajeno. Esta columna nunca quiere ellipsis (son controles, no
+   texto), así que perder el recorte acá no tiene contraindicación — es la
+   misma lógica que ya sacó `nowrap` de esta celda, aplicada a la propiedad
+   que faltaba. Selector ganador verificado contra toda la cascada: ningún
+   otro selector en el archivo apunta a `.col-acciones` dentro de
+   `.tabla-datos` con `overflow`, así que esta regla (0,2,0) es la única
+   que toca la propiedad acá y le gana sin ambigüedad a `.tabla-datos
+   tbody td` (0,1,2). */
 .tabla-datos .col-acciones {
   text-align: right;
-  white-space: nowrap;
+  overflow: visible;
+}
+
+/* ---------- Escalones de la tabla adaptativa ---------- */
+
+/* `tr:last-child td { border-bottom: none }` (arriba, regla global) asume
+   que la última <tr> del DOM es la última fila de datos. TablaResponsive
+   intercala una <tr class="fila-detalle"> después de cada fila siempre que
+   `hayDetalle` (existe en el DOM aunque esté escondida con el atributo
+   `hidden`), así que en esas tablas la última <tr> real es la de detalle,
+   no la de datos visible — la regla global le saca el borde a la fila
+   equivocada y la última fila de datos queda con un borde que ninguna otra
+   tabla de la app muestra en su última fila. Selecciona en cambio la fila
+   de datos que tiene una `.fila-detalle` como hermano siguiente Y esa
+   `.fila-detalle` es a su vez la última hija: esa es la fila de datos real
+   que necesita perder el borde.
+
+   `border-bottom: none` (no `hidden`) es INERTE acá: bajo `border-collapse:
+   collapse` la resolución de conflictos le da al estilo `none` la prioridad
+   MÁS BAJA de todas — pierde contra cualquier borde con estilo real, incluido
+   el `1px solid` que `.tabla-datos tbody tr` (arriba) pone en la FILA. "el
+   borde de celda le gana al de fila" solo es cierto cuando ambos bordes
+   compiten con ancho y estilo iguales; acá no compiten, `none` se retira
+   directo de la carrera. `hidden` sí es un estilo con la prioridad MÁS ALTA
+   de la resolución — le gana a cualquier borde de fila/columna/tabla sin
+   importar su ancho, así que es la única forma de "borrar" un borde ajeno
+   bajo collapse. */
+.fila-datos:has(+ .fila-detalle:last-child) td {
+  border-bottom: hidden;
+}
+
+/* Fondo y padding propios de la celda que envuelve los pares etiqueta/valor
+   de la fila de detalle (distinta del padding de `.tabla-datos tbody td`).
+   NO reusa `var(--color-bg)`: es el mismo tono que `.tabla-datos tbody
+   tr:hover` (arriba), y un panel expandido con el mismo fondo que una fila
+   apenas hovereada se lee como si no hubiera pasado nada al hacer click —
+   sobre todo con mouse, donde la fila puede quedar hovereada Y expandida a
+   la vez. El detalle es un estado más "asentado" que un hover de paso, así
+   que usa una mezcla más oscura/saturada con `--color-border` en vez del
+   tinte plano de `--color-bg`. */
+.fila-detalle > td {
+  padding: 0 0.75rem 0.7rem;
+  background: color-mix(in srgb, var(--color-bg) 60%, var(--color-border) 40%);
+}
+
+/* TablaResponsive ya solo renderiza los pares de las columnas que el
+   ResizeObserver descartó de la fila principal, así que no hace falta
+   esconder nada acá: si el `<div>` existe, se muestra. */
+.detalle-par {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.15rem 0;
+}
+
+.detalle-etiqueta {
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.detalle-valor {
+  font-size: 0.8125rem;
+  color: var(--color-text);
+  min-width: 0;
+}
+
+/* Dos clases encadenadas (0,2,0) le ganan en especificidad a
+   `.tabla-datos tbody td` / `.tabla-datos thead th` (0,1,2) sin necesitar
+   `!important`. */
+.tabla-datos .col-chevron {
+  text-align: center;
+  padding: 0;
+}
+
+.chevron-detalle {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.chevron-detalle:hover:not(:disabled) {
+  color: var(--color-text);
+  background: transparent;
+}
+
+.chevron-detalle svg {
+  transition: transform 0.15s ease;
+}
+
+.chevron-detalle[aria-expanded="true"] svg {
+  transform: rotate(90deg);
 }
 
 .lista-vacia {

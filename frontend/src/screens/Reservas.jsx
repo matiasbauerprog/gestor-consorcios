@@ -4,7 +4,7 @@ import { listarAmenities } from "../api/amenities";
 import { listarReservas, crearReserva, cancelarReserva } from "../api/reservas";
 import { useAuth } from "../auth/AuthContext";
 import { formatFecha } from "../utils/fechas";
-import ListaResponsive from "../components/ListaResponsive";
+import TablaResponsive from "../components/TablaResponsive";
 
 function fmtFecha(iso) {
   return new Date(iso).toLocaleString("es-AR", {
@@ -260,11 +260,11 @@ export default function Reservas() {
         <div className="reservas-col-listas">
           <section>
             <h3>Próximas reservas (todos los deptos)</h3>
-            <ListaResponsive
+            <TablaResponsive
               columnas={[
-                { clave: "inicio", titulo: "Desde", celda: (r) => fmtFecha(r.inicio) },
-                { clave: "fin", titulo: "Hasta", celda: (r) => fmtFecha(r.fin) },
-                { clave: "usuario", titulo: "Depto", celda: (r) => `#${r.usuario_id}` },
+                { clave: "inicio", titulo: "Desde", prioridad: 1, ancho: "auto", celda: (r) => fmtFecha(r.inicio) },
+                { clave: "fin", titulo: "Hasta", prioridad: 1, ancho: "auto", celda: (r) => fmtFecha(r.fin) },
+                { clave: "usuario", titulo: "Depto", prioridad: 1, ancho: "auto", celda: (r) => `#${r.usuario_id}` },
               ]}
               filas={proximasDelAmenity}
               claveFila={(r) => r.id}
@@ -281,19 +281,23 @@ export default function Reservas() {
           {esDepto && (
             <section>
               <h3>Mis reservas</h3>
-              <ListaResponsive
+              <TablaResponsive
                 columnas={[
-                  { clave: "inicio", titulo: "Desde", celda: (r) => fmtFecha(r.inicio) },
-                  { clave: "fin", titulo: "Hasta", celda: (r) => fmtFecha(r.fin) },
+                  { clave: "inicio", titulo: "Desde", prioridad: 1, ancho: "auto", celda: (r) => fmtFecha(r.inicio) },
+                  { clave: "fin", titulo: "Hasta", prioridad: 1, ancho: "auto", celda: (r) => fmtFecha(r.fin) },
                   {
                     clave: "estado",
                     titulo: "Estado",
+                    prioridad: 1,
+                    ancho: "auto",
                     celda: (r) => `${r.estado}${r.movimiento_cuenta_id ? " — con cargo" : ""}`,
                   },
                   {
                     clave: "acciones",
                     titulo: "",
                     className: "col-acciones",
+                    prioridad: 1,
+                    ancho: "7rem",
                     celda: (r) =>
                       r.estado === "confirmada" && new Date(r.inicio) > ahora ? (
                         <button type="button" onClick={() => handleCancelar(r)}>

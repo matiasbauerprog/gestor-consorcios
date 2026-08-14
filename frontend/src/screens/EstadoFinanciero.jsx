@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { abrirPdfMovimientos, obtenerEstadoFinanciero } from "../api/estadoFinanciero";
 import Tarjeta from "../components/Tarjeta";
+import TablaResponsive from "../components/TablaResponsive";
 import ModalNuevaTransferencia from "../components/ModalNuevaTransferencia";
-import { formatFecha } from "../utils/fechas";
+import { formatFechaCorta } from "../utils/fechas";
+import { ANCHO_FECHA_CORTA, ANCHO_MONTO } from "../utils/anchosColumnas";
 
 function primerDiaDelMes(d = new Date()) {
   return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
@@ -75,31 +77,39 @@ export default function EstadoFinanciero() {
             ver todos por período (PDF)
           </button>
         </div>
-        {data.ultimos_movimientos.length === 0 ? (
-          <p>Sin movimientos.</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Fecha</th><th>Caja</th><th>Tipo</th><th>Monto</th><th>Descripción</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.ultimos_movimientos.map((m) => {
-                const caja = data.cajas.find((c) => c.id === m.caja_id);
-                return (
-                  <tr key={m.id}>
-                    <td>{formatFecha(m.fecha)}</td>
-                    <td>{caja?.nombre || m.caja_id}</td>
-                    <td>{m.tipo}</td>
-                    <td>{fmtMoney(m.monto)}</td>
-                    <td>{m.descripcion}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
+        <TablaResponsive
+          columnas={[
+            // Fecha corta: esta tabla vive dentro de la <Tarjeta> "Últimos
+            // 20 movimientos", un contenedor más angosto que .app-content
+            // (ver nota de la tarea sobre @container) — cada ch cuenta.
+            { clave: "fecha", titulo: "Fecha", prioridad: 1, ancho: ANCHO_FECHA_CORTA,
+              celda: (m) => formatFechaCorta(m.fecha) },
+            { clave: "caja", titulo: "Caja", prioridad: 2, ancho: "auto",
+              celda: (m) => data.cajas.find((c) => c.id === m.caja_id)?.nombre || m.caja_id },
+            { clave: "tipo", titulo: "Tipo", prioridad: 3, ancho: "12ch",
+              celda: (m) => m.tipo },
+            { clave: "monto", titulo: "Monto", prioridad: 1, ancho: ANCHO_MONTO, className: "col-monto",
+              celda: (m) => fmtMoney(m.monto) },
+            { clave: "descripcion", titulo: "Descripción", prioridad: 3, ancho: "auto",
+              celda: (m) => m.descripcion },
+          ]}
+          filas={data.ultimos_movimientos}
+          claveFila={(m) => m.id}
+          vacio="Sin movimientos."
+          renderTarjeta={(m) => {
+            // Sin <Tarjeta>: esta tabla ya vive dentro de la <Tarjeta> de
+            // "Últimos 20 movimientos" — anidar otra por fila apilaría cajas
+            // dentro de cajas. `.lista-cards` separa cada fila con su gap.
+            const caja = data.cajas.find((c) => c.id === m.caja_id);
+            return (
+              <div>
+                <p className="meta"><strong>{fmtMoney(m.monto)}</strong> · {formatFechaCorta(m.fecha)}</p>
+                <p className="meta">{caja?.nombre || m.caja_id} · {m.tipo}</p>
+                {m.descripcion && <p className="meta">{m.descripcion}</p>}
+              </div>
+            );
+          }}
+        />
       </Tarjeta>
 
       {modalTransfer && (
