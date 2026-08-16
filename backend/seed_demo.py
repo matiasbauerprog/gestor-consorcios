@@ -22,8 +22,10 @@ visitante junto al demo real.
 import os
 import sys
 import time
+from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 from .seed_e2e import (
     RNG,
@@ -294,6 +296,74 @@ def imagen_comprobante(indice: int) -> bytes:
     """
     archivos = sorted(_DIR_ASSETS.glob("comprobante_*.png"))
     return archivos[indice % len(archivos)].read_bytes()
+
+
+def dia_de_cierre(periodo: str) -> date:
+    """Día en que se cierra `periodo` ("YYYY-MM"): el 1 del mes siguiente.
+
+    Una administración liquida el mes vencido a principios del siguiente, así
+    que la expensa de julio se emite en agosto. Cae siempre antes del primer
+    vencimiento histórico (`_fechas_del_periodo` lo fija el día 10 de ese mismo
+    mes siguiente), lo que importa para `reloj_en`: al cerrar y leer el propio
+    período bajo esta fecha, su expensa recién creada todavía no venció y no
+    puede devengar recargo dentro de su propio bloque.
+    """
+    anio, mes = (int(x) for x in periodo.split("-"))
+    return date(anio + 1, 1, 1) if mes == 12 else date(anio, mes + 1, 1)
+
+
+@contextmanager
+def reloj_en(fecha: date):
+    """Hace que el cierre de un período (y todo lo que dispara) vea `fecha`
+    como el día de hoy.
+
+    No alcanza con parchear `routers/periodos.py`. El rastreo completo del
+    camino que corre `POST /periodos/{periodo}/cerrar → GET /expensas → POST
+    /comprobantes` (el bloque que `poblar_demo` ejecuta por período) encontró
+    TRES módulos que llaman a `date.today()` sin que nadie se lo pase:
+
+    - `backend/routers/periodos.py` (línea ~145): fecha los movimientos
+      `expensa_emitida` e `interes_punitorio` que crea el cierre.
+    - `backend/cierre.py` (línea ~341, `_completar_preview`): calcula
+      `fecha_corte` con ella, y esa fecha decide DOS cosas antes de que
+      `periodos.py` escriba nada — qué expensas atrasadas devengan recargo
+      (dispara `recargos.devengar_recargos_y_marcar` con `hoy` explícito) y
+      cuánto interés punitorio corresponde (`calcular_intereses_al_cierre`).
+    - `backend/recargos.py` (línea ~36, `_devengar`): es el default cuando el
+      llamador NO pasa `hoy`, y `routers/expensas.py:94` llama así en cada
+      `GET /expensas` — el propio `poblar_demo` hace ese GET justo después de
+      cerrar, antes de cargar los pagos.
+
+    Sin parchear los tres, el generador cierra seis períodos históricos en
+    minutos: `cierre.py` ve la fecha real de la corrida al calcular
+    `fecha_corte`, encuentra expensas ya vencidas (según el calendario real)
+    sin comprobante todavía cargado, y les devenga recargo e interés antes de
+    que exista ningún pago — inclusive a las unidades que iban a pagar en
+    término. Con los tres módulos viendo `fecha` (el día de cierre simulado
+    de este período, siempre anterior a su propio primer vencimiento), el
+    devengamiento sólo alcanza a las expensas de períodos *anteriores* que ya
+    deberían estar vencidas a esa altura de la historia simulada — igual que
+    haría una administración real.
+
+    Se parchea el símbolo `date` que cada módulo importó —no `datetime.date`
+    global, y no el `date` de `seed_demo.py`— para no alterar el resto del
+    sistema durante el bloque. En particular, `fecha_pago_puntual` sigue
+    viendo la fecha real del proceso: el `date.today()` que recibe en
+    `poblar_demo` es el de este mismo módulo, no el de `periodos`/`cierre`/
+    `recargos`, así que el reloj simulado no le cambia el significado.
+    """
+    class _FechaFija(date):
+        @classmethod
+        def today(cls):
+            return fecha
+
+    from . import cierre, recargos
+    from .routers import periodos
+
+    with patch.object(periodos, "date", _FechaFija), \
+         patch.object(cierre, "date", _FechaFija), \
+         patch.object(recargos, "date", _FechaFija):
+        yield
 
 
 def perfiles_deterministas(
@@ -619,45 +689,59 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
         liquidaciones += 1
 
         f1, f2 = _fechas_del_periodo(periodo)
-        api.req("POST", f"/periodos/{periodo}/cerrar", token=admin_token, cid=cid, json={
-            "fecha_primer_vencimiento": f1.isoformat(),
-            "fecha_segundo_vencimiento": f2.isoformat(),
-        }, expect=201)
 
-        r = api.req("GET", f"/expensas?periodo={periodo}", token=admin_token, cid=cid,
-                    expect=200)
-        expensas_por_depto = {e["departamento_id"]: e for e in r.json()}
+        # Todo el bloque del período —cierre, lectura de expensas (que
+        # devenga recargos de arrastre) y carga de pagos— corre bajo el
+        # reloj simulado del día de cierre. Ver el docstring de `reloj_en`:
+        # sin esto, `cierre.py` y `recargos.py` evalúan mora contra la fecha
+        # real de la corrida en vez de la fecha histórica del período, y
+        # unidades puntuales terminan con recargo por un pago que todavía no
+        # se cargó.
+        with reloj_en(dia_de_cierre(periodo)):
+            api.req("POST", f"/periodos/{periodo}/cerrar", token=admin_token, cid=cid, json={
+                "fecha_primer_vencimiento": f1.isoformat(),
+                "fecha_segundo_vencimiento": f2.isoformat(),
+            }, expect=201)
 
-        pagan = [d["id"] for d in puntuales]
-        pagan += [d["id"] for d in irregulares if RNG.random() < 0.5]
-        es_ultimo = periodo == meses[-1]
+            r = api.req("GET", f"/expensas?periodo={periodo}", token=admin_token, cid=cid,
+                        expect=200)
+            expensas_por_depto = {e["departamento_id"]: e for e in r.json()}
 
-        # Filtrado ANTES del loop, no `continue` adentro: deja_pendiente()
-        # decide sobre el índice y el total de comprobantes que van a
-        # existir de verdad. Si el filtro viviera como un `continue` dentro
-        # del for, un depto sin expensa o sin login corrido podría desalinear
-        # `idx`/`len(...)` de los comprobantes efectivamente creados y, en el
-        # peor caso, dejar el período entero sin ninguna cobranza aprobada
-        # (la garantía que promete el docstring de deja_pendiente).
-        pagan_con_datos = [
-            depto_id for depto_id in pagan
-            if depto_id in expensas_por_depto and depto_id in tokens_depto
-        ]
+            pagan = [d["id"] for d in puntuales]
+            pagan += [d["id"] for d in irregulares if RNG.random() < 0.5]
+            es_ultimo = periodo == meses[-1]
 
-        for idx, depto_id in enumerate(pagan_con_datos):
-            exp = expensas_por_depto[depto_id]
-            fecha_pago = fecha_pago_puntual(f1, date.today(), RNG)
-            monto = exp["monto_primer_vencimiento"]
-            if RNG.random() < 0.05:
-                monto = float(int(monto / 1000 + 1) * 1000)
-            r = api.req("POST", "/comprobantes", token=tokens_depto[depto_id], cid=cid,
-                        data={"fecha_pago": fecha_pago.isoformat(), "monto": monto},
-                        files={"archivo": ("pago.png", imagen_comprobante(comprobantes), "image/png")},
-                        expect=201)
-            if not deja_pendiente(idx, len(pagan_con_datos), es_ultimo):
-                api.req("PATCH", f"/comprobantes/{r.json()['id']}", token=admin_token, cid=cid,
-                        json={"estado": "aprobado"}, expect=200)
-            comprobantes += 1
+            # Filtrado ANTES del loop, no `continue` adentro: deja_pendiente()
+            # decide sobre el índice y el total de comprobantes que van a
+            # existir de verdad. Si el filtro viviera como un `continue` dentro
+            # del for, un depto sin expensa o sin login corrido podría desalinear
+            # `idx`/`len(...)` de los comprobantes efectivamente creados y, en el
+            # peor caso, dejar el período entero sin ninguna cobranza aprobada
+            # (la garantía que promete el docstring de deja_pendiente).
+            pagan_con_datos = [
+                depto_id for depto_id in pagan
+                if depto_id in expensas_por_depto and depto_id in tokens_depto
+            ]
+
+            for idx, depto_id in enumerate(pagan_con_datos):
+                exp = expensas_por_depto[depto_id]
+                # `date.today()` acá es el de este módulo (seed_demo), no el
+                # de periodos/cierre/recargos: reloj_en no lo toca a
+                # propósito, así que sigue siendo la fecha real del proceso
+                # — el tope que evita un comprobante fechado en el futuro
+                # real. Ver el docstring de reloj_en.
+                fecha_pago = fecha_pago_puntual(f1, date.today(), RNG)
+                monto = exp["monto_primer_vencimiento"]
+                if RNG.random() < 0.05:
+                    monto = float(int(monto / 1000 + 1) * 1000)
+                r = api.req("POST", "/comprobantes", token=tokens_depto[depto_id], cid=cid,
+                            data={"fecha_pago": fecha_pago.isoformat(), "monto": monto},
+                            files={"archivo": ("pago.png", imagen_comprobante(comprobantes), "image/png")},
+                            expect=201)
+                if not deja_pendiente(idx, len(pagan_con_datos), es_ultimo):
+                    api.req("PATCH", f"/comprobantes/{r.json()['id']}", token=admin_token, cid=cid,
+                            json={"estado": "aprobado"}, expect=200)
+                comprobantes += 1
         print(f"[demo] {periodo}: cerrado · {len(pagan)} pagos")
 
     # --- Reservas de amenities (fechas futuras, relativas a "ahora") ---

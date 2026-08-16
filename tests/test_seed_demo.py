@@ -441,3 +441,54 @@ def test_el_pago_cae_dentro_de_los_dias_previos_al_vencimiento():
     f1 = date(2026, 8, 10)
     pago = fecha_pago_puntual(f1, hoy=date(2026, 8, 16), rng=rng)
     assert (f1 - pago).days <= 6
+
+
+# --- dia_de_cierre / reloj_en -----------------------------------------------
+# El brief original sólo pedía parchear routers/periodos.py. La revisión de
+# la tarea anterior rastreó el camino completo de POST /periodos/{p}/cerrar →
+# GET /expensas → POST /comprobantes y encontró que cierre.py y recargos.py
+# también leen date.today() sin que nadie se lo pase — y ambos corren DENTRO
+# de ese camino (cierre.py incluso antes que periodos.py). Sin parchear los
+# tres, el devengamiento de recargos e intereses queda atado a la fecha real
+# de la corrida, no a la fecha histórica del período, y unidades puntuales
+# terminan con recargo por un pago que todavía no se cargó.
+
+from backend.seed_demo import dia_de_cierre, reloj_en
+
+
+def test_el_cierre_cae_a_principios_del_mes_siguiente():
+    # Las expensas de julio se emiten en agosto, no en julio.
+    assert dia_de_cierre("2026-07") == date(2026, 8, 1)
+
+
+def test_el_cierre_de_diciembre_cruza_el_anio():
+    assert dia_de_cierre("2026-12") == date(2027, 1, 1)
+
+
+def test_reloj_en_hace_que_periodos_cierre_y_recargos_vean_la_misma_fecha():
+    """Los tres módulos que `POST /periodos/{p}/cerrar → GET /expensas` toca
+    sin que nadie les pase `hoy` tienen que ver la fecha simulada."""
+    from backend import cierre, recargos
+    from backend.routers import periodos
+
+    with reloj_en(date(2026, 3, 1)):
+        assert periodos.date.today() == date(2026, 3, 1)
+        assert cierre.date.today() == date(2026, 3, 1)
+        assert recargos.date.today() == date(2026, 3, 1)
+
+    # Y los restaura a todos al salir.
+    assert periodos.date.today() == date.today()
+    assert cierre.date.today() == date.today()
+    assert recargos.date.today() == date.today()
+
+
+def test_reloj_en_no_toca_el_date_de_seed_demo():
+    # fecha_pago_puntual recibe el date.today() de este módulo (seed_demo),
+    # no el de periodos/cierre/recargos: reloj_en no debe pisarlo, o el tope
+    # "nunca una fecha futura" pasaría a compararse contra el día de cierre
+    # simulado (anterior al vencimiento) en vez de la fecha real del proceso.
+    from backend import seed_demo
+
+    real_hoy = date.today()
+    with reloj_en(date(2020, 1, 1)):
+        assert seed_demo.date.today() == real_hoy
