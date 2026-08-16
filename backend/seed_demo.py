@@ -992,13 +992,17 @@ def _resetear_esquema(engine) -> None:
 
 
 def generar_dataset_demo(*, seed_password: str, sa_email: str, sa_password: str,
-                         reset: bool = False) -> dict:
+                         reset: bool = False, hacer_export: bool = False) -> dict:
     """Genera el dataset demo completo. Núcleo reusable.
 
     No lee sys.argv ni llama a sys.exit: lo invoca `main()` de este mismo
     módulo desde el proceso de cron (`python -m backend.seed_demo --reset`),
     aparte del servidor web. Ante un problema levanta la excepción para que el
     llamador decida — un exit abrupto acá no tiene servidor que proteger.
+
+    `hacer_export` sigue el mismo patrón que `reset`: es un booleano explícito
+    que decide el llamador (en `main()`, a partir de `--exportar` en
+    sys.argv), no algo que esta función lea de sys.argv por su cuenta.
     """
     from fastapi.testclient import TestClient
 
@@ -1012,11 +1016,11 @@ def generar_dataset_demo(*, seed_password: str, sa_email: str, sa_password: str,
 
     t0 = time.monotonic()
     return _generar(seed_password, sa_email, sa_password, t0, TestClient,
-                    app, SessionLocal, seed_super_admin)
+                    app, SessionLocal, seed_super_admin, hacer_export)
 
 
 def _generar(seed_password, sa_email, sa_password, t0, TestClient, app,
-             SessionLocal, seed_super_admin) -> dict:
+             SessionLocal, seed_super_admin, hacer_export: bool = False) -> dict:
     with TestClient(app) as client:  # lifespan: create_all + migraciones
         with SessionLocal() as db:
             seed_super_admin(db)
@@ -1037,6 +1041,18 @@ def _generar(seed_password, sa_email, sa_password, t0, TestClient, app,
         api.cambiar_password(admin_token, seed_password + "-inicial", seed_password)
 
         m = poblar_demo(api, admin_token, seed_password)
+
+        # Volcado a JSON estático para la demo del navegador sin backend (Plan
+        # B). Corre acá adentro, todavía con el TestClient in-process
+        # abierto: exportar() vuelve a pedirle cada ruta a la propia API, con
+        # el mismo cliente que puebla el dataset, para que la forma del
+        # export no pueda divergir del contrato.
+        if hacer_export:
+            from .export_demo import escribir, exportar
+            destino = Path(__file__).parent.parent / "frontend" / "src" / "demo" / "dataset.json"
+            datos = exportar(api, admin_token, m["tokens_depto"], m["consorcio_id"])
+            escribir(datos, destino)
+            print(f"[demo] dataset exportado a {destino}")
 
     m["segundos_total"] = round(time.monotonic() - t0, 1)
     print(f"\n[demo] listo en {m['segundos_total']} s · {m['deptos']} UF · "
@@ -1069,6 +1085,7 @@ def main() -> None:
         sa_email=sa_email,
         sa_password=sa_password,
         reset="--reset" in sys.argv,
+        hacer_export="--exportar" in sys.argv,
     )
 
 
