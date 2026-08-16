@@ -36,13 +36,55 @@ RUTAS_EXPORTADAS: list[tuple[str, str]] = [
 ]
 
 
+#: Rutas cuyo endpoint pagina con `limit`/`offset` y en el dataset real supera
+#: el `limit` default (50): sin pedir todas las páginas, el export queda
+#: truncado a la mitad de un período (108 expensas → 50, 82 comprobantes →
+#: 50). El resto de las rutas exportadas no tiene ese riesgo: o no acepta
+#: `limit`/`offset` (lo ignora si igual se lo mandamos) o el volumen real
+#: nunca se acerca al default.
+_RUTAS_PAGINADAS = {"/expensas", "/gastos", "/comprobantes"}
+
+#: Tamaño de página al paginar: el máximo que aceptan esos tres endpoints
+#: (`limit: int = Query(default=50, ge=1, le=200)`). Pedir de a 200 en vez
+#: de agotar con el default de 50 minimiza la cantidad de vueltas.
+_TAMANO_PAGINA = 200
+
+
+def _pedir_paginado(api, path: str, token: str, cid: int) -> list:
+    """Junta todas las páginas de un endpoint `limit`/`offset` hasta agotarlo.
+
+    Una página con menos registros que `_TAMANO_PAGINA` es, por construcción
+    (el backend nunca devuelve una página parcial salvo que sea la última),
+    la señal de que no queda nada más por pedir — no hace falta que el
+    endpoint informe un total aparte.
+    """
+    resultado: list = []
+    offset = 0
+    while True:
+        r = api.req("GET", path, token=token, cid=cid,
+                     params={"limit": _TAMANO_PAGINA, "offset": offset})
+        pagina = r.json()
+        resultado.extend(pagina)
+        if len(pagina) < _TAMANO_PAGINA:
+            return resultado
+        offset += _TAMANO_PAGINA
+
+
 def exportar(api, admin_token: str, tokens_depto: dict[int, str], cid: int) -> dict:
-    """Pide cada ruta declarada y devuelve {path: cuerpo}."""
+    """Pide cada ruta declarada y devuelve {path: cuerpo}.
+
+    Las rutas de `_RUTAS_PAGINADAS` se piden página por página hasta
+    agotarlas — ver `_pedir_paginado`. El resto se pide de una sola vez,
+    como devuelve el endpoint.
+    """
     datos: dict = {}
     for rol, path in RUTAS_EXPORTADAS:
         token = admin_token if rol == "admin" else next(iter(tokens_depto.values()))
-        r = api.req("GET", path, token=token, cid=cid)
-        datos[path] = r.json()
+        if path in _RUTAS_PAGINADAS:
+            datos[path] = _pedir_paginado(api, path, token, cid)
+        else:
+            r = api.req("GET", path, token=token, cid=cid)
+            datos[path] = r.json()
     return datos
 
 
