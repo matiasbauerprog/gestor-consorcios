@@ -159,22 +159,45 @@ _REPARACIONES_PRIVADAS_ESTIMADO = (1 + 3) / 2 * (15_000 + 90_000) / 2
 #: hay que actualizar esta constante a mano — no se recalcula sola.
 _SUELDO_ENCARGADO_ESTIMADO = (950_000 + 190_000 + 95_000 + 60_000 + 52_000) * 1.22
 
-#: Cuota de la obra extraordinaria (plan-cuotas en poblar_demo).
-#: `crear_plan_cuotas` (backend/routers/gastos.py) no divide `monto` entre
-#: `cuota_total`: replica el mismo monto en cada una de las 6 cuotas, así que
-#: el monto completo de la cuota entra al gasto de cada período, no una sexta
-#: parte de él.
-#: Si cambia el `monto` (7.200.000) del plan de cuotas en poblar_demo, hay que
-#: actualizar esta constante a mano — no se recalcula sola.
+#: Costo total de la obra de frente del dataset demo, y en cuántas cuotas se
+#: financia. Se declaran por separado porque `crear_plan_cuotas`
+#: (backend/routers/gastos.py) espera el importe DE CADA CUOTA, no el total:
+#: no divide `monto` entre `cuota_total`, sino que replica el mismo `monto`
+#: recibido en cada una de las cuotas. Mandarle el total multiplica el gasto
+#: real por la cantidad de cuotas — ver `importe_por_cuota`.
+COSTO_TOTAL_OBRA_DEMO = 7_200_000.0
+CUOTAS_OBRA_DEMO = 6
+
+
+def importe_por_cuota(costo_total: float, cuotas: int) -> float:
+    """Importe de cada cuota para `POST /gastos/plan-cuotas`.
+
+    Ese endpoint NO divide: crea `cuota_total` gastos con el `monto` recibido
+    entero cada uno (`backend/routers/gastos.py:555-581`). Mandarle el costo
+    total de una obra multiplica el gasto por la cantidad de cuotas — el
+    dataset llegó a tener una reparación de frente de $43.200.000 por esta
+    causa, el 72% de los gastos del semestre.
+    """
+    return round(costo_total / cuotas, 2)
+
+
+#: Cuota mensual de la obra extraordinaria (plan-cuotas en poblar_demo), para
+#: sumar al estimado de `estimar_gasto_mensual_demo`. Es el importe de UNA
+#: cuota, no el costo total de la obra: lo que golpea la caja cada mes es una
+#: cuota (ver `importe_por_cuota`), no la obra entera.
+#:   cuota = importe_por_cuota(COSTO_TOTAL_OBRA_DEMO, CUOTAS_OBRA_DEMO)
+#:         = 7.200.000 / 6 = 1.200.000
+#: Si cambian `COSTO_TOTAL_OBRA_DEMO` o `CUOTAS_OBRA_DEMO`, hay que actualizar
+#: esta constante a mano — no se recalcula sola.
 #: Acoplamiento implícito con `meses_demo`: esta constante asume que la
-#: cantidad de cuotas de la obra (`cuota_total=6` en poblar_demo) coincide con
-#: la cantidad de meses que siembra el dataset (`meses_demo(..., cantidad=6)`
-#: por default). Mientras coincidan, la cuota golpea los 6 períodos del
-#: dataset entero y la cuenta cierra. Si el día de mañana uno de esos dos "6"
-#: cambia sin el otro (por ejemplo, más meses de dataset pero la misma obra de
-#: 6 cuotas), la obra deja de pagarse todos los períodos y esta constante pasa
-#: a sobreestimar el gasto mensual real — sin que nada lo avise.
-_CUOTA_OBRA_ESTIMADA = 7_200_000.0
+#: cantidad de cuotas de la obra (`CUOTAS_OBRA_DEMO=6`) coincide con la
+#: cantidad de meses que siembra el dataset (`meses_demo(..., cantidad=6)` por
+#: default). Mientras coincidan, la cuota golpea los 6 períodos del dataset
+#: entero y la cuenta cierra. Si el día de mañana uno de esos dos "6" cambia
+#: sin el otro (por ejemplo, más meses de dataset pero la misma obra de 6
+#: cuotas), la obra deja de pagarse todos los períodos y esta constante pasa a
+#: sobreestimar el gasto mensual real — sin que nada lo avise.
+_CUOTA_OBRA_ESTIMADA = 1_200_000.0
 
 
 def estimar_gasto_mensual_demo(rubros_comunes: list[tuple]) -> float:
@@ -661,13 +684,13 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
                 "proveedor_id": proveedor_para_rubro(
                     "mantenimiento_partes_comunes", proveedores, RNG),
                 "concepto": "Reparación integral del frente del edificio",
-                "monto": 7_200_000.0,
+                "monto": importe_por_cuota(COSTO_TOTAL_OBRA_DEMO, CUOTAS_OBRA_DEMO),
                 "forma_pago": "transferencia",
                 "caja_id": _caja_default(api, admin_token, cid),
                 "fecha_pago": _dia_del_periodo(periodo, 5).isoformat(),
-                "cuota_total": 6,
+                "cuota_total": CUOTAS_OBRA_DEMO,
             }, expect=201)
-            cuotas_obra = 6
+            cuotas_obra = CUOTAS_OBRA_DEMO
 
         for rubro, concepto, lo, hi in RUBROS_COMUNES:
             if rubro == "sueldos_y_cargas_sociales":

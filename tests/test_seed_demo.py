@@ -6,9 +6,13 @@ from sqlalchemy.orm import Session
 
 from backend.models import Administracion, Base, Consorcio, Departamento
 from backend.seed_demo import (
+    COSTO_TOTAL_OBRA_DEMO,
+    CUOTAS_OBRA_DEMO,
+    _CUOTA_OBRA_ESTIMADA,
     _resetear_esquema,
     deja_pendiente,
     estimar_gasto_mensual_demo,
+    importe_por_cuota,
     meses_demo,
     perfiles_deterministas,
     saldo_inicial_caja,
@@ -341,15 +345,36 @@ def test_estimar_gasto_mensual_demo_reacciona_a_nuevas_filas():
     )
 
 
-def test_estimar_gasto_mensual_demo_con_rubros_comunes_reales_ronda_los_10_millones():
+def test_estimar_gasto_mensual_demo_con_rubros_comunes_reales_ronda_los_4_millones():
     # No es un valor fijo pinneado (RUBROS_COMUNES puede cambiar), sino una
     # banda amplia que confirma que la cuenta da un orden de magnitud
     # razonable para un consorcio de 18 UF, no un número descolgado de la
     # realidad del dataset.
+    # Banda rehacible: comunes (~1.059.000) + reparaciones privadas (105.000)
+    # + sueldo del encargado (~1.643.340) + cuota de la obra (1.200.000, no el
+    # costo total) ronda los 4.007.340 — antes de corregir `_CUOTA_OBRA_ESTIMADA`
+    # para que valga la cuota y no el total de la obra, esta cuenta rondaba los
+    # 10.007.340 porque sumaba la obra entera.
     from backend.seed_e2e import RUBROS_COMUNES
 
     estimado = estimar_gasto_mensual_demo(RUBROS_COMUNES)
-    assert 8_000_000 < estimado < 12_000_000
+    assert 3_000_000 < estimado < 5_000_000
+
+
+def test_el_importe_por_cuota_divide_el_total():
+    # `crear_plan_cuotas` repite `monto` una vez por cuota sin dividirlo, así
+    # que el generador tiene que mandarle ya dividido el total de la obra.
+    assert importe_por_cuota(7_200_000.0, 6) == 1_200_000.0
+
+
+def test_la_obra_del_demo_suma_su_costo_total_y_no_seis_veces_mas():
+    assert importe_por_cuota(COSTO_TOTAL_OBRA_DEMO, CUOTAS_OBRA_DEMO) * CUOTAS_OBRA_DEMO == COSTO_TOTAL_OBRA_DEMO
+
+
+def test_la_estimacion_de_gasto_usa_la_cuota_real_y_no_el_total():
+    # _CUOTA_OBRA_ESTIMADA alimenta el fondo de reserva. Si sigue valiendo el
+    # total, el fondo queda calculado sobre un gasto seis veces mayor al real.
+    assert _CUOTA_OBRA_ESTIMADA == importe_por_cuota(COSTO_TOTAL_OBRA_DEMO, CUOTAS_OBRA_DEMO)
 
 
 def test_saldo_inicial_cubre_el_deficit_de_los_meses_sembrados():
