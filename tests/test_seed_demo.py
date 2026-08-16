@@ -245,6 +245,31 @@ def test_resetear_esquema_en_postgres_hace_drop_schema_cascade_y_recrea():
     assert statements == ["DROP SCHEMA PUBLIC CASCADE", "CREATE SCHEMA PUBLIC"]
 
 
+def test_cada_rubro_comun_tiene_un_proveedor_plausible():
+    from backend.seed_demo import PROVEEDORES_DEMO, proveedor_para_rubro
+
+    proveedores = {razon: i + 1 for i, (razon, _) in enumerate(PROVEEDORES_DEMO)}
+    esperado = {
+        "gastos_administracion": "Estudio Rossi & Asociados",
+        "seguros": "Seguros La Continental",
+        "servicios_publicos": "Servicios Metropolitanos SA",
+        "gastos_bancarios": "Banco Ciudad",
+        "abonos_y_servicios": "Limpieza Total SRL",
+        "mantenimiento_partes_comunes": "Plomería Paz",
+        "trabajos_reparaciones_unidades": "Plomería Paz",
+    }
+    for rubro, razon in esperado.items():
+        assert proveedor_para_rubro(rubro, proveedores, None) == proveedores[razon]
+
+
+def test_proveedor_para_rubro_desconocido_cae_en_uno_generico():
+    from backend.seed_demo import PROVEEDORES_DEMO, proveedor_para_rubro
+
+    proveedores = {razon: i + 1 for i, (razon, _) in enumerate(PROVEEDORES_DEMO)}
+    elegido = proveedor_para_rubro("rubro_que_no_existe", proveedores, None)
+    assert elegido in proveedores.values()
+
+
 def test_seed_demo_no_expone_guard_de_reentrada():
     """El guard GENERANDO se elimino junto con el seed-on-boot.
 

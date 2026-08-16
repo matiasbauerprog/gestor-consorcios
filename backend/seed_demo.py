@@ -87,6 +87,46 @@ COMUNICADOS_DEMO: list[tuple[str, str]] = [
 ]
 
 
+# Proveedor por rubro: en pantalla, un gasto de seguros facturado por una
+# empresa de ascensores destruye la credibilidad del dataset entero. El
+# segundo elemento es el rubro que atiende cada proveedor.
+PROVEEDORES_DEMO: list[tuple[str, str]] = [
+    ("Limpieza Total SRL", "abonos_y_servicios"),
+    ("Ascensores Vertirod SA", "abonos_y_servicios"),
+    ("ElectroSur SRL", "mantenimiento_partes_comunes"),
+    ("Plomería Paz", "mantenimiento_partes_comunes"),
+    ("Seguros La Continental", "seguros"),
+    ("Estudio Rossi & Asociados", "gastos_administracion"),
+    ("Servicios Metropolitanos SA", "servicios_publicos"),
+    ("Banco Ciudad", "gastos_bancarios"),
+]
+
+_PROVEEDOR_POR_RUBRO = {
+    "gastos_administracion": "Estudio Rossi & Asociados",
+    "seguros": "Seguros La Continental",
+    "servicios_publicos": "Servicios Metropolitanos SA",
+    "gastos_bancarios": "Banco Ciudad",
+    "abonos_y_servicios": "Limpieza Total SRL",
+    "mantenimiento_partes_comunes": "Plomería Paz",
+    "trabajos_reparaciones_unidades": "Plomería Paz",
+    "sueldos_y_cargas_sociales": "Estudio Rossi & Asociados",
+}
+
+
+def proveedor_para_rubro(rubro: str, proveedores: dict[str, int], rng) -> int:
+    """Id del proveedor que corresponde a `rubro`.
+
+    `proveedores` mapea razón social → id (los ids los devuelve la API al
+    crearlos). Un rubro sin mapa cae en el primero de la lista en vez de
+    elegir al azar: un default estable es preferible a uno que cambia entre
+    corridas y hace irreproducible el dataset.
+    """
+    razon = _PROVEEDOR_POR_RUBRO.get(rubro)
+    if razon is None or razon not in proveedores:
+        return next(iter(proveedores.values()))
+    return proveedores[razon]
+
+
 def meses_demo(hoy: date, cantidad: int = 6) -> list[str]:
     """Los `cantidad` meses calendario completos anteriores al mes en curso.
 
@@ -270,14 +310,13 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
                 json={"codigo": "B", "nombre": "Expensas extraordinarias"}, expect=201)
     clase_b = r.json()["id"]
 
-    proveedores = []
-    for razon in ["Limpieza Total SRL", "Ascensores Vertirod SA", "ElectroSur SRL",
-                  "Plomería Paz", "Seguros La Continental"]:
+    proveedores = {}
+    for razon, _rubro in PROVEEDORES_DEMO:
         r = api.req("POST", "/proveedores", token=admin_token, cid=cid,
                     json={"razon_social": razon,
                           "cuit": f"30-{RNG.randint(10_000_000, 99_999_999)}-{RNG.randint(0, 9)}"},
                     expect=201)
-        proveedores.append(r.json()["id"])
+        proveedores[razon] = r.json()["id"]
 
     amenities = {}
     for nombre_a, precio in [("SUM", 25_000.0), ("Laundry", 3_000.0)]:
@@ -310,9 +349,12 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
     api.req("PUT", "/coeficientes", token=admin_token, cid=cid,
             json={"coeficientes": coefs + coefs_b}, expect=200)
 
-    # El encargado necesita un proveedor (le paga la administración); usamos
-    # el primero de la lista ya creada arriba.
-    personal = crear_catalogo_personal(api, admin_token, cid, proveedores[0])
+    # El encargado necesita un proveedor (le paga la administración): el que
+    # atiende sueldos_y_cargas_sociales.
+    personal = crear_catalogo_personal(
+        api, admin_token, cid,
+        proveedor_para_rubro("sueldos_y_cargas_sociales", proveedores, RNG),
+    )
 
     puntuales, irregulares, morosos = perfiles_deterministas(deptos)
 
@@ -358,7 +400,8 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
                 "periodo": periodo,
                 "rubro": "mantenimiento_partes_comunes",
                 "clase_prorrateo_id": clase_b,
-                "proveedor_id": proveedores[0],
+                "proveedor_id": proveedor_para_rubro(
+                    "mantenimiento_partes_comunes", proveedores, RNG),
                 "concepto": "Reparación integral del frente del edificio",
                 "monto": 7_200_000.0,
                 "forma_pago": "transferencia",
@@ -374,7 +417,7 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
             api.req("POST", "/gastos", token=admin_token, cid=cid, json={
                 "periodo": periodo, "rubro": rubro,
                 "clase_prorrateo_id": clase_a,
-                "proveedor_id": RNG.choice(proveedores),
+                "proveedor_id": proveedor_para_rubro(rubro, proveedores, RNG),
                 "concepto": concepto,
                 "monto": round(RNG.uniform(lo, hi), 2),
                 "forma_pago": "transferencia",
@@ -387,7 +430,8 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
             api.req("POST", "/gastos", token=admin_token, cid=cid, json={
                 "periodo": periodo, "rubro": "trabajos_reparaciones_unidades",
                 "departamento_id": depto["id"],
-                "proveedor_id": RNG.choice(proveedores),
+                "proveedor_id": proveedor_para_rubro(
+                    "trabajos_reparaciones_unidades", proveedores, RNG),
                 "concepto": f"Reparación privada {depto['codigo']}",
                 "monto": round(RNG.uniform(15_000, 90_000), 2),
                 "forma_pago": "transferencia",
@@ -532,7 +576,7 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
         trabajos_creados += 1
 
         elegido = None
-        for prov in RNG.sample(proveedores, k=RNG.randint(1, 3)):
+        for prov in RNG.sample(sorted(proveedores.values()), k=RNG.randint(1, 3)):
             # El endpoint de presupuestos recibe multipart/form-data.
             r = api.req("POST", f"/trabajos/{trabajo_id}/presupuestos",
                         token=admin_token, cid=cid,
