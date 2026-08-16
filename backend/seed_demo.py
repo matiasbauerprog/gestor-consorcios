@@ -150,6 +150,9 @@ _REPARACIONES_PRIVADAS_ESTIMADO = (1 + 3) / 2 * (15_000 + 90_000) / 2
 #: Los descuentos (jubilación, obra social, sindicato) no se suman aparte: ya
 #: están dentro del bruto, sólo cambian a quién se le paga — ver
 #: `_generar_gastos` en backend/routers/liquidaciones.py.
+#: Si cambia el `sueldo_basico`, algún haber o algún porcentaje de
+#: contribución/ART en `crear_catalogo_personal` (más abajo en este archivo),
+#: hay que actualizar esta constante a mano — no se recalcula sola.
 _SUELDO_ENCARGADO_ESTIMADO = (950_000 + 190_000 + 95_000 + 60_000 + 52_000) * 1.22
 
 #: Cuota de la obra extraordinaria (plan-cuotas en poblar_demo).
@@ -157,6 +160,16 @@ _SUELDO_ENCARGADO_ESTIMADO = (950_000 + 190_000 + 95_000 + 60_000 + 52_000) * 1.
 #: `cuota_total`: replica el mismo monto en cada una de las 6 cuotas, así que
 #: el monto completo de la cuota entra al gasto de cada período, no una sexta
 #: parte de él.
+#: Si cambia el `monto` (7.200.000) del plan de cuotas en poblar_demo, hay que
+#: actualizar esta constante a mano — no se recalcula sola.
+#: Acoplamiento implícito con `meses_demo`: esta constante asume que la
+#: cantidad de cuotas de la obra (`cuota_total=6` en poblar_demo) coincide con
+#: la cantidad de meses que siembra el dataset (`meses_demo(..., cantidad=6)`
+#: por default). Mientras coincidan, la cuota golpea los 6 períodos del
+#: dataset entero y la cuenta cierra. Si el día de mañana uno de esos dos "6"
+#: cambia sin el otro (por ejemplo, más meses de dataset pero la misma obra de
+#: 6 cuotas), la obra deja de pagarse todos los períodos y esta constante pasa
+#: a sobreestimar el gasto mensual real — sin que nada lo avise.
 _CUOTA_OBRA_ESTIMADA = 7_200_000.0
 
 
