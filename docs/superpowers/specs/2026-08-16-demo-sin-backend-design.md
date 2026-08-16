@@ -130,20 +130,41 @@ generador:
    nota en dos segundos. Mapear rubro → proveedor plausible.
 2. **Todas las expensas emitidas el mismo día.** Los movimientos `expensa_emitida`
    llevan la fecha de generación del seed (las seis, el mismo día), mientras los
-   recargos sí tienen fecha mensual correcta. Fechar cada emisión en su período.
+   recargos sí tienen fecha mensual correcta.
+
+   **La causa está en el backend, no en el generador:** `routers/periodos.py:145`
+   hace `hoy = date.today()` y con eso fecha los movimientos de emisión
+   (línea 183). Como el generador cierra los seis períodos en un minuto, los seis
+   quedan fechados hoy. No se puede corregir pasando un parámetro.
+
+   La solución que respeta el "sin cambios en el backend": el generador **simula
+   el paso del tiempo** al cerrar cada período, parcheando el reloj del módulo de
+   períodos con `unittest.mock.patch` (stdlib, sin dependencias nuevas) al día de
+   cierre que corresponde a ese período. Corrige de una vez las emisiones, los
+   recargos y los intereses, y sirve igual para el demo público si se revive.
 3. **Ningún comprobante pendiente.** Los 50 que devuelve la API están todos
    `aprobado`, así que el circuito 1 no tiene nada esperando. Dejar 2-3
    pendientes de aprobación.
-4. **El mes en curso vacío.** Inicio muestra el hero en `$0` con "0% cobrado",
-   Gastos dice "no hay gastos" y Liquidaciones "no hay liquidaciones". Sembrar el
-   mes en curso.
+4. ~~El mes en curso vacío.~~ **No es un defecto del dataset: es deliberado.**
+   `meses_demo()` siembra los seis meses *completos anteriores* y deja el mes en
+   curso abierto a propósito, para que el visitante tenga un período vivo donde
+   cargar un gasto y cerrarlo — que es justamente el circuito 2. Hay un test que
+   lo fija (`test_meses_demo_devuelve_los_6_meses_completos_anteriores`).
+
+   Lo que sí falla es **cómo lo presenta la interfaz**: Inicio muestra el hero en
+   `$0` con "0% cobrado" en vez de invitar a cargar el primer gasto del mes, y
+   Gastos y Liquidaciones muestran un vacío seco. Eso es trabajo de interfaz, no
+   de datos, y va al Plan B junto con el resto de los arreglos de pantalla.
 5. **La caja en −$13.263.900.** El estado financiero muestra el consorcio con
    trece millones en rojo, que es imposible en un consorcio real. Cargar los
    ingresos que faltan o un saldo inicial.
 6. **Comprobantes con imágenes de un píxel.** En la demo se ven. Incluir dos o
    tres capturas de transferencia genéricas.
-7. **El "propietario al día" debe $242.357.** El selector promete una cosa y la
-   pantalla muestra otra. Dejarlo efectivamente al día.
+7. **El "propietario al día" no está al día.** UF-01A, que los perfiles pinnean
+   como pagador puntual y es el destino del botón "Propietario al día", tiene
+   $242.357 de saldo, **un recargo por mora de $38.260 y $6.209 de intereses
+   punitorios**. El selector promete una cosa y la pantalla muestra otra, en rojo.
+   Verificado sobre los datos, no inferido.
 
 ### 3.3 PDF
 
