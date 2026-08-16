@@ -1,0 +1,8 @@
+# Los PDF exportados por backend/export_demo.py (Task 8, dataset demo) son
+# binarios chicos y sin bytes NUL en los primeros KB: la heurística de Git
+# para detectar binario por contenido no los reconoce, y con
+# core.autocrlf=true un checkout convierte sus saltos de línea LF sueltos a
+# CRLF -- eso corrompe el PDF (el offset de `startxref` y el `/Length` de
+# cada stream dejan de coincidir con los bytes reales). Forzarlos a binario
+# saltea la heurística y evita la conversión pase lo que pase.
+*.pdf binary

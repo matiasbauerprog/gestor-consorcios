@@ -1,4 +1,4 @@
-from backend.export_demo import RUTAS_EXPORTADAS, exportar
+from backend.export_demo import RUTAS_EXPORTADAS, exportar, exportar_pdfs
 
 
 class _ApiFalsa:
@@ -99,3 +99,30 @@ def test_pagina_hasta_agotar_cuando_hay_mas_registros_que_el_tamano_de_pagina():
     # Sin huecos ni duplicados: los ids cubren el rango completo.
     ids = sorted(item["id"] for item in datos["/expensas"])
     assert ids == list(range(_ApiFalsaPaginada.TOTAL))
+
+
+class _ApiPdf:
+    """Devuelve bytes de PDF para cualquier path que termine en /pdf."""
+
+    def req(self, metodo, path, **kwargs):
+        class _R:
+            status_code = 200
+            content = b"%PDF-1.4 contenido de prueba"
+
+        return _R()
+
+
+def test_exporta_un_pdf_por_expensa(tmp_path):
+    expensas = [{"id": 7, "departamento_id": 1}, {"id": 8, "departamento_id": 2}]
+    mapa = exportar_pdfs(_ApiPdf(), "tok", 1, expensas, tmp_path)
+    assert set(mapa) == {7, 8}
+    for expensa_id, nombre in mapa.items():
+        assert (tmp_path / nombre).exists()
+        assert (tmp_path / nombre).read_bytes().startswith(b"%PDF")
+
+
+def test_el_nombre_del_pdf_no_expone_datos_del_vecino(tmp_path):
+    # El nombre viaja en una URL pública: sólo el id de la expensa.
+    expensas = [{"id": 7, "departamento_id": 1}]
+    mapa = exportar_pdfs(_ApiPdf(), "tok", 1, expensas, tmp_path)
+    assert mapa[7] == "expensa-7.pdf"

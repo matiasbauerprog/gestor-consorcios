@@ -1048,11 +1048,27 @@ def _generar(seed_password, sa_email, sa_password, t0, TestClient, app,
         # el mismo cliente que puebla el dataset, para que la forma del
         # export no pueda divergir del contrato.
         if hacer_export:
-            from .export_demo import escribir, exportar
+            from .export_demo import escribir, exportar, exportar_pdfs
             destino = Path(__file__).parent.parent / "frontend" / "src" / "demo" / "dataset.json"
             datos = exportar(api, admin_token, m["tokens_depto"], m["consorcio_id"])
             escribir(datos, destino)
             print(f"[demo] dataset exportado a {destino}")
+
+            # PDFs reales de la boleta del último período cerrado, uno por
+            # unidad, servidos sueltos fuera del paquete de la app: van a
+            # frontend/public/ (estáticos de Vite, no entran al bundle de JS)
+            # para que "ver PDF" en la demo abra el propio sin backend.
+            ultimo = m["meses"][-1]
+            expensas_ultimas = [
+                e for e in datos["/expensas"] if e["periodo"] == ultimo
+            ]
+            mapa = exportar_pdfs(
+                api, admin_token, m["consorcio_id"], expensas_ultimas,
+                Path(__file__).parent.parent / "frontend" / "public" / "demo-pdfs",
+            )
+            datos["_pdfs"] = mapa
+            escribir(datos, destino)  # re-escribir con el mapa incluido
+            print(f"[demo] {len(mapa)} PDFs exportados")
 
     m["segundos_total"] = round(time.monotonic() - t0, 1)
     print(f"\n[demo] listo en {m['segundos_total']} s · {m['deptos']} UF · "

@@ -88,6 +88,25 @@ def exportar(api, admin_token: str, tokens_depto: dict[int, str], cid: int) -> d
     return datos
 
 
+def exportar_pdfs(api, admin_token: str, cid: int, expensas: list[dict],
+                  destino: Path) -> dict[int, str]:
+    """Baja el PDF de cada expensa y lo escribe en `destino`.
+
+    Devuelve {expensa_id: nombre de archivo} para que la demo sepa qué abrir.
+    El nombre lleva sólo el id de la expensa: viaja en una URL pública y no
+    tiene por qué exponer la unidad ni el propietario.
+    """
+    destino.mkdir(parents=True, exist_ok=True)
+    mapa: dict[int, str] = {}
+    for expensa in expensas:
+        expensa_id = expensa["id"]
+        r = api.req("GET", f"/expensas/{expensa_id}/pdf", token=admin_token, cid=cid)
+        nombre = f"expensa-{expensa_id}.pdf"
+        (destino / nombre).write_bytes(r.content)
+        mapa[expensa_id] = nombre
+    return mapa
+
+
 def escribir(datos: dict, destino: Path) -> None:
     destino.parent.mkdir(parents=True, exist_ok=True)
     destino.write_text(
