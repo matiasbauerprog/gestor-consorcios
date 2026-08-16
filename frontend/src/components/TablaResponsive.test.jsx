@@ -173,7 +173,7 @@ describe("TablaResponsive — escalones por ancho de contenedor", () => {
     expect(container.querySelectorAll("tr.fila-detalle")).toHaveLength(0);
   });
 
-  it("bajo 1000px la columna de prioridad 3 sale de la tabla y pasa al detalle", () => {
+  it("bajo el umbral de prioridad 3 la columna sale de la tabla y pasa al detalle", () => {
     const { container } = montarEsc(900);
     expect(container.querySelector('thead th[data-prio="3"]')).toBeNull();
     expect(container.querySelector('tbody td[data-prio="3"]')).toBeNull();
@@ -205,6 +205,19 @@ describe("TablaResponsive — escalones por ancho de contenedor", () => {
     const { container } = montarEsc(720);
     expect(container.querySelector('thead th[data-prio="2"]')).not.toBeNull();
     expect(container.querySelector('thead th[data-prio="3"]')).toBeNull();
+  });
+
+  // El filo exacto del umbral de prioridad 3 (1062px de contenedor, derivado
+  // en el docblock de `prioridadVisible`): un contenedor de 1061 todavía no
+  // alcanza para que las columnas de prioridad 3 entren sin dejar a las de
+  // prioridad 1 por debajo de lo que necesitan.
+  it("a 1061px de contenedor la prioridad 3 todavía no entra, a 1062 sí", () => {
+    const justoAbajo = montarEsc(1061);
+    expect(justoAbajo.container.querySelector('thead th[data-prio="3"]')).toBeNull();
+    justoAbajo.unmount();
+
+    const justoArriba = montarEsc(1062);
+    expect(justoArriba.container.querySelector('thead th[data-prio="3"]')).not.toBeNull();
   });
 
   it("el colSpan de la fila de detalle es la cantidad de columnas visibles más el chevron", () => {
