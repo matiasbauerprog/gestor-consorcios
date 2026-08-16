@@ -491,10 +491,20 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
         pagan += [d["id"] for d in irregulares if RNG.random() < 0.5]
         es_ultimo = periodo == meses[-1]
 
-        for idx, depto_id in enumerate(pagan):
-            exp = expensas_por_depto.get(depto_id)
-            if exp is None or depto_id not in tokens_depto:
-                continue
+        # Filtrado ANTES del loop, no `continue` adentro: deja_pendiente()
+        # decide sobre el índice y el total de comprobantes que van a
+        # existir de verdad. Si el filtro viviera como un `continue` dentro
+        # del for, un depto sin expensa o sin login corrido podría desalinear
+        # `idx`/`len(...)` de los comprobantes efectivamente creados y, en el
+        # peor caso, dejar el período entero sin ninguna cobranza aprobada
+        # (la garantía que promete el docstring de deja_pendiente).
+        pagan_con_datos = [
+            depto_id for depto_id in pagan
+            if depto_id in expensas_por_depto and depto_id in tokens_depto
+        ]
+
+        for idx, depto_id in enumerate(pagan_con_datos):
+            exp = expensas_por_depto[depto_id]
             fecha_pago = min(f1 - timedelta(days=RNG.randint(0, 5)), date.today())
             monto = exp["monto_primer_vencimiento"]
             if RNG.random() < 0.05:
@@ -503,7 +513,7 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
                         data={"fecha_pago": fecha_pago.isoformat(), "monto": monto},
                         files={"archivo": ("pago.png", _PNG_1PX_DEMO, "image/png")},
                         expect=201)
-            if not deja_pendiente(idx, len(pagan), es_ultimo):
+            if not deja_pendiente(idx, len(pagan_con_datos), es_ultimo):
                 api.req("PATCH", f"/comprobantes/{r.json()['id']}", token=admin_token, cid=cid,
                         json={"estado": "aprobado"}, expect=200)
             comprobantes += 1

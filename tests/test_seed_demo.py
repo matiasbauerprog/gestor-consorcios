@@ -299,6 +299,23 @@ def test_con_menos_de_tres_pagos_no_deja_todo_pendiente():
     assert deja_pendiente(1, 2, es_ultimo_periodo=True) is True
 
 
+def test_con_un_solo_pago_no_deja_nada_pendiente():
+    # cupo = min(3, 1 // 2) = 0: con un único pagador, ese pago tiene que
+    # quedar cobrado, no colgado esperando aprobación.
+    assert deja_pendiente(0, 1, es_ultimo_periodo=True) is False
+
+
+def test_con_cero_pagos_el_resultado_es_irrelevante_en_la_practica():
+    # Caso degenerado documentado, no una garantía: con total_pagos=0 no hay
+    # ningún índice válido para invocar la función (el generador nunca llama
+    # a deja_pendiente si no hay pagos), así que el valor que devuelva no
+    # importa. Lo que este test fija es el comportamiento actual —
+    # cupo = min(3, 0 // 2) = 0 y 0 >= 0 - 0 da True para cualquier índice—
+    # para que un cambio futuro que lo altere sea una decisión explícita y
+    # no una regresión silenciosa.
+    assert deja_pendiente(0, 0, es_ultimo_periodo=True) is True
+
+
 def test_seed_demo_no_expone_guard_de_reentrada():
     """El guard GENERANDO se elimino junto con el seed-on-boot.
 
