@@ -492,3 +492,66 @@ def test_reloj_en_no_toca_el_date_de_seed_demo():
     real_hoy = date.today()
     with reloj_en(date(2020, 1, 1)):
         assert seed_demo.date.today() == real_hoy
+
+
+def test_reloj_en_revierte_los_tres_parches_aunque_el_bloque_explote():
+    # poblar_demo cierra 6 períodos seguidos dentro de reloj_en. Si algo
+    # revienta a mitad de uno (una API que devuelve un status inesperado,
+    # por ejemplo) y el parche quedara pegado, contaminaría con la fecha
+    # simulada TODO lo que corra después — incluidos los períodos
+    # siguientes. La garantía la da `unittest.mock.patch` como context
+    # manager (restaura en `__exit__` incluso si el `with` propaga una
+    # excepción), pero es justo la clase de cosa que se verifica con un
+    # test, no con confianza en la biblioteca estándar.
+    from backend import cierre, recargos
+    from backend.routers import periodos
+
+    class _ExplotoAMitadDelBloque(Exception):
+        pass
+
+    with pytest.raises(_ExplotoAMitadDelBloque):
+        with reloj_en(date(2020, 5, 5)):
+            assert periodos.date.today() == date(2020, 5, 5)
+            raise _ExplotoAMitadDelBloque("una API falla a mitad del período")
+
+    assert periodos.date.today() == date.today()
+    assert cierre.date.today() == date.today()
+    assert recargos.date.today() == date.today()
+
+
+def test_reloj_en_no_arrastra_la_fecha_simulada_entre_dos_entradas_seguidas():
+    # El generador entra a este bloque una vez por período, 6 veces
+    # seguidas. Si la restauración de una vuelta quedara pisada por la
+    # siguiente, la segunda entrada heredaría la fecha simulada de la
+    # primera en vez de partir de la fecha real.
+    from backend.routers import periodos
+
+    real_hoy = date.today()
+
+    with reloj_en(date(2026, 1, 1)):
+        assert periodos.date.today() == date(2026, 1, 1)
+    assert periodos.date.today() == real_hoy
+
+    with reloj_en(date(2026, 6, 1)):
+        assert periodos.date.today() == date(2026, 6, 1)
+    assert periodos.date.today() == real_hoy
+
+
+def test_fecha_fija_no_admite_construccion_directa():
+    # `_FechaFija` sólo debe responder `.today()`. Si algo bajo el patch
+    # construye una fecha por afuera de `.today()` (`date(y, m, d)`,
+    # aritmética que preserve la subclase vía `fromordinal`, etc.), la
+    # instancia resultante llevaría un `.today()` fijo para siempre y
+    # podría terminar grabada en `fecha_primer_vencimiento` /
+    # `fecha_segundo_vencimiento` si algún día ese código corre bajo el
+    # patch. Hoy nada lo dispara (`cierre._calcular_fechas_default` es la
+    # única construcción directa del módulo, y sólo corre si las fechas
+    # llegan en None — `poblar_demo` siempre las manda explícitas), pero
+    # eso es un invariante del llamador, no algo que reloj_en deba confiar
+    # que se mantenga: por eso el constructor falla ruidoso en vez de
+    # dejar pasar el objeto en silencio.
+    from backend.routers import periodos
+
+    with reloj_en(date(2026, 3, 1)):
+        with pytest.raises(TypeError):
+            periodos.date(2026, 3, 10)

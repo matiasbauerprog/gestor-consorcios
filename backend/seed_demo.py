@@ -351,11 +351,36 @@ def reloj_en(fecha: date):
     viendo la fecha real del proceso: el `date.today()` que recibe en
     `poblar_demo` es el de este mismo módulo, no el de `periodos`/`cierre`/
     `recargos`, así que el reloj simulado no le cambia el significado.
+
+    `_FechaFija` sólo responde `.today()`. No expone su constructor: hoy
+    ningún código bajo el patch construye una fecha por afuera de
+    `.today()` (`cierre._calcular_fechas_default` es la única excepción del
+    módulo, y sólo corre si `fecha_primer_venc`/`fecha_segundo_venc` llegan
+    en `None` — algo que `poblar_demo` nunca hace, siempre manda las dos
+    explícitas), pero esa garantía es un invariante del LLAMADOR, no algo
+    que este context manager pueda hacer cumplir por sí solo. Si algún día
+    deja de cumplirse —un `poblar_demo` que omite una fecha, o un llamador
+    nuevo de `reloj_en` que sí lo hace—, `date(y, m, d)` bajo el patch
+    devolvería una instancia de `_FechaFija` (la aritmética de `date`
+    preserva la subclase vía `type(self).fromordinal(...)`), y ese objeto
+    —con un `.today()` fijo para siempre— podría terminar grabado en
+    `fecha_primer_vencimiento` / `fecha_segundo_vencimiento`. Preferimos que
+    ese escenario reviente ruidosamente acá a que se cuele en la base en
+    silencio.
     """
     class _FechaFija(date):
         @classmethod
         def today(cls):
             return fecha
+
+        def __new__(cls, *args, **kwargs):
+            raise TypeError(
+                "_FechaFija no admite construcción directa (sólo expone "
+                ".today()). Si ves este error, algo dentro del bloque de "
+                "reloj_en() construyó una fecha nueva por afuera de "
+                "date.today() -- ese código necesita su propia fecha real, "
+                "no la simulada."
+            )
 
     from . import cierre, recargos
     from .routers import periodos
