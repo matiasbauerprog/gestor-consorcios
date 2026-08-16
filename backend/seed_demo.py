@@ -145,6 +145,28 @@ def meses_demo(hoy: date, cantidad: int = 6) -> list[str]:
     return list(reversed(meses))
 
 
+#: Cuántos comprobantes quedan esperando aprobación al abrir la demo.
+COMPROBANTES_PENDIENTES = 3
+
+
+def deja_pendiente(indice_pago: int, total_pagos: int, es_ultimo_periodo: bool) -> bool:
+    """¿Este comprobante queda sin aprobar?
+
+    Sólo en el último período cerrado, y sólo los últimos
+    `COMPROBANTES_PENDIENTES`: son la bandeja de entrada que el visitante
+    encuentra al abrir la demo. En períodos anteriores todo queda aprobado,
+    porque un comprobante colgado en un mes viejo descuadraría la cobranza
+    histórica que el resto del dataset da por cobrada.
+
+    Se reserva al menos la mitad de los pagos como aprobados para que el
+    período no quede sin ninguna cobranza si hubiera pocos pagadores.
+    """
+    if not es_ultimo_periodo:
+        return False
+    cupo = min(COMPROBANTES_PENDIENTES, total_pagos // 2)
+    return indice_pago >= total_pagos - cupo
+
+
 def perfiles_deterministas(
     deptos: list[dict],
 ) -> tuple[list[dict], list[dict], list[dict]]:
@@ -467,8 +489,9 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
 
         pagan = [d["id"] for d in puntuales]
         pagan += [d["id"] for d in irregulares if RNG.random() < 0.5]
+        es_ultimo = periodo == meses[-1]
 
-        for depto_id in pagan:
+        for idx, depto_id in enumerate(pagan):
             exp = expensas_por_depto.get(depto_id)
             if exp is None or depto_id not in tokens_depto:
                 continue
@@ -480,8 +503,9 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
                         data={"fecha_pago": fecha_pago.isoformat(), "monto": monto},
                         files={"archivo": ("pago.png", _PNG_1PX_DEMO, "image/png")},
                         expect=201)
-            api.req("PATCH", f"/comprobantes/{r.json()['id']}", token=admin_token, cid=cid,
-                    json={"estado": "aprobado"}, expect=200)
+            if not deja_pendiente(idx, len(pagan), es_ultimo):
+                api.req("PATCH", f"/comprobantes/{r.json()['id']}", token=admin_token, cid=cid,
+                        json={"estado": "aprobado"}, expect=200)
             comprobantes += 1
         print(f"[demo] {periodo}: cerrado · {len(pagan)} pagos")
 

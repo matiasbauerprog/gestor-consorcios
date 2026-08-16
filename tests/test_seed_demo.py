@@ -5,7 +5,12 @@ from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.orm import Session
 
 from backend.models import Administracion, Base, Consorcio, Departamento
-from backend.seed_demo import _resetear_esquema, meses_demo, perfiles_deterministas
+from backend.seed_demo import (
+    _resetear_esquema,
+    deja_pendiente,
+    meses_demo,
+    perfiles_deterministas,
+)
 
 
 def test_meses_demo_devuelve_los_6_meses_completos_anteriores():
@@ -268,6 +273,30 @@ def test_proveedor_para_rubro_desconocido_cae_en_uno_generico():
     proveedores = {razon: i + 1 for i, (razon, _) in enumerate(PROVEEDORES_DEMO)}
     elegido = proveedor_para_rubro("rubro_que_no_existe", proveedores, None)
     assert elegido in proveedores.values()
+
+
+def test_no_deja_pendientes_en_periodos_viejos():
+    # Un comprobante sin aprobar en un período ya cerrado descuadraría la
+    # cobranza histórica que el resto del dataset da por cobrada.
+    assert deja_pendiente(0, 12, es_ultimo_periodo=False) is False
+    assert deja_pendiente(5, 12, es_ultimo_periodo=False) is False
+
+
+def test_deja_los_tres_ultimos_del_ultimo_periodo_pendientes():
+    assert deja_pendiente(9, 12, es_ultimo_periodo=True) is True
+    assert deja_pendiente(10, 12, es_ultimo_periodo=True) is True
+    assert deja_pendiente(11, 12, es_ultimo_periodo=True) is True
+
+
+def test_los_demas_pagos_del_ultimo_periodo_se_aprueban():
+    assert deja_pendiente(0, 12, es_ultimo_periodo=True) is False
+    assert deja_pendiente(8, 12, es_ultimo_periodo=True) is False
+
+
+def test_con_menos_de_tres_pagos_no_deja_todo_pendiente():
+    # Con 2 pagos, dejar 3 pendientes dejaría el período sin ninguna cobranza.
+    assert deja_pendiente(0, 2, es_ultimo_periodo=True) is False
+    assert deja_pendiente(1, 2, es_ultimo_periodo=True) is True
 
 
 def test_seed_demo_no_expone_guard_de_reentrada():
