@@ -127,9 +127,70 @@ def proveedor_para_rubro(rubro: str, proveedores: dict[str, int], rng) -> int:
     return proveedores[razon]
 
 
-#: Porción de las expensas que el dataset deja impaga (15% moroso + la mitad
-#: del 15% irregular, según los perfiles de `perfiles_deterministas`).
-_MOROSIDAD_ESTIMADA = 0.25
+# --- Estimación de gasto mensual, para dimensionar el fondo de reserva -----
+# saldo_inicial_caja necesita un "gasto mensual típico" del dataset. Se deriva
+# de los datos que el propio generador ya usa —no de un literal a dedo— para
+# que un cambio en esos datos (ej. agregar una fila a RUBROS_COMUNES) se
+# refleje acá solo, sin dejar un número suelto que nadie vuelve a comprobar.
+
+#: 1 a 3 reparaciones privadas por período (poblar_demo: `RNG.randint(1, 3)`),
+#: de $15.000 a $90.000 c/u (`RNG.uniform(15_000, 90_000)`). Punto medio de
+#: cada rango: 2 reparaciones × $52.500 = $105.000/mes.
+_REPARACIONES_PRIVADAS_ESTIMADO = (1 + 3) / 2 * (15_000 + 90_000) / 2
+
+#: Costo mensual del encargado vía liquidación (crear_catalogo_personal), no
+#: vía RUBROS_COMUNES: poblar_demo saltea sus dos filas
+#: "sueldos_y_cargas_sociales" con `continue` porque ese rubro lo genera la
+#: liquidación, no un /gastos suelto.
+#:   bruto = 950.000 (básico 100%) + 190.000 (antigüedad 20%) + 95.000
+#:           (presentismo) + 60.000 (plus limpieza) + 52.000 (horas extra,
+#:           8h × $6.500) = 1.347.000
+#:   costo total = bruto × (1 + 17% contribuciones patronales + 5% ART)
+#:               = 1.347.000 × 1.22 ≈ 1.643.340
+#: Los descuentos (jubilación, obra social, sindicato) no se suman aparte: ya
+#: están dentro del bruto, sólo cambian a quién se le paga — ver
+#: `_generar_gastos` en backend/routers/liquidaciones.py.
+_SUELDO_ENCARGADO_ESTIMADO = (950_000 + 190_000 + 95_000 + 60_000 + 52_000) * 1.22
+
+#: Cuota de la obra extraordinaria (plan-cuotas en poblar_demo).
+#: `crear_plan_cuotas` (backend/routers/gastos.py) no divide `monto` entre
+#: `cuota_total`: replica el mismo monto en cada una de las 6 cuotas, así que
+#: el monto completo de la cuota entra al gasto de cada período, no una sexta
+#: parte de él.
+_CUOTA_OBRA_ESTIMADA = 7_200_000.0
+
+
+def estimar_gasto_mensual_demo(rubros_comunes: list[tuple]) -> float:
+    """Gasto mensual típico del dataset, para dimensionar `saldo_inicial_caja`.
+
+    Suma el punto medio `(lo + hi) / 2` de cada fila de `rubros_comunes`
+    —salvo las de rubro `sueldos_y_cargas_sociales`, que poblar_demo saltea y
+    reemplaza por la liquidación del encargado— más las reparaciones privadas,
+    el sueldo del encargado y la cuota de la obra extraordinaria.
+
+    Recibe `rubros_comunes` por parámetro (en vez de importar `RUBROS_COMUNES`
+    directo) para poder testearse con datos sintéticos, sin acoplarse al
+    catálogo real ni a un import con efectos secundarios.
+    """
+    comunes = sum(
+        (lo + hi) / 2
+        for rubro, _concepto, lo, hi in rubros_comunes
+        if rubro != "sueldos_y_cargas_sociales"
+    )
+    return (
+        comunes
+        + _REPARACIONES_PRIVADAS_ESTIMADO
+        + _SUELDO_ENCARGADO_ESTIMADO
+        + _CUOTA_OBRA_ESTIMADA
+    )
+
+
+#: Porción de las expensas que el dataset deja impaga: el 15% moroso nunca
+#: entra a `pagan` (perfiles_deterministas + el loop de pagos en poblar_demo
+#: arma `pagan` sólo desde puntuales + irregulares) y de los irregulares
+#: (15%) paga en promedio la mitad de los períodos (`RNG.random() < 0.5`) →
+#: 15% + 15% × 0.5 = 22.5%.
+_MOROSIDAD_ESTIMADA = 0.225
 
 
 def saldo_inicial_caja(gasto_mensual_estimado: float, meses: int) -> float:
@@ -140,12 +201,13 @@ def saldo_inicial_caja(gasto_mensual_estimado: float, meses: int) -> float:
     rojo profundo — que es imposible en un consorcio real y desmiente al resto
     de los números en la primera pantalla que mira un administrador.
 
-    Se cubre el déficit acumulado más un mes de colchón, redondeado a la
-    centena de miles para que se lea como un fondo de reserva y no como el
-    resultado de una cuenta.
+    Se cubre el déficit acumulado más un mes ENTERO de colchón (margen para
+    que un mes particularmente caro, o más moroso que el promedio, no tumbe la
+    caja igual), redondeado a la centena de miles para que se lea como un
+    fondo de reserva y no como el resultado de una cuenta.
     """
     deficit = gasto_mensual_estimado * _MOROSIDAD_ESTIMADA * meses
-    colchon = gasto_mensual_estimado * 0.5
+    colchon = gasto_mensual_estimado * 1.0
     return float(round((deficit + colchon) / 100_000) * 100_000)
 
 
@@ -355,7 +417,7 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
     caja_id = _caja_default(api, admin_token, cid)
     api.req("POST", f"/cajas/{caja_id}/movimientos", token=admin_token, cid=cid, json={
         "fecha": _dia_del_periodo(meses[0], 1).isoformat(),
-        "monto": saldo_inicial_caja(10_000_000, len(meses)),
+        "monto": saldo_inicial_caja(estimar_gasto_mensual_demo(RUBROS_COMUNES), len(meses)),
         "descripcion": "Fondo de reserva inicial del consorcio",
     }, expect=201)
 

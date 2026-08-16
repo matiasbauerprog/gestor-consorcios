@@ -8,6 +8,7 @@ from backend.models import Administracion, Base, Consorcio, Departamento
 from backend.seed_demo import (
     _resetear_esquema,
     deja_pendiente,
+    estimar_gasto_mensual_demo,
     meses_demo,
     perfiles_deterministas,
     saldo_inicial_caja,
@@ -315,6 +316,40 @@ def test_con_cero_pagos_el_resultado_es_irrelevante_en_la_practica():
     # para que un cambio futuro que lo altere sea una decisión explícita y
     # no una regresión silenciosa.
     assert deja_pendiente(0, 0, es_ultimo_periodo=True) is True
+
+
+def test_estimar_gasto_mensual_demo_excluye_las_filas_de_sueldos():
+    # poblar_demo saltea las filas "sueldos_y_cargas_sociales" de
+    # RUBROS_COMUNES (las genera la liquidación aparte), así que sus rangos
+    # no deben sumar al estimado.
+    con_sueldos = [
+        ("sueldos_y_cargas_sociales", "Sueldo", 900_000, 1_300_000),
+        ("seguros", "Seguro", 90_000, 140_000),
+    ]
+    sin_sueldos = [("seguros", "Seguro", 90_000, 140_000)]
+    assert estimar_gasto_mensual_demo(con_sueldos) == estimar_gasto_mensual_demo(sin_sueldos)
+
+
+def test_estimar_gasto_mensual_demo_reacciona_a_nuevas_filas():
+    # La razón de ser de esta función: agregar un rubro a RUBROS_COMUNES tiene
+    # que mover el estimado, así nadie tiene que acordarse de actualizar un
+    # literal a mano en otro lado del archivo.
+    base = [("seguros", "Seguro", 90_000, 140_000)]
+    con_fila_nueva = base + [("gastos_bancarios", "Comisión extra", 10_000, 30_000)]
+    assert estimar_gasto_mensual_demo(con_fila_nueva) == pytest.approx(
+        estimar_gasto_mensual_demo(base) + 20_000
+    )
+
+
+def test_estimar_gasto_mensual_demo_con_rubros_comunes_reales_ronda_los_10_millones():
+    # No es un valor fijo pinneado (RUBROS_COMUNES puede cambiar), sino una
+    # banda amplia que confirma que la cuenta da un orden de magnitud
+    # razonable para un consorcio de 18 UF, no un número descolgado de la
+    # realidad del dataset.
+    from backend.seed_e2e import RUBROS_COMUNES
+
+    estimado = estimar_gasto_mensual_demo(RUBROS_COMUNES)
+    assert 8_000_000 < estimado < 12_000_000
 
 
 def test_saldo_inicial_cubre_el_deficit_de_los_meses_sembrados():
