@@ -378,3 +378,31 @@ def test_seed_demo_no_expone_guard_de_reentrada():
     from backend import seed_demo
 
     assert not hasattr(seed_demo, "GENERANDO")
+
+
+# --- imagen_comprobante ----------------------------------------------------
+# _PNG_1PX renderiza como miniatura rota en la pantalla de comprobantes, que
+# es parte del circuito de demo. imagen_comprobante() rota entre capturas
+# genéricas reales para que se vea un comprobante de verdad.
+
+
+def test_imagen_comprobante_devuelve_un_png_de_verdad():
+    from backend.seed_demo import imagen_comprobante
+
+    datos = imagen_comprobante(0)
+    assert datos.startswith(b"\x89PNG\r\n\x1a\n")
+    # Un PNG de 1px pesa ~70 bytes; cualquier captura real pesa mucho más.
+    assert len(datos) > 2_000
+
+
+def test_imagen_comprobante_rota_entre_las_disponibles():
+    from backend.seed_demo import imagen_comprobante
+
+    assert imagen_comprobante(0) != imagen_comprobante(1)
+
+
+def test_imagen_comprobante_no_se_pasa_de_indice():
+    from backend.seed_demo import imagen_comprobante
+
+    # Con más pagos que imágenes, tiene que seguir devolviendo alguna.
+    assert imagen_comprobante(99).startswith(b"\x89PNG\r\n\x1a\n")

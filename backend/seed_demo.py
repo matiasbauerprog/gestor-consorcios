@@ -23,6 +23,7 @@ import os
 import sys
 import time
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
 from .seed_e2e import (
     RNG,
@@ -33,8 +34,9 @@ from .seed_e2e import (
     _fechas_del_periodo,
     _padron_csv,
 )
-from .seed_e2e import _PNG_1PX as _PNG_1PX_DEMO
 from .seed_e2e import RUBROS_COMUNES
+
+_DIR_ASSETS = Path(__file__).parent / "assets_demo"
 
 PISOS_DEMO = 3                      # 3 pisos × 6 unidades (A–F) = 18 UF
 DOMINIO_DEMO = "demo.local"
@@ -262,6 +264,18 @@ def deja_pendiente(indice_pago: int, total_pagos: int, es_ultimo_periodo: bool) 
         return False
     cupo = min(COMPROBANTES_PENDIENTES, total_pagos // 2)
     return indice_pago >= total_pagos - cupo
+
+
+def imagen_comprobante(indice: int) -> bytes:
+    """Bytes de una captura de transferencia para adjuntar a un comprobante.
+
+    Rota entre las disponibles para que la lista no muestre tres veces la
+    misma imagen. La imagen de 1px de `seed_e2e._PNG_1PX` servía mientras
+    nadie miraba los comprobantes; en la demo son parte del circuito que se
+    muestra.
+    """
+    archivos = sorted(_DIR_ASSETS.glob("comprobante_*.png"))
+    return archivos[indice % len(archivos)].read_bytes()
 
 
 def perfiles_deterministas(
@@ -620,7 +634,7 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
                 monto = float(int(monto / 1000 + 1) * 1000)
             r = api.req("POST", "/comprobantes", token=tokens_depto[depto_id], cid=cid,
                         data={"fecha_pago": fecha_pago.isoformat(), "monto": monto},
-                        files={"archivo": ("pago.png", _PNG_1PX_DEMO, "image/png")},
+                        files={"archivo": ("pago.png", imagen_comprobante(comprobantes), "image/png")},
                         expect=201)
             if not deja_pendiente(idx, len(pagan_con_datos), es_ultimo):
                 api.req("PATCH", f"/comprobantes/{r.json()['id']}", token=admin_token, cid=cid,
