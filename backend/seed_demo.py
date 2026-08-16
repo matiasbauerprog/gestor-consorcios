@@ -266,6 +266,24 @@ def deja_pendiente(indice_pago: int, total_pagos: int, es_ultimo_periodo: bool) 
     return indice_pago >= total_pagos - cupo
 
 
+def fecha_pago_puntual(primer_vencimiento: date, hoy: date, rng) -> date:
+    """Fecha en que un pagador puntual abona, siempre ANTES del vencimiento.
+
+    La versión anterior hacía `min(f1 - randint(0,5), hoy)`, con dos fallas:
+    `randint(0, 5)` incluye el 0 —o sea el pago cae el mismo día del
+    vencimiento, cuando el recargo ya corrió— y el `min` contra hoy podía
+    empujarlo *después* de f1 si el vencimiento era futuro. Por eso UF-01A,
+    pinneado como puntual, terminaba con recargo por mora e intereses.
+
+    Se paga entre 1 y 6 días antes del vencimiento, y si esa fecha todavía no
+    ocurrió se usa el día anterior a hoy — nunca una fecha futura.
+    """
+    pago = primer_vencimiento - timedelta(days=rng.randint(1, 6))
+    if pago > hoy:
+        pago = min(hoy, primer_vencimiento - timedelta(days=1))
+    return pago
+
+
 def imagen_comprobante(indice: int) -> bytes:
     """Bytes de una captura de transferencia para adjuntar a un comprobante.
 
@@ -628,7 +646,7 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
 
         for idx, depto_id in enumerate(pagan_con_datos):
             exp = expensas_por_depto[depto_id]
-            fecha_pago = min(f1 - timedelta(days=RNG.randint(0, 5)), date.today())
+            fecha_pago = fecha_pago_puntual(f1, date.today(), RNG)
             monto = exp["monto_primer_vencimiento"]
             if RNG.random() < 0.05:
                 monto = float(int(monto / 1000 + 1) * 1000)

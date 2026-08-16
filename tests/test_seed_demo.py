@@ -406,3 +406,38 @@ def test_imagen_comprobante_no_se_pasa_de_indice():
 
     # Con más pagos que imágenes, tiene que seguir devolviendo alguna.
     assert imagen_comprobante(99).startswith(b"\x89PNG\r\n\x1a\n")
+
+
+# --- fecha_pago_puntual -----------------------------------------------------
+# La version anterior (`min(f1 - randint(0,5), date.today())`) podia dejar el
+# pago en o despues del vencimiento cuando f1 era futuro respecto de hoy, asi
+# que UF-01A -pinneado como pagador puntual- terminaba con recargo por mora e
+# intereses punitorios en la demo.
+
+
+import random
+
+from backend.seed_demo import fecha_pago_puntual
+
+
+def test_un_pagador_puntual_paga_antes_del_vencimiento():
+    rng = random.Random(1)
+    f1 = date(2026, 8, 10)
+    for _ in range(20):
+        pago = fecha_pago_puntual(f1, hoy=date(2026, 8, 16), rng=rng)
+        assert pago < f1, "un pago puntual nunca puede caer en o después del vencimiento"
+
+
+def test_el_pago_no_queda_en_el_futuro_respecto_de_hoy():
+    rng = random.Random(1)
+    # Vencimiento dentro de un mes: el pago tiene que ser creíble hoy, no
+    # una fecha que todavía no ocurrió.
+    pago = fecha_pago_puntual(date(2026, 9, 10), hoy=date(2026, 8, 16), rng=rng)
+    assert pago <= date(2026, 8, 16)
+
+
+def test_el_pago_cae_dentro_de_los_dias_previos_al_vencimiento():
+    rng = random.Random(7)
+    f1 = date(2026, 8, 10)
+    pago = fecha_pago_puntual(f1, hoy=date(2026, 8, 16), rng=rng)
+    assert (f1 - pago).days <= 6
