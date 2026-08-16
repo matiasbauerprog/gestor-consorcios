@@ -127,6 +127,28 @@ def proveedor_para_rubro(rubro: str, proveedores: dict[str, int], rng) -> int:
     return proveedores[razon]
 
 
+#: Porción de las expensas que el dataset deja impaga (15% moroso + la mitad
+#: del 15% irregular, según los perfiles de `perfiles_deterministas`).
+_MOROSIDAD_ESTIMADA = 0.25
+
+
+def saldo_inicial_caja(gasto_mensual_estimado: float, meses: int) -> float:
+    """Fondo de arranque de la caja para que la tesorería no quede negativa.
+
+    El dataset gasta todos los meses y cobra sólo lo que los perfiles de pago
+    dejan cobrar, así que sin un fondo inicial la caja termina el semestre en
+    rojo profundo — que es imposible en un consorcio real y desmiente al resto
+    de los números en la primera pantalla que mira un administrador.
+
+    Se cubre el déficit acumulado más un mes de colchón, redondeado a la
+    centena de miles para que se lea como un fondo de reserva y no como el
+    resultado de una cuenta.
+    """
+    deficit = gasto_mensual_estimado * _MOROSIDAD_ESTIMADA * meses
+    colchon = gasto_mensual_estimado * 0.5
+    return float(round((deficit + colchon) / 100_000) * 100_000)
+
+
 def meses_demo(hoy: date, cantidad: int = 6) -> list[str]:
     """Los `cantidad` meses calendario completos anteriores al mes en curso.
 
@@ -324,6 +346,18 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
     r = api.req("POST", "/consorcios", token=admin_token,
                 json=_consorcio_payload(NOMBRE_CONSORCIO, 33333), expect=201)
     cid = r.json()["id"]
+
+    # Fondo de reserva inicial: sin esto la caja "Banco principal" termina el
+    # semestre en rojo, porque el dataset gasta todos los meses y sólo cobra
+    # lo que los perfiles de pago dejan cobrar (ver saldo_inicial_caja). Se
+    # carga como ajuste manual, antes del primer período, con fecha del día 1
+    # del primer mes sembrado.
+    caja_id = _caja_default(api, admin_token, cid)
+    api.req("POST", f"/cajas/{caja_id}/movimientos", token=admin_token, cid=cid, json={
+        "fecha": _dia_del_periodo(meses[0], 1).isoformat(),
+        "monto": saldo_inicial_caja(10_000_000, len(meses)),
+        "descripcion": "Fondo de reserva inicial del consorcio",
+    }, expect=201)
 
     r = api.req("POST", "/clases-prorrateo", token=admin_token, cid=cid,
                 json={"codigo": "A", "nombre": "Expensas ordinarias"}, expect=201)

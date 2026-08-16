@@ -10,6 +10,7 @@ from backend.seed_demo import (
     deja_pendiente,
     meses_demo,
     perfiles_deterministas,
+    saldo_inicial_caja,
 )
 
 
@@ -314,6 +315,22 @@ def test_con_cero_pagos_el_resultado_es_irrelevante_en_la_practica():
     # para que un cambio futuro que lo altere sea una decisión explícita y
     # no una regresión silenciosa.
     assert deja_pendiente(0, 0, es_ultimo_periodo=True) is True
+
+
+def test_saldo_inicial_cubre_el_deficit_de_los_meses_sembrados():
+    # 10M por mes de gastos, 6 meses: el fondo tiene que aguantar la porción
+    # que la morosidad deja sin cubrir y todavía quedar en positivo.
+    assert saldo_inicial_caja(10_000_000, 6) > 0
+
+
+def test_saldo_inicial_escala_con_la_cantidad_de_meses():
+    assert saldo_inicial_caja(10_000_000, 12) > saldo_inicial_caja(10_000_000, 6)
+
+
+def test_saldo_inicial_es_un_numero_redondo():
+    # Un fondo de reserva con centavos se lee como un cálculo, no como un
+    # saldo real de arranque.
+    assert saldo_inicial_caja(10_000_000, 6) % 100_000 == 0
 
 
 def test_seed_demo_no_expone_guard_de_reentrada():
