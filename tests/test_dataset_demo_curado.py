@@ -26,10 +26,18 @@ def test_la_caja_no_esta_en_rojo(con):
     # No existe una columna `saldo_actual` en `cajas`: el saldo se calcula en
     # tiempo real a partir del saldo inicial y los movimientos, con la misma
     # función pura que usa el backend (backend/caja_saldo.py).
-    (ini,) = con.execute("select saldo_inicial from cajas limit 1").fetchone()
+    #
+    # El modelo soporta varias cajas por consorcio (el seed base del proyecto
+    # llega a crear tres). Filtramos `movimientos_caja` por el `caja_id` de la
+    # caja elegida para no mezclar el saldo inicial de una con los
+    # movimientos de todas — hoy el dataset demo tiene una sola caja, pero el
+    # filtro deja el test correcto igual si el día de mañana agrega otra.
+    caja_id, ini = con.execute("select id, saldo_inicial from cajas limit 1").fetchone()
     movs = [
         MovimientoSnapshot(tipo=t, monto=m)
-        for t, m in con.execute("select tipo, monto from movimientos_caja")
+        for t, m in con.execute(
+            "select tipo, monto from movimientos_caja where caja_id = ?", (caja_id,)
+        )
     ]
     saldo = calcular_saldo(ini, movs)
     assert saldo > 0
@@ -77,6 +85,8 @@ def test_cada_gasto_tiene_un_proveedor_plausible(con):
     # backend/seed_demo.py (_PROVEEDOR_POR_RUBRO): seguros -> "Seguros La
     # Continental", gastos_bancarios -> "Banco Ciudad", gastos_administracion
     # -> "Estudio Rossi & Asociados".
+    rubros = ("seguros", "gastos_bancarios", "gastos_administracion")
+
     incoherentes = con.execute("""
         select g.concepto, p.razon_social
         from gastos g join proveedores p on p.id = g.proveedor_id
@@ -85,6 +95,18 @@ def test_cada_gasto_tiene_un_proveedor_plausible(con):
            or (g.rubro = 'gastos_administracion' and p.razon_social not like '%Estudio%')
     """).fetchall()
     assert incoherentes == []
+
+    # `incoherentes == []` también sería cierto si el join no encontrara
+    # ningún gasto de estos rubros (rubro renombrado, join roto, etc.): una
+    # ausencia sin contraparte de presencia no prueba nada. Exigimos que cada
+    # uno de los tres rubros haya tenido al menos un gasto evaluado.
+    for rubro in rubros:
+        (n,) = con.execute(
+            "select count(*) from gastos g join proveedores p on p.id = g.proveedor_id "
+            "where g.rubro = ?",
+            (rubro,),
+        ).fetchone()
+        assert n >= 1, f"no se evaluó ningún gasto del rubro {rubro!r}"
 
 
 def test_la_obra_de_frente_suma_el_costo_total_una_sola_vez(con):
