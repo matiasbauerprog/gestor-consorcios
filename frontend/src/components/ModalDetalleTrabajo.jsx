@@ -111,7 +111,7 @@ export default function ModalDetalleTrabajo({
   const aprobado = presupuestos.find((p) => p.estado === "aprobado");
 
   return (
-    <Modal titulo={`Trabajo #${trabajo.id}`} onClose={onClose}>
+    <Modal titulo={`Trabajo #${trabajo.id}`} onClose={onClose} ancho>
       <p>
         <strong>Descripción:</strong> {trabajo.descripcion}
       </p>

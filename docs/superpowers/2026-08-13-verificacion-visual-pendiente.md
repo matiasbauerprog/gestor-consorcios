@@ -2,6 +2,17 @@
 
 Fecha: 2026-08-13
 
+> **Cerrado el 2026-08-17.** La lista se ejecutó con browser. Encontró un
+> defecto real: los siete anchos de columna fijos estaban derivados del ancho
+> de carácter de la fuente normal, cuando las celdas van en negrita, así que
+> pedían más espacio del que necesitaban y empujaban la columna de
+> departamento fuera de la tabla en 1280 y 1440px. Corregido en
+> `fix/ancho-columnas-ch-negrita`, ya integrado a `master`.
+>
+> Quedan tres puntos sin verificar, todos de bajo riesgo: la navegación entre
+> meses en Gastos y las dos comprobaciones táctiles (campanita y cuentas
+> corrientes), que necesitan un dispositivo real y no el emulador.
+
 **Ningún agente tuvo browser disponible durante toda la implementación.** Los 41
 commits de esta rama están verificados por tests (42), build, lint y lectura de
 cascada CSS con aritmética escrita. Nada fue visto renderizado.

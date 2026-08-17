@@ -4,12 +4,15 @@ import { crearEstado } from "./estado";
 import { responder } from "./servidor";
 
 /**
- * Cada ruta que las pantallas del recorrido de venta consultan al cargar.
+ * Cada ruta que las pantallas consultan al cargar.
+ *
+ * La demo muestra la aplicación entera salvo la consola de la plataforma, así
+ * que esta lista cubre todas las secciones, no sólo el circuito de venta.
  *
  * Si una devuelve 501, la pantalla correspondiente muestra un cartel de error
- * en la demo publicada — por eso esta lista es la red de contención del plan:
- * agregar una pantalla que consulte algo nuevo tiene que romper este test
- * antes de llegar a producción.
+ * en la demo publicada — por eso esta lista es la red de contención: agregar
+ * una pantalla que consulte algo nuevo tiene que romper este test antes de
+ * llegar a producción.
  */
 const RECORRIDO = [
   ["/me/consorcios", "AuthContext al entrar"],
@@ -35,6 +38,13 @@ const RECORRIDO = [
   ["/reportes/proveedores", "Reporte"],
   ["/notificaciones", "campanita"],
   ["/notificaciones/no-leidas-count", "campanita"],
+  ["/empleados", "Personal"],
+  ["/haberes", "Haberes"],
+  ["/conceptos-liquidacion", "Conceptos de liquidación"],
+  ["/liquidaciones", "Liquidaciones"],
+  ["/transferencias-caja", "Tesorería · Transferencias"],
+  ["/usuarios", "Padrón"],
+  ["/trabajos-recurrentes", "Trabajos recurrentes"],
 ];
 
 let estado;
@@ -92,11 +102,46 @@ describe("el recorrido de venta carga entero", () => {
     }
   });
 
+  it("cada caja puede abrir su detalle de movimientos", () => {
+    const cajas = estado.leer("/cajas");
+    expect(cajas.length).toBeGreaterThan(1);
+    for (const caja of cajas) {
+      const r = responder(estado, "GET", `/cajas/${caja.id}/movimientos`);
+      expect(r.status, `falta el detalle de la caja ${caja.nombre}`).toBe(200);
+    }
+  });
+
   it("los comprobantes apuntan a imágenes estáticas, no al backend", () => {
     const comprobantes = estado.leer("/comprobantes").filter((c) => c.archivo_path);
     expect(comprobantes.length).toBeGreaterThan(0);
     for (const c of comprobantes) {
       expect(c.archivo_path).toMatch(/^\/demo-comprobantes\//);
     }
+  });
+});
+
+describe("la casilla de excluir saldos al día y a favor", () => {
+  it("con la casilla marcada quedan sólo los que deben", () => {
+    const r = responder(estado, "GET", "/reportes/morosos?solo_deudores=true");
+    expect(r.status).toBe(200);
+    expect(r.data.length).toBeGreaterThan(0);
+    for (const item of r.data) {
+      expect(item.saldo).toBeGreaterThan(0.01);
+    }
+  });
+
+  it("al destildarla aparece el resto del padrón, no la misma lista", () => {
+    // La casilla estaba muerta: el dataset venía ya filtrado por el backend y
+    // el sustituto ignoraba el parámetro, así que tildarla y destildarla
+    // mostraba exactamente lo mismo.
+    const soloDeudores = responder(estado, "GET", "/reportes/morosos?solo_deudores=true").data;
+    const todos = responder(estado, "GET", "/reportes/morosos?solo_deudores=false").data;
+    expect(todos.length).toBeGreaterThan(soloDeudores.length);
+  });
+
+  it("sin deudas ni saldos a favor, están todas las unidades del padrón", () => {
+    const unidades = estado.leer("/departamentos").length;
+    const todos = responder(estado, "GET", "/reportes/morosos?solo_deudores=false").data;
+    expect(todos).toHaveLength(unidades);
   });
 });

@@ -38,6 +38,17 @@ export function formatFechaCorta(v) {
   });
 }
 
+/**
+ * Fecha del proyecto → `Date`, o `null` si no se puede.
+ *
+ * Exportada porque comparar fechas necesita el mismo criterio que mostrarlas:
+ * quien compare con `new Date(...)` a secas se come el corrimiento de un día
+ * que documenta el comentario de abajo.
+ */
+export function parseFecha(v) {
+  return _parse(v);
+}
+
 function _parse(v) {
   if (!v) return null;
   if (v instanceof Date) return isNaN(v) ? null : v;

@@ -78,6 +78,20 @@ describe("responder", () => {
     const r = responder(estado, "DELETE", "/departamentos/1", null, {});
     expect(r.status).toBe(501);
   });
+
+  it("al querer guardar algo explica que es una demostración, sin jerga", () => {
+    // El visitante ve este texto tal cual en la pantalla. Un "501 no
+    // implementado" con el path adentro se lee como un sistema roto, que es
+    // justo lo contrario de lo que la demo tiene que transmitir.
+    const r = responder(estado, "POST", "/empleados", { nombre_completo: "X" }, {});
+    expect(r.data.detail).toMatch(/demostración/i);
+    expect(r.data.detail).not.toMatch(/501|POST|\/empleados|implementa/);
+  });
+
+  it("una ruta de lectura que falta sí dice cuál es, porque eso lo ve quien programa", () => {
+    const r = responder(estado, "GET", "/rutaquenoexiste");
+    expect(r.data.detail).toContain("/rutaquenoexiste");
+  });
 });
 
 describe("entrada a la demo", () => {

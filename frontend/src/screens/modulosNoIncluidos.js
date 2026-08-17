@@ -1,41 +1,28 @@
 /**
- * Las tres secciones que la demo deja fuera del recorrido de venta.
+ * Lo único que la demo deja fuera del recorrido.
  *
- * Siguen en el menú a propósito: la amplitud del producto es argumento de
- * venta, y esconderlas haría parecer al sistema bastante más chico de lo que
- * es. Lo que no puede pasar es que el visitante entre y encuentre un error —
- * de ahí la pantalla que consume este catálogo.
+ * Al principio eran tres secciones — Tesorería, Personal y Configuración —
+ * porque el dataset no traía sus datos. Ahora sí los trae, así que la demo
+ * muestra la aplicación entera y acá queda sólo la consola comercial: la que
+ * usa quien *vende* el sistema, no quien administra el consorcio. No tiene
+ * sentido mostrarle al visitante por dónde se le suspende la cuenta.
+ *
+ * No está en el menú de ningún rol de la demo; esta pantalla existe para
+ * quien llegue escribiendo la dirección a mano.
  *
  * Vive en su propio archivo y no junto al componente porque un módulo que
  * exporta componentes y constantes a la vez rompe la recarga rápida durante
  * el desarrollo.
  */
 export const MODULOS = {
-  tesoreria: {
-    titulo: "Tesorería",
+  "super-admin": {
+    titulo: "Consola de la plataforma",
     resumen:
-      "El dinero del consorcio, en un solo lugar: cuántas cajas hay, qué entró y qué salió de cada una, y transferencias entre ellas.",
+      "El panel de quien provee el sistema: qué administraciones lo usan, cuánto consumen y qué módulos tiene contratada cada una.",
     detalle: [
-      "Cada gasto pagado y cada cobranza aprobada dejan su movimiento acá, sin que nadie los cargue dos veces.",
-      "El estado financiero muestra el activo, lo que los departamentos adeudan y el patrimonio neto a una fecha de corte.",
-    ],
-  },
-  personal: {
-    titulo: "Personal y liquidaciones",
-    resumen:
-      "El encargado del edificio: su legajo, sus haberes y la liquidación mensual de sueldo con sus cargas sociales.",
-    detalle: [
-      "Cada liquidación congela los valores vigentes al momento de calcularla, así que cambiar un haber no altera el historial.",
-      "Y genera sola los gastos del rubro de sueldos, que entran al prorrateo del mes sin cargarlos a mano.",
-    ],
-  },
-  configuracion: {
-    titulo: "Configuración del consorcio",
-    resumen:
-      "Lo que define cómo se reparte cada gasto: las clases de prorrateo, el coeficiente de cada unidad, los proveedores y el padrón.",
-    detalle: [
-      "El padrón se importa desde una planilla: no hay que cargar sesenta unidades a mano para empezar.",
-      "Y desde acá se dan de alta los consorcios de la administración, con un asistente de cuatro pasos.",
+      "Desde acá se da de alta una administración nueva, se le habilitan módulos y se la suspende si deja de pagar.",
+      "Incluye un registro de auditoría de las acciones sensibles y la posibilidad de entrar como un cliente para darle soporte.",
+      "No forma parte de lo que ve un administrador de consorcios, y por eso queda fuera de la demostración.",
     ],
   },
 };

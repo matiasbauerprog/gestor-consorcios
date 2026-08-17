@@ -12,6 +12,8 @@ import { listarGastos } from "../api/gastos";
 import { listarGastosHabituales } from "../api/gastosHabituales";
 import { listarReservas } from "../api/reservas";
 import { listarAmenities } from "../api/amenities";
+import { actividadReciente, proximosVencimientos } from "../utils/tablero";
+import { mayusculaInicial, pluralizar } from "../utils/textos";
 
 /** Devuelve r.data si la respuesta fue OK; si no, el fallback. */
 function datos(r, fallback) {
@@ -190,9 +192,8 @@ export default function Inicio() {
       detalle: "Reserva",
       monto: null,
     })),
-  ]
-    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
-    .slice(0, 6);
+  ];
+  const actividadVisible = actividadReciente(actividad, new Date());
 
   const gastosData = datos(gastos, []);
   const habitualesData = datos(habituales, []);
@@ -203,7 +204,7 @@ export default function Inicio() {
   const habitualesSinCargar = habitualesData.filter((h) => h.activa && !yaCargados.has(h.id));
 
   const primera = expensasData[0];
-  const vencimientos = primera
+  const vencimientosDelPeriodo = primera
     ? [
         {
           fecha: primera.fecha_primer_vencimiento,
@@ -213,17 +214,18 @@ export default function Inicio() {
         { fecha: primera.fecha_segundo_vencimiento, titulo: "2do vto. expensas", detalle: "con recargo" },
       ]
     : [];
+  const vencimientos = proximosVencimientos(vencimientosDelPeriodo, new Date());
 
   const atencion = [
     morososViejos.length > 0 && {
       to: "/reportes/morosos",
       tono: "alerta",
-      texto: `${morososViejos.length} departamentos con deuda +60 días`,
+      texto: `${pluralizar(morososViejos.length, "departamento")} con deuda +60 días`,
     },
     peticionesAbiertas.length > 0 && {
       to: "/peticiones",
       tono: "operacion",
-      texto: `${peticionesAbiertas.length} peticiones sin responder`,
+      texto: `${pluralizar(peticionesAbiertas.length, "petición", "peticiones")} sin responder`,
     },
     cierrePendiente && {
       to: "/cierre-de-periodo",
@@ -243,7 +245,7 @@ export default function Inicio() {
   return (
     <main className="inicio">
       <p className="inicio-fecha">
-        {fechaLarga} · {nombreConsorcio}
+        {mayusculaInicial(fechaLarga)} · {nombreConsorcio}
       </p>
       <h1>Hola, {nombreDeUsuario(user.email)}</h1>
 
@@ -298,11 +300,11 @@ export default function Inicio() {
         </section>
       )}
 
-      {actividad.length > 0 && (
-        <section className="regla-seccion">
+      {actividadVisible.length > 0 && (
+        <section className="regla-seccion inicio-actividad">
           <p className="micro-label">Actividad reciente</p>
           <ul className="inicio-lista">
-            {actividad.map((a, i) => (
+            {actividadVisible.map((a, i) => (
               <li key={i}>
                 <div className="inicio-lista-texto">
                   <p>{a.titulo}</p>

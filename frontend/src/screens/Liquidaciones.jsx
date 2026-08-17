@@ -61,6 +61,20 @@ export default function Liquidaciones({ vistaHistorial = false }) {
   );
   const [filtroEmpleadoId, setFiltroEmpleadoId] = useState("");
 
+  // "Del mes" e "Historial" son este mismo componente en dos rutas, así que
+  // React lo reutiliza al cambiar de pestaña y el estado inicial de arriba no
+  // se vuelve a evaluar. Sin esto, el historial hereda el mes en curso y
+  // aparece vacío — se lee como si nunca se hubiera liquidado un sueldo.
+  //
+  // El ajuste va durante el render y no en un `useEffect` a propósito: así
+  // React re-renderiza antes de pintar, sin el parpadeo de mostrar la lista
+  // filtrada por el mes viejo y corregirla después.
+  const [vistaAnterior, setVistaAnterior] = useState(vistaHistorial);
+  if (vistaAnterior !== vistaHistorial) {
+    setVistaAnterior(vistaHistorial);
+    setFiltroPeriodo(vistaHistorial ? "" : periodoActual());
+  }
+
   // ── carga de catálogos ──
   useEffect(() => {
     async function cargarEmpleados() {

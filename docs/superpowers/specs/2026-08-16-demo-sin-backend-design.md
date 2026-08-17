@@ -1,8 +1,15 @@
 # Demo sin backend: la demo pública corre entera en el navegador
 
 **Fecha:** 2026-08-16
-**Estado:** Spec pendiente de revisión del usuario
+**Estado:** Implementado. Alcance ampliado el 2026-08-17 — ver §2.2.
 **Rama sugerida:** `feature/demo-sin-backend`
+
+> **Actualización 2026-08-17.** El alcance original dejaba tres módulos fuera
+> del recorrido, detrás de una pantalla explicativa. Al verlo funcionando, esa
+> demo se leía como un producto a medio terminar. Hoy la demo muestra la
+> aplicación entera y lo único que queda afuera es la consola de la
+> plataforma. Las secciones §2.1, §2.2, §4.3, §5.2 y §9 están actualizadas a
+> ese alcance; el resto del spec no cambió.
 
 ## 1. Problema
 
@@ -64,17 +71,34 @@ Acciones sueltas incluidas porque salen casi gratis y dan textura: publicar un
 comunicado (que el propietario ve al cambiar de rol), reservar el SUM (que
 genera su cargo en la cuenta corriente) y crear una petición de arreglo.
 
-### 2.2 Fuera de alcance, visible y marcado
+### 2.2 Fuera de alcance: sólo la consola de la plataforma
 
-Tesorería, Personal (empleados, haberes, liquidaciones, conceptos) y
-Configuración (proveedores, clases de prorrateo, padrón, consorcios de la
-administración) **siguen apareciendo en el menú**. Al entrar muestran una
-pantalla única y reutilizable que explica qué hace el módulo y presenta una
-captura real.
+**Decisión original (2026-08-16):** Tesorería, Personal y Configuración
+quedaban fuera del recorrido, detrás de una pantalla que explicaba qué hace
+cada módulo. La amplitud del producto es argumento de venta, así que seguían
+apareciendo en el menú en vez de esconderse.
 
-Razón: la amplitud del producto es argumento de venta. Esconder esas secciones
-haría parecer al sistema bastante más chico de lo que es. La pantalla es una
-sola; cambian el texto y la imagen.
+**Corregido el 2026-08-17:** tres secciones con un cartel en lugar de datos se
+leen como un producto sin terminar, que es justo lo contrario de lo que la
+demo tiene que transmitir. Y el costo de destaparlas resultó bajo: dos de las
+tres ya tenían casi todos sus datos en el dataset, sólo faltaba declararlos en
+el exportador.
+
+Hoy la demo muestra **la aplicación entera**. Lo único fuera de alcance es la
+**consola de la plataforma** (`/super-admin/*`): métricas del negocio, alta y
+suspensión de administraciones, registro de auditoría e impersonación. Esa
+consola es de quien *provee* el sistema, no de quien administra un consorcio;
+no tiene sentido mostrarle al visitante por dónde se le suspende la cuenta.
+
+No aparece en el menú de ningún rol de la demo. La pantalla explicativa
+(`ModuloNoIncluido`, con su catálogo en `modulosNoIncluidos.js`) sigue
+existiendo para quien llegue escribiendo la dirección a mano.
+
+**Qué puede tocar el visitante.** Todas las pantallas se ven con datos reales.
+Escriben de verdad los dos circuitos de venta (§2.1) más comunicados,
+peticiones y reservas. En el resto, al guardar aparece una explicación en
+castellano de que es una demostración, con la invitación a probar los
+circuitos que sí impactan — nunca un error técnico (§4.3).
 
 ### 2.3 Persistencia: arranca limpio en cada visita
 
@@ -249,18 +273,24 @@ desaparece del bundle cuando la bandera está apagada.
 **No simula demoras.** Las respuestas son inmediatas; la demo se siente más
 rápida que el producto contra un servidor, lo que para vender juega a favor.
 
-### 4.3 Rutas desconocidas
+### 4.3 Lo que el sustituto no sabe hacer
 
-Ante un pedido que no conoce, el sustituto **devuelve `501` con un `detail`
-explicativo** en vez de lanzar una excepción. Las pantallas ya manejan respuestas
-de error y muestran su cartel, así que el visitante ve una sección con un mensaje
-en lugar de una pantalla en blanco.
+Nunca lanza una excepción: siempre devuelve una respuesta que las pantallas ya
+saben mostrar, así el visitante nunca ve una pantalla en blanco. Distingue dos
+casos, porque tienen dos públicos distintos:
 
-Además, en desarrollo (`import.meta.env.DEV`) escribe el método y la ruta en la
-consola como error, para que sea imposible no verlo mientras se trabaja.
+**Guardar en una sección de sólo lectura.** Es la situación normal para un
+visitante, y lee el texto tal cual dentro del formulario. Explica en castellano
+que es una demostración y lo invita a probar los circuitos que sí impactan. Sin
+códigos, métodos ni rutas: un "501 no implementado" con un path adentro se lee
+como un sistema roto.
+
+**Una ruta de lectura que no está en el dataset.** Es un error de quien
+programa, no del visitante: ahí sí el mensaje nombra la ruta, porque lo que
+hace falta es poder arreglarlo. En desarrollo además va a la consola.
 
 La red de contención real es la prueba de cobertura de rutas (§9), que hace
-fallar la compilación antes de que ese `501` llegue a producción.
+fallar la compilación antes de que eso llegue a producción.
 
 ## 5. Cálculo: qué está vivo y qué congelado
 
@@ -288,6 +318,11 @@ sistema muestra criterio.
 
 Liquidaciones de sueldo, intereses punitorios con sus reglas finas, y las
 validaciones más elaboradas del cierre. No se recalculan.
+
+Desde el 2026-08-17 las liquidaciones **se ven** —con su empleado, sus haberes
+y sus conceptos, seis meses de historia— pero siguen siendo un dato congelado:
+la demo no calcula un sueldo nuevo. Es la diferencia entre mostrar el módulo y
+reimplementarlo, y §10 mantiene lo segundo fuera de scope.
 
 ## 6. Lo que un navegador solo no puede hacer
 
@@ -371,9 +406,15 @@ tocar lo que quiera.
   morosos; cargar gasto → cerrar período → verificar el reparto en las 18
   expensas.
 - **Verificación cruzada de la imputación** contra los saldos del dataset (§5.1).
-- **Cobertura de rutas:** que toda ruta que las pantallas del recorrido consultan
+- **Cobertura de rutas:** que toda ruta que las pantallas consultan al cargar
   esté implementada. Es la prueba que hace fallar la compilación cuando alguien
-  agrega un endpoint nuevo.
+  agrega un endpoint nuevo. Desde que la demo muestra la aplicación entera
+  (§2.2) la lista cubre todas las secciones, no sólo el circuito de venta.
+- **El exportador corta si una ruta declarada devuelve un error.** Sin eso, una
+  ruta mal escrita en las tablas del exportador no rompe nada visible: el
+  backend contesta 404 o 405, el cuerpo del error se guarda en el dataset como
+  si fueran datos, y la pantalla aparece vacía sin que nadie se entere. Pasó
+  con dos rutas reales antes de existir esta verificación.
 - Las pruebas corren en CI y durante la compilación de Vercel (§7.2).
 
 ## 10. Fuera de scope

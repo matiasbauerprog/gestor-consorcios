@@ -244,3 +244,87 @@ def test_los_datos_de_administracion_no_son_del_smoke_test(con):
     ).fetchone()
     assert "Semilla" not in admin_nombre
     assert "semilla-admin" not in admin_email
+
+
+def test_hay_mas_de_una_caja(con):
+    # La pestaña Transferencias no tiene sentido con una sola caja, y un
+    # consorcio real maneja al menos banco y efectivo. Con una caja sola, la
+    # sección se ve a medio hacer.
+    cajas = con.execute("select nombre from cajas").fetchall()
+    assert len(cajas) >= 2, f"sólo hay {len(cajas)} caja(s): {cajas}"
+
+
+def test_hay_transferencias_entre_cajas(con):
+    # Sin esto la pestaña Transferencias aparece vacía en la demo.
+    total = con.execute("select count(*) from transferencias_caja").fetchone()[0]
+    assert total >= 2, f"hay {total} transferencias"
+
+
+def test_hay_trabajos_recurrentes_programados(con):
+    # Es uno de los diferenciales frente a la planilla: las tareas que se
+    # repiten solas. Vacío, el argumento no se ve.
+    total = con.execute("select count(*) from trabajos_recurrentes").fetchone()[0]
+    assert total >= 2, f"hay {total} trabajos recurrentes"
+
+
+def test_cada_trabajo_dice_de_que_se_trata(con):
+    # Los tres trabajos compartían la descripción "Trabajo generado a partir
+    # del reclamo del depto.". En la lista de trabajos se leían tres filas
+    # idénticas: delata un dato inventado justo en la pantalla que muestra
+    # cómo se resuelve un reclamo.
+    descripciones = [d for (d,) in con.execute("select descripcion from trabajos")]
+    assert len(descripciones) >= 2
+    assert len(set(descripciones)) == len(descripciones), descripciones
+    for d in descripciones:
+        assert "generado a partir del reclamo" not in d, d
+
+
+def test_cada_peticion_cuenta_un_problema_distinto(con):
+    titulos = [t for (t,) in con.execute("select titulo from peticiones")]
+    assert len(set(titulos)) == len(titulos), titulos
+
+
+def test_ningun_presupuesto_es_anterior_al_reclamo_que_lo_originó(con):
+    # Los presupuestos SÍ quedan fechados el día de la generación, y está
+    # bien: la petición que los origina también, porque `fecha_creacion` de
+    # peticiones la pone la base (`server_default=func.now()`) y la API no
+    # acepta pasarla. Escalonar los reclamos en el semestre exigiría agregar
+    # un campo de fecha al backend sólo para maquillar la demo. Lo que sí
+    # tiene que cumplirse es el orden: primero el reclamo, después el
+    # presupuesto.
+    filas = con.execute("""
+        select date(p.fecha_creacion), pr.fecha_presentacion
+        from presupuestos pr
+        join trabajos t on t.id = pr.trabajo_id
+        join peticiones p on p.id = t.peticion_id
+    """).fetchall()
+    assert filas
+    for fecha_peticion, fecha_presupuesto in filas:
+        assert str(fecha_presupuesto) >= str(fecha_peticion), (fecha_peticion, fecha_presupuesto)
+
+
+def test_el_presupuesto_aprobado_es_de_un_proveedor_del_rubro(con):
+    # Un presupuesto de ascensores firmado por la empresa de limpieza es el
+    # mismo defecto que ya se arregló en los gastos.
+    filas = con.execute("""
+        select t.descripcion, p.razon_social
+        from presupuestos pr
+        join trabajos t on t.id = pr.trabajo_id
+        join proveedores p on p.id = pr.proveedor_id
+        where pr.estado = 'aprobado'
+    """).fetchall()
+    assert filas
+    for descripcion, razon in filas:
+        d = descripcion.lower()
+        if "ascensor" in d:
+            assert "ascensor" in razon.lower(), (descripcion, razon)
+        if "agua" in d or "filtra" in d or "humedad" in d or "pérdida" in d:
+            assert "plomer" in razon.lower(), (descripcion, razon)
+
+
+def test_los_trabajos_muestran_el_ciclo_completo(con):
+    # Con un trabajo cancelado y uno solo en curso, la pantalla no cuenta el
+    # circuito: hace falta ver también uno terminado, que es el desenlace que
+    # justifica el módulo.
+    estados = {e for (e,) in con.execute("select estado from trabajos")}
+    assert {"en_curso", "finalizado", "cancelado"} <= estados, estados

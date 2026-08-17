@@ -4938,6 +4938,20 @@ components:
         fecha_creacion:
           type: string
           format: date-time
+        presupuesto_aprobado_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: |
+            Presupuesto elegido para este trabajo. Null mientras no se aprobó
+            ninguno.
+        gasto_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: |
+            Gasto que dio de baja el trabajo. Se completa al cargar el gasto
+            con `trabajo_id`, que es lo que pasa el trabajo a `finalizado`.
 
     TrabajoCrear:
       type: object

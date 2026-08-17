@@ -285,3 +285,21 @@ def test_crear_trabajo_desde_peticion_notifica_al_depto(
     )
     assert len(notifs) >= 1
     assert db_session.query(Notificacion).count() > notifs_antes
+
+
+def test_el_trabajo_informa_su_presupuesto_aprobado_y_su_gasto(client, headers_admin):
+    """Sin estos dos campos, las columnas "Presup. aprobado" y "Gasto" de la
+    pantalla de Trabajos muestran un guión para siempre: el modelo los tiene,
+    pero la respuesta no los devolvía."""
+    r = client.post("/trabajos", headers=headers_admin,
+                    json={"descripcion": "Cambio de luminaria del pasillo"})
+    assert r.status_code == 201
+    cuerpo = r.json()
+    assert "presupuesto_aprobado_id" in cuerpo
+    assert "gasto_id" in cuerpo
+    assert cuerpo["presupuesto_aprobado_id"] is None
+    assert cuerpo["gasto_id"] is None
+
+    listado = client.get("/trabajos", headers=headers_admin).json()
+    assert "presupuesto_aprobado_id" in listado[0]
+    assert "gasto_id" in listado[0]

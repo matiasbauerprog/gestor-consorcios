@@ -138,18 +138,18 @@ export default function App() {
             <Route path="periodos" element={<Navigate to="/cobranzas?tab=cierres" replace />} />
             <Route path="gastos" element={<Gastos />} />
             <Route path="gastos/habituales" element={<GastosHabituales />} />
-            <Route path="configuracion" element={<SoloEnSistemaCompleto modulo="configuracion"><Configuracion /></SoloEnSistemaCompleto>} />
-            <Route path="clases-prorrateo" element={<SoloEnSistemaCompleto modulo="configuracion"><ClasesProrrateo /></SoloEnSistemaCompleto>} />
-            <Route path="proveedores" element={<SoloEnSistemaCompleto modulo="configuracion"><Proveedores /></SoloEnSistemaCompleto>} />
-            <Route path="padron" element={<SoloEnSistemaCompleto modulo="configuracion"><Padron /></SoloEnSistemaCompleto>} />
+            <Route path="configuracion" element={<Configuracion />} />
+            <Route path="clases-prorrateo" element={<ClasesProrrateo />} />
+            <Route path="proveedores" element={<Proveedores />} />
+            <Route path="padron" element={<Padron />} />
             <Route path="departamentos" element={<Navigate to="/padron?tab=departamentos" replace />} />
             <Route path="usuarios" element={<Navigate to="/padron?tab=usuarios" replace />} />
-            <Route path="empleados" element={<SoloEnSistemaCompleto modulo="personal"><Empleados /></SoloEnSistemaCompleto>} />
-            <Route path="haberes" element={<SoloEnSistemaCompleto modulo="personal"><Haberes /></SoloEnSistemaCompleto>} />
-            <Route path="conceptos-liquidacion" element={<SoloEnSistemaCompleto modulo="personal"><ConceptosLiquidacion /></SoloEnSistemaCompleto>} />
-            <Route path="liquidaciones" element={<SoloEnSistemaCompleto modulo="personal"><Liquidaciones /></SoloEnSistemaCompleto>} />
-            <Route path="liquidaciones/historial" element={<SoloEnSistemaCompleto modulo="personal"><Liquidaciones vistaHistorial /></SoloEnSistemaCompleto>} />
-            <Route path="tesoreria" element={<SoloEnSistemaCompleto modulo="tesoreria"><Tesoreria /></SoloEnSistemaCompleto>} />
+            <Route path="empleados" element={<Empleados />} />
+            <Route path="haberes" element={<Haberes />} />
+            <Route path="conceptos-liquidacion" element={<ConceptosLiquidacion />} />
+            <Route path="liquidaciones" element={<Liquidaciones />} />
+            <Route path="liquidaciones/historial" element={<Liquidaciones vistaHistorial />} />
+            <Route path="tesoreria" element={<Tesoreria />} />
             <Route path="estado-financiero" element={<Navigate to="/tesoreria?tab=estado" replace />} />
             <Route path="cajas" element={<Navigate to="/tesoreria?tab=cajas" replace />} />
             <Route path="transferencias" element={<Navigate to="/tesoreria?tab=transferencias" replace />} />
@@ -165,11 +165,11 @@ export default function App() {
             <Route path="reglamento" element={<Navigate to="/comunicados?tab=reglamento" replace />} />
             <Route path="cobranzas" element={<CobranzasRoute />} />
             <Route path="mi-usuario/cambiar-password" element={<CambiarPassword />} />
-            <Route path="administracion/consorcios" element={<SoloEnSistemaCompleto modulo="configuracion"><AdministracionConsorcios /></SoloEnSistemaCompleto>} />
+            <Route path="administracion/consorcios" element={<AdministracionConsorcios />} />
             <Route path="administracion/consorcios/nuevo" element={<WizardNuevoConsorcio />} />
-            <Route path="super-admin/administraciones" element={<SuperAdminAdministraciones />} />
-            <Route path="super-admin/metricas" element={<SuperAdminMetricas />} />
-            <Route path="super-admin/audit-log" element={<SuperAdminAuditLog />} />
+            <Route path="super-admin/administraciones" element={<SoloEnSistemaCompleto modulo="super-admin"><SuperAdminAdministraciones /></SoloEnSistemaCompleto>} />
+            <Route path="super-admin/metricas" element={<SoloEnSistemaCompleto modulo="super-admin"><SuperAdminMetricas /></SoloEnSistemaCompleto>} />
+            <Route path="super-admin/audit-log" element={<SoloEnSistemaCompleto modulo="super-admin"><SuperAdminAuditLog /></SoloEnSistemaCompleto>} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

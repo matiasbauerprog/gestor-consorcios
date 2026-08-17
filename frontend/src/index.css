@@ -830,7 +830,7 @@ td button {
 
 .sidebar-cabecera-titulo {
   font-size: 0.625rem;
-  font-weight: 800;
+  font-weight: 600;
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.2em;
@@ -880,7 +880,9 @@ td button {
   box-shadow: none;
   font-family: inherit;
   font-size: 0.625rem;
-  font-weight: 800;
+  /* Mayúsculas con mucho espaciado ya leen como encabezado: el peso extra
+     sólo suma ruido junto a los ítems, que ahora van en 500. */
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.2em;
   color: var(--color-text-muted);
@@ -927,7 +929,11 @@ td button {
   color: var(--color-text);
   text-decoration: none;
   font-size: 0.8125rem;
-  font-weight: 700;
+  /* La navegación se lee de corrido, no se escanea dato por dato como una
+     tabla: en negrita el bloque entero pesa y ningún ítem destaca. El peso
+     acá sólo tiene que separar el ítem activo del resto, y de eso ya se
+     encargan el fondo y el color. */
+  font-weight: 500;
   border-radius: var(--radius-sm);
 }
 
@@ -939,14 +945,14 @@ td button {
 .sidebar-link.activo {
   background: var(--color-primary-soft);
   color: var(--color-primary);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .sidebar-subgrupo {
   margin: 0.5rem 0.5rem 0.15rem;
   padding: 0 0.75em;
   font-size: 0.5625rem;
-  font-weight: 800;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.18em;
   color: var(--color-text-muted);
@@ -2244,6 +2250,11 @@ td.monto {
     padding-bottom: 0;
   }
 
+  /* Los modales con tabla: ver el comentario de `ancho` en Modal.jsx. */
+  .modal.modal-ancho {
+    max-width: 860px;
+  }
+
   .modal::before {
     display: none;
   }
@@ -2333,7 +2344,10 @@ td.monto {
     padding: 0 1.25rem 1rem;
     font-family: var(--font-display);
     font-size: 1.05rem;
-    font-weight: 800;
+    /* Acompaña el peso de los ítems: en 800 sobre una navegación en 500 el
+       nombre del sistema se comía la columna entera. Sigue siendo lo más
+       pesado de la barra, que es lo que corresponde a un encabezado. */
+    font-weight: 700;
     letter-spacing: -0.02em;
     color: var(--color-text);
   }
@@ -2389,6 +2403,11 @@ td.monto {
 
 .filtro-checkbox {
   display: inline-flex;
+  /* La regla base de `label` apila en columna, porque en un formulario la
+     etiqueta va arriba del campo. Acá el campo es una casilla y el texto es
+     su rótulo al lado: sin volver a fila, la casilla queda flotando encima
+     del texto y se monta sobre el título de la pantalla. */
+  flex-direction: row;
   align-items: center;
   gap: 0.4rem;
   white-space: nowrap;
@@ -2899,7 +2918,10 @@ td.monto {
   color: var(--color-text-muted);
   font-size: 0.6875rem;
   font-weight: 600;
-  text-transform: capitalize;
+  /* Sin `text-transform: capitalize`: capitaliza cada palabra y dejaba
+     "Lunes, 17 De Agosto De 2026" — en castellano el mes y las preposiciones
+     van en minúscula. La primera letra la levanta `mayusculaInicial`
+     (utils/textos.js), que además no toca el nombre del consorcio. */
 }
 
 .inicio > h1 {
@@ -3108,6 +3130,18 @@ td.monto {
   .inicio-hero,
   .inicio-acciones {
     grid-column: 1 / -1;
+  }
+
+  /* "Actividad reciente" es bastante más alta que "Requiere tu atención",
+     que suele tener dos renglones. Sin esto la fila entera toma la altura de
+     la actividad, "Próximos vencimientos" arranca recién debajo de ella y
+     queda un pozo vacío de media pantalla en la columna izquierda.
+
+     Ocupando dos filas, el acomodo automático manda vencimientos a la
+     columna de al lado de la actividad, pegado abajo de atención. No hace
+     falta numerar filas: la sección va donde encuentra lugar. */
+  .inicio-actividad {
+    grid-row: span 2;
   }
 }
 

@@ -38,7 +38,12 @@ RUTAS_EXPORTADAS: list[tuple[str, str]] = [
     ("admin", "/clases-prorrateo"),
     ("admin", "/cajas"),
     ("admin", "/estado-financiero"),
-    ("admin", "/reportes/morosos"),
+    # Sin filtrar: el padrón entero, deudores y al día. El default del
+    # endpoint es `solo_deudores=True`, y con ese recorte la casilla "excluir
+    # saldos al día y a favor" de la pantalla queda muerta — no tiene de dónde
+    # sacar las unidades que faltan. El recorte lo hace el sustituto del
+    # navegador (`solo_deudores` en frontend/src/demo/rutas.js).
+    ("admin", "/reportes/morosos?solo_deudores=false"),
     ("admin", "/configuracion"),
     ("admin", "/me/consorcios"),
     ("depto", "/movimientos/mi-cuenta"),
@@ -48,6 +53,22 @@ RUTAS_EXPORTADAS: list[tuple[str, str]] = [
     ("admin", "/reportes/proveedores"),
     ("admin", "/notificaciones"),
     ("admin", "/notificaciones/no-leidas-count"),
+    # Módulo Personal. El generador ya crea el legajo del encargado, el
+    # catálogo de haberes, los conceptos de liquidación y las liquidaciones
+    # mensuales (`crear_catalogo_personal` en backend/seed_demo.py); sin
+    # estas cuatro rutas esos datos existen pero no llegan a la demo.
+    ("admin", "/empleados"),
+    ("admin", "/haberes"),
+    ("admin", "/conceptos-liquidacion"),
+    ("admin", "/liquidaciones"),
+    # Lo que le faltaba a Tesorería y a Configuración para verse enteras.
+    ("admin", "/transferencias-caja"),
+    ("admin", "/usuarios"),
+    ("admin", "/trabajos-recurrentes"),
+    # La administración y sus consorcios. Sin esto, "Consorcios de la
+    # administración" muestra el estado vacío de una cuenta recién creada
+    # arriba de un consorcio con seis meses cargados.
+    ("admin", "/consorcios"),
 ]
 
 #: Rutas que se piden una vez por departamento. La clave en el JSON lleva el
@@ -62,6 +83,19 @@ RUTAS_POR_DEPARTAMENTO: list[str] = [
 RUTAS_POR_PERIODO: list[str] = [
     "/periodos/{periodo}/estado",
     "/reportes/gastos/{periodo}",
+]
+
+#: Ídem por trabajo: el detalle de un trabajo pide sus presupuestos al
+#: abrirse (ModalDetalleTrabajo), y comparar presupuestos para aprobar uno es
+#: media pantalla del argumento de mantenimiento.
+RUTAS_POR_TRABAJO: list[str] = [
+    "/trabajos/{id}/presupuestos",
+]
+
+#: Ídem por caja: el detalle de una caja lista sus movimientos aparte del
+#: saldo que ya viene en `/cajas`.
+RUTAS_POR_CAJA: list[str] = [
+    "/cajas/{id}/movimientos",
 ]
 
 
@@ -126,6 +160,23 @@ def _token_mi_cuenta(datos: dict, tokens_depto: dict[int, str]) -> str:
     return next(iter(tokens_depto.values()))
 
 
+def _verificar(path: str, respuesta) -> None:
+    """Corta el export si una ruta declarada no contestó con datos.
+
+    Sin esto, una ruta mal escrita en las tablas de arriba no rompe nada
+    visible: el backend contesta 404/405, el cuerpo del error (`{"detail":
+    ...}`) se guarda en el dataset como si fueran datos, y la pantalla que
+    lo consume aparece vacía en la demo sin que nadie se entere. Pasó con
+    `/coeficientes`, que no existe como listado.
+    """
+    if respuesta.status_code >= 400:
+        raise RuntimeError(
+            f"El export pidió {path} y el backend contestó "
+            f"{respuesta.status_code}. Revisá la ruta en las tablas de "
+            f"export_demo.py: tal como está, el dataset guardaría el error."
+        )
+
+
 def exportar(api, admin_token: str, tokens_depto: dict[int, str], cid: int) -> dict:
     """Pide cada ruta declarada y devuelve {path: cuerpo}.
 
@@ -143,23 +194,42 @@ def exportar(api, admin_token: str, tokens_depto: dict[int, str], cid: int) -> d
             token = admin_token
         else:
             token = _token_mi_cuenta(datos, tokens_depto)
+        # La clave va sin query: el sustituto del navegador busca por path
+        # limpio y aplica los filtros aparte (frontend/src/demo/rutas.js).
+        # Al backend sí se le pide con el query, que es lo que decide qué
+        # datos trae.
+        clave = path.split("?")[0]
         if path in _RUTAS_PAGINADAS:
-            datos[path] = _pedir_paginado(api, path, token, cid)
+            datos[clave] = _pedir_paginado(api, path, token, cid)
         else:
             r = api.req("GET", path, token=token, cid=cid)
-            datos[path] = r.json()
+            _verificar(path, r)
+            datos[clave] = r.json()
 
     for depto in datos.get("/departamentos", []):
         for plantilla in RUTAS_POR_DEPARTAMENTO:
             path = plantilla.format(id=depto["id"])
             r = api.req("GET", path, token=admin_token, cid=cid)
+            _verificar(path, r)
             datos[path] = r.json()
 
     for periodo in datos.get("/periodos", []):
         for plantilla in RUTAS_POR_PERIODO:
             path = plantilla.format(periodo=periodo["periodo"])
             r = api.req("GET", path, token=admin_token, cid=cid)
+            _verificar(path, r)
             datos[path] = r.json()
+
+    for coleccion, plantillas in (
+        ("/cajas", RUTAS_POR_CAJA),
+        ("/trabajos", RUTAS_POR_TRABAJO),
+    ):
+        for item in datos.get(coleccion, []):
+            for plantilla in plantillas:
+                path = plantilla.format(id=item["id"])
+                r = api.req("GET", path, token=admin_token, cid=cid)
+                _verificar(path, r)
+                datos[path] = r.json()
 
     datos["_generado"] = date.today().isoformat()
     return datos
