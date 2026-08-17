@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import ModuloNoIncluido, { MODULOS } from "./ModuloNoIncluido";
+import ModuloNoIncluido from "./ModuloNoIncluido";
+import { MODULOS } from "./modulosNoIncluidos";
 
 describe("ModuloNoIncluido", () => {
   it("explica qué hace el módulo, no que está roto", () => {
