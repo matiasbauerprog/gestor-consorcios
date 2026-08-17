@@ -7,16 +7,22 @@ con él en la siguiente corrida.
 """
 import hashlib
 import json
+from datetime import date
 from pathlib import Path
 
 #: (rol, path). El rol decide con qué token se pide: "admin" o "depto".
-#: Las 16 rutas quedan como "admin": se relevó cada router y ninguna necesita
-#: el token de un departamento para devolver datos útiles para la demo — son
+#: La mayoría queda como "admin": se relevó cada router y no necesita el
+#: token de un departamento para devolver datos útiles para la demo — son
 #: admin-only (gastos, proveedores, periodos, clases-prorrateo, cajas,
-#: estado-financiero, configuración, departamentos) o de lectura abierta a
-#: cualquier rol autenticado donde el admin ve el conjunto más amplio, no uno
-#: recortado por depto (expensas, comprobantes, comunicados, peticiones,
-#: reservas, reportes/morosos).
+#: estado-financiero, configuración, departamentos, movimientos/cuentas,
+#: gastos-habituales, reportes) o de lectura abierta a cualquier rol
+#: autenticado donde el admin ve el conjunto más amplio, no uno recortado por
+#: depto (expensas, comprobantes, comunicados, peticiones, reservas,
+#: reportes/morosos, notificaciones). La única excepción es
+#: `/movimientos/mi-cuenta`: ese endpoint exige Rol.departamento (401 con
+#: token de admin) y además devuelve la cuenta del departamento *dueño* del
+#: token, así que "admin" no sirve ni por permisos ni por resultado — ver
+#: `_token_mi_cuenta`.
 RUTAS_EXPORTADAS: list[tuple[str, str]] = [
     ("admin", "/departamentos"),
     ("admin", "/expensas"),
@@ -34,6 +40,28 @@ RUTAS_EXPORTADAS: list[tuple[str, str]] = [
     ("admin", "/estado-financiero"),
     ("admin", "/reportes/morosos"),
     ("admin", "/configuracion"),
+    ("admin", "/me/consorcios"),
+    ("depto", "/movimientos/mi-cuenta"),
+    ("admin", "/movimientos/cuentas"),
+    ("admin", "/gastos-habituales"),
+    ("admin", "/reportes/estado-financiero"),
+    ("admin", "/reportes/proveedores"),
+    ("admin", "/notificaciones"),
+    ("admin", "/notificaciones/no-leidas-count"),
+]
+
+#: Rutas que se piden una vez por departamento. La clave en el JSON lleva el
+#: id resuelto (`/departamentos/7/cuenta`), para que el sustituto del
+#: navegador las encuentre por el mismo path que pide la pantalla.
+RUTAS_POR_DEPARTAMENTO: list[str] = [
+    "/departamentos/{id}/cuenta",
+    "/departamentos/{id}/coeficientes",
+]
+
+#: Ídem por período cerrado.
+RUTAS_POR_PERIODO: list[str] = [
+    "/periodos/{periodo}/estado",
+    "/reportes/gastos/{periodo}",
 ]
 
 
@@ -71,21 +99,69 @@ def _pedir_paginado(api, path: str, token: str, cid: int) -> list:
         offset += _TAMANO_PAGINA
 
 
+#: Código del departamento pinneado como "propietario al día"
+#: (`CODIGO_PUNTUAL_FIJO` en `backend/seed_demo.py`): el destino del botón
+#: del selector de rol en /auth/demo-login. `/movimientos/mi-cuenta`
+#: devuelve la cuenta de quien sea *dueño* del token con el que se pida, así
+#: que hay que fijar cuál — a diferencia del resto de las rutas "admin",
+#: donde cualquier token del rol alcanza para el mismo resultado.
+_CODIGO_DEPTO_MI_CUENTA = "UF-01A"
+
+
+def _token_mi_cuenta(datos: dict, tokens_depto: dict[int, str]) -> str:
+    """Token del depto pinneado para `/movimientos/mi-cuenta`.
+
+    Busca el id del depto con código `_CODIGO_DEPTO_MI_CUENTA` en
+    `datos["/departamentos"]` (ya resuelto en este punto del export) y
+    devuelve su token. Si por lo que sea no aparece —dataset de test con
+    cuerpos falsos, o el depto pinneado no tiene login— cae a cualquier
+    token disponible en vez de romper el export entero por una ruta.
+    """
+    for depto in datos.get("/departamentos", []):
+        if depto.get("codigo") == _CODIGO_DEPTO_MI_CUENTA:
+            token = tokens_depto.get(depto.get("id"))
+            if token is not None:
+                return token
+            break
+    return next(iter(tokens_depto.values()))
+
+
 def exportar(api, admin_token: str, tokens_depto: dict[int, str], cid: int) -> dict:
     """Pide cada ruta declarada y devuelve {path: cuerpo}.
 
     Las rutas de `_RUTAS_PAGINADAS` se piden página por página hasta
     agotarlas — ver `_pedir_paginado`. El resto se pide de una sola vez,
-    como devuelve el endpoint.
+    como devuelve el endpoint. Después de las rutas sueltas, repite las
+    plantillas de `RUTAS_POR_DEPARTAMENTO` y `RUTAS_POR_PERIODO` una vez por
+    cada departamento/período ya exportado, y deja `_generado` con la fecha
+    de hoy (§3.3 del spec: sin eso no se puede calcular el desplazamiento de
+    fechas al abrir la demo).
     """
     datos: dict = {}
     for rol, path in RUTAS_EXPORTADAS:
-        token = admin_token if rol == "admin" else next(iter(tokens_depto.values()))
+        if rol == "admin":
+            token = admin_token
+        else:
+            token = _token_mi_cuenta(datos, tokens_depto)
         if path in _RUTAS_PAGINADAS:
             datos[path] = _pedir_paginado(api, path, token, cid)
         else:
             r = api.req("GET", path, token=token, cid=cid)
             datos[path] = r.json()
+
+    for depto in datos.get("/departamentos", []):
+        for plantilla in RUTAS_POR_DEPARTAMENTO:
+            path = plantilla.format(id=depto["id"])
+            r = api.req("GET", path, token=admin_token, cid=cid)
+            datos[path] = r.json()
+
+    for periodo in datos.get("/periodos", []):
+        for plantilla in RUTAS_POR_PERIODO:
+            path = plantilla.format(periodo=periodo["periodo"])
+            r = api.req("GET", path, token=admin_token, cid=cid)
+            datos[path] = r.json()
+
+    datos["_generado"] = date.today().isoformat()
     return datos
 
 

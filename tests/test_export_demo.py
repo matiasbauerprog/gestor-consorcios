@@ -1,5 +1,7 @@
 from backend.export_demo import (
     RUTAS_EXPORTADAS,
+    RUTAS_POR_DEPARTAMENTO,
+    RUTAS_POR_PERIODO,
     exportar,
     exportar_comprobantes,
     exportar_pdfs,
@@ -7,7 +9,14 @@ from backend.export_demo import (
 
 
 class _ApiFalsa:
-    """Registra qué se pidió y devuelve un cuerpo reconocible por path."""
+    """Registra qué se pidió y devuelve un cuerpo reconocible por path.
+
+    Cada elemento lleva `id` y `periodo` además del path que lo originó: el
+    exportador recorre `/departamentos` y `/periodos` para resolver las
+    plantillas de `RUTAS_POR_DEPARTAMENTO` y `RUTAS_POR_PERIODO`, así que un
+    doble que devolviera sólo `path_pedido` no representaría ninguna respuesta
+    que el backend real pueda dar.
+    """
 
     def __init__(self):
         self.pedidos = []
@@ -20,7 +29,7 @@ class _ApiFalsa:
 
             @staticmethod
             def json():
-                return [{"path_pedido": path}]
+                return [{"path_pedido": path, "id": 1, "periodo": "2026-01"}]
 
         return _R()
 
@@ -37,7 +46,7 @@ def test_el_export_indexa_por_path():
     api = _ApiFalsa()
     datos = exportar(api, "tok-admin", {1: "tok-depto"}, cid=1)
     assert "/departamentos" in datos
-    assert datos["/departamentos"] == [{"path_pedido": "/departamentos"}]
+    assert datos["/departamentos"][0]["path_pedido"] == "/departamentos"
 
 
 def test_incluye_las_rutas_del_recorrido_de_venta():
@@ -79,7 +88,10 @@ class _ApiFalsaPaginada:
             @staticmethod
             def json():
                 if limit is None:
-                    return [{"path_pedido": path}]
+                    # Ruta no paginada: mismo cuerpo mínimo que `_ApiFalsa`,
+                    # con `id` y `periodo` porque el exportador recorre
+                    # `/departamentos` y `/periodos` para resolver plantillas.
+                    return [{"path_pedido": path, "id": 1, "periodo": "2026-01"}]
                 restantes = max(total - offset, 0)
                 cantidad = min(limit, restantes)
                 return [{"id": offset + i} for i in range(cantidad)]
@@ -188,3 +200,46 @@ def test_exportar_comprobantes_ignora_los_que_no_tienen_archivo(tmp_path):
 
     assert mapa == {}
     assert datos["/comprobantes"][0]["archivo_path"] is None
+
+
+def test_exporta_la_cuenta_corriente_de_cada_departamento():
+    # Es la base de "Mi cuenta" del propietario: sin esto la pantalla más
+    # importante del circuito de cobranza queda vacía en la demo.
+    assert "/departamentos/{id}/cuenta" in RUTAS_POR_DEPARTAMENTO
+
+
+def test_exporta_el_estado_de_cada_periodo():
+    assert "/periodos/{periodo}/estado" in RUTAS_POR_PERIODO
+
+
+def test_exporta_las_rutas_que_el_recorrido_necesita():
+    paths = {p for _rol, p in RUTAS_EXPORTADAS}
+    for imprescindible in [
+        "/me/consorcios",
+        "/movimientos/mi-cuenta",
+        "/movimientos/cuentas",
+        "/gastos-habituales",
+        "/reportes/estado-financiero",
+        "/reportes/proveedores",
+        "/notificaciones",
+        "/notificaciones/no-leidas-count",
+    ]:
+        assert imprescindible in paths
+
+
+def test_el_export_deja_la_fecha_de_generacion():
+    # Sin esto no se puede calcular cuánto correr las fechas al abrir la demo.
+    class _Api:
+        def req(self, metodo, path, **kwargs):
+            class _R:
+                status_code = 200
+
+                @staticmethod
+                def json():
+                    return []
+
+            return _R()
+
+    datos = exportar(_Api(), "tok", {1: "tok-depto"}, cid=1)
+    assert "_generado" in datos
+    assert datos["_generado"].count("-") == 2  # ISO: YYYY-MM-DD
