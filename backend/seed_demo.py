@@ -22,7 +22,10 @@ visitante junto al demo real.
 import os
 import sys
 import time
+from contextlib import contextmanager
 from datetime import date, datetime, timedelta
+from pathlib import Path
+from unittest.mock import patch
 
 from .seed_e2e import (
     RNG,
@@ -33,13 +36,25 @@ from .seed_e2e import (
     _fechas_del_periodo,
     _padron_csv,
 )
-from .seed_e2e import _PNG_1PX as _PNG_1PX_DEMO
 from .seed_e2e import RUBROS_COMUNES
+
+_DIR_ASSETS = Path(__file__).parent / "assets_demo"
 
 PISOS_DEMO = 3                      # 3 pisos × 6 unidades (A–F) = 18 UF
 DOMINIO_DEMO = "demo.local"
 EMAIL_ADMIN_DEMO = "admin@demo.local"
 NOMBRE_CONSORCIO = "Edificio Libertador"
+
+# Administración que gestiona el consorcio demo, mostrada en /configuracion
+# a los departamentos (necesitan el email de contacto para pagar). Antes
+# `_consorcio_payload` (heredado de seed_e2e.py, el smoke-test) dejaba
+# "Administración Semilla SRL" / "contacto@semilla-admin.local": datos del
+# fixture de otro script, visibles en la pantalla insignia de un demo de
+# venta. Una sola razón social/email para todo lo que representa a "quién
+# administra este consorcio" en el dataset (el alta en /super-admin y el
+# contacto de /configuracion).
+NOMBRE_ADMINISTRACION_DEMO = "Administración Demo SRL"
+EMAIL_CONTACTO_ADMINISTRACION_DEMO = "contacto@demo.local"
 
 # Deptos pinneados: son los destinos del selector de rol de /auth/demo-login.
 CODIGO_PUNTUAL_FIJO = "UF-01A"
@@ -87,6 +102,181 @@ COMUNICADOS_DEMO: list[tuple[str, str]] = [
 ]
 
 
+# Proveedor por CONCEPTO de gasto: en pantalla, un gasto de seguros
+# facturado por una empresa de ascensores destruye la credibilidad del
+# dataset entero. Fuente única: antes había dos mapas separados —una lista
+# de proveedores con un "rubro que atiende" que nadie leía, y un segundo
+# dict rubro → proveedor, 1:1— y ese 1:1 no alcanzaba: RUBROS_COMUNES tiene
+# TRES conceptos distintos bajo "abonos_y_servicios" (limpieza, ascensores,
+# fumigación), así que los tres terminaban facturados a la empresa de
+# limpieza y "Ascensores Vertirod SA" no facturaba nada nunca.
+#
+# La clave es el CONCEPTO exacto cuando hace falta desambiguar dentro de un
+# mismo rubro; el comodín "*<rubro>" cubre los gastos que no salen de
+# RUBROS_COMUNES (reparaciones privadas, la obra de frente, el encargado) y
+# cualquier concepto de RUBROS_COMUNES que no necesite su propio proveedor.
+_PROVEEDOR_POR_CONCEPTO: dict[str, str] = {
+    "Abono limpieza": "Limpieza Total SRL",
+    "Abono ascensores": "Ascensores Vertirod SA",
+    "Fumigación mensual": "Limpieza Total SRL",
+    "Mantenimiento bombas": "ElectroSur SRL",
+    "AySA agua común": "Servicios Metropolitanos SA",
+    "Edesur espacios comunes": "Servicios Metropolitanos SA",
+    "Honorarios administración": "Estudio Rossi & Asociados",
+    "Comisiones bancarias": "Banco Ciudad",
+    "Seguro integral consorcio": "Seguros La Continental",
+    "*trabajos_reparaciones_unidades": "Plomería Paz",
+    "*mantenimiento_partes_comunes": "Plomería Paz",
+    "*sueldos_y_cargas_sociales": "Estudio Rossi & Asociados",
+}
+
+#: Catálogo de proveedores del demo: se crean todos estos, en este orden.
+#: DERIVADO de `_PROVEEDOR_POR_CONCEPTO` —no una lista aparte— para que el
+#: catálogo nunca pueda desincronizarse de a quién se le factura de verdad.
+PROVEEDORES_DEMO: list[str] = list(dict.fromkeys(_PROVEEDOR_POR_CONCEPTO.values()))
+
+
+def proveedor_para_gasto(rubro: str, concepto: str, proveedores: dict[str, int], rng) -> int:
+    """Id del proveedor que corresponde a este gasto.
+
+    Busca primero por CONCEPTO exacto —necesario para no repetir el bug que
+    esta función vino a arreglar: dentro de un mismo rubro puede haber varios
+    proveedores reales (limpieza, ascensores, fumigación son los tres
+    "abonos_y_servicios")—. Si el concepto no tiene entrada propia (gastos
+    que no salen de RUBROS_COMUNES), cae al comodín "*<rubro>". Sin comodín
+    tampoco, usa el primero del catálogo en vez de elegir al azar: un
+    default estable es preferible a uno que cambia entre corridas y hace
+    irreproducible el dataset.
+
+    `proveedores` mapea razón social → id (los ids los devuelve la API al
+    crearlos).
+    """
+    razon = _PROVEEDOR_POR_CONCEPTO.get(concepto) or _PROVEEDOR_POR_CONCEPTO.get(f"*{rubro}")
+    if razon is None or razon not in proveedores:
+        return next(iter(proveedores.values()))
+    return proveedores[razon]
+
+
+# --- Estimación de gasto mensual, para dimensionar el fondo de reserva -----
+# saldo_inicial_caja necesita un "gasto mensual típico" del dataset. Se deriva
+# de los datos que el propio generador ya usa —no de un literal a dedo— para
+# que un cambio en esos datos (ej. agregar una fila a RUBROS_COMUNES) se
+# refleje acá solo, sin dejar un número suelto que nadie vuelve a comprobar.
+
+#: 1 a 3 reparaciones privadas por período (poblar_demo: `RNG.randint(1, 3)`),
+#: de $15.000 a $90.000 c/u (`RNG.uniform(15_000, 90_000)`). Punto medio de
+#: cada rango: 2 reparaciones × $52.500 = $105.000/mes.
+_REPARACIONES_PRIVADAS_ESTIMADO = (1 + 3) / 2 * (15_000 + 90_000) / 2
+
+#: Costo mensual del encargado vía liquidación (crear_catalogo_personal), no
+#: vía RUBROS_COMUNES: poblar_demo saltea sus dos filas
+#: "sueldos_y_cargas_sociales" con `continue` porque ese rubro lo genera la
+#: liquidación, no un /gastos suelto.
+#:   bruto = 950.000 (básico 100%) + 190.000 (antigüedad 20%) + 95.000
+#:           (presentismo) + 60.000 (plus limpieza) + 52.000 (horas extra,
+#:           8h × $6.500) = 1.347.000
+#:   costo total = bruto × (1 + 17% contribuciones patronales + 5% ART)
+#:               = 1.347.000 × 1.22 ≈ 1.643.340
+#: Los descuentos (jubilación, obra social, sindicato) no se suman aparte: ya
+#: están dentro del bruto, sólo cambian a quién se le paga — ver
+#: `_generar_gastos` en backend/routers/liquidaciones.py.
+#: Si cambia el `sueldo_basico`, algún haber o algún porcentaje de
+#: contribución/ART en `crear_catalogo_personal` (más abajo en este archivo),
+#: hay que actualizar esta constante a mano — no se recalcula sola.
+_SUELDO_ENCARGADO_ESTIMADO = (950_000 + 190_000 + 95_000 + 60_000 + 52_000) * 1.22
+
+#: Costo total de la obra de frente del dataset demo, y en cuántas cuotas se
+#: financia. Se declaran por separado porque `crear_plan_cuotas`
+#: (backend/routers/gastos.py) espera el importe DE CADA CUOTA, no el total:
+#: no divide `monto` entre `cuota_total`, sino que replica el mismo `monto`
+#: recibido en cada una de las cuotas. Mandarle el total multiplica el gasto
+#: real por la cantidad de cuotas — ver `importe_por_cuota`.
+COSTO_TOTAL_OBRA_DEMO = 7_200_000.0
+CUOTAS_OBRA_DEMO = 6
+
+
+def importe_por_cuota(costo_total: float, cuotas: int) -> float:
+    """Importe de cada cuota para `POST /gastos/plan-cuotas`.
+
+    Ese endpoint NO divide: crea `cuota_total` gastos con el `monto` recibido
+    entero cada uno (`backend/routers/gastos.py:555-581`). Mandarle el costo
+    total de una obra multiplica el gasto por la cantidad de cuotas — el
+    dataset llegó a tener una reparación de frente de $43.200.000 por esta
+    causa, el 72% de los gastos del semestre.
+    """
+    return round(costo_total / cuotas, 2)
+
+
+#: Cuota mensual de la obra extraordinaria (plan-cuotas en poblar_demo), para
+#: sumar al estimado de `estimar_gasto_mensual_demo`. Es el importe de UNA
+#: cuota, no el costo total de la obra: lo que golpea la caja cada mes es una
+#: cuota (ver `importe_por_cuota`), no la obra entera.
+#:   cuota = importe_por_cuota(COSTO_TOTAL_OBRA_DEMO, CUOTAS_OBRA_DEMO)
+#:         = 7.200.000 / 6 = 1.200.000
+#: Si cambian `COSTO_TOTAL_OBRA_DEMO` o `CUOTAS_OBRA_DEMO`, hay que actualizar
+#: esta constante a mano — no se recalcula sola.
+#: Acoplamiento implícito con `meses_demo`: esta constante asume que la
+#: cantidad de cuotas de la obra (`CUOTAS_OBRA_DEMO=6`) coincide con la
+#: cantidad de meses que siembra el dataset (`meses_demo(..., cantidad=6)` por
+#: default). Mientras coincidan, la cuota golpea los 6 períodos del dataset
+#: entero y la cuenta cierra. Si el día de mañana uno de esos dos "6" cambia
+#: sin el otro (por ejemplo, más meses de dataset pero la misma obra de 6
+#: cuotas), la obra deja de pagarse todos los períodos y esta constante pasa a
+#: sobreestimar el gasto mensual real — sin que nada lo avise.
+_CUOTA_OBRA_ESTIMADA = 1_200_000.0
+
+
+def estimar_gasto_mensual_demo(rubros_comunes: list[tuple]) -> float:
+    """Gasto mensual típico del dataset, para dimensionar `saldo_inicial_caja`.
+
+    Suma el punto medio `(lo + hi) / 2` de cada fila de `rubros_comunes`
+    —salvo las de rubro `sueldos_y_cargas_sociales`, que poblar_demo saltea y
+    reemplaza por la liquidación del encargado— más las reparaciones privadas,
+    el sueldo del encargado y la cuota de la obra extraordinaria.
+
+    Recibe `rubros_comunes` por parámetro (en vez de importar `RUBROS_COMUNES`
+    directo) para poder testearse con datos sintéticos, sin acoplarse al
+    catálogo real ni a un import con efectos secundarios.
+    """
+    comunes = sum(
+        (lo + hi) / 2
+        for rubro, _concepto, lo, hi in rubros_comunes
+        if rubro != "sueldos_y_cargas_sociales"
+    )
+    return (
+        comunes
+        + _REPARACIONES_PRIVADAS_ESTIMADO
+        + _SUELDO_ENCARGADO_ESTIMADO
+        + _CUOTA_OBRA_ESTIMADA
+    )
+
+
+#: Porción de las expensas que el dataset deja impaga: el 15% moroso nunca
+#: entra a `pagan` (perfiles_deterministas + el loop de pagos en poblar_demo
+#: arma `pagan` sólo desde puntuales + irregulares) y de los irregulares
+#: (15%) paga en promedio la mitad de los períodos (`RNG.random() < 0.5`) →
+#: 15% + 15% × 0.5 = 22.5%.
+_MOROSIDAD_ESTIMADA = 0.225
+
+
+def saldo_inicial_caja(gasto_mensual_estimado: float, meses: int) -> float:
+    """Fondo de arranque de la caja para que la tesorería no quede negativa.
+
+    El dataset gasta todos los meses y cobra sólo lo que los perfiles de pago
+    dejan cobrar, así que sin un fondo inicial la caja termina el semestre en
+    rojo profundo — que es imposible en un consorcio real y desmiente al resto
+    de los números en la primera pantalla que mira un administrador.
+
+    Se cubre el déficit acumulado más un mes ENTERO de colchón (margen para
+    que un mes particularmente caro, o más moroso que el promedio, no tumbe la
+    caja igual), redondeado a la centena de miles para que se lea como un
+    fondo de reserva y no como el resultado de una cuenta.
+    """
+    deficit = gasto_mensual_estimado * _MOROSIDAD_ESTIMADA * meses
+    colchon = gasto_mensual_estimado * 1.0
+    return float(round((deficit + colchon) / 100_000) * 100_000)
+
+
 def meses_demo(hoy: date, cantidad: int = 6) -> list[str]:
     """Los `cantidad` meses calendario completos anteriores al mes en curso.
 
@@ -103,6 +293,151 @@ def meses_demo(hoy: date, cantidad: int = 6) -> list[str]:
             anio, mes = anio - 1, 12
         meses.append(f"{anio:04d}-{mes:02d}")
     return list(reversed(meses))
+
+
+#: Cuántos comprobantes quedan esperando aprobación al abrir la demo.
+COMPROBANTES_PENDIENTES = 3
+
+
+def deja_pendiente(indice_pago: int, total_pagos: int, es_ultimo_periodo: bool) -> bool:
+    """¿Este comprobante queda sin aprobar?
+
+    Sólo en el último período cerrado, y sólo los últimos
+    `COMPROBANTES_PENDIENTES`: son la bandeja de entrada que el visitante
+    encuentra al abrir la demo. En períodos anteriores todo queda aprobado,
+    porque un comprobante colgado en un mes viejo descuadraría la cobranza
+    histórica que el resto del dataset da por cobrada.
+
+    Se reserva al menos la mitad de los pagos como aprobados para que el
+    período no quede sin ninguna cobranza si hubiera pocos pagadores.
+    """
+    if not es_ultimo_periodo:
+        return False
+    cupo = min(COMPROBANTES_PENDIENTES, total_pagos // 2)
+    return indice_pago >= total_pagos - cupo
+
+
+def fecha_pago_puntual(primer_vencimiento: date, hoy: date, rng) -> date:
+    """Fecha en que un pagador puntual abona, siempre ANTES del vencimiento.
+
+    La versión anterior hacía `min(f1 - randint(0,5), hoy)`, con dos fallas:
+    `randint(0, 5)` incluye el 0 —o sea el pago cae el mismo día del
+    vencimiento, cuando el recargo ya corrió— y el `min` contra hoy podía
+    empujarlo *después* de f1 si el vencimiento era futuro. Por eso UF-01A,
+    pinneado como puntual, terminaba con recargo por mora e intereses.
+
+    Se paga entre 1 y 6 días antes del vencimiento, y si esa fecha todavía no
+    ocurrió se usa el día anterior a hoy — nunca una fecha futura.
+    """
+    pago = primer_vencimiento - timedelta(days=rng.randint(1, 6))
+    if pago > hoy:
+        pago = min(hoy, primer_vencimiento - timedelta(days=1))
+    return pago
+
+
+def imagen_comprobante(indice: int) -> bytes:
+    """Bytes de una captura de transferencia para adjuntar a un comprobante.
+
+    Rota entre las disponibles para que la lista no muestre tres veces la
+    misma imagen. La imagen de 1px de `seed_e2e._PNG_1PX` servía mientras
+    nadie miraba los comprobantes; en la demo son parte del circuito que se
+    muestra.
+    """
+    archivos = sorted(_DIR_ASSETS.glob("comprobante_*.png"))
+    return archivos[indice % len(archivos)].read_bytes()
+
+
+def dia_de_cierre(periodo: str) -> date:
+    """Día en que se cierra `periodo` ("YYYY-MM"): el 1 del mes siguiente.
+
+    Una administración liquida el mes vencido a principios del siguiente, así
+    que la expensa de julio se emite en agosto. Cae siempre antes del primer
+    vencimiento histórico (`_fechas_del_periodo` lo fija el día 10 de ese mismo
+    mes siguiente), lo que importa para `reloj_en`: al cerrar y leer el propio
+    período bajo esta fecha, su expensa recién creada todavía no venció y no
+    puede devengar recargo dentro de su propio bloque.
+    """
+    anio, mes = (int(x) for x in periodo.split("-"))
+    return date(anio + 1, 1, 1) if mes == 12 else date(anio, mes + 1, 1)
+
+
+@contextmanager
+def reloj_en(fecha: date):
+    """Hace que el cierre de un período (y todo lo que dispara) vea `fecha`
+    como el día de hoy.
+
+    No alcanza con parchear `routers/periodos.py`. El rastreo completo del
+    camino que corre `POST /periodos/{periodo}/cerrar → GET /expensas → POST
+    /comprobantes` (el bloque que `poblar_demo` ejecuta por período) encontró
+    TRES módulos que llaman a `date.today()` sin que nadie se lo pase:
+
+    - `backend/routers/periodos.py` (línea ~145): fecha los movimientos
+      `expensa_emitida` e `interes_punitorio` que crea el cierre.
+    - `backend/cierre.py` (línea ~341, `_completar_preview`): calcula
+      `fecha_corte` con ella, y esa fecha decide DOS cosas antes de que
+      `periodos.py` escriba nada — qué expensas atrasadas devengan recargo
+      (dispara `recargos.devengar_recargos_y_marcar` con `hoy` explícito) y
+      cuánto interés punitorio corresponde (`calcular_intereses_al_cierre`).
+    - `backend/recargos.py` (línea ~36, `_devengar`): es el default cuando el
+      llamador NO pasa `hoy`, y `routers/expensas.py:94` llama así en cada
+      `GET /expensas` — el propio `poblar_demo` hace ese GET justo después de
+      cerrar, antes de cargar los pagos.
+
+    Sin parchear los tres, el generador cierra seis períodos históricos en
+    minutos: `cierre.py` ve la fecha real de la corrida al calcular
+    `fecha_corte`, encuentra expensas ya vencidas (según el calendario real)
+    sin comprobante todavía cargado, y les devenga recargo e interés antes de
+    que exista ningún pago — inclusive a las unidades que iban a pagar en
+    término. Con los tres módulos viendo `fecha` (el día de cierre simulado
+    de este período, siempre anterior a su propio primer vencimiento), el
+    devengamiento sólo alcanza a las expensas de períodos *anteriores* que ya
+    deberían estar vencidas a esa altura de la historia simulada — igual que
+    haría una administración real.
+
+    Se parchea el símbolo `date` que cada módulo importó —no `datetime.date`
+    global, y no el `date` de `seed_demo.py`— para no alterar el resto del
+    sistema durante el bloque. En particular, `fecha_pago_puntual` sigue
+    viendo la fecha real del proceso: el `date.today()` que recibe en
+    `poblar_demo` es el de este mismo módulo, no el de `periodos`/`cierre`/
+    `recargos`, así que el reloj simulado no le cambia el significado.
+
+    `_FechaFija` sólo responde `.today()`. No expone su constructor: hoy
+    ningún código bajo el patch construye una fecha por afuera de
+    `.today()` (`cierre._calcular_fechas_default` es la única excepción del
+    módulo, y sólo corre si `fecha_primer_venc`/`fecha_segundo_venc` llegan
+    en `None` — algo que `poblar_demo` nunca hace, siempre manda las dos
+    explícitas), pero esa garantía es un invariante del LLAMADOR, no algo
+    que este context manager pueda hacer cumplir por sí solo. Si algún día
+    deja de cumplirse —un `poblar_demo` que omite una fecha, o un llamador
+    nuevo de `reloj_en` que sí lo hace—, `date(y, m, d)` bajo el patch
+    devolvería una instancia de `_FechaFija` (la aritmética de `date`
+    preserva la subclase vía `type(self).fromordinal(...)`), y ese objeto
+    —con un `.today()` fijo para siempre— podría terminar grabado en
+    `fecha_primer_vencimiento` / `fecha_segundo_vencimiento`. Preferimos que
+    ese escenario reviente ruidosamente acá a que se cuele en la base en
+    silencio.
+    """
+    class _FechaFija(date):
+        @classmethod
+        def today(cls):
+            return fecha
+
+        def __new__(cls, *args, **kwargs):
+            raise TypeError(
+                "_FechaFija no admite construcción directa (sólo expone "
+                ".today()). Si ves este error, algo dentro del bloque de "
+                "reloj_en() construyó una fecha nueva por afuera de "
+                "date.today() -- ese código necesita su propia fecha real, "
+                "no la simulada."
+            )
+
+    from . import cierre, recargos
+    from .routers import periodos
+
+    with patch.object(periodos, "date", _FechaFija), \
+         patch.object(cierre, "date", _FechaFija), \
+         patch.object(recargos, "date", _FechaFija):
+        yield
 
 
 def perfiles_deterministas(
@@ -259,9 +594,28 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
     t0 = time.monotonic()
     meses = meses_demo(date.today())
 
+    consorcio_payload = _consorcio_payload(NOMBRE_CONSORCIO, 33333)
+    # `_consorcio_payload` es de seed_e2e.py (el smoke-test) y trae sus
+    # propios datos de administración fijos ("Administración Semilla SRL" /
+    # contacto@semilla-admin.local). El demo tiene los suyos — ver el
+    # comentario junto a NOMBRE_ADMINISTRACION_DEMO más arriba.
+    consorcio_payload["admin_nombre"] = NOMBRE_ADMINISTRACION_DEMO
+    consorcio_payload["admin_email"] = EMAIL_CONTACTO_ADMINISTRACION_DEMO
     r = api.req("POST", "/consorcios", token=admin_token,
-                json=_consorcio_payload(NOMBRE_CONSORCIO, 33333), expect=201)
+                json=consorcio_payload, expect=201)
     cid = r.json()["id"]
+
+    # Fondo de reserva inicial: sin esto la caja "Banco principal" termina el
+    # semestre en rojo, porque el dataset gasta todos los meses y sólo cobra
+    # lo que los perfiles de pago dejan cobrar (ver saldo_inicial_caja). Se
+    # carga como ajuste manual, antes del primer período, con fecha del día 1
+    # del primer mes sembrado.
+    caja_id = _caja_default(api, admin_token, cid)
+    api.req("POST", f"/cajas/{caja_id}/movimientos", token=admin_token, cid=cid, json={
+        "fecha": _dia_del_periodo(meses[0], 1).isoformat(),
+        "monto": saldo_inicial_caja(estimar_gasto_mensual_demo(RUBROS_COMUNES), len(meses)),
+        "descripcion": "Fondo de reserva inicial del consorcio",
+    }, expect=201)
 
     r = api.req("POST", "/clases-prorrateo", token=admin_token, cid=cid,
                 json={"codigo": "A", "nombre": "Expensas ordinarias"}, expect=201)
@@ -270,20 +624,22 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
                 json={"codigo": "B", "nombre": "Expensas extraordinarias"}, expect=201)
     clase_b = r.json()["id"]
 
-    proveedores = []
-    for razon in ["Limpieza Total SRL", "Ascensores Vertirod SA", "ElectroSur SRL",
-                  "Plomería Paz", "Seguros La Continental"]:
+    proveedores = {}
+    for razon in PROVEEDORES_DEMO:
         r = api.req("POST", "/proveedores", token=admin_token, cid=cid,
                     json={"razon_social": razon,
                           "cuit": f"30-{RNG.randint(10_000_000, 99_999_999)}-{RNG.randint(0, 9)}"},
                     expect=201)
-        proveedores.append(r.json()["id"])
+        proveedores[razon] = r.json()["id"]
 
     amenities = {}
+    precios_amenity: dict[int, float] = {}
     for nombre_a, precio in [("SUM", 25_000.0), ("Laundry", 3_000.0)]:
         r = api.req("POST", "/amenities", token=admin_token, cid=cid,
                     json={"nombre": nombre_a, "precio_reserva": precio}, expect=201)
-        amenities[nombre_a] = r.json()["id"]
+        amenity_id = r.json()["id"]
+        amenities[nombre_a] = amenity_id
+        precios_amenity[amenity_id] = precio
 
     # Padrón: 3 pisos × 6 unidades = 18 UF, con sus usuarios.
     csv_bytes = _padron_csv(PISOS_DEMO, DOMINIO_DEMO)
@@ -310,9 +666,12 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
     api.req("PUT", "/coeficientes", token=admin_token, cid=cid,
             json={"coeficientes": coefs + coefs_b}, expect=200)
 
-    # El encargado necesita un proveedor (le paga la administración); usamos
-    # el primero de la lista ya creada arriba.
-    personal = crear_catalogo_personal(api, admin_token, cid, proveedores[0])
+    # El encargado necesita un proveedor (le paga la administración): el que
+    # atiende sueldos_y_cargas_sociales.
+    personal = crear_catalogo_personal(
+        api, admin_token, cid,
+        proveedor_para_gasto("sueldos_y_cargas_sociales", "", proveedores, RNG),
+    )
 
     puntuales, irregulares, morosos = perfiles_deterministas(deptos)
 
@@ -358,15 +717,17 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
                 "periodo": periodo,
                 "rubro": "mantenimiento_partes_comunes",
                 "clase_prorrateo_id": clase_b,
-                "proveedor_id": proveedores[0],
+                "proveedor_id": proveedor_para_gasto(
+                    "mantenimiento_partes_comunes",
+                    "Reparación integral del frente del edificio", proveedores, RNG),
                 "concepto": "Reparación integral del frente del edificio",
-                "monto": 7_200_000.0,
+                "monto": importe_por_cuota(COSTO_TOTAL_OBRA_DEMO, CUOTAS_OBRA_DEMO),
                 "forma_pago": "transferencia",
                 "caja_id": _caja_default(api, admin_token, cid),
                 "fecha_pago": _dia_del_periodo(periodo, 5).isoformat(),
-                "cuota_total": 6,
+                "cuota_total": CUOTAS_OBRA_DEMO,
             }, expect=201)
-            cuotas_obra = 6
+            cuotas_obra = CUOTAS_OBRA_DEMO
 
         for rubro, concepto, lo, hi in RUBROS_COMUNES:
             if rubro == "sueldos_y_cargas_sociales":
@@ -374,7 +735,7 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
             api.req("POST", "/gastos", token=admin_token, cid=cid, json={
                 "periodo": periodo, "rubro": rubro,
                 "clase_prorrateo_id": clase_a,
-                "proveedor_id": RNG.choice(proveedores),
+                "proveedor_id": proveedor_para_gasto(rubro, concepto, proveedores, RNG),
                 "concepto": concepto,
                 "monto": round(RNG.uniform(lo, hi), 2),
                 "forma_pago": "transferencia",
@@ -384,11 +745,13 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
 
         for _ in range(RNG.randint(1, 3)):
             depto = RNG.choice(deptos)
+            concepto_reparacion = f"Reparación privada {depto['codigo']}"
             api.req("POST", "/gastos", token=admin_token, cid=cid, json={
                 "periodo": periodo, "rubro": "trabajos_reparaciones_unidades",
                 "departamento_id": depto["id"],
-                "proveedor_id": RNG.choice(proveedores),
-                "concepto": f"Reparación privada {depto['codigo']}",
+                "proveedor_id": proveedor_para_gasto(
+                    "trabajos_reparaciones_unidades", concepto_reparacion, proveedores, RNG),
+                "concepto": concepto_reparacion,
                 "monto": round(RNG.uniform(15_000, 90_000), 2),
                 "forma_pago": "transferencia",
                 "caja_id": _caja_default(api, admin_token, cid),
@@ -412,33 +775,59 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
         liquidaciones += 1
 
         f1, f2 = _fechas_del_periodo(periodo)
-        api.req("POST", f"/periodos/{periodo}/cerrar", token=admin_token, cid=cid, json={
-            "fecha_primer_vencimiento": f1.isoformat(),
-            "fecha_segundo_vencimiento": f2.isoformat(),
-        }, expect=201)
 
-        r = api.req("GET", f"/expensas?periodo={periodo}", token=admin_token, cid=cid,
-                    expect=200)
-        expensas_por_depto = {e["departamento_id"]: e for e in r.json()}
+        # Todo el bloque del período —cierre, lectura de expensas (que
+        # devenga recargos de arrastre) y carga de pagos— corre bajo el
+        # reloj simulado del día de cierre. Ver el docstring de `reloj_en`:
+        # sin esto, `cierre.py` y `recargos.py` evalúan mora contra la fecha
+        # real de la corrida en vez de la fecha histórica del período, y
+        # unidades puntuales terminan con recargo por un pago que todavía no
+        # se cargó.
+        with reloj_en(dia_de_cierre(periodo)):
+            api.req("POST", f"/periodos/{periodo}/cerrar", token=admin_token, cid=cid, json={
+                "fecha_primer_vencimiento": f1.isoformat(),
+                "fecha_segundo_vencimiento": f2.isoformat(),
+            }, expect=201)
 
-        pagan = [d["id"] for d in puntuales]
-        pagan += [d["id"] for d in irregulares if RNG.random() < 0.5]
+            r = api.req("GET", f"/expensas?periodo={periodo}", token=admin_token, cid=cid,
+                        expect=200)
+            expensas_por_depto = {e["departamento_id"]: e for e in r.json()}
 
-        for depto_id in pagan:
-            exp = expensas_por_depto.get(depto_id)
-            if exp is None or depto_id not in tokens_depto:
-                continue
-            fecha_pago = min(f1 - timedelta(days=RNG.randint(0, 5)), date.today())
-            monto = exp["monto_primer_vencimiento"]
-            if RNG.random() < 0.05:
-                monto = float(int(monto / 1000 + 1) * 1000)
-            r = api.req("POST", "/comprobantes", token=tokens_depto[depto_id], cid=cid,
-                        data={"fecha_pago": fecha_pago.isoformat(), "monto": monto},
-                        files={"archivo": ("pago.png", _PNG_1PX_DEMO, "image/png")},
-                        expect=201)
-            api.req("PATCH", f"/comprobantes/{r.json()['id']}", token=admin_token, cid=cid,
-                    json={"estado": "aprobado"}, expect=200)
-            comprobantes += 1
+            pagan = [d["id"] for d in puntuales]
+            pagan += [d["id"] for d in irregulares if RNG.random() < 0.5]
+            es_ultimo = periodo == meses[-1]
+
+            # Filtrado ANTES del loop, no `continue` adentro: deja_pendiente()
+            # decide sobre el índice y el total de comprobantes que van a
+            # existir de verdad. Si el filtro viviera como un `continue` dentro
+            # del for, un depto sin expensa o sin login corrido podría desalinear
+            # `idx`/`len(...)` de los comprobantes efectivamente creados y, en el
+            # peor caso, dejar el período entero sin ninguna cobranza aprobada
+            # (la garantía que promete el docstring de deja_pendiente).
+            pagan_con_datos = [
+                depto_id for depto_id in pagan
+                if depto_id in expensas_por_depto and depto_id in tokens_depto
+            ]
+
+            for idx, depto_id in enumerate(pagan_con_datos):
+                exp = expensas_por_depto[depto_id]
+                # `date.today()` acá es el de este módulo (seed_demo), no el
+                # de periodos/cierre/recargos: reloj_en no lo toca a
+                # propósito, así que sigue siendo la fecha real del proceso
+                # — el tope que evita un comprobante fechado en el futuro
+                # real. Ver el docstring de reloj_en.
+                fecha_pago = fecha_pago_puntual(f1, date.today(), RNG)
+                monto = exp["monto_primer_vencimiento"]
+                if RNG.random() < 0.05:
+                    monto = float(int(monto / 1000 + 1) * 1000)
+                r = api.req("POST", "/comprobantes", token=tokens_depto[depto_id], cid=cid,
+                            data={"fecha_pago": fecha_pago.isoformat(), "monto": monto},
+                            files={"archivo": ("pago.png", imagen_comprobante(comprobantes), "image/png")},
+                            expect=201)
+                if not deja_pendiente(idx, len(pagan_con_datos), es_ultimo):
+                    api.req("PATCH", f"/comprobantes/{r.json()['id']}", token=admin_token, cid=cid,
+                            json={"estado": "aprobado"}, expect=200)
+                comprobantes += 1
         print(f"[demo] {periodo}: cerrado · {len(pagan)} pagos")
 
     # --- Reservas de amenities (fechas futuras, relativas a "ahora") ---
@@ -471,6 +860,24 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
                 api.req("DELETE", f"/reservas/{r.json()['id']}",
                         token=tokens_depto[depto_id], cid=cid)
                 reservas_canceladas += 1
+            else:
+                # El cargo en cuenta corriente de una reserva confirmada
+                # (nota_debito) no lo cobra ningún cierre de período: sin
+                # esto queda impago para siempre y, sobre el saldo exacto del
+                # precio del amenity, /reportes/morosos lo confunde con un
+                # moroso real (misma imputación por antigüedad — ver C1 en
+                # la revisión final). Se paga y aprueba en el momento, como
+                # haría cualquier consorcio que de verdad cobra el SUM.
+                rc = api.req(
+                    "POST", "/comprobantes", token=tokens_depto[depto_id], cid=cid,
+                    data={"fecha_pago": date.today().isoformat(),
+                          "monto": precios_amenity[amenity]},
+                    files={"archivo": ("pago.png", imagen_comprobante(comprobantes), "image/png")},
+                    expect=201,
+                )
+                api.req("PATCH", f"/comprobantes/{rc.json()['id']}", token=admin_token, cid=cid,
+                        json={"estado": "aprobado"}, expect=200)
+                comprobantes += 1
     print(f"[demo] reservas: {reservas} · canceladas: {reservas_canceladas}")
 
     # --- Peticiones → trabajos → presupuestos ---
@@ -532,7 +939,7 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
         trabajos_creados += 1
 
         elegido = None
-        for prov in RNG.sample(proveedores, k=RNG.randint(1, 3)):
+        for prov in RNG.sample(sorted(proveedores.values()), k=RNG.randint(1, 3)):
             # El endpoint de presupuestos recibe multipart/form-data.
             r = api.req("POST", f"/trabajos/{trabajo_id}/presupuestos",
                         token=admin_token, cid=cid,
@@ -641,13 +1048,17 @@ def _resetear_esquema(engine) -> None:
 
 
 def generar_dataset_demo(*, seed_password: str, sa_email: str, sa_password: str,
-                         reset: bool = False) -> dict:
+                         reset: bool = False, hacer_export: bool = False) -> dict:
     """Genera el dataset demo completo. Núcleo reusable.
 
     No lee sys.argv ni llama a sys.exit: lo invoca `main()` de este mismo
     módulo desde el proceso de cron (`python -m backend.seed_demo --reset`),
     aparte del servidor web. Ante un problema levanta la excepción para que el
     llamador decida — un exit abrupto acá no tiene servidor que proteger.
+
+    `hacer_export` sigue el mismo patrón que `reset`: es un booleano explícito
+    que decide el llamador (en `main()`, a partir de `--exportar` en
+    sys.argv), no algo que esta función lea de sys.argv por su cuenta.
     """
     from fastapi.testclient import TestClient
 
@@ -661,11 +1072,11 @@ def generar_dataset_demo(*, seed_password: str, sa_email: str, sa_password: str,
 
     t0 = time.monotonic()
     return _generar(seed_password, sa_email, sa_password, t0, TestClient,
-                    app, SessionLocal, seed_super_admin)
+                    app, SessionLocal, seed_super_admin, hacer_export)
 
 
 def _generar(seed_password, sa_email, sa_password, t0, TestClient, app,
-             SessionLocal, seed_super_admin) -> dict:
+             SessionLocal, seed_super_admin, hacer_export: bool = False) -> dict:
     with TestClient(app) as client:  # lifespan: create_all + migraciones
         with SessionLocal() as db:
             seed_super_admin(db)
@@ -674,9 +1085,9 @@ def _generar(seed_password, sa_email, sa_password, t0, TestClient, app,
         sa_token = api.login(sa_email, sa_password)
 
         r = api.req("POST", "/super-admin/administraciones", token=sa_token, json={
-            "razon_social": "Administración Demo SRL",
+            "razon_social": NOMBRE_ADMINISTRACION_DEMO,
             "cuit": "30-70000000-3",
-            "email_contacto": "contacto@demo.local",
+            "email_contacto": EMAIL_CONTACTO_ADMINISTRACION_DEMO,
             "admin_email": EMAIL_ADMIN_DEMO,
             "admin_password_inicial": seed_password + "-inicial",
         }, expect=201)
@@ -686,6 +1097,43 @@ def _generar(seed_password, sa_email, sa_password, t0, TestClient, app,
         api.cambiar_password(admin_token, seed_password + "-inicial", seed_password)
 
         m = poblar_demo(api, admin_token, seed_password)
+
+        # Volcado a JSON estático para la demo del navegador sin backend (Plan
+        # B). Corre acá adentro, todavía con el TestClient in-process
+        # abierto: exportar() vuelve a pedirle cada ruta a la propia API, con
+        # el mismo cliente que puebla el dataset, para que la forma del
+        # export no pueda divergir del contrato.
+        if hacer_export:
+            from .config import get_settings
+            from .export_demo import escribir, exportar, exportar_comprobantes, exportar_pdfs
+            destino = Path(__file__).parent.parent / "frontend" / "src" / "demo" / "dataset.json"
+            datos = exportar(api, admin_token, m["tokens_depto"], m["consorcio_id"])
+
+            # Imágenes de comprobante reales, no la URL "/uploads/..." del
+            # backend (que en la demo sin backend no carga nada). Reescribe
+            # `datos["/comprobantes"]` in-place con el path estático.
+            mapa_comprobantes = exportar_comprobantes(
+                datos, Path(get_settings().UPLOAD_DIR), _DIR_ASSETS,
+                Path(__file__).parent.parent / "frontend" / "public" / "demo-comprobantes",
+            )
+            print(f"[demo] {len(mapa_comprobantes)} comprobantes con imagen exportada")
+
+            # PDFs reales de la boleta del último período cerrado, uno por
+            # unidad, servidos sueltos fuera del paquete de la app: van a
+            # frontend/public/ (estáticos de Vite, no entran al bundle de JS)
+            # para que "ver PDF" en la demo abra el propio sin backend.
+            ultimo = m["meses"][-1]
+            expensas_ultimas = [
+                e for e in datos["/expensas"] if e["periodo"] == ultimo
+            ]
+            mapa = exportar_pdfs(
+                api, admin_token, m["consorcio_id"], expensas_ultimas,
+                Path(__file__).parent.parent / "frontend" / "public" / "demo-pdfs",
+            )
+            datos["_pdfs"] = mapa
+            escribir(datos, destino)
+            print(f"[demo] dataset exportado a {destino}")
+            print(f"[demo] {len(mapa)} PDFs exportados")
 
     m["segundos_total"] = round(time.monotonic() - t0, 1)
     print(f"\n[demo] listo en {m['segundos_total']} s · {m['deptos']} UF · "
@@ -718,6 +1166,7 @@ def main() -> None:
         sa_email=sa_email,
         sa_password=sa_password,
         reset="--reset" in sys.argv,
+        hacer_export="--exportar" in sys.argv,
     )
 
 

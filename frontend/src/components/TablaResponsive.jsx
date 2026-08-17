@@ -42,11 +42,40 @@ import { useEsTablet } from "../hooks/useBreakpoint";
  *  la próxima vez — se vuelve a DERIVAR desde cero, corriendo de nuevo la
  *  cuenta completa de arriba para los cuatro anchos de viewport, porque no
  *  hay colchón que absorba un cambio chico. */
+/** El umbral de prioridad 3 (1062) NO es el ancho a partir del cual "hay
+ *  lugar de sobra": es el ancho a partir del cual las columnas de prioridad 3
+ *  entran SIN robarle a las de prioridad 1 lo que ellas necesitan. Se deriva
+ *  del peor caso de la app, `/cobranzas` (Expensas), que es la tabla con más
+ *  columnas:
+ *
+ *    columnas fijas con prio 3 visible, en `ch` (ver utils/anchosColumnas.js):
+ *      periodo 10 + venc1 26 + venc2 26 + estado 12 + pendiente 17 = 91ch
+ *    91ch × 9.52px (PX_POR_CH, el `ch` real en negrita) ................ 866px
+ *    + lo que necesita `departamento` (prio 1, ancho `auto`) para no
+ *      truncar "UF-03F — Piso 3, Unidad F" — medido en el browser ...... 196px
+ *                                                                      ------
+ *                                                                       1062px
+ *
+ *  El valor anterior era 1000, derivado cuando las columnas salían un 33% más
+ *  anchas por el divisor equivocado de `anchosColumnas.js`. Con 1000, un
+ *  contenedor entre 1000 y 1061 muestra los dos vencimientos y deja a
+ *  `departamento` por debajo de sus 196px: la unidad se lee "UF-03F — Piso 3,
+ *  U…". Ningún viewport real cae hoy en esa franja (los contenedores reales
+ *  son 705, 731, 987 y 1147), así que subirlo no cambia nada visible — cierra
+ *  la franja antes de que un cambio de sidebar o de padding meta a alguno
+ *  adentro.
+ *
+ *  Si cambian los anchos de `anchosColumnas.js` o se agrega una columna a
+ *  Expensas, este número se vuelve a DERIVAR con la cuenta de arriba. El test
+ *  "presupuesto de la fila de Expensas" (utils/anchosColumnas.test.js) protege
+ *  el otro lado de la misma cuenta. */
+const UMBRAL_PRIO_3 = 1062;
+
 function prioridadVisible(prioridad, ancho) {
   if (prioridad <= 1) return true;
   if (ancho === null) return true;
   if (prioridad === 2) return ancho >= 720;
-  return ancho >= 1000;
+  return ancho >= UMBRAL_PRIO_3;
 }
 
 /**

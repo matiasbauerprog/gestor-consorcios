@@ -25,35 +25,63 @@
 //   3. La tabla usa `font-size: 0.8125rem` (13px). A ese tamaño y peso, en
 //      Plus Jakarta Sans, un carácter mide en promedio ≈8.2px de ancho
 //      (medido en el fix previo de la columna Estado de Peticiones,
-//      commit 93802e9) — más que el `ch` teórico (el ancho del glyph "0"
-//      normal, ≈7.15px a este tamaño/peso). Contar "N caracteres = Nch"
-//      subestima por partida doble: ignora el padding Y el peso negrita.
+//      commit 93802e9). Contar "N caracteres = Nch" subestima por partida
+//      doble: ignora el padding Y el peso negrita.
+//
+//   4. La unidad `ch` de un `<col>` se resuelve contra la fuente COMPUTADA
+//      de ese `<col>` — que hereda el mismo 13px/peso 700 de la celda. El
+//      glyph "0" mide ahí ≈9.52px, NO los ≈7.15px que mide en peso normal.
+//      Ver `PX_POR_CH` abajo: durante mucho tiempo esta cuenta dividió por
+//      7.15 y todas las columnas salieron un 33% más anchas de lo previsto.
 //
 // Fórmula (igual a la de Peticiones, generalizada): para un string de L
 // caracteres, contenido_px = L × 8.2, + 20% de colchón real (no rozar el
-// límite), + 24px de padding, / 7.15px por ch = ancho en ch. Redondeado
+// límite), + 24px de padding, / PX_POR_CH = ancho en ch. Redondeado
 // para arriba a un número prolijo, con el margen final (contenido
 // disponible ÷ contenido crudo) documentado al lado de cada constante para
 // que quede claro que no es un número tirado.
 
+/** Ancho real de 1`ch` en las celdas de `.tabla-datos`: el glyph "0" de Plus
+ *  Jakarta Sans a 13px en **peso 700**, que es el peso que TODO `<td>` de la
+ *  app hereda (punto 2 de arriba). Medido en el browser sobre `/cobranzas`:
+ *  una columna declarada en 34ch renderizaba 324px → 324/34 = 9.53.
+ *
+ *  Este número es la corrección del bug que motivó `anchosColumnas.test.js`:
+ *  la versión anterior de este archivo calculaba el contenido en peso 700
+ *  (8.2px por carácter, correcto) pero dividía por 7.15 — el "0" en peso
+ *  NORMAL. Cada constante salía 9.52/7.15 ≈ 1.33× más ancha de lo que su
+ *  propio comentario declaraba. No truncaba nada: sobraba tanto en cada
+ *  columna que, en `/cobranzas` con las dos columnas de vencimiento visibles
+ *  (contenedor ≥1000px), las columnas fijas sumaban los 1168px enteros del
+ *  contenedor y `departamento` — la única en `auto`, y la que dice a QUÉ
+ *  UNIDAD pertenece la expensa — se quedaba en 0px, con la página
+ *  desbordando 182px a 1280 y 22px a 1440.
+ *
+ *  Si alguna vez cambia el `font-size` o el `font-weight` de
+ *  `.tabla-datos tbody td`, este número se vuelve a MEDIR en el browser
+ *  (`getComputedStyle` no lo da: hay que renderizar un `width: 10ch` dentro
+ *  de la tabla y dividir por 10) y se re-derivan las siete constantes de
+ *  abajo — no se ajusta a ojo. */
+export const PX_POR_CH = 9.52;
+
 /** Fecha completa `DD/MM/YYYY` (`formatFecha`, 10 caracteres, p. ej.
- *  "13/08/2026"): (10×8.2×1.2 + 24) / 7.15 ≈ 17.1 → 17ch.
- *  Margen final: 17ch deja (17×7.15 − 24) ≈ 97.6px disponibles vs. 82px de
- *  contenido crudo → ~19% de colchón real. */
-export const ANCHO_FECHA = "17ch";
+ *  "13/08/2026"): (10×8.2×1.2 + 24) / 9.52 ≈ 12.9 → 13ch.
+ *  Margen final: 13ch deja (13×9.52 − 24) ≈ 99.8px disponibles vs. 82px de
+ *  contenido crudo → ~22% de colchón real. */
+export const ANCHO_FECHA = "13ch";
 
 /** Fecha corta `DD/MM/YY` (`formatFechaCorta`, "para tablas densas" según
  *  utils/fechas.js — 8 caracteres, p. ej. "13/08/26"):
- *  (8×8.2×1.2 + 24) / 7.15 ≈ 14.4 → 14ch.
- *  Margen final: 14ch deja ≈76.1px vs. 65.6px crudos → ~16%.
+ *  (8×8.2×1.2 + 24) / 9.52 ≈ 10.8 → 11ch.
+ *  Margen final: 11ch deja ≈80.7px vs. 65.6px crudos → ~23%.
  *  Usar donde varias columnas compiten en prioridad 1 y el año completo no
  *  agrega información real (movimientos recientes del mismo consorcio). */
-export const ANCHO_FECHA_CORTA = "14ch";
+export const ANCHO_FECHA_CORTA = "11ch";
 
 /** Monto sin centavos (0 decimales — `formatearMonto`, `fmtMoney` locales),
  *  peor caso con signo y 9 DÍGITOS SIGNIFICATIVOS: "-$ 123.456.789" (14
- *  caracteres): (14×8.2×1.2 + 24) / 7.15 ≈ 22.6 → 23ch.
- *  Margen final: 23ch deja ≈140.4px vs. 114.8px crudos → ~22%.
+ *  caracteres): (14×8.2×1.2 + 24) / 9.52 ≈ 17.0 → 17ch.
+ *  Margen final: 17ch deja ≈137.8px vs. 114.8px crudos → ~20%.
  *
  *  El techo de 9 dígitos es una DECISIÓN sobre la magnitud de la moneda, no
  *  una medición de ningún dato real — nada en `backend/models.py` acota
@@ -70,17 +98,17 @@ export const ANCHO_FECHA_CORTA = "14ch";
  *  Se usa el mismo ancho exista o no un caso negativo real en cada pantalla
  *  puntual — un solo número conservador para las siete pantallas que lo
  *  consumen, en vez de auditar el signo columna por columna. */
-export const ANCHO_MONTO = "23ch";
+export const ANCHO_MONTO = "17ch";
 
 /** Monto con centavos (CuentasCorrientes: `Number.toLocaleString` sin
  *  `maximumFractionDigits`, que en es-AR deja 2 decimales), mismo techo de
  *  9 dígitos significativos (ver `ANCHO_MONTO` — decisión de magnitud, no
  *  medición) con signo: "-$ 123.456.789,99" (17 caracteres):
- *  (17×8.2×1.2 + 24) / 7.15 ≈ 26.7 → 27ch.
- *  Margen final: 27ch deja ≈169.1px vs. 139.4px crudos → ~21%.
+ *  (17×8.2×1.2 + 24) / 9.52 ≈ 20.1 → 21ch.
+ *  Margen final: 21ch deja ≈175.9px vs. 139.4px crudos → ~26%.
  *  El signo no es hipotético acá: el estado "a favor" de una cuenta
  *  corriente es justamente `saldo_total < 0`. */
-export const ANCHO_MONTO_DECIMAL = "27ch";
+export const ANCHO_MONTO_DECIMAL = "21ch";
 
 /** Período `"YYYY-MM"` (p. ej. "2026-08", 7 caracteres) — string de formato
  *  fijo que NO pasa por `formatFecha`/`formatFechaCorta` (es una clave de
@@ -88,9 +116,9 @@ export const ANCHO_MONTO_DECIMAL = "27ch";
  *  (Expensas, Periodos) con el mismo argumento que ya justificó
  *  `ANCHO_FECHA`: un solo ancho calculado una vez en vez de repetido (o
  *  subestimado) por pantalla.
- *  (7×8.2×1.2 + 24) / 7.15 ≈ 13.0 → 13ch.
- *  Margen final: 13ch deja ≈68.9px vs. 57.4px crudos → ~20%. */
-export const ANCHO_PERIODO = "13ch";
+ *  (7×8.2×1.2 + 24) / 9.52 ≈ 9.8 → 10ch.
+ *  Margen final: 10ch deja ≈71.2px vs. 57.4px crudos → ~24%. */
+export const ANCHO_PERIODO = "10ch";
 
 /** Fecha + monto compuestos en una sola celda (`` `${formatFecha(...)} ·
  *  ${formatearMonto(...)}` ``, patrón usado por `Expensas.jsx` en las
@@ -103,30 +131,33 @@ export const ANCHO_PERIODO = "13ch";
  *
  *  A DIFERENCIA de todas las demás constantes de este archivo, esta usa el
  *  caso TÍPICO, no el peor caso conjunto — decisión deliberada, no un
- *  descuido, y specífica a `venc1`/`venc2`: en `Expensas.jsx` esas dos
+ *  descuido, y específica a `venc1`/`venc2`: en `Expensas.jsx` esas dos
  *  columnas son contexto ("¿cuándo y cuánto vencía?"), no el número que el
  *  usuario vino a buscar en esa pantalla — ese es `pendiente` (el saldo
  *  pendiente actual), que tiene su propio `ANCHO_MONTO` sin recortar. Con
  *  dos columnas fecha+monto en la misma fila (`periodo`, `depto`, `venc1`,
- *  `venc2`, `estado`, `pendiente`, `acciones`), dimensionar `venc1`/`venc2`
- *  al peor caso conjunto (signo + 9 dígitos en las dos a la vez, L=27,
- *  41ch) deja tan poco margen en el contenedor que `depto` — prioridad 1,
- *  la columna que identifica a QUÉ UNIDAD pertenece la expensa — se cae a
- *  ~8px utilizables en un viewport de 1280px (contenedor 1002px), un
- *  desenlace peor que el truncado que este archivo entero existe para
- *  evitar. Sacrificar el último dígito de una columna de contexto para
- *  garantizarlo en las dos a la vez es el trade-off equivocado — el que
- *  este archivo en general evita para fecha/monto es distinto: ahí SÍ
- *  importa el peor caso porque esas columnas suelen ser las únicas de su
- *  tipo en la fila, no dos columnas compitiendo por el mismo contenedor
- *  contra una columna de prioridad 1.
+ *  `venc2`, `estado`, `pendiente`, `acciones`), dimensionarlas al peor caso
+ *  conjunto (signo + 9 dígitos en las dos a la vez, L=27) le come a `depto`
+ *  — prioridad 1, la columna que identifica a QUÉ UNIDAD pertenece la
+ *  expensa — el poco margen que le queda en un viewport de 1280px
+ *  (contenedor 1002px), un desenlace peor que el truncado que este archivo
+ *  entero existe para evitar.
+ *
+ *  Nota histórica: dos intentos previos atacaron ese hundimiento de `depto`
+ *  bajando ESTE número (41ch → 34ch). No alcanzaron porque la causa no era
+ *  el número sino el divisor de la fórmula: con 7.15 en vez de 9.52, 34ch
+ *  rendía 324px en pantalla — el 33% de más que dejaba a `depto` en 0px.
+ *  Corregido `PX_POR_CH`, el presupuesto de la fila cierra con holgura y lo
+ *  cubre un test (`anchosColumnas.test.js`, "presupuesto de la fila de
+ *  Expensas"). Si `depto` vuelve a apretarse, revisar primero ese test
+ *  antes de tocar este número de nuevo.
  *
  *  L = 10 (`formatFecha`, `DD/MM/YYYY`) + 3 (` · `, espacio-punto medio-
  *  espacio) + 9 (`formatearMonto` caso típico, p. ej. "$ 145.300" — NO el
  *  peor caso con signo y 9 dígitos de `ANCHO_MONTO`) = 22 caracteres.
- *  (22×8.2×1.2 + 24) / 7.15 ≈ 33.6 → 34ch.
- *  Margen final: 34ch deja ≈219.9px vs. 216.48px crudos (sin el 20% de
- *  colchón que ya incluye la fórmula) → colchón real ~1.6%, chico a
+ *  (22×8.2×1.2 + 24) / 9.52 ≈ 25.3 → 26ch.
+ *  Margen final: 26ch deja ≈223.5px vs. 216.48px crudos (sin el 20% de
+ *  colchón que ya incluye la fórmula) → colchón real ~3.2%, chico a
  *  propósito por la misma razón que documentaba la versión anterior de
  *  este comentario: fecha y monto rara vez tocan sus propios peores casos
  *  a la vez en la misma fila, así que el margen de la fórmula ya alcanza.
@@ -137,7 +168,7 @@ export const ANCHO_PERIODO = "13ch";
  *  columnas (cada una con su propio `ANCHO_FECHA`/`ANCHO_MONTO` de peor
  *  caso), no volver a subir este número — eso es lo que vuelve a hundir a
  *  `depto`. */
-export const ANCHO_FECHA_MONTO = "34ch";
+export const ANCHO_FECHA_MONTO = "26ch";
 
 /** CUIT/CUIL `"XX-XXXXXXXX-X"` (p. ej. "30-12345678-9", 13 caracteres) —
  *  igual que `ANCHO_PERIODO`, un string de formato FIJO (regex
@@ -148,6 +179,6 @@ export const ANCHO_FECHA_MONTO = "34ch";
  *  de largo, así que un solo ancho calculado acá evita que cada pantalla
  *  (Proveedores, y cualquier futura tabla de Empleados/CUIL o
  *  Administraciones) lo adivine de nuevo o lo subestime.
- *  (13×8.2×1.2 + 24) / 7.15 ≈ 21.2 → 22ch.
- *  Margen final: 22ch deja ≈133.3px vs. 106.6px crudos → ~25%. */
-export const ANCHO_CUIT = "22ch";
+ *  (13×8.2×1.2 + 24) / 9.52 ≈ 16.0 → 16ch.
+ *  Margen final: 16ch deja ≈128.3px vs. 106.6px crudos → ~20%. */
+export const ANCHO_CUIT = "16ch";
