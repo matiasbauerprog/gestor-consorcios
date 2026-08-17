@@ -5,7 +5,8 @@ import { nombreDeUsuario } from "../components/SheetCuenta";
 import { listarExpensas } from "../api/expensas";
 import { obtenerGastosDelPeriodo, listarMorosos } from "../api/reportes";
 import { listarPeticiones } from "../api/peticiones";
-import { estadoPeriodo } from "../api/periodos";
+import { estadoPeriodo, listarPeriodos } from "../api/periodos";
+import { periodoDelTablero } from "../utils/periodoDelTablero";
 import { obtenerEstadoFinanciero } from "../api/estadoFinanciero";
 import { listarGastos } from "../api/gastos";
 import { listarGastosHabituales } from "../api/gastosHabituales";
@@ -84,8 +85,27 @@ export default function Inicio() {
           listarGastosHabituales(),
           listarReservas(),
           listarAmenities(),
+          listarPeriodos(),
         ]);
-        if (activo) setRespuestas(resultados);
+
+        // El mes en curso no tiene expensas hasta que se cierra: mostrar ese
+        // mes daría una recaudación de $0 que se lee como "no hay datos".
+        // Cuando pasa, el hero muestra el último período cerrado, y hay que
+        // pedir sus expensas — recién acá se sabe cuál es.
+        const [expensasDelMes, , , , , , , , , , periodosCerrados] = resultados;
+        const { periodo: periodoHero, esMesEnCurso } = periodoDelTablero(
+          periodo,
+          (expensasDelMes?.data ?? []).length,
+          (periodosCerrados?.data ?? []).map((p) => p.periodo),
+        );
+        const [expensasHero, gastosHero] = esMesEnCurso
+          ? [resultados[0], resultados[1]]
+          : await Promise.all([
+              listarExpensas({ periodo: periodoHero }),
+              obtenerGastosDelPeriodo(periodoHero),
+            ]);
+
+        if (activo) setRespuestas({ resultados, periodoHero, esMesEnCurso, expensasHero, gastosHero });
       } catch {
         if (activo) setError("No se pudieron cargar los datos. Revisá tu conexión.");
       } finally {
@@ -114,8 +134,13 @@ export default function Inicio() {
     );
   }
 
-  const [expensas, gastosRep, morosos, peticiones, cierre, finanzas, gastos, habituales, reservas, amenities] =
-    respuestas;
+  const { resultados, periodoHero, esMesEnCurso, expensasHero, gastosHero } = respuestas;
+  const [, , morosos, peticiones, cierre, finanzas, gastos, habituales, reservas, amenities] = resultados;
+
+  // El hero mira el período que corresponda (ver `periodoDelTablero`); el
+  // resto de la pantalla sigue mirando el mes en curso.
+  const expensas = expensasHero;
+  const gastosRep = gastosHero;
 
   const expensasData = datos(expensas, []);
   const morososData = datos(morosos, []);
@@ -225,7 +250,10 @@ export default function Inicio() {
       {(expensasOk || gastosOk) && (
         <section className="inicio-hero">
           <header>
-            <p className="micro-label">Recaudación · {periodo}</p>
+            <p className="micro-label">
+              Recaudación · {periodoHero}
+              {!esMesEnCurso && " · último cierre"}
+            </p>
             {expensasOk && <span className="badge badge--ok">{pctCobrado}% cobrado</span>}
           </header>
           <p className="inicio-hero-cifra monto">{cifra(expensasOk, money(cobrado))}</p>

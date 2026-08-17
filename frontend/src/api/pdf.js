@@ -1,5 +1,4 @@
 import { apiFetch, abrirPdf } from "./client";
-import { ES_DEMO } from "./demo";
 
 /** Dónde quedan los PDF exportados dentro del sitio publicado. */
 const CARPETA_PDFS_DEMO = "/demo-pdfs";
@@ -17,7 +16,10 @@ const CARPETA_PDFS_DEMO = "/demo-pdfs";
  * en vez de abrir una pestaña en blanco.
  */
 export async function abrirPdfExpensa(expensaId) {
-  if (ES_DEMO) {
+  // Se compara contra la variable de entorno y no contra una constante
+  // importada: así el empaquetador puede descartar esta rama en el build de
+  // producción y no emitir el dataset de la demo.
+  if (import.meta.env.VITE_DEMO_MODE === "true") {
     const { default: DATASET } = await import("../demo/dataset.json");
     const nombre = DATASET._pdfs?.[String(expensaId)];
     if (!nombre) {
