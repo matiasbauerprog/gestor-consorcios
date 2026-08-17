@@ -69,8 +69,13 @@ describe("responder", () => {
     expect(r.data.detail).toContain("/rutaquenoexiste");
   });
 
-  it("devuelve 501 ante una escritura, que llega en el Plan B2", () => {
-    const r = responder(estado, "POST", "/gastos", { monto: 1 });
+  it("deriva las escrituras que sabe hacer", () => {
+    const r = responder(estado, "POST", "/comunicados", { titulo: "Aviso", cuerpo: "..." }, {});
+    expect(r.status).toBe(201);
+  });
+
+  it("devuelve 501 ante una escritura que todavía no está en la demo", () => {
+    const r = responder(estado, "DELETE", "/departamentos/1", null, {});
     expect(r.status).toBe(501);
   });
 });

@@ -18,6 +18,24 @@ export function crearEstado(dataset, hoy) {
     leer(path) {
       return actual[path];
     },
+    agregar(path, item) {
+      const lista = actual[path];
+      if (!Array.isArray(lista)) {
+        actual[path] = [item];
+        return;
+      }
+      // Al principio: las pantallas listan lo más nuevo arriba, así lo que el
+      // visitante acaba de crear aparece donde lo va a buscar.
+      lista.unshift(item);
+    },
+    reemplazar(path, valor) {
+      actual[path] = valor;
+    },
+    siguienteId(path) {
+      const lista = actual[path];
+      if (!Array.isArray(lista) || lista.length === 0) return 1;
+      return Math.max(...lista.map((x) => x.id ?? 0)) + 1;
+    },
     reiniciar() {
       actual = structuredClone(inicial);
     },

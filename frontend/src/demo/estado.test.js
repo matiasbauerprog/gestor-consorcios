@@ -36,3 +36,40 @@ describe("crearEstado", () => {
     expect(estado.leer("/departamentos")[0].codigo).toBe("UF-01A");
   });
 });
+
+describe("escrituras", () => {
+  const DATOS = {
+    _generado: "2026-08-17",
+    "/comunicados": [{ id: 3, titulo: "Viejo" }],
+  };
+
+  it("agrega al principio, que es donde la pantalla espera lo nuevo", () => {
+    const estado = crearEstado(DATOS, new Date(2026, 7, 20));
+    estado.agregar("/comunicados", { id: 4, titulo: "Nuevo" });
+    expect(estado.leer("/comunicados")[0].titulo).toBe("Nuevo");
+    expect(estado.leer("/comunicados")).toHaveLength(2);
+  });
+
+  it("reemplaza el valor de una ruta", () => {
+    const estado = crearEstado(DATOS, new Date(2026, 7, 20));
+    estado.reemplazar("/comunicados", []);
+    expect(estado.leer("/comunicados")).toEqual([]);
+  });
+
+  it("el siguiente id es mayor que todos los existentes", () => {
+    const estado = crearEstado(DATOS, new Date(2026, 7, 20));
+    expect(estado.siguienteId("/comunicados")).toBe(4);
+  });
+
+  it("el siguiente id de una lista vacía arranca en 1", () => {
+    const estado = crearEstado({ _generado: "2026-08-17", "/x": [] }, new Date(2026, 7, 20));
+    expect(estado.siguienteId("/x")).toBe(1);
+  });
+
+  it("reiniciar deshace las escrituras", () => {
+    const estado = crearEstado(DATOS, new Date(2026, 7, 20));
+    estado.agregar("/comunicados", { id: 4, titulo: "Nuevo" });
+    estado.reiniciar();
+    expect(estado.leer("/comunicados")).toHaveLength(1);
+  });
+});

@@ -1,3 +1,4 @@
+import { escribir } from "./escrituras";
 import { aplicarFiltros, PERFILES_DEMO } from "./rutas";
 
 /**
@@ -21,7 +22,9 @@ export function responder(estado, method, path, body, sesion) {
   }
 
   if (method !== "GET") {
-    return noImplementado(method, ruta, "las escrituras llegan en el Plan B2");
+    const escritura = escribir(estado, method, ruta, body, sesion);
+    if (escritura) return escritura;
+    return noImplementado(method, ruta, "esta escritura todavía no está en la demo");
   }
 
   if (ruta === "/movimientos/mi-cuenta") {
