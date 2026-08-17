@@ -2755,6 +2755,51 @@ td.monto {
   color: var(--color-bg);
 }
 
+/* Cambiador de perfil de la demo. Va pegado debajo del aviso, con la misma
+   familia visual: una fila de botones chicos donde el activo se destaca.
+   Envuelve en pantallas angostas en vez de desbordar. */
+.cambiador-rol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.4rem 1rem;
+  background: var(--color-superficie, #fff);
+  border-block-end: 1px solid var(--color-borde, rgba(0, 0, 0, 0.12));
+}
+
+.cambiador-rol-etiqueta {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  margin-inline-end: 0.2rem;
+}
+
+.cambiador-rol button {
+  font-size: 0.8125rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-borde, rgba(0, 0, 0, 0.18));
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.cambiador-rol button[aria-current="true"] {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-bg);
+  font-weight: 700;
+  cursor: default;
+}
+
+.cambiador-rol button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
 .banner-impersonate {
   background: var(--color-danger);
   color: #fff;
