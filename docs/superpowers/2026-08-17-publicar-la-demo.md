@@ -98,3 +98,13 @@ PDF de `frontend/public/demo-pdfs/` y las imágenes de
 
 **No hace falta regenerarlo periódicamente:** la demo corre las fechas del
 dataset al día de la visita, así que no envejece sola.
+
+**Si el comando corta con un error del exportador**, es a propósito: alguna
+ruta declarada en `backend/export_demo.py` contestó 404 o 405. El mensaje dice
+cuál. Sin esa verificación el cuerpo del error se guardaba en el dataset como
+si fueran datos y la pantalla que lo consume aparecía vacía sin que nadie se
+enterara.
+
+Después de regenerar conviene correr `pytest tests/test_dataset_demo_curado.py`:
+audita la base recién generada (caja en positivo, morosidad plausible, cada
+gasto con un proveedor de su rubro, el circuito de trabajos completo).
