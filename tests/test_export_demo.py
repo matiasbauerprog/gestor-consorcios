@@ -1,4 +1,9 @@
-from backend.export_demo import RUTAS_EXPORTADAS, exportar, exportar_pdfs
+from backend.export_demo import (
+    RUTAS_EXPORTADAS,
+    exportar,
+    exportar_comprobantes,
+    exportar_pdfs,
+)
 
 
 class _ApiFalsa:
@@ -126,3 +131,60 @@ def test_el_nombre_del_pdf_no_expone_datos_del_vecino(tmp_path):
     expensas = [{"id": 7, "departamento_id": 1}]
     mapa = exportar_pdfs(_ApiPdf(), "tok", 1, expensas, tmp_path)
     assert mapa[7] == "expensa-7.pdf"
+
+
+def test_exporta_las_tres_imagenes_unicas_y_reescribe_el_path(tmp_path):
+    # 82 comprobantes reales rotan sobre sólo 3 imágenes (imagen_comprobante
+    # en backend/seed_demo.py): copiar los 3 archivos de origen una vez, no
+    # 82 veces el mismo contenido.
+    assets = tmp_path / "assets"
+    assets.mkdir()
+    (assets / "comprobante_1.png").write_bytes(b"contenido-uno")
+    (assets / "comprobante_2.png").write_bytes(b"contenido-dos")
+    (assets / "comprobante_3.png").write_bytes(b"contenido-tres")
+
+    uploads = tmp_path / "uploads"
+    # exist_ok=True: el fixture autouse `_temp_upload_dir` (tests/conftest.py)
+    # ya crea `tmp_path/"uploads"/"comprobantes"` para redirigir
+    # Settings.UPLOAD_DIR en toda la suite.
+    (uploads / "comprobantes").mkdir(parents=True, exist_ok=True)
+    (uploads / "comprobantes" / "aaa.png").write_bytes(b"contenido-dos")
+    (uploads / "comprobantes" / "bbb.png").write_bytes(b"contenido-uno")
+
+    destino = tmp_path / "public" / "demo-comprobantes"
+    datos = {"/comprobantes": [
+        {"id": 1, "archivo_path": "/uploads/comprobantes/aaa.png"},
+        {"id": 2, "archivo_path": "/uploads/comprobantes/bbb.png"},
+    ]}
+
+    mapa = exportar_comprobantes(datos, uploads, assets, destino)
+
+    # Sólo los 3 archivos de origen, no uno por comprobante.
+    assert sorted(p.name for p in destino.iterdir()) == [
+        "comprobante_1.png", "comprobante_2.png", "comprobante_3.png",
+    ]
+    assert mapa == {1: "comprobante_2.png", 2: "comprobante_1.png"}
+    assert datos["/comprobantes"][0]["archivo_path"] == "/demo-comprobantes/comprobante_2.png"
+    assert datos["/comprobantes"][1]["archivo_path"] == "/demo-comprobantes/comprobante_1.png"
+    # Ya no apunta al backend.
+    for c in datos["/comprobantes"]:
+        assert not c["archivo_path"].startswith("/uploads/")
+
+
+def test_exportar_comprobantes_ignora_los_que_no_tienen_archivo(tmp_path):
+    assets = tmp_path / "assets"
+    assets.mkdir()
+    (assets / "comprobante_1.png").write_bytes(b"contenido-uno")
+
+    # exist_ok=True: ver el comentario del test anterior sobre el fixture
+    # autouse `_temp_upload_dir`.
+    uploads = tmp_path / "uploads"
+    uploads.mkdir(exist_ok=True)
+
+    destino = tmp_path / "public" / "demo-comprobantes"
+    datos = {"/comprobantes": [{"id": 1, "archivo_path": None}]}
+
+    mapa = exportar_comprobantes(datos, uploads, assets, destino)
+
+    assert mapa == {}
+    assert datos["/comprobantes"][0]["archivo_path"] is None

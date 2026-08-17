@@ -4,12 +4,14 @@
 Se saltean si `demo.db` no existe: no generan la base (tarda ~70 s), sólo la
 auditan. Correr primero el comando de regeneración de la cabecera del plan.
 """
+import json
 import sqlite3
 from pathlib import Path
 
 import pytest
 
 from backend.caja_saldo import MovimientoSnapshot, calcular_saldo
+from backend.models import TIPOS_CREDITO, TIPOS_DEBITO
 
 DB = Path("demo.db")
 pytestmark = pytest.mark.skipif(not DB.exists(), reason="falta demo.db generada")
@@ -81,8 +83,8 @@ def test_las_expensas_no_se_emitieron_todas_el_mismo_dia(con):
 
 
 def test_cada_gasto_tiene_un_proveedor_plausible(con):
-    # Patrones alineados con el mapa rubro -> proveedor real de
-    # backend/seed_demo.py (_PROVEEDOR_POR_RUBRO): seguros -> "Seguros La
+    # Patrones alineados con el mapa concepto -> proveedor real de
+    # backend/seed_demo.py (_PROVEEDOR_POR_CONCEPTO): seguros -> "Seguros La
     # Continental", gastos_bancarios -> "Banco Ciudad", gastos_administracion
     # -> "Estudio Rossi & Asociados".
     rubros = ("seguros", "gastos_bancarios", "gastos_administracion")
@@ -123,6 +125,66 @@ def test_la_obra_de_frente_suma_el_costo_total_una_sola_vez(con):
     assert total == pytest.approx(7_200_000.0)
 
 
+def test_la_lista_de_morosos_es_razonable(con):
+    # C1 de la revisión final: el cargo en cuenta corriente de una reserva de
+    # amenity (nota_debito) que nadie pagaba nunca quedaba con el saldo
+    # EXACTO del precio del SUM o el Laundry, y /reportes/morosos lo imputaba
+    # por antigüedad igual que a un moroso real (mismos
+    # periodos_vencidos_impagos, mismo primer_vencimiento_impago). Sobre 18
+    # unidades, eso inflaba la mora a 13/18 (72%) con 6 pagadores puntuales
+    # adentro. Replica el signo de TIPOS_DEBITO/TIPOS_CREDITO (la misma
+    # fuente que usa backend/cuenta_corriente.py) para no duplicar el cálculo
+    # de saldo con lógica propia que pueda divergir.
+    tipos_debito = {t.value for t in TIPOS_DEBITO}
+    tipos_credito = {t.value for t in TIPOS_CREDITO}
+
+    saldo_por_depto: dict[int, float] = {}
+    for depto_id, tipo, monto in con.execute(
+        "select departamento_id, tipo, monto from movimientos_cuenta"
+    ):
+        if tipo in tipos_debito:
+            signo = 1
+        elif tipo in tipos_credito:
+            signo = -1
+        else:
+            continue
+        saldo_por_depto[depto_id] = saldo_por_depto.get(depto_id, 0.0) + signo * monto
+
+    morosos = {d: round(s, 2) for d, s in saldo_por_depto.items() if s > 0.01}
+
+    (n_deptos,) = con.execute("select count(*) from departamentos").fetchone()
+    assert len(morosos) <= n_deptos // 2, (
+        f"{len(morosos)} de {n_deptos} unidades en mora — parece inflado"
+    )
+
+    precios_amenity = {
+        round(p, 2) for (p,) in con.execute("select precio_reserva from amenities").fetchall()
+    }
+    for depto_id, saldo in morosos.items():
+        assert saldo not in precios_amenity, (
+            f"depto {depto_id} figura en mora por ${saldo}, el precio exacto de un amenity"
+        )
+
+
+def test_abono_ascensores_no_lo_factura_la_empresa_de_limpieza(con):
+    # I1 de la revisión final: RUBROS_COMUNES tiene tres conceptos bajo
+    # "abonos_y_servicios" (limpieza, ascensores, fumigación) y el mapa viejo
+    # sólo distinguía por rubro, así que los tres facturaban a la empresa de
+    # limpieza y "Ascensores Vertirod SA" no facturaba nada nunca.
+    (razon,) = con.execute("""
+        select p.razon_social from gastos g
+        join proveedores p on p.id = g.proveedor_id
+        where g.concepto = 'Abono ascensores' limit 1
+    """).fetchone()
+    assert "Ascensores" in razon
+
+    (n,) = con.execute("""
+        select count(*) from gastos g join proveedores p on p.id = g.proveedor_id
+        where p.razon_social = 'Ascensores Vertirod SA'
+    """).fetchone()
+    assert n >= 1, "Ascensores Vertirod SA no facturó ningún gasto"
+
+
 def test_los_comprobantes_tienen_imagenes_de_verdad(con):
     # archivo_path se guarda relativo a UPLOAD_DIR (p. ej.
     # "comprobantes/abc123.png"), no relativo a la raíz del repo ni como URL
@@ -142,3 +204,43 @@ def test_los_comprobantes_tienen_imagenes_de_verdad(con):
         archivo = upload_dir / ruta
         assert archivo.exists(), f"falta {archivo}"
         assert archivo.stat().st_size > 2_000, f"{archivo} parece un PNG de 1px"
+
+
+_DATASET_JSON = Path("frontend/src/demo/dataset.json")
+
+
+@pytest.mark.skipif(not _DATASET_JSON.exists(), reason="falta el dataset exportado (--exportar)")
+def test_los_comprobantes_exportados_apuntan_a_archivos_que_existen():
+    # C2 de la revisión final: el volcado estático conservaba
+    # "archivo_path": "/uploads/comprobantes/<hash>.png", que en la demo sin
+    # backend no carga nada. Tiene que apuntar a un archivo estático real,
+    # servido por el propio frontend.
+    datos = json.loads(_DATASET_JSON.read_text(encoding="utf-8"))
+    comprobantes = datos["/comprobantes"]
+    assert comprobantes, "el export no trajo comprobantes"
+
+    con_archivo = [c for c in comprobantes if c.get("archivo_path")]
+    assert con_archivo, "ningún comprobante exportado tiene archivo_path"
+
+    for c in con_archivo:
+        ruta = c["archivo_path"]
+        assert not ruta.startswith("/uploads/"), f"{ruta} todavía apunta al backend"
+        archivo = Path("frontend/public") / ruta.lstrip("/")
+        assert archivo.exists(), f"falta {archivo}"
+        assert archivo.stat().st_size > 2_000, f"{archivo} parece un PNG de 1px"
+
+    # No 82 copias del mismo contenido: sólo las 3 imágenes de origen.
+    nombres = {Path(c["archivo_path"]).name for c in con_archivo}
+    assert len(nombres) <= 3
+
+
+def test_los_datos_de_administracion_no_son_del_smoke_test(con):
+    # I2 de la revisión final: /configuracion heredaba "Administración
+    # Semilla SRL" / "contacto@semilla-admin.local" del fixture de
+    # backend/seed_e2e.py (otro script), visibles en la pantalla que
+    # consultan los departamentos para saber a quién pagarle.
+    admin_nombre, admin_email = con.execute(
+        "select admin_nombre, admin_email from consorcios limit 1"
+    ).fetchone()
+    assert "Semilla" not in admin_nombre
+    assert "semilla-admin" not in admin_email

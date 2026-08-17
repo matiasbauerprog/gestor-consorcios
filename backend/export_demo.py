@@ -5,6 +5,7 @@ in-process que usa el generador. Por eso la forma del export no puede
 divergir del contrato — si un endpoint cambia su respuesta, el export cambia
 con él en la siguiente corrida.
 """
+import hashlib
 import json
 from pathlib import Path
 
@@ -104,6 +105,47 @@ def exportar_pdfs(api, admin_token: str, cid: int, expensas: list[dict],
         nombre = f"expensa-{expensa_id}.pdf"
         (destino / nombre).write_bytes(r.content)
         mapa[expensa_id] = nombre
+    return mapa
+
+
+def exportar_comprobantes(datos: dict, origen_uploads: Path, origen_assets: Path,
+                          destino: Path) -> dict[int, str]:
+    """Copia las imágenes de comprobante a un directorio estático y reescribe
+    `archivo_path` en `datos["/comprobantes"]` para que apunten ahí.
+
+    En la demo sin backend, `archivo_path` como lo devuelve la API
+    ("/uploads/comprobantes/<hash>.png") no sirve: apunta a un servidor que
+    no existe. `imagen_comprobante` (backend/seed_demo.py) rota entre sólo
+    TRES imágenes reales para los 82 comprobantes del dataset, así que se
+    copian esas tres una única vez desde `origen_assets` —no una por
+    comprobante— y se identifica cuál le tocó a cada uno por el hash del
+    contenido real que subió al backend (`origen_uploads`), sin depender del
+    orden de creación del generador.
+
+    Devuelve {comprobante_id: nombre de archivo} a título informativo; el
+    efecto que importa es la reescritura in-place de `datos`.
+    """
+    destino.mkdir(parents=True, exist_ok=True)
+    hash_a_nombre: dict[str, str] = {}
+    for archivo in sorted(origen_assets.glob("comprobante_*.png")):
+        contenido = archivo.read_bytes()
+        (destino / archivo.name).write_bytes(contenido)
+        hash_a_nombre[hashlib.sha256(contenido).hexdigest()] = archivo.name
+
+    mapa: dict[int, str] = {}
+    for c in datos.get("/comprobantes", []):
+        ruta = c.get("archivo_path")
+        if not ruta:
+            continue
+        origen = origen_uploads / ruta.removeprefix("/uploads/")
+        if not origen.exists():
+            continue
+        contenido = origen.read_bytes()
+        nombre = hash_a_nombre.get(hashlib.sha256(contenido).hexdigest())
+        if nombre is None:
+            continue
+        c["archivo_path"] = f"/demo-comprobantes/{nombre}"
+        mapa[c["id"]] = nombre
     return mapa
 
 

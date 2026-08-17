@@ -256,28 +256,60 @@ def test_resetear_esquema_en_postgres_hace_drop_schema_cascade_y_recrea():
     assert statements == ["DROP SCHEMA PUBLIC CASCADE", "CREATE SCHEMA PUBLIC"]
 
 
-def test_cada_rubro_comun_tiene_un_proveedor_plausible():
-    from backend.seed_demo import PROVEEDORES_DEMO, proveedor_para_rubro
+def test_cada_concepto_de_rubros_comunes_tiene_un_proveedor_plausible():
+    # Los tres conceptos de "abonos_y_servicios" son el caso que motivó el
+    # cambio de rubro a concepto: antes los tres facturaban a la empresa de
+    # limpieza porque el mapa sólo distinguía por rubro.
+    from backend.seed_demo import PROVEEDORES_DEMO, proveedor_para_gasto
 
-    proveedores = {razon: i + 1 for i, (razon, _) in enumerate(PROVEEDORES_DEMO)}
+    proveedores = {razon: i + 1 for i, razon in enumerate(PROVEEDORES_DEMO)}
     esperado = {
-        "gastos_administracion": "Estudio Rossi & Asociados",
-        "seguros": "Seguros La Continental",
-        "servicios_publicos": "Servicios Metropolitanos SA",
-        "gastos_bancarios": "Banco Ciudad",
-        "abonos_y_servicios": "Limpieza Total SRL",
-        "mantenimiento_partes_comunes": "Plomería Paz",
-        "trabajos_reparaciones_unidades": "Plomería Paz",
+        ("gastos_administracion", "Honorarios administración"): "Estudio Rossi & Asociados",
+        ("seguros", "Seguro integral consorcio"): "Seguros La Continental",
+        ("servicios_publicos", "AySA agua común"): "Servicios Metropolitanos SA",
+        ("servicios_publicos", "Edesur espacios comunes"): "Servicios Metropolitanos SA",
+        ("gastos_bancarios", "Comisiones bancarias"): "Banco Ciudad",
+        ("abonos_y_servicios", "Abono limpieza"): "Limpieza Total SRL",
+        ("abonos_y_servicios", "Abono ascensores"): "Ascensores Vertirod SA",
+        ("abonos_y_servicios", "Fumigación mensual"): "Limpieza Total SRL",
+        ("mantenimiento_partes_comunes", "Mantenimiento bombas"): "ElectroSur SRL",
     }
-    for rubro, razon in esperado.items():
-        assert proveedor_para_rubro(rubro, proveedores, None) == proveedores[razon]
+    for (rubro, concepto), razon in esperado.items():
+        assert proveedor_para_gasto(rubro, concepto, proveedores, None) == proveedores[razon]
 
 
-def test_proveedor_para_rubro_desconocido_cae_en_uno_generico():
-    from backend.seed_demo import PROVEEDORES_DEMO, proveedor_para_rubro
+def test_proveedores_de_ascensores_y_electricidad_facturan_algo():
+    # El defecto original: dos proveedores del catálogo (Ascensores Vertirod
+    # SA, ElectroSur SRL) nunca resultaban elegidos por ningún gasto.
+    from backend.seed_demo import PROVEEDORES_DEMO, _PROVEEDOR_POR_CONCEPTO
 
-    proveedores = {razon: i + 1 for i, (razon, _) in enumerate(PROVEEDORES_DEMO)}
-    elegido = proveedor_para_rubro("rubro_que_no_existe", proveedores, None)
+    assert "Ascensores Vertirod SA" in _PROVEEDOR_POR_CONCEPTO.values()
+    assert "ElectroSur SRL" in _PROVEEDOR_POR_CONCEPTO.values()
+    assert "Ascensores Vertirod SA" in PROVEEDORES_DEMO
+    assert "ElectroSur SRL" in PROVEEDORES_DEMO
+
+
+def test_gastos_sin_concepto_propio_caen_en_el_comodin_del_rubro():
+    # Reparaciones privadas, la obra de frente y el sueldo del encargado no
+    # salen de RUBROS_COMUNES: su concepto no está en el mapa y tienen que
+    # caer en el comodín "*<rubro>", no en el proveedor del primer rubro
+    # cualquiera.
+    from backend.seed_demo import PROVEEDORES_DEMO, proveedor_para_gasto
+
+    proveedores = {razon: i + 1 for i, razon in enumerate(PROVEEDORES_DEMO)}
+    assert proveedor_para_gasto(
+        "trabajos_reparaciones_unidades", "Reparación privada UF-02B", proveedores, None
+    ) == proveedores["Plomería Paz"]
+    assert proveedor_para_gasto(
+        "sueldos_y_cargas_sociales", "", proveedores, None
+    ) == proveedores["Estudio Rossi & Asociados"]
+
+
+def test_proveedor_para_gasto_sin_rubro_ni_concepto_conocidos_cae_en_uno_generico():
+    from backend.seed_demo import PROVEEDORES_DEMO, proveedor_para_gasto
+
+    proveedores = {razon: i + 1 for i, razon in enumerate(PROVEEDORES_DEMO)}
+    elegido = proveedor_para_gasto("rubro_que_no_existe", "concepto_inexistente", proveedores, None)
     assert elegido in proveedores.values()
 
 

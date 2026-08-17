@@ -45,6 +45,17 @@ DOMINIO_DEMO = "demo.local"
 EMAIL_ADMIN_DEMO = "admin@demo.local"
 NOMBRE_CONSORCIO = "Edificio Libertador"
 
+# Administración que gestiona el consorcio demo, mostrada en /configuracion
+# a los departamentos (necesitan el email de contacto para pagar). Antes
+# `_consorcio_payload` (heredado de seed_e2e.py, el smoke-test) dejaba
+# "Administración Semilla SRL" / "contacto@semilla-admin.local": datos del
+# fixture de otro script, visibles en la pantalla insignia de un demo de
+# venta. Una sola razón social/email para todo lo que representa a "quién
+# administra este consorcio" en el dataset (el alta en /super-admin y el
+# contacto de /configuracion).
+NOMBRE_ADMINISTRACION_DEMO = "Administración Demo SRL"
+EMAIL_CONTACTO_ADMINISTRACION_DEMO = "contacto@demo.local"
+
 # Deptos pinneados: son los destinos del selector de rol de /auth/demo-login.
 CODIGO_PUNTUAL_FIJO = "UF-01A"
 CODIGO_MOROSO_FIJO = "UF-03C"
@@ -91,41 +102,56 @@ COMUNICADOS_DEMO: list[tuple[str, str]] = [
 ]
 
 
-# Proveedor por rubro: en pantalla, un gasto de seguros facturado por una
-# empresa de ascensores destruye la credibilidad del dataset entero. El
-# segundo elemento es el rubro que atiende cada proveedor.
-PROVEEDORES_DEMO: list[tuple[str, str]] = [
-    ("Limpieza Total SRL", "abonos_y_servicios"),
-    ("Ascensores Vertirod SA", "abonos_y_servicios"),
-    ("ElectroSur SRL", "mantenimiento_partes_comunes"),
-    ("Plomería Paz", "mantenimiento_partes_comunes"),
-    ("Seguros La Continental", "seguros"),
-    ("Estudio Rossi & Asociados", "gastos_administracion"),
-    ("Servicios Metropolitanos SA", "servicios_publicos"),
-    ("Banco Ciudad", "gastos_bancarios"),
-]
-
-_PROVEEDOR_POR_RUBRO = {
-    "gastos_administracion": "Estudio Rossi & Asociados",
-    "seguros": "Seguros La Continental",
-    "servicios_publicos": "Servicios Metropolitanos SA",
-    "gastos_bancarios": "Banco Ciudad",
-    "abonos_y_servicios": "Limpieza Total SRL",
-    "mantenimiento_partes_comunes": "Plomería Paz",
-    "trabajos_reparaciones_unidades": "Plomería Paz",
-    "sueldos_y_cargas_sociales": "Estudio Rossi & Asociados",
+# Proveedor por CONCEPTO de gasto: en pantalla, un gasto de seguros
+# facturado por una empresa de ascensores destruye la credibilidad del
+# dataset entero. Fuente única: antes había dos mapas separados —una lista
+# de proveedores con un "rubro que atiende" que nadie leía, y un segundo
+# dict rubro → proveedor, 1:1— y ese 1:1 no alcanzaba: RUBROS_COMUNES tiene
+# TRES conceptos distintos bajo "abonos_y_servicios" (limpieza, ascensores,
+# fumigación), así que los tres terminaban facturados a la empresa de
+# limpieza y "Ascensores Vertirod SA" no facturaba nada nunca.
+#
+# La clave es el CONCEPTO exacto cuando hace falta desambiguar dentro de un
+# mismo rubro; el comodín "*<rubro>" cubre los gastos que no salen de
+# RUBROS_COMUNES (reparaciones privadas, la obra de frente, el encargado) y
+# cualquier concepto de RUBROS_COMUNES que no necesite su propio proveedor.
+_PROVEEDOR_POR_CONCEPTO: dict[str, str] = {
+    "Abono limpieza": "Limpieza Total SRL",
+    "Abono ascensores": "Ascensores Vertirod SA",
+    "Fumigación mensual": "Limpieza Total SRL",
+    "Mantenimiento bombas": "ElectroSur SRL",
+    "AySA agua común": "Servicios Metropolitanos SA",
+    "Edesur espacios comunes": "Servicios Metropolitanos SA",
+    "Honorarios administración": "Estudio Rossi & Asociados",
+    "Comisiones bancarias": "Banco Ciudad",
+    "Seguro integral consorcio": "Seguros La Continental",
+    "*trabajos_reparaciones_unidades": "Plomería Paz",
+    "*mantenimiento_partes_comunes": "Plomería Paz",
+    "*sueldos_y_cargas_sociales": "Estudio Rossi & Asociados",
 }
 
+#: Catálogo de proveedores del demo: se crean todos estos, en este orden.
+#: DERIVADO de `_PROVEEDOR_POR_CONCEPTO` —no una lista aparte— para que el
+#: catálogo nunca pueda desincronizarse de a quién se le factura de verdad.
+PROVEEDORES_DEMO: list[str] = list(dict.fromkeys(_PROVEEDOR_POR_CONCEPTO.values()))
 
-def proveedor_para_rubro(rubro: str, proveedores: dict[str, int], rng) -> int:
-    """Id del proveedor que corresponde a `rubro`.
+
+def proveedor_para_gasto(rubro: str, concepto: str, proveedores: dict[str, int], rng) -> int:
+    """Id del proveedor que corresponde a este gasto.
+
+    Busca primero por CONCEPTO exacto —necesario para no repetir el bug que
+    esta función vino a arreglar: dentro de un mismo rubro puede haber varios
+    proveedores reales (limpieza, ascensores, fumigación son los tres
+    "abonos_y_servicios")—. Si el concepto no tiene entrada propia (gastos
+    que no salen de RUBROS_COMUNES), cae al comodín "*<rubro>". Sin comodín
+    tampoco, usa el primero del catálogo en vez de elegir al azar: un
+    default estable es preferible a uno que cambia entre corridas y hace
+    irreproducible el dataset.
 
     `proveedores` mapea razón social → id (los ids los devuelve la API al
-    crearlos). Un rubro sin mapa cae en el primero de la lista en vez de
-    elegir al azar: un default estable es preferible a uno que cambia entre
-    corridas y hace irreproducible el dataset.
+    crearlos).
     """
-    razon = _PROVEEDOR_POR_RUBRO.get(rubro)
+    razon = _PROVEEDOR_POR_CONCEPTO.get(concepto) or _PROVEEDOR_POR_CONCEPTO.get(f"*{rubro}")
     if razon is None or razon not in proveedores:
         return next(iter(proveedores.values()))
     return proveedores[razon]
@@ -568,8 +594,15 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
     t0 = time.monotonic()
     meses = meses_demo(date.today())
 
+    consorcio_payload = _consorcio_payload(NOMBRE_CONSORCIO, 33333)
+    # `_consorcio_payload` es de seed_e2e.py (el smoke-test) y trae sus
+    # propios datos de administración fijos ("Administración Semilla SRL" /
+    # contacto@semilla-admin.local). El demo tiene los suyos — ver el
+    # comentario junto a NOMBRE_ADMINISTRACION_DEMO más arriba.
+    consorcio_payload["admin_nombre"] = NOMBRE_ADMINISTRACION_DEMO
+    consorcio_payload["admin_email"] = EMAIL_CONTACTO_ADMINISTRACION_DEMO
     r = api.req("POST", "/consorcios", token=admin_token,
-                json=_consorcio_payload(NOMBRE_CONSORCIO, 33333), expect=201)
+                json=consorcio_payload, expect=201)
     cid = r.json()["id"]
 
     # Fondo de reserva inicial: sin esto la caja "Banco principal" termina el
@@ -592,7 +625,7 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
     clase_b = r.json()["id"]
 
     proveedores = {}
-    for razon, _rubro in PROVEEDORES_DEMO:
+    for razon in PROVEEDORES_DEMO:
         r = api.req("POST", "/proveedores", token=admin_token, cid=cid,
                     json={"razon_social": razon,
                           "cuit": f"30-{RNG.randint(10_000_000, 99_999_999)}-{RNG.randint(0, 9)}"},
@@ -600,10 +633,13 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
         proveedores[razon] = r.json()["id"]
 
     amenities = {}
+    precios_amenity: dict[int, float] = {}
     for nombre_a, precio in [("SUM", 25_000.0), ("Laundry", 3_000.0)]:
         r = api.req("POST", "/amenities", token=admin_token, cid=cid,
                     json={"nombre": nombre_a, "precio_reserva": precio}, expect=201)
-        amenities[nombre_a] = r.json()["id"]
+        amenity_id = r.json()["id"]
+        amenities[nombre_a] = amenity_id
+        precios_amenity[amenity_id] = precio
 
     # Padrón: 3 pisos × 6 unidades = 18 UF, con sus usuarios.
     csv_bytes = _padron_csv(PISOS_DEMO, DOMINIO_DEMO)
@@ -634,7 +670,7 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
     # atiende sueldos_y_cargas_sociales.
     personal = crear_catalogo_personal(
         api, admin_token, cid,
-        proveedor_para_rubro("sueldos_y_cargas_sociales", proveedores, RNG),
+        proveedor_para_gasto("sueldos_y_cargas_sociales", "", proveedores, RNG),
     )
 
     puntuales, irregulares, morosos = perfiles_deterministas(deptos)
@@ -681,8 +717,9 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
                 "periodo": periodo,
                 "rubro": "mantenimiento_partes_comunes",
                 "clase_prorrateo_id": clase_b,
-                "proveedor_id": proveedor_para_rubro(
-                    "mantenimiento_partes_comunes", proveedores, RNG),
+                "proveedor_id": proveedor_para_gasto(
+                    "mantenimiento_partes_comunes",
+                    "Reparación integral del frente del edificio", proveedores, RNG),
                 "concepto": "Reparación integral del frente del edificio",
                 "monto": importe_por_cuota(COSTO_TOTAL_OBRA_DEMO, CUOTAS_OBRA_DEMO),
                 "forma_pago": "transferencia",
@@ -698,7 +735,7 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
             api.req("POST", "/gastos", token=admin_token, cid=cid, json={
                 "periodo": periodo, "rubro": rubro,
                 "clase_prorrateo_id": clase_a,
-                "proveedor_id": proveedor_para_rubro(rubro, proveedores, RNG),
+                "proveedor_id": proveedor_para_gasto(rubro, concepto, proveedores, RNG),
                 "concepto": concepto,
                 "monto": round(RNG.uniform(lo, hi), 2),
                 "forma_pago": "transferencia",
@@ -708,12 +745,13 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
 
         for _ in range(RNG.randint(1, 3)):
             depto = RNG.choice(deptos)
+            concepto_reparacion = f"Reparación privada {depto['codigo']}"
             api.req("POST", "/gastos", token=admin_token, cid=cid, json={
                 "periodo": periodo, "rubro": "trabajos_reparaciones_unidades",
                 "departamento_id": depto["id"],
-                "proveedor_id": proveedor_para_rubro(
-                    "trabajos_reparaciones_unidades", proveedores, RNG),
-                "concepto": f"Reparación privada {depto['codigo']}",
+                "proveedor_id": proveedor_para_gasto(
+                    "trabajos_reparaciones_unidades", concepto_reparacion, proveedores, RNG),
+                "concepto": concepto_reparacion,
                 "monto": round(RNG.uniform(15_000, 90_000), 2),
                 "forma_pago": "transferencia",
                 "caja_id": _caja_default(api, admin_token, cid),
@@ -822,6 +860,24 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
                 api.req("DELETE", f"/reservas/{r.json()['id']}",
                         token=tokens_depto[depto_id], cid=cid)
                 reservas_canceladas += 1
+            else:
+                # El cargo en cuenta corriente de una reserva confirmada
+                # (nota_debito) no lo cobra ningún cierre de período: sin
+                # esto queda impago para siempre y, sobre el saldo exacto del
+                # precio del amenity, /reportes/morosos lo confunde con un
+                # moroso real (misma imputación por antigüedad — ver C1 en
+                # la revisión final). Se paga y aprueba en el momento, como
+                # haría cualquier consorcio que de verdad cobra el SUM.
+                rc = api.req(
+                    "POST", "/comprobantes", token=tokens_depto[depto_id], cid=cid,
+                    data={"fecha_pago": date.today().isoformat(),
+                          "monto": precios_amenity[amenity]},
+                    files={"archivo": ("pago.png", imagen_comprobante(comprobantes), "image/png")},
+                    expect=201,
+                )
+                api.req("PATCH", f"/comprobantes/{rc.json()['id']}", token=admin_token, cid=cid,
+                        json={"estado": "aprobado"}, expect=200)
+                comprobantes += 1
     print(f"[demo] reservas: {reservas} · canceladas: {reservas_canceladas}")
 
     # --- Peticiones → trabajos → presupuestos ---
@@ -1029,9 +1085,9 @@ def _generar(seed_password, sa_email, sa_password, t0, TestClient, app,
         sa_token = api.login(sa_email, sa_password)
 
         r = api.req("POST", "/super-admin/administraciones", token=sa_token, json={
-            "razon_social": "Administración Demo SRL",
+            "razon_social": NOMBRE_ADMINISTRACION_DEMO,
             "cuit": "30-70000000-3",
-            "email_contacto": "contacto@demo.local",
+            "email_contacto": EMAIL_CONTACTO_ADMINISTRACION_DEMO,
             "admin_email": EMAIL_ADMIN_DEMO,
             "admin_password_inicial": seed_password + "-inicial",
         }, expect=201)
@@ -1048,11 +1104,19 @@ def _generar(seed_password, sa_email, sa_password, t0, TestClient, app,
         # el mismo cliente que puebla el dataset, para que la forma del
         # export no pueda divergir del contrato.
         if hacer_export:
-            from .export_demo import escribir, exportar, exportar_pdfs
+            from .config import get_settings
+            from .export_demo import escribir, exportar, exportar_comprobantes, exportar_pdfs
             destino = Path(__file__).parent.parent / "frontend" / "src" / "demo" / "dataset.json"
             datos = exportar(api, admin_token, m["tokens_depto"], m["consorcio_id"])
-            escribir(datos, destino)
-            print(f"[demo] dataset exportado a {destino}")
+
+            # Imágenes de comprobante reales, no la URL "/uploads/..." del
+            # backend (que en la demo sin backend no carga nada). Reescribe
+            # `datos["/comprobantes"]` in-place con el path estático.
+            mapa_comprobantes = exportar_comprobantes(
+                datos, Path(get_settings().UPLOAD_DIR), _DIR_ASSETS,
+                Path(__file__).parent.parent / "frontend" / "public" / "demo-comprobantes",
+            )
+            print(f"[demo] {len(mapa_comprobantes)} comprobantes con imagen exportada")
 
             # PDFs reales de la boleta del último período cerrado, uno por
             # unidad, servidos sueltos fuera del paquete de la app: van a
@@ -1067,7 +1131,8 @@ def _generar(seed_password, sa_email, sa_password, t0, TestClient, app,
                 Path(__file__).parent.parent / "frontend" / "public" / "demo-pdfs",
             )
             datos["_pdfs"] = mapa
-            escribir(datos, destino)  # re-escribir con el mapa incluido
+            escribir(datos, destino)
+            print(f"[demo] dataset exportado a {destino}")
             print(f"[demo] {len(mapa)} PDFs exportados")
 
     m["segundos_total"] = round(time.monotonic() - t0, 1)

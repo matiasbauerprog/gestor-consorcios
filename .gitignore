@@ -29,6 +29,14 @@ demo.db
 *.sqlite3
 *.corrupta
 
+# Archivos subidos en desarrollo y por el generador demo (backend/seed_demo.py
+# escribe un PNG por comprobante: miles de archivos, no se versionan). Los
+# .gitkeep preservan la estructura de carpetas.
+backend/uploads/*
+!backend/uploads/comprobantes/
+backend/uploads/comprobantes/*
+!backend/uploads/comprobantes/.gitkeep
+
 # Logs
 *.log
 
