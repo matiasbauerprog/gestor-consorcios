@@ -1,4 +1,5 @@
 import DATASET from "./dataset.json";
+import { normalizarCuerpo } from "./cuerpo";
 import { crearEstado } from "./estado";
 import { responder } from "./servidor";
 import { sesionInicial } from "./sesion";
@@ -17,8 +18,11 @@ const estado = crearEstado(DATASET, new Date());
  */
 let sesion = sesionInicial(globalThis.localStorage);
 
-export function responderDemo(method, path, body) {
-  const r = responder(estado, method, path, body, sesion);
+export async function responderDemo(method, path, body) {
+  // Las pantallas que adjuntan un archivo mandan FormData; el sustituto
+  // trabaja con objetos planos y no puede leer un archivo de forma síncrona.
+  const cuerpo = await normalizarCuerpo(body);
+  const r = responder(estado, method, path, cuerpo, sesion);
   if (method === "POST" && path === "/auth/demo-login" && r.ok) {
     sesion = { departamento_id: r.data.user.departamento_id };
   }
