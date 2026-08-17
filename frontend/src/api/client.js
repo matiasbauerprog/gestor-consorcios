@@ -33,6 +33,14 @@ function _requiereConsorcio(path) {
 }
 
 export async function apiFetch(path, { token, body, method = "GET", headers = {}, ...rest } = {}) {
+  // En modo demo no hay servidor: un sustituto responde desde un dataset
+  // estático en memoria. La importación es dinámica para que ni el módulo ni
+  // el dataset entren en el paquete que descarga un cliente real.
+  if (import.meta.env.VITE_DEMO_MODE === "true") {
+    const { responderDemo } = await import("../demo/index.js");
+    return responderDemo(method, path, body);
+  }
+
   const tokenToUse = token !== undefined ? token : _authToken;
   const finalHeaders = { ...headers };
   const isFormData = typeof FormData !== "undefined" && body instanceof FormData;

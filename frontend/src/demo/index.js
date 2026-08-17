@@ -1,0 +1,28 @@
+import DATASET from "./dataset.json";
+import { crearEstado } from "./estado";
+import { responder } from "./servidor";
+
+const estado = crearEstado(DATASET, new Date());
+
+/**
+ * Quién está usando la demo ahora mismo.
+ *
+ * El backend real deduce esto del token; acá se recuerda lo que devolvió la
+ * última entrada, porque hay rutas que responden "lo mío" en vez de un
+ * recurso identificado (`/movimientos/mi-cuenta`).
+ */
+let sesion = { departamento_id: null };
+
+export function responderDemo(method, path, body) {
+  const r = responder(estado, method, path, body, sesion);
+  if (method === "POST" && path === "/auth/demo-login" && r.ok) {
+    sesion = { departamento_id: r.data.user.departamento_id };
+  }
+  return r;
+}
+
+/** Vuelve la demo al estado del arranque, para el botón del aviso superior. */
+export function reiniciarDemo() {
+  estado.reiniciar();
+  sesion = { departamento_id: null };
+}
