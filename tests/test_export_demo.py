@@ -1,5 +1,8 @@
+import pytest
+
 from backend.export_demo import (
     RUTAS_EXPORTADAS,
+    RUTAS_POR_CAJA,
     RUTAS_POR_DEPARTAMENTO,
     RUTAS_POR_PERIODO,
     exportar,
@@ -225,6 +228,67 @@ def test_exporta_las_rutas_que_el_recorrido_necesita():
         "/notificaciones/no-leidas-count",
     ]:
         assert imprescindible in paths
+
+
+def test_exporta_el_modulo_personal_completo():
+    # El generador ya crea empleado, haberes, conceptos y liquidaciones
+    # (crear_catalogo_personal en backend/seed_demo.py). Si el export no se
+    # los lleva, la sección Personal de la demo queda vacía aunque los datos
+    # existan.
+    paths = {p for _rol, p in RUTAS_EXPORTADAS}
+    for imprescindible in [
+        "/empleados", "/haberes", "/conceptos-liquidacion", "/liquidaciones",
+    ]:
+        assert imprescindible in paths
+
+
+def test_exporta_lo_que_falta_de_tesoreria_y_configuracion():
+    paths = {p for _rol, p in RUTAS_EXPORTADAS}
+    for imprescindible in [
+        "/transferencias-caja",  # pestaña Transferencias
+        "/usuarios",             # padrón
+        "/trabajos-recurrentes", # tareas programadas
+    ]:
+        assert imprescindible in paths
+
+
+def test_falla_si_una_ruta_declarada_devuelve_un_error():
+    # Una ruta mal escrita en la tabla no revienta el export: el backend
+    # contesta 405/404 y el cuerpo del error queda guardado como si fueran
+    # datos, y la demo muestra una pantalla vacía sin que nadie se entere.
+    # Pasó de verdad con "/coeficientes", que no existe como listado.
+    class _ApiConRutaRota:
+        def req(self, metodo, path, **kwargs):
+            roto = path == "/gastos-habituales"
+
+            class _R:
+                status_code = 405 if roto else 200
+
+                @staticmethod
+                def json():
+                    if roto:
+                        return {"detail": "Method Not Allowed"}
+                    return [{"id": 1, "periodo": "2026-01"}]
+
+            return _R()
+
+    with pytest.raises(RuntimeError, match="/gastos-habituales"):
+        exportar(_ApiConRutaRota(), "tok-admin", {1: "tok-depto"}, cid=1)
+
+
+def test_exporta_los_movimientos_de_cada_caja():
+    # La pestaña Cajas abre el detalle de una caja: sin esto el detalle
+    # aparece vacío aunque la caja tenga saldo.
+    assert "/cajas/{id}/movimientos" in RUTAS_POR_CAJA
+
+
+def test_resuelve_la_plantilla_por_caja():
+    api = _ApiFalsa()
+    datos = exportar(api, "tok-admin", {1: "tok-depto"}, cid=1)
+    paths_pedidos = [p for _, p in api.pedidos]
+    # `_ApiFalsa` devuelve un elemento con id 1 para toda ruta.
+    assert "/cajas/1/movimientos" in paths_pedidos
+    assert "/cajas/1/movimientos" in datos
 
 
 def test_el_export_deja_la_fecha_de_generacion():

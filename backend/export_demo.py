@@ -48,6 +48,18 @@ RUTAS_EXPORTADAS: list[tuple[str, str]] = [
     ("admin", "/reportes/proveedores"),
     ("admin", "/notificaciones"),
     ("admin", "/notificaciones/no-leidas-count"),
+    # Módulo Personal. El generador ya crea el legajo del encargado, el
+    # catálogo de haberes, los conceptos de liquidación y las liquidaciones
+    # mensuales (`crear_catalogo_personal` en backend/seed_demo.py); sin
+    # estas cuatro rutas esos datos existen pero no llegan a la demo.
+    ("admin", "/empleados"),
+    ("admin", "/haberes"),
+    ("admin", "/conceptos-liquidacion"),
+    ("admin", "/liquidaciones"),
+    # Lo que le faltaba a Tesorería y a Configuración para verse enteras.
+    ("admin", "/transferencias-caja"),
+    ("admin", "/usuarios"),
+    ("admin", "/trabajos-recurrentes"),
 ]
 
 #: Rutas que se piden una vez por departamento. La clave en el JSON lleva el
@@ -62,6 +74,12 @@ RUTAS_POR_DEPARTAMENTO: list[str] = [
 RUTAS_POR_PERIODO: list[str] = [
     "/periodos/{periodo}/estado",
     "/reportes/gastos/{periodo}",
+]
+
+#: Ídem por caja: el detalle de una caja lista sus movimientos aparte del
+#: saldo que ya viene en `/cajas`.
+RUTAS_POR_CAJA: list[str] = [
+    "/cajas/{id}/movimientos",
 ]
 
 
@@ -126,6 +144,23 @@ def _token_mi_cuenta(datos: dict, tokens_depto: dict[int, str]) -> str:
     return next(iter(tokens_depto.values()))
 
 
+def _verificar(path: str, respuesta) -> None:
+    """Corta el export si una ruta declarada no contestó con datos.
+
+    Sin esto, una ruta mal escrita en las tablas de arriba no rompe nada
+    visible: el backend contesta 404/405, el cuerpo del error (`{"detail":
+    ...}`) se guarda en el dataset como si fueran datos, y la pantalla que
+    lo consume aparece vacía en la demo sin que nadie se entere. Pasó con
+    `/coeficientes`, que no existe como listado.
+    """
+    if respuesta.status_code >= 400:
+        raise RuntimeError(
+            f"El export pidió {path} y el backend contestó "
+            f"{respuesta.status_code}. Revisá la ruta en las tablas de "
+            f"export_demo.py: tal como está, el dataset guardaría el error."
+        )
+
+
 def exportar(api, admin_token: str, tokens_depto: dict[int, str], cid: int) -> dict:
     """Pide cada ruta declarada y devuelve {path: cuerpo}.
 
@@ -147,18 +182,28 @@ def exportar(api, admin_token: str, tokens_depto: dict[int, str], cid: int) -> d
             datos[path] = _pedir_paginado(api, path, token, cid)
         else:
             r = api.req("GET", path, token=token, cid=cid)
+            _verificar(path, r)
             datos[path] = r.json()
 
     for depto in datos.get("/departamentos", []):
         for plantilla in RUTAS_POR_DEPARTAMENTO:
             path = plantilla.format(id=depto["id"])
             r = api.req("GET", path, token=admin_token, cid=cid)
+            _verificar(path, r)
             datos[path] = r.json()
 
     for periodo in datos.get("/periodos", []):
         for plantilla in RUTAS_POR_PERIODO:
             path = plantilla.format(periodo=periodo["periodo"])
             r = api.req("GET", path, token=admin_token, cid=cid)
+            _verificar(path, r)
+            datos[path] = r.json()
+
+    for caja in datos.get("/cajas", []):
+        for plantilla in RUTAS_POR_CAJA:
+            path = plantilla.format(id=caja["id"])
+            r = api.req("GET", path, token=admin_token, cid=cid)
+            _verificar(path, r)
             datos[path] = r.json()
 
     datos["_generado"] = date.today().isoformat()

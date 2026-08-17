@@ -244,3 +244,24 @@ def test_los_datos_de_administracion_no_son_del_smoke_test(con):
     ).fetchone()
     assert "Semilla" not in admin_nombre
     assert "semilla-admin" not in admin_email
+
+
+def test_hay_mas_de_una_caja(con):
+    # La pestaña Transferencias no tiene sentido con una sola caja, y un
+    # consorcio real maneja al menos banco y efectivo. Con una caja sola, la
+    # sección se ve a medio hacer.
+    cajas = con.execute("select nombre from cajas").fetchall()
+    assert len(cajas) >= 2, f"sólo hay {len(cajas)} caja(s): {cajas}"
+
+
+def test_hay_transferencias_entre_cajas(con):
+    # Sin esto la pestaña Transferencias aparece vacía en la demo.
+    total = con.execute("select count(*) from transferencias_caja").fetchone()[0]
+    assert total >= 2, f"hay {total} transferencias"
+
+
+def test_hay_trabajos_recurrentes_programados(con):
+    # Es uno de los diferenciales frente a la planilla: las tareas que se
+    # repiten solas. Vacío, el argumento no se ve.
+    total = con.execute("select count(*) from trabajos_recurrentes").fetchone()[0]
+    assert total >= 2, f"hay {total} trabajos recurrentes"

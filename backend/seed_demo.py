@@ -485,6 +485,90 @@ def perfiles_deterministas(
     return puntuales, irregulares, morosos
 
 
+#: Cuánto se pasa del banco a la caja chica cada mes. Un consorcio real
+#: retira una suma modesta para gastos menores (ferretería, fletes, propinas
+#: de service) y la repone cuando se agota.
+_REPOSICION_CAJA_CHICA = 150_000.0
+
+
+def crear_caja_chica(api, admin_token, cid, caja_banco_id: int, meses: list[str]) -> int:
+    """Segunda caja + una transferencia mensual desde el banco.
+
+    Con una sola caja la pestaña Transferencias de Tesorería no tiene nada
+    que mostrar y la sección se lee como una pantalla a medio hacer. Un
+    consorcio real maneja al menos la cuenta bancaria y algo de efectivo, y
+    el movimiento entre las dos es justamente lo que la pestaña explica.
+
+    Devuelve el id de la caja creada.
+    """
+    r = api.req("POST", "/cajas", token=admin_token, cid=cid, json={
+        "nombre": "Caja chica",
+        "tipo": "efectivo",
+        "descripcion": "Efectivo para gastos menores del edificio",
+        "saldo_inicial": 0.0,
+    }, expect=201)
+    caja_chica_id = r.json()["id"]
+
+    # Una reposición por mes, el día 5, que es cuando ya entró la cobranza
+    # del período anterior y hay con qué reponer.
+    for periodo in meses:
+        api.req("POST", "/transferencias-caja", token=admin_token, cid=cid, json={
+            "caja_origen_id": caja_banco_id,
+            "caja_destino_id": caja_chica_id,
+            "monto": _REPOSICION_CAJA_CHICA,
+            "fecha": _dia_del_periodo(periodo, 5).isoformat(),
+            "descripcion": "Reposición de caja chica",
+        }, expect=201)
+
+    return caja_chica_id
+
+
+#: Tareas que todo edificio repite sin que nadie las pida: por eso el sistema
+#: las programa en vez de esperar a que alguien se acuerde.
+#:
+#: Cada una nombra la razón social que la atiende, no un rubro: estas tareas
+#: no salen de RUBROS_COMUNES, así que `proveedor_para_gasto` no tendría
+#: entrada para ellas y las mandaría todas al primer proveedor del catálogo —
+#: los cuatro trabajos quedarían facturados por la empresa de limpieza, que
+#: es exactamente el defecto que esa función vino a arreglar. Las razones
+#: sociales tienen que existir en `PROVEEDORES_DEMO`; lo verifica el assert
+#: de `crear_trabajos_recurrentes`.
+TRABAJOS_RECURRENTES_DEMO = [
+    ("Limpieza de tanques de agua", "Certificado obligatorio semestral.",
+     "semestral", "Servicios Metropolitanos SA", 180_000.0),
+    ("Service de matafuegos", "Recarga y control de todos los matafuegos del edificio.",
+     "anual", "Seguros La Continental", 240_000.0),
+    ("Mantenimiento de ascensores", "Visita mensual de control obligatoria.",
+     "mensual", "Ascensores Vertirod SA", 320_000.0),
+    ("Desinfección y desratización", "Certificado que exige el municipio.",
+     "trimestral", "Limpieza Total SRL", 95_000.0),
+]
+
+
+def crear_trabajos_recurrentes(api, admin_token, cid, proveedores: dict) -> list[int]:
+    """Las tareas programadas del edificio.
+
+    Es uno de los diferenciales frente a llevar el consorcio en una planilla:
+    la planilla no avisa que vencen los matafuegos. Vacía, la pantalla no
+    cuenta ese argumento.
+    """
+    ids = []
+    for nombre, descripcion, periodicidad, razon_social, monto in TRABAJOS_RECURRENTES_DEMO:
+        assert razon_social in proveedores, (
+            f"'{razon_social}' no está en PROVEEDORES_DEMO: el trabajo "
+            f"recurrente '{nombre}' quedaría sin proveedor"
+        )
+        r = api.req("POST", "/trabajos-recurrentes", token=admin_token, cid=cid, json={
+            "nombre": nombre,
+            "descripcion": descripcion,
+            "periodicidad": periodicidad,
+            "proveedor_sugerido_id": proveedores[razon_social],
+            "monto_estimado": monto,
+        }, expect=201)
+        ids.append(r.json()["id"])
+    return ids
+
+
 def crear_catalogo_personal(api, admin_token, cid, proveedor_id: int) -> dict:
     """Empleado + haberes + conceptos de liquidación del encargado.
 
@@ -672,6 +756,11 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
         api, admin_token, cid,
         proveedor_para_gasto("sueldos_y_cargas_sociales", "", proveedores, RNG),
     )
+
+    # Tesorería con dos cajas y las tareas programadas del edificio: sin
+    # esto, dos pantallas de la demo se ven vacías aunque funcionen.
+    crear_caja_chica(api, admin_token, cid, caja_id, meses)
+    crear_trabajos_recurrentes(api, admin_token, cid, proveedores)
 
     puntuales, irregulares, morosos = perfiles_deterministas(deptos)
 

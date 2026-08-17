@@ -24,7 +24,7 @@ export function responder(estado, method, path, body, sesion) {
   if (method !== "GET") {
     const escritura = escribir(estado, method, ruta, body, sesion);
     if (escritura) return escritura;
-    return noImplementado(method, ruta, "esta escritura todavía no está en la demo");
+    return soloLectura(method, ruta);
   }
 
   if (ruta === "/movimientos/mi-cuenta") {
@@ -89,6 +89,33 @@ function miCuenta(estado, method, sesion) {
     );
   }
   return { ok: true, status: 200, data: cuenta };
+}
+
+/**
+ * Respuesta a un intento de guardar en una sección que la demo no escribe.
+ *
+ * El visitante lee este texto tal cual, dentro de la pantalla: tiene que
+ * sonar a decisión tomada, no a sistema roto. Nada de códigos, métodos ni
+ * rutas — el detalle técnico va sólo a la consola, para quien programa.
+ *
+ * Los dos circuitos que sí escriben (aprobar un pago, cerrar el mes) los
+ * resuelve `escribir` antes de llegar acá, y por eso el texto puede invitar
+ * a probarlos sin mentir.
+ */
+function soloLectura(method, ruta) {
+  if (import.meta.env?.DEV) {
+    console.info(`[demo] sólo lectura: ${method} ${ruta}`);
+  }
+  return {
+    ok: false,
+    status: 501,
+    data: {
+      detail:
+        "Esto es una demostración: los cambios de esta sección no se guardan. " +
+        "Podés recorrer todo el sistema, y en Cobranzas aprobar un pago y " +
+        "cerrar el mes para ver cómo impacta de verdad.",
+    },
+  };
 }
 
 /**

@@ -4,12 +4,15 @@ import { crearEstado } from "./estado";
 import { responder } from "./servidor";
 
 /**
- * Cada ruta que las pantallas del recorrido de venta consultan al cargar.
+ * Cada ruta que las pantallas consultan al cargar.
+ *
+ * La demo muestra la aplicación entera salvo la consola de la plataforma, así
+ * que esta lista cubre todas las secciones, no sólo el circuito de venta.
  *
  * Si una devuelve 501, la pantalla correspondiente muestra un cartel de error
- * en la demo publicada — por eso esta lista es la red de contención del plan:
- * agregar una pantalla que consulte algo nuevo tiene que romper este test
- * antes de llegar a producción.
+ * en la demo publicada — por eso esta lista es la red de contención: agregar
+ * una pantalla que consulte algo nuevo tiene que romper este test antes de
+ * llegar a producción.
  */
 const RECORRIDO = [
   ["/me/consorcios", "AuthContext al entrar"],
@@ -35,6 +38,13 @@ const RECORRIDO = [
   ["/reportes/proveedores", "Reporte"],
   ["/notificaciones", "campanita"],
   ["/notificaciones/no-leidas-count", "campanita"],
+  ["/empleados", "Personal"],
+  ["/haberes", "Haberes"],
+  ["/conceptos-liquidacion", "Conceptos de liquidación"],
+  ["/liquidaciones", "Liquidaciones"],
+  ["/transferencias-caja", "Tesorería · Transferencias"],
+  ["/usuarios", "Padrón"],
+  ["/trabajos-recurrentes", "Trabajos recurrentes"],
 ];
 
 let estado;
@@ -89,6 +99,15 @@ describe("el recorrido de venta carga entero", () => {
     expect(Object.keys(pdfs).length).toBeGreaterThan(0);
     for (const nombre of Object.values(pdfs)) {
       expect(nombre).toMatch(/^expensa-\d+\.pdf$/);
+    }
+  });
+
+  it("cada caja puede abrir su detalle de movimientos", () => {
+    const cajas = estado.leer("/cajas");
+    expect(cajas.length).toBeGreaterThan(1);
+    for (const caja of cajas) {
+      const r = responder(estado, "GET", `/cajas/${caja.id}/movimientos`);
+      expect(r.status, `falta el detalle de la caja ${caja.nombre}`).toBe(200);
     }
   });
 

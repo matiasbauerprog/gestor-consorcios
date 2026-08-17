@@ -5,14 +5,13 @@ import { MODULOS } from "./modulosNoIncluidos";
 
 describe("ModuloNoIncluido", () => {
   it("explica qué hace el módulo, no que está roto", () => {
-    render(<ModuloNoIncluido modulo="personal" />);
-    // Varios párrafos hablan del tema; alcanza con que el texto explicativo esté.
-    expect(screen.getAllByText(/liquidaci|sueldo|encargado/i).length).toBeGreaterThan(0);
+    render(<ModuloNoIncluido modulo="super-admin" />);
+    expect(screen.getAllByText(/administracion|consola|plataforma/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/error|no disponible|roto|falló/i)).toBeNull();
   });
 
   it("aclara que la sección existe en el sistema completo", () => {
-    render(<ModuloNoIncluido modulo="tesoreria" />);
+    render(<ModuloNoIncluido modulo="super-admin" />);
     expect(screen.getByText(/sistema completo/i)).toBeInTheDocument();
   });
 
@@ -29,7 +28,11 @@ describe("ModuloNoIncluido", () => {
     expect(screen.getByRole("heading")).toBeInTheDocument();
   });
 
-  it("el catálogo cubre las tres secciones que la demo deja afuera", () => {
-    expect(Object.keys(MODULOS).sort()).toEqual(["configuracion", "personal", "tesoreria"]);
+  it("la consola del dueño del SaaS es lo único que la demo deja afuera", () => {
+    // Tesorería, Personal y Configuración se destaparon cuando el dataset
+    // pasó a traer sus datos: la demo muestra la app entera salvo la consola
+    // comercial, que no es del administrador de consorcios sino de quien
+    // vende el sistema.
+    expect(Object.keys(MODULOS)).toEqual(["super-admin"]);
   });
 });
