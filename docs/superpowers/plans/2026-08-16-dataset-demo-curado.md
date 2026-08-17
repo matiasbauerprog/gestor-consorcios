@@ -878,7 +878,7 @@ git commit -m "feat(seed): exportar el dataset demo a un archivo estatico"
 
 ### Task 8: Exportar los PDF de boleta del último período
 
-La demo del navegador no puede generar PDF: los arma el backend. La especificación (§3.3) resuelve incluir los PDF **reales** del último período cerrado, uno por unidad, como archivos estáticos. Cuando el propietario toca "ver PDF" se abre el suyo, con su unidad y sus importes.
+La demo del navegador no puede generar PDF: los arma el backend. La especificación (§3.4) resuelve incluir los PDF **reales** del último período cerrado, uno por unidad, como archivos estáticos. Cuando el propietario toca "ver PDF" se abre el suyo, con su unidad y sus importes.
 
 Se sirven sueltos, **fuera del paquete de la aplicación**: dieciocho boletas pesan más que todo el frontend junto, y así se descarga sólo la que se abre.
 
@@ -977,7 +977,7 @@ En el bloque `--exportar` de `backend/seed_demo.py`, después de escribir el dat
         print(f"{len(mapa)} PDFs exportados")
 ```
 
-`frontend/public/` es el directorio de archivos estáticos de Vite: lo que va ahí se copia tal cual al sitio publicado, sin entrar al paquete de JavaScript. Es exactamente lo que pide §3.3.
+`frontend/public/` es el directorio de archivos estáticos de Vite: lo que va ahí se copia tal cual al sitio publicado, sin entrar al paquete de JavaScript. Es exactamente lo que pide §3.4.
 
 - [ ] **Step 6: Verificar la corrida real**
 

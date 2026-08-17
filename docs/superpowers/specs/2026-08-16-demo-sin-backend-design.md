@@ -166,7 +166,44 @@ generador:
    punitorios**. El selector promete una cosa y la pantalla muestra otra, en rojo.
    Verificado sobre los datos, no inferido.
 
-### 3.3 PDF
+### 3.3 Las fechas se corren al abrir la demo
+
+El dataset se congela una vez, con fechas absolutas. Sin más, **la demo
+envejece**: hoy el último vencimiento es reciente y el mes en curso está abierto
+para cerrarlo, pero dentro de dos meses el sistema calculará el período actual
+con el reloj del visitante, no encontrará expensas de ese mes, y volverá a
+mostrar el hero en `$0` — el mismo síntoma que §3.2.4 explica. Además:
+
+- las reservas de amenities (hoy futuras) pasan a ser pasadas;
+- el "propietario al día" se lee como atrasado, porque su última boleta quedó
+  con fecha vieja;
+- la lista de morosos muestra antigüedades cada vez mayores.
+
+No se rompe nada; se ve viejo, que para una demo de ventas es equivalente.
+
+**Decisión: al arrancar, la demo desplaza todas las fechas del dataset** por la
+diferencia entre la fecha en que se generó y el día de la visita, de modo que el
+último período cerrado sea siempre el mes anterior y el vencimiento caiga siempre
+a pocos días. El dataset guarda su fecha de generación para poder calcular ese
+desplazamiento.
+
+Se elige esto sobre la alternativa —regenerar el dataset cada tanto— porque
+regenerar es mantenimiento que alguien tiene que acordarse de hacer, y cuando se
+olvida la demo envejece en silencio. El desplazamiento se implementa una vez y no
+requiere mantenimiento nunca más.
+
+**Lo que cuesta, dicho de frente:** desplazar fechas tiene bordes. Los meses
+tienen distinta cantidad de días, así que el desplazamiento se hace en meses
+enteros para los períodos y en días para las fechas sueltas, no sumando una
+cantidad fija de días a todo. Hay que decidir qué pasa con los intereses y
+recargos ya calculados: la decisión es **no recalcularlos** —viajan tal cual,
+como el resto de los importes (§5.2)—, porque recalcularlos exigiría portar esas
+reglas al navegador, que §5.2 descarta explícitamente. La consecuencia aceptada
+es que los intereses del dataset corresponden a la mora que existía al generarlo,
+no a la que resultaría de las fechas desplazadas; en pantalla es indistinguible,
+porque lo que se muestra es un importe, no una cuenta.
+
+### 3.4 PDF
 
 El generador produce además los PDF reales del último período, uno por unidad, y
 quedan como archivos estáticos. Cuando el propietario toca "ver PDF" se abre el
@@ -256,7 +293,7 @@ validaciones más elaboradas del cierre. No se recalculan.
 
 | Qué | Cómo se resuelve |
 |---|---|
-| PDF de boleta | Archivos reales generados por el sistema (§3.3) |
+| PDF de boleta | Archivos reales generados por el sistema (§3.4) |
 | Envío de boletas por mail | El modal se abre y muestra a cuántas unidades se enviaría; al confirmar avisa que en la demo no sale ningún correo |
 | Subir el comprobante de pago | **Funciona igual que en producción**: el navegador lee la imagen elegida y la muestra en el comprobante presentado |
 
@@ -357,4 +394,4 @@ tocar lo que quiera.
 | Dos implementaciones del cálculo divergen | Verificación cruzada contra los saldos del dataset (§5.1); son las dos piezas más estables del sistema |
 | Un cambio rompe la demo y se publica solo | Las pruebas corren en la compilación y la hacen fallar (§7.2) |
 | El bundle de producción incluye el sustituto | Inclusión condicional por bandera; verificar en el build de producción que no aparece |
-| La primera carga se vuelve pesada | Los PDF se sirven sueltos, fuera del paquete (§3.3) |
+| La primera carga se vuelve pesada | Los PDF se sirven sueltos, fuera del paquete (§3.4) |
