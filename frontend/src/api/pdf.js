@@ -1,10 +1,33 @@
 import { apiFetch, abrirPdf } from "./client";
+import { ES_DEMO } from "./demo";
+
+/** Dónde quedan los PDF exportados dentro del sitio publicado. */
+const CARPETA_PDFS_DEMO = "/demo-pdfs";
 
 /**
  * Abre el PDF de una expensa en una nueva pestaña.
- * El token y el X-Consorcio-Id los inyecta el helper del client.
+ *
+ * Contra el servidor real lo genera el backend al vuelo. En la demo no hay
+ * servidor: el generador exportó los PDF del último período cerrado como
+ * archivos estáticos, y el dataset trae el mapa de qué archivo le toca a cada
+ * expensa.
+ *
+ * Sólo el último período tiene PDF exportado — son 18 archivos, uno por
+ * unidad. Pedir el de una expensa más vieja falla con un mensaje entendible
+ * en vez de abrir una pestaña en blanco.
  */
-export function abrirPdfExpensa(expensaId) {
+export async function abrirPdfExpensa(expensaId) {
+  if (ES_DEMO) {
+    const { default: DATASET } = await import("../demo/dataset.json");
+    const nombre = DATASET._pdfs?.[String(expensaId)];
+    if (!nombre) {
+      throw new Error(
+        "En la demo sólo está el PDF de las expensas del último período cerrado.",
+      );
+    }
+    window.open(`${CARPETA_PDFS_DEMO}/${nombre}`, "_blank");
+    return;
+  }
   return abrirPdf(`/expensas/${expensaId}/pdf`);
 }
 
