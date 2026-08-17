@@ -43,7 +43,7 @@ def test_exporta_todas_las_rutas_declaradas():
     datos = exportar(api, "tok-admin", {1: "tok-depto"}, cid=1)
     paths_pedidos = [p for _, p in api.pedidos]
     for _rol, path in RUTAS_EXPORTADAS:
-        assert path in paths_pedidos
+        assert path in paths_pedidos, path
 
 
 def test_el_export_indexa_por_path():
@@ -56,7 +56,7 @@ def test_el_export_indexa_por_path():
 def test_incluye_las_rutas_del_recorrido_de_venta():
     # Si alguien saca una de estas del export, la demo del navegador queda
     # sin datos en una pantalla del recorrido.
-    paths = {p for _rol, p in RUTAS_EXPORTADAS}
+    paths = {p.split("?")[0] for _rol, p in RUTAS_EXPORTADAS}
     for imprescindible in [
         "/departamentos", "/expensas", "/gastos", "/comprobantes",
         "/comunicados", "/amenities", "/reservas", "/peticiones",
@@ -217,7 +217,7 @@ def test_exporta_el_estado_de_cada_periodo():
 
 
 def test_exporta_las_rutas_que_el_recorrido_necesita():
-    paths = {p for _rol, p in RUTAS_EXPORTADAS}
+    paths = {p.split("?")[0] for _rol, p in RUTAS_EXPORTADAS}
     for imprescindible in [
         "/me/consorcios",
         "/movimientos/mi-cuenta",
@@ -236,7 +236,7 @@ def test_exporta_el_modulo_personal_completo():
     # (crear_catalogo_personal en backend/seed_demo.py). Si el export no se
     # los lleva, la sección Personal de la demo queda vacía aunque los datos
     # existan.
-    paths = {p for _rol, p in RUTAS_EXPORTADAS}
+    paths = {p.split("?")[0] for _rol, p in RUTAS_EXPORTADAS}
     for imprescindible in [
         "/empleados", "/haberes", "/conceptos-liquidacion", "/liquidaciones",
     ]:
@@ -244,7 +244,7 @@ def test_exporta_el_modulo_personal_completo():
 
 
 def test_exporta_lo_que_falta_de_tesoreria_y_configuracion():
-    paths = {p for _rol, p in RUTAS_EXPORTADAS}
+    paths = {p.split("?")[0] for _rol, p in RUTAS_EXPORTADAS}
     for imprescindible in [
         "/transferencias-caja",  # pestaña Transferencias
         "/usuarios",             # padrón
@@ -277,10 +277,23 @@ def test_falla_si_una_ruta_declarada_devuelve_un_error():
         exportar(_ApiConRutaRota(), "tok-admin", {1: "tok-depto"}, cid=1)
 
 
+def test_una_ruta_pedida_con_query_se_guarda_bajo_la_ruta_limpia():
+    # El sustituto del navegador busca por path sin query y después aplica
+    # los filtros (frontend/src/demo/servidor.js). Si la clave del dataset
+    # llevara el `?solo_deudores=false` con el que se pidió, no la
+    # encontraría nunca y el reporte quedaría vacío.
+    api = _ApiFalsa()
+    datos = exportar(api, "tok-admin", {1: "tok-depto"}, cid=1)
+    assert "/reportes/morosos" in datos
+    assert not any("?" in clave for clave in datos)
+    # Pero al backend sí se le pidió con el query, o vendría ya filtrado.
+    assert "/reportes/morosos?solo_deudores=false" in [p for _, p in api.pedidos]
+
+
 def test_exporta_la_lista_de_consorcios_de_la_administracion():
     # Sin esto, "Consorcios de la administración" dice "todavía no tenés
     # consorcios" arriba de un consorcio con seis meses cargados.
-    paths = {p for _rol, p in RUTAS_EXPORTADAS}
+    paths = {p.split("?")[0] for _rol, p in RUTAS_EXPORTADAS}
     assert "/consorcios" in paths
 
 

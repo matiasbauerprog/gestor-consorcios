@@ -10,8 +10,17 @@ const FILTROS = {
   periodo: (item, valor) => item.periodo === valor,
   departamento_id: (item, valor) => String(item.departamento_id) === valor,
   estado: (item, valor) => item.estado === valor || item.estado_calculado === valor,
-  // El dataset de morosos ya viene filtrado desde el backend.
-  solo_deudores: () => true,
+  // La casilla "excluir saldos al día y a favor" del reporte de morosos.
+  //
+  // El dataset guarda el padrón entero —el export pide el reporte sin
+  // filtrar— y el recorte se hace acá. Antes se exportaba ya filtrado y este
+  // filtro devolvía todo: la casilla quedaba muerta, tildarla y destildarla
+  // mostraba la misma lista.
+  //
+  // El umbral es el mismo que usa `calcular_morosos` (backend/reportes.py):
+  // `saldo <= 0.01` no es deudor. Con `> 0` entrarían unidades con un centavo
+  // de diferencia por redondeo que el backend no cuenta como morosas.
+  solo_deudores: (item, valor) => valor !== "true" || item.saldo > 0.01,
 };
 
 export function aplicarFiltros(lista, params) {

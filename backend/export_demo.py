@@ -38,7 +38,12 @@ RUTAS_EXPORTADAS: list[tuple[str, str]] = [
     ("admin", "/clases-prorrateo"),
     ("admin", "/cajas"),
     ("admin", "/estado-financiero"),
-    ("admin", "/reportes/morosos"),
+    # Sin filtrar: el padrón entero, deudores y al día. El default del
+    # endpoint es `solo_deudores=True`, y con ese recorte la casilla "excluir
+    # saldos al día y a favor" de la pantalla queda muerta — no tiene de dónde
+    # sacar las unidades que faltan. El recorte lo hace el sustituto del
+    # navegador (`solo_deudores` en frontend/src/demo/rutas.js).
+    ("admin", "/reportes/morosos?solo_deudores=false"),
     ("admin", "/configuracion"),
     ("admin", "/me/consorcios"),
     ("depto", "/movimientos/mi-cuenta"),
@@ -189,12 +194,17 @@ def exportar(api, admin_token: str, tokens_depto: dict[int, str], cid: int) -> d
             token = admin_token
         else:
             token = _token_mi_cuenta(datos, tokens_depto)
+        # La clave va sin query: el sustituto del navegador busca por path
+        # limpio y aplica los filtros aparte (frontend/src/demo/rutas.js).
+        # Al backend sí se le pide con el query, que es lo que decide qué
+        # datos trae.
+        clave = path.split("?")[0]
         if path in _RUTAS_PAGINADAS:
-            datos[path] = _pedir_paginado(api, path, token, cid)
+            datos[clave] = _pedir_paginado(api, path, token, cid)
         else:
             r = api.req("GET", path, token=token, cid=cid)
             _verificar(path, r)
-            datos[path] = r.json()
+            datos[clave] = r.json()
 
     for depto in datos.get("/departamentos", []):
         for plantilla in RUTAS_POR_DEPARTAMENTO:

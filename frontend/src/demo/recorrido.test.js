@@ -119,3 +119,29 @@ describe("el recorrido de venta carga entero", () => {
     }
   });
 });
+
+describe("la casilla de excluir saldos al día y a favor", () => {
+  it("con la casilla marcada quedan sólo los que deben", () => {
+    const r = responder(estado, "GET", "/reportes/morosos?solo_deudores=true");
+    expect(r.status).toBe(200);
+    expect(r.data.length).toBeGreaterThan(0);
+    for (const item of r.data) {
+      expect(item.saldo).toBeGreaterThan(0.01);
+    }
+  });
+
+  it("al destildarla aparece el resto del padrón, no la misma lista", () => {
+    // La casilla estaba muerta: el dataset venía ya filtrado por el backend y
+    // el sustituto ignoraba el parámetro, así que tildarla y destildarla
+    // mostraba exactamente lo mismo.
+    const soloDeudores = responder(estado, "GET", "/reportes/morosos?solo_deudores=true").data;
+    const todos = responder(estado, "GET", "/reportes/morosos?solo_deudores=false").data;
+    expect(todos.length).toBeGreaterThan(soloDeudores.length);
+  });
+
+  it("sin deudas ni saldos a favor, están todas las unidades del padrón", () => {
+    const unidades = estado.leer("/departamentos").length;
+    const todos = responder(estado, "GET", "/reportes/morosos?solo_deudores=false").data;
+    expect(todos).toHaveLength(unidades);
+  });
+});
