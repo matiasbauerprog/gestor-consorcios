@@ -45,6 +45,12 @@ DOMINIO_DEMO = "demo.local"
 EMAIL_ADMIN_DEMO = "admin@demo.local"
 NOMBRE_CONSORCIO = "Edificio Libertador"
 
+#: Domicilio del consorcio demo. Se muestra en pantalla junto al nombre, así
+#: que tiene que sonar a edificio real y no al "Av. Siempreviva" que trae el
+#: smoke-test. Numeración inventada sobre una avenida conocida: verosímil
+#: para el ojo, y sin datos de nadie detrás.
+DOMICILIO_CONSORCIO_DEMO = "Av. del Libertador 4382, CABA"
+
 # Administración que gestiona el consorcio demo, mostrada en /configuracion
 # a los departamentos (necesitan el email de contacto para pagar). Antes
 # `_consorcio_payload` (heredado de seed_e2e.py, el smoke-test) dejaba
@@ -485,10 +491,11 @@ def perfiles_deterministas(
     return puntuales, irregulares, morosos
 
 
-#: Cuánto se pasa del banco a la caja chica cada mes. Un consorcio real
-#: retira una suma modesta para gastos menores (ferretería, fletes, propinas
-#: de service) y la repone cuando se agota.
-_REPOSICION_CAJA_CHICA = 150_000.0
+#: Rango de la reposición mensual de la caja chica. Un consorcio real retira
+#: una suma modesta para gastos menores (ferretería, fletes, propinas de
+#: service) y la repone cuando se agota — nunca el mismo importe exacto ni el
+#: mismo día, que es lo que delata a un dato inventado en cámara.
+_REPOSICION_CAJA_CHICA = (120_000.0, 220_000.0)
 
 
 def crear_caja_chica(api, admin_token, cid, caja_banco_id: int, meses: list[str]) -> int:
@@ -509,16 +516,29 @@ def crear_caja_chica(api, admin_token, cid, caja_banco_id: int, meses: list[str]
     }, expect=201)
     caja_chica_id = r.json()["id"]
 
-    # Una reposición por mes, el día 5, que es cuando ya entró la cobranza
-    # del período anterior y hay con qué reponer.
+    # Una reposición por mes, en la primera semana: ya entró la cobranza del
+    # período anterior y hay con qué reponer. El importe y el día varían
+    # porque el administrador repone lo que falta, no una cuota fija.
+    minimo, maximo = _REPOSICION_CAJA_CHICA
     for periodo in meses:
         api.req("POST", "/transferencias-caja", token=admin_token, cid=cid, json={
             "caja_origen_id": caja_banco_id,
             "caja_destino_id": caja_chica_id,
-            "monto": _REPOSICION_CAJA_CHICA,
-            "fecha": _dia_del_periodo(periodo, 5).isoformat(),
+            "monto": float(round(RNG.uniform(minimo, maximo), -3)),
+            "fecha": _dia_del_periodo(periodo, RNG.randint(2, 8)).isoformat(),
             "descripcion": "Reposición de caja chica",
         }, expect=201)
+
+    # Un cierre de ejercicio devuelve al banco el sobrante de efectivo: es lo
+    # que hace ver que las cajas se mueven en los dos sentidos y no son un
+    # tobogán de una sola dirección.
+    api.req("POST", "/transferencias-caja", token=admin_token, cid=cid, json={
+        "caja_origen_id": caja_chica_id,
+        "caja_destino_id": caja_banco_id,
+        "monto": 85_000.0,
+        "fecha": _dia_del_periodo(meses[len(meses) // 2], 26).isoformat(),
+        "descripcion": "Devolución de sobrante de caja chica al banco",
+    }, expect=201)
 
     return caja_chica_id
 
@@ -533,6 +553,49 @@ def crear_caja_chica(api, admin_token, cid, caja_banco_id: int, meses: list[str]
 #: es exactamente el defecto que esa función vino a arreglar. Las razones
 #: sociales tienen que existir en `PROVEEDORES_DEMO`; lo verifica el assert
 #: de `crear_trabajos_recurrentes`.
+#: Los seis reclamos del semestre, cada uno con lo que escribió el vecino, lo
+#: que anotó la administración al convertirlo en trabajo, y quién lo atiende.
+#:
+#: Van juntos a propósito. Antes el título salía por sorteo de una lista y la
+#: descripción del trabajo era una sola frase repetida ("Trabajo generado a
+#: partir del reclamo del depto."): la pantalla de Trabajos mostraba tres
+#: filas idénticas y la de Peticiones repetía títulos, justo donde el sistema
+#: tiene que mostrar cómo se resuelve un reclamo. El proveedor viaja acá
+#: mismo para que un presupuesto de ascensores no lo firme la empresa de
+#: limpieza — el mismo criterio que `_PROVEEDOR_POR_CONCEPTO` aplica a los
+#: gastos. Cada razón social tiene que existir en `PROVEEDORES_DEMO`.
+PROBLEMAS_DEMO = [
+    ("Pérdida de agua en el baño",
+     "Gotea la conexión del inodoro desde el fin de semana y se está "
+     "humedeciendo el piso. Solicito revisión a la brevedad.",
+     "Reparación de pérdida en conexión de inodoro — UF con filtración",
+     "Plomería Paz"),
+    ("Humedad en la pared del dormitorio",
+     "Apareció una mancha de humedad que va creciendo en la pared que da al "
+     "pulmón de manzana.",
+     "Revisión de humedad en pared medianera y sellado exterior",
+     "Plomería Paz"),
+    ("El portero eléctrico no tiene audio",
+     "Se escucha el timbre pero no se oye a quien llama. Pasa desde el corte "
+     "de luz del martes.",
+     "Reparación del portero eléctrico: se escucha el timbre pero no el audio",
+     "ElectroSur SRL"),
+    ("Luz de pasillo quemada",
+     "La luz del pasillo del tercer piso está quemada hace una semana y de "
+     "noche no se ve nada.",
+     "Cambio de luminaria del pasillo del 3er piso",
+     "ElectroSur SRL"),
+    ("Filtración en el balcón",
+     "Cuando llueve entra agua por la junta del balcón y moja el interior.",
+     "Sellado de junta de balcón por filtración de agua de lluvia",
+     "Plomería Paz"),
+    ("El ascensor hace ruido al frenar",
+     "Hace un chirrido fuerte cada vez que frena, sobre todo bajando.",
+     "Ascensor: ruido al frenar — revisión de guías y freno",
+     "Ascensores Vertirod SA"),
+]
+
+
 TRABAJOS_RECURRENTES_DEMO = [
     ("Limpieza de tanques de agua", "Certificado obligatorio semestral.",
      "semestral", "Servicios Metropolitanos SA", 180_000.0),
@@ -685,6 +748,11 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
     # comentario junto a NOMBRE_ADMINISTRACION_DEMO más arriba.
     consorcio_payload["admin_nombre"] = NOMBRE_ADMINISTRACION_DEMO
     consorcio_payload["admin_email"] = EMAIL_CONTACTO_ADMINISTRACION_DEMO
+    # El domicilio también viene del smoke-test, que usa "Av. Siempreviva" —
+    # el chiste de Los Simpson. Sirve para un test; en una demo de venta, que
+    # se muestra en pantalla junto al nombre del consorcio, delata que los
+    # datos son de juguete. Va uno verosímil y acorde al nombre del edificio.
+    consorcio_payload["consorcio_domicilio"] = DOMICILIO_CONSORCIO_DEMO
     r = api.req("POST", "/consorcios", token=admin_token,
                 json=consorcio_payload, expect=201)
     cid = r.json()["id"]
@@ -980,18 +1048,14 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
     # muestreados recorren los 4 estados de forma explícita y determinista;
     # los 2 restantes quedan con la lógica probabilística original para sumar
     # variedad dentro de "convertida_en_trabajo".
-    titulos = [
-        "Pérdida de agua en baño", "Humedad en pared del dormitorio",
-        "Portero eléctrico sin audio", "Luz de pasillo quemada",
-        "Filtración en balcón", "Ascensor hace ruido",
-    ]
-    peticionantes = RNG.sample(sorted(tokens_depto), k=min(6, len(tokens_depto)))
+    peticionantes = RNG.sample(sorted(tokens_depto), k=min(6, len(PROBLEMAS_DEMO)))
     peticiones = 0
     trabajos_creados = 0
     for indice, depto_id in enumerate(peticionantes):
+        titulo, relato, descripcion_trabajo, razon_proveedor = PROBLEMAS_DEMO[indice]
         r = api.req("POST", "/peticiones", token=tokens_depto[depto_id], cid=cid, json={
-            "titulo": RNG.choice(titulos),
-            "descripcion": "Solicito revisión y reparación a la brevedad. Gracias.",
+            "titulo": titulo,
+            "descripcion": relato,
         }, expect=201)
         peticion_id = r.json()["id"]
         peticiones += 1
@@ -1007,7 +1071,7 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
         if indice == 2:
             r = api.req("POST", "/trabajos", token=admin_token, cid=cid, json={
                 "peticion_id": peticion_id,
-                "descripcion": "Trabajo generado a partir del reclamo del depto.",
+                "descripcion": descripcion_trabajo,
             }, expect=201)
             trabajo_id = r.json()["id"]
             trabajos_creados += 1
@@ -1015,31 +1079,72 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
                     expect=204)
             continue
 
-        # indice 3: siempre se convierte (garantiza el 4to estado, con
-        # presupuesto aprobado). Los índices 4 y 5 quedan al 60% original.
-        if indice != 3 and RNG.random() >= 0.6:
-            continue  # queda abierta (realista)
+        # De acá en adelante todas se convierten en trabajo. Antes los
+        # índices 4 y 5 dependían de un sorteo al 60% y podían no salir
+        # ninguno: quedaban dos trabajos, uno de ellos cancelado, y la
+        # pantalla no llegaba a mostrar el circuito. Ahora el módulo muestra
+        # el ciclo entero — cancelado, en curso y completado.
 
         r = api.req("POST", "/trabajos", token=admin_token, cid=cid, json={
             "peticion_id": peticion_id,
-            "descripcion": "Trabajo generado a partir del reclamo del depto.",
+            "descripcion": descripcion_trabajo,
         }, expect=201)
         trabajo_id = r.json()["id"]
         trabajos_creados += 1
 
-        elegido = None
-        for prov in RNG.sample(sorted(proveedores.values()), k=RNG.randint(1, 3)):
+        # Se piden presupuestos a varios y se aprueba el del proveedor que
+        # atiende ese rubro. Antes se sorteaban los proveedores entre todos y
+        # se aprobaba el último sorteado: quedaba la empresa de limpieza
+        # presupuestando el ascensor, y encima ganándolo.
+        assert razon_proveedor in proveedores, razon_proveedor
+        competidores = [pid for razon, pid in proveedores.items()
+                        if razon != razon_proveedor]
+        del_rubro = None
+        for prov in [proveedores[razon_proveedor]] + RNG.sample(competidores, k=RNG.randint(0, 2)):
             # El endpoint de presupuestos recibe multipart/form-data.
             r = api.req("POST", f"/trabajos/{trabajo_id}/presupuestos",
                         token=admin_token, cid=cid,
                         data={"proveedor_id": str(prov),
                               "monto": str(round(RNG.uniform(20_000, 150_000), 2))},
                         expect=201)
-            elegido = r.json()
-        if elegido is not None:
+            if prov == proveedores[razon_proveedor]:
+                del_rubro = r.json()
+        if del_rubro is not None:
             api.req("POST",
-                    f"/trabajos/{trabajo_id}/presupuestos/{elegido['id']}/aprobar",
+                    f"/trabajos/{trabajo_id}/presupuestos/{del_rubro['id']}/aprobar",
                     token=admin_token, cid=cid, expect=200)
+
+        # Uno de los trabajos llega hasta el final: sin un trabajo terminado
+        # el módulo muestra sólo problemas abiertos, que es la mitad de la
+        # historia que tiene para contar.
+        #
+        # `POST /completar` no completa nada pese al nombre: devuelve el
+        # gasto ya pre-cargado con el proveedor y el monto del presupuesto
+        # aprobado (ver su `summary` en routers/trabajos.py). Lo que cierra
+        # el trabajo es dar de alta ese gasto con `trabajo_id`
+        # (routers/gastos.py, "Integración Fase 11"), que además le avisa al
+        # vecino que su reclamo se resolvió. Recorrer los dos pasos es
+        # justamente el circuito que la pantalla tiene para mostrar.
+        if indice == 4:
+            r = api.req("POST", f"/trabajos/{trabajo_id}/completar",
+                        token=admin_token, cid=cid, expect=200)
+            borrador = r.json()
+            # Al mes en curso, no al último cerrado: un período cerrado no
+            # admite cambios (409). Y es lo que pasa de verdad — el trabajo
+            # se terminó ahora y su gasto entra en el cierre que viene.
+            hoy = date.today()
+            api.req("POST", "/gastos", token=admin_token, cid=cid, json={
+                "periodo": hoy.strftime("%Y-%m"),
+                "rubro": "mantenimiento_partes_comunes",
+                "clase_prorrateo_id": clase_a,
+                "proveedor_id": borrador["proveedor_id"],
+                "concepto": borrador["concepto_sugerido"],
+                "monto": borrador["monto"],
+                "forma_pago": "transferencia",
+                "caja_id": _caja_default(api, admin_token, cid),
+                "fecha_pago": hoy.isoformat(),
+                "trabajo_id": trabajo_id,
+            }, expect=201)
     print(f"[demo] peticiones: {peticiones} · trabajos: {trabajos_creados}")
 
     dt = time.monotonic() - t0

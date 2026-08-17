@@ -60,6 +60,10 @@ RUTAS_EXPORTADAS: list[tuple[str, str]] = [
     ("admin", "/transferencias-caja"),
     ("admin", "/usuarios"),
     ("admin", "/trabajos-recurrentes"),
+    # La administración y sus consorcios. Sin esto, "Consorcios de la
+    # administración" muestra el estado vacío de una cuenta recién creada
+    # arriba de un consorcio con seis meses cargados.
+    ("admin", "/consorcios"),
 ]
 
 #: Rutas que se piden una vez por departamento. La clave en el JSON lleva el
@@ -74,6 +78,13 @@ RUTAS_POR_DEPARTAMENTO: list[str] = [
 RUTAS_POR_PERIODO: list[str] = [
     "/periodos/{periodo}/estado",
     "/reportes/gastos/{periodo}",
+]
+
+#: Ídem por trabajo: el detalle de un trabajo pide sus presupuestos al
+#: abrirse (ModalDetalleTrabajo), y comparar presupuestos para aprobar uno es
+#: media pantalla del argumento de mantenimiento.
+RUTAS_POR_TRABAJO: list[str] = [
+    "/trabajos/{id}/presupuestos",
 ]
 
 #: Ídem por caja: el detalle de una caja lista sus movimientos aparte del
@@ -199,12 +210,16 @@ def exportar(api, admin_token: str, tokens_depto: dict[int, str], cid: int) -> d
             _verificar(path, r)
             datos[path] = r.json()
 
-    for caja in datos.get("/cajas", []):
-        for plantilla in RUTAS_POR_CAJA:
-            path = plantilla.format(id=caja["id"])
-            r = api.req("GET", path, token=admin_token, cid=cid)
-            _verificar(path, r)
-            datos[path] = r.json()
+    for coleccion, plantillas in (
+        ("/cajas", RUTAS_POR_CAJA),
+        ("/trabajos", RUTAS_POR_TRABAJO),
+    ):
+        for item in datos.get(coleccion, []):
+            for plantilla in plantillas:
+                path = plantilla.format(id=item["id"])
+                r = api.req("GET", path, token=admin_token, cid=cid)
+                _verificar(path, r)
+                datos[path] = r.json()
 
     datos["_generado"] = date.today().isoformat()
     return datos

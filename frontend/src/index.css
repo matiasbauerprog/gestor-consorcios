@@ -2250,6 +2250,11 @@ td.monto {
     padding-bottom: 0;
   }
 
+  /* Los modales con tabla: ver el comentario de `ancho` en Modal.jsx. */
+  .modal.modal-ancho {
+    max-width: 860px;
+  }
+
   .modal::before {
     display: none;
   }
@@ -2339,7 +2344,10 @@ td.monto {
     padding: 0 1.25rem 1rem;
     font-family: var(--font-display);
     font-size: 1.05rem;
-    font-weight: 800;
+    /* Acompaña el peso de los ítems: en 800 sobre una navegación en 500 el
+       nombre del sistema se comía la columna entera. Sigue siendo lo más
+       pesado de la barra, que es lo que corresponde a un encabezado. */
+    font-weight: 700;
     letter-spacing: -0.02em;
     color: var(--color-text);
   }
@@ -2395,6 +2403,11 @@ td.monto {
 
 .filtro-checkbox {
   display: inline-flex;
+  /* La regla base de `label` apila en columna, porque en un formulario la
+     etiqueta va arriba del campo. Acá el campo es una casilla y el texto es
+     su rótulo al lado: sin volver a fila, la casilla queda flotando encima
+     del texto y se monta sobre el título de la pantalla. */
+  flex-direction: row;
   align-items: center;
   gap: 0.4rem;
   white-space: nowrap;

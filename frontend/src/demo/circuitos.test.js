@@ -96,9 +96,17 @@ describe("circuito 2: la plata que sale", () => {
 
     const emitidas = responder(estado, "GET", `/expensas?periodo=${mesAbierto}`).data;
     expect(emitidas).toHaveLength(unidades);
-    // El gasto se repartió entero: la suma de las expensas lo cubre.
+
+    // Los gastos del período se repartieron enteros: la suma de las expensas
+    // los cubre. Se compara contra la suma real del período y no contra los
+    // 480.000 recién cargados, porque el mes abierto no arranca vacío — el
+    // dataset trae el gasto del trabajo que se terminó y todavía no se cerró.
+    const gastosDelMes = responder(estado, "GET", `/gastos?periodo=${mesAbierto}`).data;
+    const aRepartir = gastosDelMes.reduce((a, g) => a + g.monto, 0);
+    expect(aRepartir).toBeGreaterThan(480000);
+
     const total = emitidas.reduce((a, e) => a + e.monto_primer_vencimiento, 0);
-    expect(total).toBeCloseTo(480000, 0);
+    expect(total).toBeCloseTo(aRepartir, 0);
   });
 
   it("el preview avisa que la clase extraordinaria no tiene gastos", () => {

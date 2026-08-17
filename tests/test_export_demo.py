@@ -5,6 +5,7 @@ from backend.export_demo import (
     RUTAS_POR_CAJA,
     RUTAS_POR_DEPARTAMENTO,
     RUTAS_POR_PERIODO,
+    RUTAS_POR_TRABAJO,
     exportar,
     exportar_comprobantes,
     exportar_pdfs,
@@ -274,6 +275,19 @@ def test_falla_si_una_ruta_declarada_devuelve_un_error():
 
     with pytest.raises(RuntimeError, match="/gastos-habituales"):
         exportar(_ApiConRutaRota(), "tok-admin", {1: "tok-depto"}, cid=1)
+
+
+def test_exporta_la_lista_de_consorcios_de_la_administracion():
+    # Sin esto, "Consorcios de la administración" dice "todavía no tenés
+    # consorcios" arriba de un consorcio con seis meses cargados.
+    paths = {p for _rol, p in RUTAS_EXPORTADAS}
+    assert "/consorcios" in paths
+
+
+def test_exporta_los_presupuestos_de_cada_trabajo():
+    # El detalle de un trabajo los pide al abrirse (ModalDetalleTrabajo):
+    # aprobar un presupuesto es media pantalla del argumento de mantenimiento.
+    assert "/trabajos/{id}/presupuestos" in RUTAS_POR_TRABAJO
 
 
 def test_exporta_los_movimientos_de_cada_caja():

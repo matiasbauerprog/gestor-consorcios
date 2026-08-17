@@ -101,6 +101,11 @@ class TrabajoOut(BaseModel):
     descripcion: str
     estado: EstadoTrabajo
     fecha_creacion: datetime
+    # La pantalla de Trabajos tiene una columna para cada uno. Sin devolverlos
+    # muestran un guión siempre, incluso en un trabajo finalizado que sí tiene
+    # presupuesto aprobado y gasto asociado.
+    presupuesto_aprobado_id: int | None
+    gasto_id: int | None
 
 
 class PresupuestoCrear(BaseModel):
