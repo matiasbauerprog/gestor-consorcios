@@ -1,4 +1,4 @@
-from datetime import time, timedelta
+from datetime import datetime, time, timedelta
 
 from tests.conftest import HOY, RESERVA_DESDE, RESERVA_HASTA, RESERVA_INICIO
 
@@ -152,11 +152,15 @@ def test_reserva_representante_devuelve_403(client, headers_representante):
 
 
 def test_reserva_ignora_usuario_id_del_body(client, headers_admin):
+    # Fecha relativa a hoy, como el resto del archivo: con la fecha fija que
+    # tenía antes ("2026-08-11") el test empezó a fallar solo el día que esa
+    # fecha quedó en el pasado, porque el endpoint rechaza reservar hacia atrás.
+    inicio = datetime.combine(HOY + timedelta(days=20), time(10, 0))
     r = client.post(
         "/amenities/301/reservas",
         json={
-            "inicio": "2026-08-11T10:00:00",
-            "fin": "2026-08-11T11:00:00",
+            "inicio": inicio.isoformat(),
+            "fin": (inicio + timedelta(hours=1)).isoformat(),
             "usuario_id": 9999,
         },
         headers=headers_admin,
