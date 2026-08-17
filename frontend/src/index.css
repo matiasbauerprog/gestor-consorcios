@@ -2918,7 +2918,10 @@ td.monto {
   color: var(--color-text-muted);
   font-size: 0.6875rem;
   font-weight: 600;
-  text-transform: capitalize;
+  /* Sin `text-transform: capitalize`: capitaliza cada palabra y dejaba
+     "Lunes, 17 De Agosto De 2026" — en castellano el mes y las preposiciones
+     van en minúscula. La primera letra la levanta `mayusculaInicial`
+     (utils/textos.js), que además no toca el nombre del consorcio. */
 }
 
 .inicio > h1 {
@@ -3127,6 +3130,18 @@ td.monto {
   .inicio-hero,
   .inicio-acciones {
     grid-column: 1 / -1;
+  }
+
+  /* "Actividad reciente" es bastante más alta que "Requiere tu atención",
+     que suele tener dos renglones. Sin esto la fila entera toma la altura de
+     la actividad, "Próximos vencimientos" arranca recién debajo de ella y
+     queda un pozo vacío de media pantalla en la columna izquierda.
+
+     Ocupando dos filas, el acomodo automático manda vencimientos a la
+     columna de al lado de la actividad, pegado abajo de atención. No hace
+     falta numerar filas: la sección va donde encuentra lugar. */
+  .inicio-actividad {
+    grid-row: span 2;
   }
 }
 
