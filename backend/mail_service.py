@@ -3,10 +3,13 @@
 Si SMTP_HOST está vacío en config, los emails se loggean al stdout
 en lugar de mandarse — útil para desarrollo y CI sin SMTP real.
 """
+import logging
 import smtplib
 from email.message import EmailMessage
 
 from .config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 def enviar_email(
@@ -57,5 +60,10 @@ def enviar_email(
             smtp.send_message(msg)
         return True
     except Exception as e:
-        print(f"[EMAIL ERROR] To: {to} | Error: {e}")
+        # ERROR y no print: un envío fallido es un problema real y tiene que
+        # poder filtrarse como tal en el registro de producción. Se sigue
+        # devolviendo False en vez de propagar, para que quien llama decida
+        # (en la recuperación de contraseña, por ejemplo, un fallo de envío no
+        # debe cambiar la respuesta: delataría qué emails están registrados).
+        logger.error("[EMAIL ERROR] To: %s | Error: %s", to, e)
         return False

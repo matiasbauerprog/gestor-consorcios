@@ -54,6 +54,37 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def _iniciar_sentry() -> None:
+    """Alertas por error, si están configuradas.
+
+    El registro propio deja *encontrar* un error; esto es lo que hace que te
+    *enteres* sin que nadie te avise. Es opcional a propósito: sin
+    `SENTRY_DSN` el sistema funciona igual y no hay dependencia obligatoria.
+
+    Va por variable de entorno y no por la interfaz porque tiene que arrancar
+    antes de que algo pueda fallar: una configuración guardada en la base no
+    está disponible si el problema es justamente la base.
+    """
+    dsn = get_settings().SENTRY_DSN
+    if not dsn:
+        return
+    try:
+        import sentry_sdk
+
+        sentry_sdk.init(dsn=dsn, traces_sample_rate=0.0, send_default_pii=False)
+        logger.info("Sentry activo")
+    except ImportError:
+        logger.warning(
+            "SENTRY_DSN está cargado pero falta el paquete sentry-sdk. "
+            "Instalalo o dejá SENTRY_DSN vacío."
+        )
+    except Exception:  # noqa: BLE001 — nunca puede impedir que el servicio arranque
+        logger.exception("no se pudo iniciar Sentry; el sistema sigue igual")
+
+
+_iniciar_sentry()
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     """El esquema NO se crea aca: lo aplica `alembic upgrade head` antes de que

@@ -335,6 +335,26 @@ def test_sin_token_tampoco(client, tres_errores):
     assert client.get("/super-admin/errores").status_code == 401
 
 
+def test_sin_sentry_dsn_no_se_intenta_iniciar_nada(monkeypatch):
+    """Sentry es opcional: sin DSN el sistema no puede depender de él."""
+    from backend import main as main_module
+    from backend.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "SENTRY_DSN", "")
+    main_module._iniciar_sentry()  # no debe levantar ni requerir el paquete
+
+
+def test_un_sentry_roto_no_impide_arrancar(monkeypatch, caplog):
+    """Si iniciar las alertas falla, el servicio tiene que levantar igual: sería
+    absurdo que la herramienta de avisar errores tire el sistema."""
+    from backend import main as main_module
+    from backend.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "SENTRY_DSN", "dsn-invalido")
+    with caplog.at_level(logging.WARNING):
+        main_module._iniciar_sentry()  # no levanta
+
+
 def test_purgar_borra_solo_lo_mas_viejo_que_la_retencion(db_session):
     ahora = datetime.now(timezone.utc)
     db_session.add_all([
