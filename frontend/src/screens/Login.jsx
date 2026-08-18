@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { apiFetch } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 
@@ -90,6 +90,10 @@ export default function Login() {
             {loading ? "Ingresando..." : "Ingresar"}
           </button>
         </form>
+
+        <p className="login-subtitle">
+          <Link to="/recuperar-password">¿Olvidaste tu contraseña?</Link>
+        </p>
       </section>
     </main>
   );
