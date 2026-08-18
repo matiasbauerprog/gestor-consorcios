@@ -229,6 +229,37 @@ En producción hay que configurar `SMTP_*` (ver arriba) y, sobre todo,
 **`FRONTEND_URL` con el dominio real**: si queda apuntando a localhost, el link
 que recibe el vecino no le sirve.
 
+#### Comprobar que el correo saliente funciona
+
+```bash
+python -m backend.probar_email vos@tudominio.com
+```
+
+Manda un mensaje de prueba con la configuración cargada y reporta qué usó (sin
+imprimir la clave) y qué pasó. Sirve para separar "el correo está mal
+configurado" de "el circuito de recuperación tiene un problema", que desde la
+pantalla se ven igual.
+
+Devuelve 0 si salió, 1 si falló o si está en modo consola, 2 si no le pasaste
+destinatario. Avisa explícitamente cuando `DEMO_MODE` o un `SMTP_HOST` vacío
+están haciendo que nada salga de verdad.
+
+**Configuración con Resend** (verificado en su documentación):
+
+```env
+SMTP_HOST=smtp.resend.com
+SMTP_PORT=587
+SMTP_USER=resend
+SMTP_PASSWORD=<la API key, empieza con re_>
+SMTP_FROM_EMAIL=no-responder@notificaciones.tudominio.com
+SMTP_FROM_NAME=Administración del Consorcio
+```
+
+El usuario es literalmente `resend` y la contraseña es la API key. El remitente
+tiene que pertenecer a un dominio verificado en Resend; ellos recomiendan usar
+un **subdominio** (`notificaciones.tudominio.com`) para aislar la reputación de
+envío del dominio principal.
+
 #### Lo que no hace
 
 Restablecer la contraseña **no cierra las sesiones que ya estaban abiertas** con
