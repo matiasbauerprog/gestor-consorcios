@@ -26,6 +26,17 @@ const ESTADOS = [
   { value: "rechazado", label: "Rechazados" },
 ];
 
+/**
+ * Lo que espera decisión va arriba, el resto queda como vino del backend
+ * (fecha de carga descendente). No es un filtro: los aprobados y rechazados
+ * siguen estando, sólo que después. `sort` de JS es estable, así que dentro
+ * de cada grupo se respeta ese orden original.
+ */
+function ordenarPendientesPrimero(lista) {
+  const pendiente = (c) => (c.estado === "pendiente_verificacion" ? 0 : 1);
+  return [...lista].sort((a, b) => pendiente(a) - pendiente(b));
+}
+
 export default function Comprobantes({ embebida = false }) {
   const { user } = useAuth();
   const esAdmin = user.rol === "administracion";
@@ -48,12 +59,17 @@ export default function Comprobantes({ embebida = false }) {
   const [eliminando, setEliminando] = useState(false);
   const [modalAprobar, setModalAprobar] = useState(null); // { comprobante, cajaSeleccionada }
   const [aprobando, setAprobando] = useState(false);
+  const [modalRechazar, setModalRechazar] = useState(null); // { comprobante, motivo }
+  const [rechazando, setRechazando] = useState(false);
 
-  async function handleDecision(id, estadoNuevo, cajaDestinoId = null) {
+  async function handleDecision(id, estadoNuevo, cajaDestinoId = null, motivo = null) {
     setAccionandoId(id);
     const body = { estado: estadoNuevo };
     if (cajaDestinoId !== null) {
       body.caja_destino_id = cajaDestinoId;
+    }
+    if (motivo !== null) {
+      body.motivo_rechazo = motivo;
     }
     const r = await actualizarComprobante(id, body);
     setAccionandoId(null);
@@ -101,6 +117,15 @@ export default function Comprobantes({ embebida = false }) {
     setModalAprobar(null);
     await handleDecision(modalAprobar.comprobante.id, "aprobado", cajaId);
     setAprobando(false);
+  }
+
+  async function handleConfirmarRechazo() {
+    if (!modalRechazar) return;
+    setRechazando(true);
+    const { comprobante, motivo } = modalRechazar;
+    setModalRechazar(null);
+    await handleDecision(comprobante.id, "rechazado", null, motivo.trim() || null);
+    setRechazando(false);
   }
 
   async function handleEliminar() {
@@ -167,7 +192,7 @@ export default function Comprobantes({ embebida = false }) {
       if (cancelado) return;
 
       if (r.status === 200) {
-        setComprobantes(r.data);
+        setComprobantes(ordenarPendientesPrimero(r.data));
         setErrorCarga(null);
       } else if (r.status !== 401) {
         setErrorCarga("No se pudieron cargar los comprobantes.");
@@ -212,6 +237,17 @@ export default function Comprobantes({ embebida = false }) {
       celda: (c) => <BadgeEstado estado={c.estado} />,
     },
     {
+      // Prioridad 3 y columna propia en vez de un renglón bajo el badge: la
+      // celda de Estado mide 12ch y trunca con ellipsis, que en un motivo de
+      // rechazo es peor que no mostrarlo. Acá se lee entero en desktop y, en
+      // pantallas angostas, cae al detalle desplegable de la fila.
+      clave: "motivo",
+      titulo: "Motivo del rechazo",
+      prioridad: 3,
+      ancho: "auto",
+      celda: (c) => (c.estado === "rechazado" ? c.motivo_rechazo || "—" : "—"),
+    },
+    {
       clave: "archivo",
       titulo: "Comprobante",
       prioridad: 2,
@@ -246,7 +282,7 @@ export default function Comprobantes({ embebida = false }) {
                 },
                 {
                   label: "Rechazar",
-                  onSelect: () => handleDecision(c.id, "rechazado"),
+                  onSelect: () => setModalRechazar({ comprobante: c, motivo: "" }),
                   disabled: accionandoId === c.id,
                   peligro: true,
                 },
@@ -310,6 +346,9 @@ export default function Comprobantes({ embebida = false }) {
               </p>
             )}
             <p><BadgeEstado estado={c.estado} /></p>
+            {c.estado === "rechazado" && c.motivo_rechazo && (
+              <p className="meta">Motivo: {c.motivo_rechazo}</p>
+            )}
             {c.archivo_path && (
               <a href={`${API_BASE}${c.archivo_path}`} target="_blank" rel="noopener noreferrer">
                 <img
@@ -332,7 +371,7 @@ export default function Comprobantes({ embebida = false }) {
                   <button
                     type="button"
                     className="boton-borrar"
-                    onClick={() => handleDecision(c.id, "rechazado")}
+                    onClick={() => setModalRechazar({ comprobante: c, motivo: "" })}
                     disabled={accionandoId === c.id}
                   >
                     {accionandoId === c.id ? "…" : "Rechazar"}
@@ -389,6 +428,47 @@ export default function Comprobantes({ embebida = false }) {
               disabled={aprobando || !modalAprobar.cajaSeleccionada}
             >
               {aprobando ? "Aprobando…" : "Aprobar"}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {modalRechazar && (
+        <Modal titulo="Rechazar comprobante" onClose={() => setModalRechazar(null)}>
+          <p>
+            Comprobante del <strong>{formatFecha(modalRechazar.comprobante.fecha_pago)}</strong> por{" "}
+            <strong>{formatearMonto(modalRechazar.comprobante.monto)}</strong>
+          </p>
+          <label>
+            Motivo del rechazo (opcional, lo ve el departamento)
+            <textarea
+              value={modalRechazar.motivo}
+              onChange={(e) =>
+                setModalRechazar({ ...modalRechazar, motivo: e.target.value })
+              }
+              rows={3}
+              maxLength={1000}
+              placeholder="Ej.: el monto no coincide con la transferencia recibida."
+              disabled={rechazando}
+              autoFocus
+            />
+          </label>
+          <div className="modal-acciones">
+            <button
+              type="button"
+              className="boton-secundario"
+              onClick={() => setModalRechazar(null)}
+              disabled={rechazando}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="boton-peligro"
+              onClick={handleConfirmarRechazo}
+              disabled={rechazando}
+            >
+              {rechazando ? "Rechazando…" : "Rechazar"}
             </button>
           </div>
         </Modal>

@@ -9,6 +9,12 @@ const ETIQUETAS_ESTADO = {
   cancelado: "Cancelado",
 };
 
+/** Los que siguen abiertos van arriba; finalizados y cancelados, después. */
+function ordenarEnCursoPrimero(lista) {
+  const enCurso = (t) => (t.estado === "en_curso" ? 0 : 1);
+  return [...lista].sort((a, b) => enCurso(a) - enCurso(b));
+}
+
 export default function Trabajos() {
   const [items, setItems] = useState([]);
   const [modal, setModal] = useState(null);
@@ -20,7 +26,7 @@ export default function Trabajos() {
 
   async function cargar() {
     const r = await listarTrabajos();
-    if (r.status === 200) setItems(r.data);
+    if (r.status === 200) setItems(ordenarEnCursoPrimero(r.data));
     else setError(r.data?.detail || "No se pudo cargar la lista.");
 
     const rp = await listarPeticiones();

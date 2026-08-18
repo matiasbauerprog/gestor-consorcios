@@ -153,3 +153,34 @@ def test_put_configuracion_setear_caja_default(client, headers_admin):
     r = client.put("/configuracion", json=payload, headers=headers_admin)
     assert r.status_code == 200
     assert r.json()["caja_default_pagos_id"] == 900
+
+
+# ---------------------------------------------------------------------------
+# Visibilidad de peticiones entre departamentos
+# ---------------------------------------------------------------------------
+
+
+def test_get_configuracion_incluye_visibilidad_de_peticiones(client, headers_admin):
+    """Arranca en True: es el comportamiento que el sistema tuvo siempre."""
+    r = client.get("/configuracion", headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json()["peticiones_visibles_a_depto"] is True
+
+
+def test_put_configuracion_apaga_visibilidad_de_peticiones(client, headers_admin):
+    payload = dict(_PAYLOAD_VALIDO)
+    payload["peticiones_visibles_a_depto"] = False
+    r = client.put("/configuracion", json=payload, headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json()["peticiones_visibles_a_depto"] is False
+
+    r = client.get("/configuracion", headers=headers_admin)
+    assert r.json()["peticiones_visibles_a_depto"] is False
+
+
+def test_put_sin_el_campo_no_apaga_la_visibilidad(client, headers_admin):
+    """Un PUT viejo (sin el campo nuevo) no debe apagar algo que nadie pidió
+    apagar: por eso el default del schema de entrada es True y no False."""
+    r = client.put("/configuracion", json=dict(_PAYLOAD_VALIDO), headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json()["peticiones_visibles_a_depto"] is True

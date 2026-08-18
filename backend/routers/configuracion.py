@@ -36,6 +36,7 @@ def _consorcio_a_configuracion_out(c: Consorcio) -> dict:
         "tasa_interes_mensual_pct": c.tasa_interes_mensual_pct,
         "caja_default_pagos_id": c.caja_default_pagos_id,
         "reportes_visibles_a_depto": c.reportes_visibles_a_depto,
+        "peticiones_visibles_a_depto": c.peticiones_visibles_a_depto,
     }
 
 

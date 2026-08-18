@@ -151,6 +151,13 @@ def actualizar_comprobante(
 
     comprobante.estado = payload.estado
 
+    # El motivo sólo tiene sentido en un rechazo: en una aprobación se ignora,
+    # aunque el body lo traiga. `strip()` evita que un textarea con espacios
+    # cuente como motivo — o hay texto real o queda NULL.
+    if payload.estado == EstadoComprobante.rechazado:
+        motivo = (payload.motivo_rechazo or "").strip()
+        comprobante.motivo_rechazo = motivo or None
+
     # Aprobar genera el ingreso contable en la cuenta corriente del depto.
     if payload.estado == EstadoComprobante.aprobado:
         # Resolver caja destino

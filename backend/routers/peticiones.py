@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, get_current_user, require_roles
 from ..database import get_db
-from ..models import EstadoPeticion, Peticion, Rol
+from ..models import Consorcio, EstadoPeticion, Peticion, Rol
 from ..modulos import require_modulo
 from ..notificaciones import notificar_cambio_estado_peticion
 from ..schemas import PeticionActualizar, PeticionCrear, PeticionOut
@@ -26,13 +26,25 @@ router = APIRouter(
 )
 def listar_peticiones(
     db: Session = Depends(get_db),
-    _u: CurrentUser = Depends(get_current_user),
+    user: CurrentUser = Depends(get_current_user),
     cid: int = Depends(get_consorcio_activo),
 ) -> list[Peticion]:
-    # Todos los roles (admin, representante, departamento) ven TODAS las peticiones.
-    # Transparencia: cada depto ve en qué estado están sus propias peticiones
-    # y de qué otros deptos hay peticiones abiertas (para coordinación).
-    stmt = select(Peticion).where(Peticion.consorcio_id == cid).order_by(Peticion.fecha_creacion.desc())
+    # Admin y representante ven TODAS las peticiones, siempre.
+    #
+    # Para un departamento depende de `peticiones_visibles_a_depto` (Datos del
+    # consorcio): en True —el default histórico— ve también las de los demás,
+    # que es transparencia útil para coordinar entre vecinos; en False ve sólo
+    # las suyas, para los consorcios que prefieren no exponer los reclamos de
+    # una unidad al resto. GET /peticiones/{id} ya restringía al propio depto,
+    # así que este filtro no abre nada nuevo: cierra el listado.
+    stmt = select(Peticion).where(Peticion.consorcio_id == cid)
+
+    if user.rol == Rol.departamento:
+        consorcio = db.get(Consorcio, cid)
+        if consorcio is not None and not consorcio.peticiones_visibles_a_depto:
+            stmt = stmt.where(Peticion.departamento_id == user.departamento_id)
+
+    stmt = stmt.order_by(Peticion.fecha_creacion.desc())
     return list(db.scalars(stmt).all())
 
 
@@ -120,6 +132,10 @@ def actualizar_peticion(
     # Capturar estado anterior para notificar cambio
     estado_anterior = peticion.estado
     peticion.estado = payload.estado
+    # `strip()` para que un textarea con espacios no cuente como motivo: o hay
+    # texto real o queda NULL, que es como la UI distingue "sin motivo".
+    motivo = (payload.motivo_rechazo or "").strip()
+    peticion.motivo_rechazo = motivo or None
     db.flush()
 
     # Disparar notificación si el estado cambió (a convertida_en_trabajo o rechazada)

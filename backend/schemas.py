@@ -71,6 +71,9 @@ class PeticionCrear(BaseModel):
 
 class PeticionActualizar(BaseModel):
     estado: Literal[EstadoPeticion.rechazada]
+    # Opcional: rechazar sin explicación sigue siendo válido (es lo que hacía
+    # el sistema antes de que existiera este campo), pero la UI lo pide.
+    motivo_rechazo: str | None = Field(default=None, max_length=1000)
 
 
 class PeticionOut(BaseModel):
@@ -81,6 +84,7 @@ class PeticionOut(BaseModel):
     titulo: str
     descripcion: str
     estado: EstadoPeticion
+    motivo_rechazo: str | None = None
     fecha_creacion: datetime
 
 
@@ -156,6 +160,8 @@ class ExpensaCrear(BaseModel):
 class ComprobanteActualizar(BaseModel):
     estado: Literal[EstadoComprobante.aprobado, EstadoComprobante.rechazado]
     caja_destino_id: int | None = None
+    # Sólo se guarda al rechazar; en una aprobación se ignora.
+    motivo_rechazo: str | None = Field(default=None, max_length=1000)
 
 
 class ComprobanteOut(BaseModel):
@@ -168,6 +174,7 @@ class ComprobanteOut(BaseModel):
     monto: float
     archivo_path: str | None
     estado: EstadoComprobante
+    motivo_rechazo: str | None = None
 
     @field_serializer("archivo_path")
     def _archivo_path_to_url(self, v: str | None) -> str | None:
@@ -463,6 +470,11 @@ class ConfiguracionConsorcioActualizar(BaseModel):
     # visibilidad de reportes para departamentos (Fase 6b)
     reportes_visibles_a_depto: bool = False
 
+    # ¿un departamento ve las peticiones de los demás, o sólo las suyas?
+    # Default True porque es el comportamiento histórico: un PUT viejo que no
+    # mande el campo no debe apagar la visibilidad sin que nadie lo pida.
+    peticiones_visibles_a_depto: bool = True
+
 
 class ConfiguracionConsorcioOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -491,6 +503,7 @@ class ConfiguracionConsorcioOut(BaseModel):
     tasa_interes_mensual_pct: float
     caja_default_pagos_id: int | None
     reportes_visibles_a_depto: bool
+    peticiones_visibles_a_depto: bool
 
 
 class CoeficienteItem(BaseModel):
@@ -1280,6 +1293,7 @@ class ConsorcioOut(BaseModel):
     tasa_interes_mensual_pct: float
     caja_default_pagos_id: int | None
     reportes_visibles_a_depto: bool
+    peticiones_visibles_a_depto: bool
     fecha_creacion: datetime
     modulos_habilitados: list[str] = []
 
@@ -1328,6 +1342,7 @@ class ConsorcioCrear(BaseModel):
     recargo_segundo_vencimiento_pct: float = Field(default=7.0, ge=0, le=100)
     tasa_interes_mensual_pct: float = Field(default=3.0, ge=0, le=100)
     reportes_visibles_a_depto: bool = False
+    peticiones_visibles_a_depto: bool = True
 
 
 class ConsorcioActualizar(BaseModel):
@@ -1356,3 +1371,4 @@ class ConsorcioActualizar(BaseModel):
     tasa_interes_mensual_pct: float | None = Field(default=None, ge=0, le=100)
     caja_default_pagos_id: int | None = Field(default=None, ge=1)
     reportes_visibles_a_depto: bool | None = None
+    peticiones_visibles_a_depto: bool | None = None

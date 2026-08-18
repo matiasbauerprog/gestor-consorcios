@@ -17,6 +17,16 @@ import { formatearInteres, formatearMonto } from "../utils/montos";
 import { abrirPdfExpensa } from "../api/pdf";
 import { ANCHO_FECHA_MONTO, ANCHO_MONTO, ANCHO_PERIODO } from "../utils/anchosColumnas";
 
+// Las etiquetas replican las de BadgeEstado (donde `pagada` se muestra como
+// "Confirmada"): el filtro y el badge de la fila tienen que decir lo mismo.
+const ESTADOS = [
+  { value: "", label: "Todos" },
+  { value: "pendiente", label: "Pendientes" },
+  { value: "parcial", label: "Parciales" },
+  { value: "vencida", label: "Vencidas" },
+  { value: "pagada", label: "Confirmadas" },
+];
+
 export default function Expensas({ embebida = false }) {
   const { user, token } = useAuth();
   const [expensas, setExpensas] = useState([]);
@@ -30,6 +40,7 @@ export default function Expensas({ embebida = false }) {
   const [eliminando, setEliminando] = useState(false);
   const [departamentos, setDepartamentos] = useState([]);
   const [filtroPeriodo, setFiltroPeriodo] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("");
   const [periodosCerradosSet, setPeriodosCerradosSet] = useState(new Set());
   const [modalEnvio, setModalEnvio] = useState(null);
 
@@ -61,9 +72,16 @@ export default function Expensas({ embebida = false }) {
     return d ? `${d.codigo} — ${d.descripcion}` : `#${departamentoId}`;
   }
 
-  const expensasFiltradas = filtroPeriodo
+  // Dos pasos a propósito: el banner de envío de PDFs cuenta las expensas del
+  // período completo (se mandan todas), así que no puede leer la lista ya
+  // filtrada por estado.
+  const expensasDelPeriodo = filtroPeriodo
     ? expensas.filter(e => e.periodo === filtroPeriodo)
     : expensas;
+
+  const expensasFiltradas = filtroEstado
+    ? expensasDelPeriodo.filter(e => e.estado_calculado === filtroEstado)
+    : expensasDelPeriodo;
 
   async function cargar() {
     setCargando(true);
@@ -252,6 +270,17 @@ export default function Expensas({ embebida = false }) {
             onChange={setDepartamentoSeleccionado}
           />
           <label>
+            Estado
+            <select
+              value={filtroEstado}
+              onChange={(e) => setFiltroEstado(e.target.value)}
+            >
+              {ESTADOS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </label>
+          <label>
             Período
             <input
               type="month"
@@ -259,8 +288,14 @@ export default function Expensas({ embebida = false }) {
               onChange={(e) => setFiltroPeriodo(e.target.value)}
             />
           </label>
-          {filtroPeriodo && (
-            <button type="button" onClick={() => setFiltroPeriodo("")}>
+          {(filtroPeriodo || filtroEstado) && (
+            <button
+              type="button"
+              onClick={() => {
+                setFiltroPeriodo("");
+                setFiltroEstado("");
+              }}
+            >
               Limpiar
             </button>
           )}
@@ -300,13 +335,13 @@ export default function Expensas({ embebida = false }) {
           <span>
             📅 Período <strong>{filtroPeriodo}</strong>
             {periodosCerradosSet.has(filtroPeriodo) ? " (cerrado)" : " (sin cerrar)"}
-            {" · "}<strong>{expensasFiltradas.length}</strong> expensas
+            {" · "}<strong>{expensasDelPeriodo.length}</strong> expensas
           </span>
           <button
             type="button"
             onClick={() => setModalEnvio({
               periodo: filtroPeriodo,
-              cantidadExpensas: expensasFiltradas.length,
+              cantidadExpensas: expensasDelPeriodo.length,
               periodoCerrado: periodosCerradosSet.has(filtroPeriodo),
             })}
           >

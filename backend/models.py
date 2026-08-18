@@ -211,6 +211,10 @@ class Peticion(Base):
         nullable=False,
         default=EstadoPeticion.abierta,
     )
+    # Lo que la administración escribe al rechazar. Queda en la petición para
+    # que el departamento vea POR QUÉ le dijeron que no, no sólo que le dijeron
+    # que no. Sólo tiene sentido en estado `rechazada`.
+    motivo_rechazo: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     fecha_creacion: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -430,6 +434,11 @@ class Comprobante(Base):
         DateTime(timezone=True), default=None
     )
     caja_destino_id: Mapped[int | None] = mapped_column(ForeignKey("cajas.id"))
+    # Lo que la administración escribe al rechazar el pago presentado: el
+    # departamento tiene que poder ver qué corregir (monto que no coincide,
+    # comprobante ilegible, transferencia a otra cuenta). Sólo aplica en
+    # estado `rechazado`.
+    motivo_rechazo: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
     departamento: Mapped["Departamento"] = relationship(back_populates="comprobantes")
 
@@ -1047,6 +1056,11 @@ class Consorcio(Base):
     tasa_interes_mensual_pct: Mapped[float] = mapped_column(Float, nullable=False, default=3.0)
     caja_default_pagos_id: Mapped[int | None] = mapped_column(ForeignKey("cajas.id"), nullable=True)
     reportes_visibles_a_depto: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Si está en False, cada departamento ve únicamente sus propias peticiones.
+    # Default True: es el comportamiento que el sistema tuvo siempre (todos los
+    # roles veían todas las peticiones, para coordinación entre vecinos), así
+    # que apagarlo tiene que ser una decisión explícita de la administración.
+    peticiones_visibles_a_depto: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     fecha_creacion: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

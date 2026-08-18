@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { demoLogin } from "../api/demo";
 
@@ -32,6 +33,7 @@ const ID_DEPTO_AL_DIA = 1;
  */
 export default function CambiadorDeRol() {
   const { user, login } = useAuth();
+  const navigate = useNavigate();
   const [cambiando, setCambiando] = useState(null);
 
   const esActivo = (rol) => {
@@ -47,7 +49,15 @@ export default function CambiadorDeRol() {
     setCambiando(rol);
     try {
       const r = await demoLogin(rol);
-      if (r.ok) await login(r.data.access_token, r.data.user);
+      if (r.ok) {
+        await login(r.data.access_token, r.data.user);
+        // Sin esto el cambio no se veía hasta navegar a mano: la pantalla
+        // actual ya está montada y no vuelve a pedir datos, y encima puede
+        // ser una ruta que el rol nuevo no tiene (admin en /cobranzas →
+        // propietario). "/" es el único destino que sirve para los tres:
+        // `InicioRoute` redirige a la pantalla de inicio de cada rol.
+        navigate("/", { replace: true });
+      }
     } finally {
       setCambiando(null);
     }

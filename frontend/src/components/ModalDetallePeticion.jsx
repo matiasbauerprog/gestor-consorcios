@@ -25,6 +25,11 @@ export default function ModalDetallePeticion({
     user.departamento_id === peticion.departamento_id;
   const puedeBorrar = esAdmin || (esMia && peticion.estado === "abierta");
   const [error, setError] = useState("");
+  // `null` = no está rechazando. Un string = el motivo que viene escribiendo.
+  // Rechazar es en dos pasos justamente para que haya un lugar donde explicar
+  // el "no" antes de confirmarlo.
+  const [motivoRechazo, setMotivoRechazo] = useState(null);
+  const [rechazando, setRechazando] = useState(false);
 
   async function handleConvertirTrabajo() {
     setError("");
@@ -38,7 +43,12 @@ export default function ModalDetallePeticion({
 
   async function handleRechazar() {
     setError("");
-    const r = await actualizarPeticion(peticion.id, { estado: "rechazada" });
+    setRechazando(true);
+    const r = await actualizarPeticion(peticion.id, {
+      estado: "rechazada",
+      motivo_rechazo: motivoRechazo?.trim() || null,
+    });
+    setRechazando(false);
     if (r.status === 200) onActualizado();
     else setError(r.data?.detail || "Error al rechazar la petición.");
   }
@@ -66,23 +76,56 @@ export default function ModalDetallePeticion({
         <strong>Estado:</strong>{" "}
         {ETIQUETAS_ESTADO[peticion.estado] || peticion.estado}
       </p>
+      {peticion.estado === "rechazada" && peticion.motivo_rechazo && (
+        <p>
+          <strong>Motivo del rechazo:</strong> {peticion.motivo_rechazo}
+        </p>
+      )}
       <p>
         <strong>Fecha:</strong>{" "}
         {formatFechaHora(peticion.fecha_creacion)}
       </p>
 
+      {motivoRechazo !== null && (
+        <label>
+          Motivo del rechazo (opcional, lo ve el departamento)
+          <textarea
+            value={motivoRechazo}
+            onChange={(e) => setMotivoRechazo(e.target.value)}
+            rows={3}
+            maxLength={1000}
+            autoFocus
+          />
+        </label>
+      )}
+
       {error && <p className="error">{error}</p>}
 
       <div className="acciones-modal">
         {esAdmin && peticion.estado === "abierta" && (
-          <>
-            <button type="button" onClick={handleConvertirTrabajo}>
-              Convertir en trabajo
-            </button>
-            <button type="button" onClick={handleRechazar}>
-              Rechazar
-            </button>
-          </>
+          motivoRechazo === null ? (
+            <>
+              <button type="button" onClick={handleConvertirTrabajo}>
+                Convertir en trabajo
+              </button>
+              <button type="button" onClick={() => setMotivoRechazo("")}>
+                Rechazar
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" onClick={handleRechazar} disabled={rechazando}>
+                {rechazando ? "Rechazando…" : "Confirmar rechazo"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMotivoRechazo(null)}
+                disabled={rechazando}
+              >
+                Volver
+              </button>
+            </>
+          )
         )}
         {puedeBorrar && (
           <button type="button" onClick={handleEliminar}>

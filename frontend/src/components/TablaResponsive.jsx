@@ -172,7 +172,26 @@ export default function TablaResponsive({
     (c) => !prioridadVisible(c.prioridad ?? 1, anchoContenedor),
   );
   const hayDetalle = columnasOcultas.length > 0;
-  const colSpanDetalle = columnasVisibles.length + 1;
+
+  // Con `width: 100%` el sobrante del contenedor se reparte entre las columnas.
+  // Cuando alguna está en `auto` eso es lo buscado: esa columna (la
+  // descripción, el departamento) se queda con el aire. Pero cuando TODAS las
+  // visibles tienen ancho declarado —pasa seguido, porque las columnas de texto
+  // suelen ser justo las de prioridad 3, las primeras en caerse— no hay dónde
+  // poner el sobrante y se estiran todas por igual: cuatro columnas angostas
+  // despatarradas a lo ancho de un monitor grande.
+  //
+  // La respuesta es una columna vacía al final que se coma el sobrante. NO
+  // `width: auto` en la tabla: con `table-layout: fixed` y ancho automático los
+  // navegadores caen de vuelta al algoritmo de layout automático, donde los
+  // anchos del `<colgroup>` dejan de mandar y se pierde todo el presupuesto por
+  // columna de `utils/anchosColumnas.js`. Con el espaciador la tabla sigue en
+  // layout fijo y cada columna conserva exactamente el ancho que declaró.
+  const hayEspaciador = !columnasVisibles.some(
+    (c) => (c.ancho ?? "auto") === "auto",
+  );
+
+  const colSpanDetalle = columnasVisibles.length + 1 + (hayEspaciador ? 1 : 0);
 
   return (
     <div className="tabla-datos-scroll" ref={wrapperRef}>
@@ -182,6 +201,7 @@ export default function TablaResponsive({
           {columnasVisibles.map((c) => (
             <col key={c.clave} style={{ width: c.ancho ?? "auto" }} />
           ))}
+          {hayEspaciador && <col className="col-espaciador" style={{ width: "auto" }} />}
         </colgroup>
         <thead>
           <tr>
@@ -191,6 +211,7 @@ export default function TablaResponsive({
                 {c.titulo}
               </th>
             ))}
+            {hayEspaciador && <th className="col-espaciador" />}
           </tr>
         </thead>
         <tbody>
@@ -223,6 +244,7 @@ export default function TablaResponsive({
                     {c.celda(fila)}
                   </td>
                 ))}
+                {hayEspaciador && <td className="col-espaciador" />}
               </tr>,
               hayDetalle && (
                 <tr key={`${clave}-detalle`} id={idDetalle} className="fila-detalle" hidden={!abierta}>
