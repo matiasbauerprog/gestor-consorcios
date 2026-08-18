@@ -68,13 +68,34 @@ def _listar_dominios(s) -> int:
         )
         return 2
 
+    import urllib.error
+
     try:
         dominios = _pedir_dominios(s.SMTP_PASSWORD)
+    except urllib.error.HTTPError as e:
+        if e.code == 403:
+            # Las claves de Resend son "sending only" por defecto: pueden
+            # mandar pero no leer la lista de dominios. Es lo esperable y no
+            # hay nada que arreglar.
+            print(
+                "La clave es sólo de envío: puede mandar correo pero no leer la "
+                "lista de dominios (403).\n"
+                "Es el tipo de clave por defecto en Resend y es la correcta para "
+                "esto. Si querés usar este diagnóstico, generá una clave con "
+                "permiso de lectura; si no, probá el envío directo:\n"
+                "  python -m backend.probar_email tu-email@ejemplo.com"
+            )
+            return 0
+        if e.code == 401:
+            print(
+                "La clave no es válida (401). Revisá SMTP_PASSWORD en el .env: "
+                "tiene que ser la API key de Resend, la que empieza con re_."
+            )
+            return 1
+        print(f"Resend respondió {e.code}: {e.reason}")
+        return 1
     except Exception as e:  # noqa: BLE001 — se reporta tal cual, es diagnóstico
         print(f"No se pudo consultar la API de Resend: {e}")
-        print(
-            "Si dice 401 o 403, la clave está mal o no tiene permiso de lectura."
-        )
         return 1
 
     if not dominios:
