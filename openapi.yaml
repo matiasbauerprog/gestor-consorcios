@@ -4420,6 +4420,71 @@ paths:
         '401':
           $ref: '#/components/responses/NoAutenticado'
 
+  /super-admin/errores:
+    get:
+      tags: [Super-Admin]
+      summary: Últimos errores inesperados del sistema
+      description: |
+        Lista los errores no previstos, más nuevos primero. **Sólo super admin**:
+        son detalles técnicos del sistema y no se le muestran al administrador
+        de un consorcio.
+
+        Se registran únicamente los errores *inesperados*. Los 404, 403 y
+        validaciones son parte del funcionamiento normal y no entran acá.
+
+        Se conservan `ERRORES_RETENCION_DIAS` (90 por defecto) y después se
+        borran solos.
+      operationId: listarErrores
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        '200':
+          description: Lista de errores.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ErrorRegistradoOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+
+  /super-admin/errores/{codigo}:
+    get:
+      tags: [Super-Admin]
+      summary: Buscar un error por su código
+      description: |
+        El código es lo que ve el usuario cuando algo falla y lo único que viaja
+        del vecino al soporte. Se acepta en minúsculas y con espacios de más,
+        que es como llega cuando se dicta por teléfono.
+      operationId: obtenerError
+      parameters:
+        - name: codigo
+          in: path
+          required: true
+          schema: { type: string }
+          example: E-7K3MQ9
+      responses:
+        '200':
+          description: El error, con su traza completa.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorRegistradoOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          description: No hay ningún error con ese código.
+
   /super-admin/metricas:
     get:
       tags: [SuperAdmin]
@@ -4560,6 +4625,29 @@ components:
             $ref: '#/components/schemas/Error'
 
   schemas:
+
+    ErrorRegistradoOut:
+      type: object
+      required: [id, codigo, ocurrido_at, ruta, metodo, tipo, mensaje, traza]
+      properties:
+        id: { type: integer }
+        codigo:
+          type: string
+          description: Lo que ve el usuario cuando algo falla. Sin caracteres ambiguos (0/O, 1/I/L) porque se dicta por teléfono.
+          example: E-7K3MQ9
+        ocurrido_at: { type: string, format: date-time }
+        ruta: { type: string, example: /gastos }
+        metodo: { type: string, example: POST }
+        tipo: { type: string, example: ValueError }
+        mensaje:
+          type: string
+          description: Texto del error, con contraseñas y tokens tachados (mejor esfuerzo).
+        traza:
+          type: string
+          description: Traza completa. Sólo la ve el super admin; nunca se devuelve al usuario que provocó el error.
+        usuario_id: { type: integer, nullable: true }
+        rol: { type: string, nullable: true }
+        consorcio_id: { type: integer, nullable: true }
 
     ArchivoUrlOut:
       type: object

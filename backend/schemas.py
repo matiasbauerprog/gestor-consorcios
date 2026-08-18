@@ -173,6 +173,29 @@ class ComprobanteActualizar(BaseModel):
     motivo_rechazo: str | None = Field(default=None, max_length=1000)
 
 
+class ErrorRegistradoOut(BaseModel):
+    """Un error inesperado, tal como lo ve el super admin.
+
+    Incluye la traza a propósito: el destinatario es quien mantiene el sistema,
+    y sin la traza la pantalla no serviría para diagnosticar. Nunca se expone a
+    ningún otro rol.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    codigo: str
+    ocurrido_at: datetime
+    ruta: str
+    metodo: str
+    tipo: str
+    mensaje: str
+    traza: str
+    usuario_id: int | None
+    rol: str | None
+    consorcio_id: int | None
+
+
 class ArchivoUrlOut(BaseModel):
     """URL de vida corta para abrir un archivo adjunto.
 

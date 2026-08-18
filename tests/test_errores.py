@@ -274,6 +274,67 @@ def test_los_errores_esperados_siguen_saliendo_como_antes(client, headers_admin)
     assert "codigo" not in r.json()
 
 
+# --- Consultarlos desde el panel de super admin ----------------------------
+
+
+@pytest.fixture()
+def tres_errores(db_session) -> list[str]:
+    ahora = datetime.now(timezone.utc)
+    filas = [
+        ErrorRegistrado(
+            codigo=f"E-AAAAA{n}", ocurrido_at=ahora - timedelta(minutes=n),
+            ruta=f"/ruta-{n}", metodo="GET", tipo="ValueError",
+            mensaje=f"mensaje {n}", traza=f"traza {n}",
+            usuario_id=2, rol="departamento", consorcio_id=1,
+        )
+        for n in range(3)
+    ]
+    db_session.add_all(filas)
+    db_session.commit()
+    return [f.codigo for f in filas]
+
+
+def test_el_super_admin_lista_los_errores_mas_nuevos_primero(
+    client, headers_super_admin, tres_errores
+):
+    r = client.get("/super-admin/errores", headers=headers_super_admin)
+
+    assert r.status_code == 200
+    codigos = [e["codigo"] for e in r.json()]
+    assert codigos == ["E-AAAAA0", "E-AAAAA1", "E-AAAAA2"]
+
+
+def test_buscar_por_codigo_trae_la_traza_completa(
+    client, headers_super_admin, tres_errores
+):
+    """El circuito entero: el vecino dicta el código y acá aparece todo."""
+    r = client.get("/super-admin/errores/E-AAAAA1", headers=headers_super_admin)
+
+    assert r.status_code == 200
+    cuerpo = r.json()
+    assert cuerpo["ruta"] == "/ruta-1"
+    assert cuerpo["traza"] == "traza 1"
+    assert cuerpo["rol"] == "departamento"
+
+
+def test_un_codigo_inexistente_da_404(client, headers_super_admin):
+    r = client.get("/super-admin/errores/E-NOEXIS", headers=headers_super_admin)
+    assert r.status_code == 404
+
+
+def test_un_admin_comun_no_ve_los_errores(client, headers_admin, tres_errores):
+    """Son detalles técnicos del sistema: no se le muestran a un cliente."""
+    assert client.get("/super-admin/errores", headers=headers_admin).status_code == 403
+    assert (
+        client.get("/super-admin/errores/E-AAAAA1", headers=headers_admin).status_code
+        == 403
+    )
+
+
+def test_sin_token_tampoco(client, tres_errores):
+    assert client.get("/super-admin/errores").status_code == 401
+
+
 def test_purgar_borra_solo_lo_mas_viejo_que_la_retencion(db_session):
     ahora = datetime.now(timezone.utc)
     db_session.add_all([
