@@ -331,6 +331,35 @@ def test_storage_delega_en_s3_cuando_el_backend_es_s3(s3_falso, monkeypatch):
     assert b"".join(storage.abrir_archivo(clave)[0]) == b"png-falso"
 
 
+# --- Migracion de lo que ya esta en disco -----------------------------------
+
+
+def test_migrar_archivos_sube_todo_lo_que_hay_en_disco(tmp_path, s3_falso):
+    from backend import migrar_archivos
+
+    (tmp_path / "comprobantes").mkdir()
+    (tmp_path / "comprobantes" / "a.jpg").write_bytes(b"uno")
+    (tmp_path / "presupuestos").mkdir()
+    (tmp_path / "presupuestos" / "b.pdf").write_bytes(b"dos")
+
+    resultado = migrar_archivos.migrar(tmp_path)
+
+    assert resultado["subidos"] == 2
+    assert resultado["fallados"] == []
+    # La clave conserva la ruta relativa: es exactamente lo que quedo guardado
+    # en archivo_path, asi que las filas de la base siguen resolviendo.
+    assert s3_falso.objetos["comprobantes/a.jpg"] == b"uno"
+    assert s3_falso.objetos["presupuestos/b.pdf"] == b"dos"
+
+
+def test_migrar_archivos_ignora_directorios_vacios(tmp_path, s3_falso):
+    from backend import migrar_archivos
+
+    (tmp_path / "comprobantes").mkdir()
+
+    assert migrar_archivos.migrar(tmp_path)["subidos"] == 0
+
+
 def test_uploads_ya_no_esta_montado():
     """El montaje publico de /uploads era el agujero: cualquiera con la URL
     abria el comprobante de cualquier vecino sin estar logueado.
