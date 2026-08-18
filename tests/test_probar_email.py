@@ -172,6 +172,55 @@ def test_dominios_avisa_si_la_clave_no_ve_ninguno(monkeypatch, capsys):
     assert "ningún dominio" in salida or "ningun dominio" in salida
 
 
+def test_dominios_explica_que_un_403_es_una_clave_solo_de_envio(monkeypatch, capsys):
+    """403 con una clave de envío es lo normal, no un error de configuración:
+    las claves de Resend son "sending only" por defecto y no pueden leer la
+    lista de dominios. Decir "la clave está mal" manda a arreglar lo que anda."""
+    import urllib.error
+
+    from backend.config import get_settings
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "SMTP_HOST", "smtp.resend.com")
+    monkeypatch.setattr(settings, "SMTP_PASSWORD", "re_clave")
+
+    def _403(clave):
+        raise urllib.error.HTTPError(
+            "https://api.resend.com/domains", 403, "Forbidden", {}, None
+        )
+
+    monkeypatch.setattr(probar_email, "_pedir_dominios", _403)
+
+    codigo = probar_email.main(["--dominios"])
+
+    salida = capsys.readouterr().out.lower()
+    assert codigo == 0, "una clave solo de envio no es una falla"
+    assert "sólo de envío" in salida or "solo de envio" in salida
+    assert "está mal" not in salida
+
+
+def test_dominios_distingue_un_401_que_si_es_clave_invalida(monkeypatch, capsys):
+    import urllib.error
+
+    from backend.config import get_settings
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "SMTP_HOST", "smtp.resend.com")
+    monkeypatch.setattr(settings, "SMTP_PASSWORD", "re_clave")
+
+    def _401(clave):
+        raise urllib.error.HTTPError(
+            "https://api.resend.com/domains", 401, "Unauthorized", {}, None
+        )
+
+    monkeypatch.setattr(probar_email, "_pedir_dominios", _401)
+
+    codigo = probar_email.main(["--dominios"])
+
+    assert codigo == 1
+    assert "no es válida" in capsys.readouterr().out.lower()
+
+
 def test_un_remitente_valido_deja_seguir(monkeypatch, capsys):
     from backend.config import get_settings
 
