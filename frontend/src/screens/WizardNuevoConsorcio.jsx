@@ -27,6 +27,7 @@ const DEFAULTS = {
   recargo_segundo_vencimiento_pct: 7.0,
   tasa_interes_mensual_pct: 3.0,
   reportes_visibles_a_depto: false,
+  peticiones_visibles_a_depto: true,
 };
 
 const CAMPOS_ADMIN = [
@@ -393,6 +394,16 @@ export default function WizardNuevoConsorcio() {
                   onChange={(e) => set("reportes_visibles_a_depto", e.target.checked)}
                 />
                 Los departamentos pueden ver los reportes del consorcio.
+              </label>
+            </Campo>
+            <Campo label="">
+              <label style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                <input
+                  type="checkbox"
+                  checked={f.peticiones_visibles_a_depto}
+                  onChange={(e) => set("peticiones_visibles_a_depto", e.target.checked)}
+                />
+                Cada departamento ve también las peticiones de los demás.
               </label>
             </Campo>
           </>

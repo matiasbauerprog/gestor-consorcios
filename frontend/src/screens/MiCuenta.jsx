@@ -288,6 +288,12 @@ function SeccionComprobantes({ comprobantes }) {
             <h3>{formatMoney(c.monto)}</h3>
             <p className="meta">Pagado {formatFecha(c.fecha_pago)}</p>
             <p><BadgeEstado estado={c.estado} /></p>
+            {/* Es la pantalla donde el departamento se entera de que le
+                rechazaron el pago: el motivo tiene que estar acá, no sólo del
+                lado de administración. */}
+            {c.estado === "rechazado" && c.motivo_rechazo && (
+              <p className="meta">Motivo: {c.motivo_rechazo}</p>
+            )}
             {c.archivo_path && (
               <a
                 href={`${API_BASE}${c.archivo_path}`}

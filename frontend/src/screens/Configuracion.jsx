@@ -26,6 +26,7 @@ const CAMPOS_VACIOS = {
   tasa_interes_mensual_pct: 3.0,
   caja_default_pagos_id: null,
   reportes_visibles_a_depto: false,
+  peticiones_visibles_a_depto: true,
 };
 
 export default function Configuracion() {
@@ -163,6 +164,24 @@ export default function Configuracion() {
           </label>
           <p style={{ fontSize: "0.85rem", color: "var(--color-text-muted, #666)", marginTop: "0.5rem" }}>
             Por default los reportes son solo para administración. Activá esta opción para transparencia total con los copropietarios.
+          </p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Visibilidad de peticiones entre departamentos</legend>
+          <label>
+            <input
+              type="checkbox"
+              checked={!!form.peticiones_visibles_a_depto}
+              onChange={(e) => setForm({ ...form, peticiones_visibles_a_depto: e.target.checked })}
+            />
+            {" "}Permitir que cada departamento vea también las peticiones de los demás
+          </label>
+          <p style={{ fontSize: "0.85rem", color: "var(--color-text-muted, #666)", marginTop: "0.5rem" }}>
+            Activada, cada vecino ve qué reclamos hay abiertos en el edificio y
+            evita duplicarlos. Desactivada, cada departamento ve únicamente sus
+            propias peticiones. Administración y representantes las ven todas en
+            los dos casos.
           </p>
         </fieldset>
 

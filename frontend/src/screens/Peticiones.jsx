@@ -16,6 +16,17 @@ const ETIQUETAS_ESTADO = {
   cancelada: "Cancelada",
 };
 
+/**
+ * Lo que espera respuesta va arriba; el resto conserva el orden del backend
+ * (fecha de creación descendente). No oculta nada — el filtro de estado sigue
+ * siendo el que recorta. `sort` de JS es estable: dentro de cada grupo el
+ * orden original se mantiene.
+ */
+function ordenarAbiertasPrimero(lista) {
+  const abierta = (p) => (p.estado === "abierta" ? 0 : 1);
+  return [...lista].sort((a, b) => abierta(a) - abierta(b));
+}
+
 export default function Peticiones() {
   const { user } = useAuth();
   const esDepto = user?.rol === "departamento";
@@ -30,7 +41,7 @@ export default function Peticiones() {
 
   async function cargar() {
     const r = await listarPeticiones();
-    if (r.status === 200) setItems(r.data);
+    if (r.status === 200) setItems(ordenarAbiertasPrimero(r.data));
     else setError(r.data?.detail || "No se pudo cargar la lista.");
   }
 

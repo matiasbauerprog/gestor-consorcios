@@ -8,12 +8,12 @@ Roles fijos del sistema: **Administración**, **Departamentos** (Inquilinos/Prop
 - **La identidad y el rol se extraen exclusivamente del token** — nunca confiar en `usuario_id`, `departamento_id` o `autor_id` que vengan en el body.
 
 ## 2. Expensas
-- **Administración:** crea expensas y ve el historial general.
+- **Administración:** crea expensas y ve el historial general. Al rechazar un comprobante puede dejar un `motivo_rechazo` que el departamento ve en su cuenta.
 - **Departamentos:** presentan comprobantes de pago y ven solo su propio historial.
 
 ## 3. Tareas y Presupuestos
-- **Departamentos:** solo crean peticiones y ven su estado.
-- **Administración / Representantes:** convierten peticiones en tareas a realizar y aprueban presupuestos de proveedores.
+- **Departamentos:** solo crean peticiones y ven su estado. Si ven además las peticiones de los otros departamentos depende de `peticiones_visibles_a_depto` en el consorcio (default `True`); el detalle (`GET /peticiones/{id}`) es siempre solo el propio.
+- **Administración / Representantes:** convierten peticiones en tareas a realizar y aprueban presupuestos de proveedores. Al rechazar una petición pueden dejar un `motivo_rechazo` que el departamento ve en el detalle.
 
 ## 4. Comunicación
 - **Administración:** crea y gestiona comunicados (`POST /comunicados`).

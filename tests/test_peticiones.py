@@ -235,3 +235,78 @@ def test_delete_inexistente_404(client, headers_admin):
     """DELETE en petición que no existe retorna 404."""
     r = client.delete("/peticiones/9999", headers=headers_admin)
     assert r.status_code == 404
+
+
+def test_admin_patch_guarda_el_motivo_del_rechazo(client, headers_admin, db):
+    """El motivo viaja en el PATCH y queda en la petición para el depto."""
+    from backend.models import Peticion, EstadoPeticion
+    p = Peticion(consorcio_id=1, departamento_id=1, titulo="X", descripcion="x", estado=EstadoPeticion.abierta)
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    r = client.patch(
+        f"/peticiones/{p.id}",
+        json={"estado": "rechazada", "motivo_rechazo": "Lo cubre la garantía del constructor."},
+        headers=headers_admin,
+    )
+    assert r.status_code == 200
+    assert r.json()["motivo_rechazo"] == "Lo cubre la garantía del constructor."
+
+
+def test_motivo_en_blanco_queda_en_null(client, headers_admin, db):
+    """Un textarea con espacios no cuenta como motivo: la UI lee null."""
+    from backend.models import Peticion, EstadoPeticion
+    p = Peticion(consorcio_id=1, departamento_id=1, titulo="X", descripcion="x", estado=EstadoPeticion.abierta)
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    r = client.patch(
+        f"/peticiones/{p.id}",
+        json={"estado": "rechazada", "motivo_rechazo": "   "},
+        headers=headers_admin,
+    )
+    assert r.status_code == 200
+    assert r.json()["motivo_rechazo"] is None
+
+
+def test_rechazar_sin_motivo_sigue_siendo_valido(client, headers_admin, db):
+    """El campo es opcional: rechazar sin explicación no rompe el contrato."""
+    from backend.models import Peticion, EstadoPeticion
+    p = Peticion(consorcio_id=1, departamento_id=1, titulo="X", descripcion="x", estado=EstadoPeticion.abierta)
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    r = client.patch(f"/peticiones/{p.id}", json={"estado": "rechazada"}, headers=headers_admin)
+    assert r.status_code == 200
+    assert r.json()["motivo_rechazo"] is None
+
+
+def test_depto_solo_ve_las_suyas_con_la_visibilidad_apagada(client, headers_depto_a, db):
+    """Con `peticiones_visibles_a_depto` en False el listado se recorta al
+    propio departamento. Es el mismo criterio que GET /peticiones/{id} ya
+    aplicaba en el detalle."""
+    from backend.models import Consorcio
+    consorcio = db.get(Consorcio, 1)
+    consorcio.peticiones_visibles_a_depto = False
+    db.commit()
+
+    r = client.get("/peticiones", headers=headers_depto_a)
+    assert r.status_code == 200
+    data = r.json()
+    assert data, "el depto tiene que seguir viendo sus propias peticiones"
+    assert {p["departamento_id"] for p in data} == {1}
+
+
+def test_admin_y_representante_no_se_ven_afectados_por_la_visibilidad(
+    client, headers_admin, headers_representante, db
+):
+    """Apagar el flag recorta a los departamentos, no a quien administra."""
+    from backend.models import Consorcio
+    consorcio = db.get(Consorcio, 1)
+    consorcio.peticiones_visibles_a_depto = False
+    db.commit()
+
+    for headers in (headers_admin, headers_representante):
+        r = client.get("/peticiones", headers=headers)
+        assert r.status_code == 200
+        assert {p["departamento_id"] for p in r.json()} == {1, 2}

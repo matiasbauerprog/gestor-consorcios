@@ -4425,6 +4425,7 @@ components:
         - recargo_segundo_vencimiento_pct
         - tasa_interes_mensual_pct
         - reportes_visibles_a_depto
+        - peticiones_visibles_a_depto
         - fecha_creacion
       properties:
         id: { type: integer }
@@ -4455,6 +4456,12 @@ components:
         tasa_interes_mensual_pct: { type: number, format: float }
         caja_default_pagos_id: { type: integer, nullable: true }
         reportes_visibles_a_depto: { type: boolean }
+        peticiones_visibles_a_depto:
+          type: boolean
+          description: |
+            Si es false, un usuario con rol `departamento` solo ve sus propias
+            peticiones en `GET /peticiones`. Default true (comportamiento
+            historico: todos los deptos ven las peticiones de todos).
         modulos_habilitados:
           type: array
           items:
@@ -4503,6 +4510,7 @@ components:
         recargo_segundo_vencimiento_pct: { type: number, minimum: 0, maximum: 100, default: 7.0 }
         tasa_interes_mensual_pct: { type: number, minimum: 0, maximum: 100, default: 3.0 }
         reportes_visibles_a_depto: { type: boolean, default: false }
+        peticiones_visibles_a_depto: { type: boolean, default: true }
 
     ConsorcioActualizar:
       type: object
@@ -4532,6 +4540,7 @@ components:
         tasa_interes_mensual_pct: { type: number, minimum: 0, maximum: 100, nullable: true }
         caja_default_pagos_id: { type: integer, minimum: 1, nullable: true }
         reportes_visibles_a_depto: { type: boolean, nullable: true }
+        peticiones_visibles_a_depto: { type: boolean, nullable: true }
 
     # ---------------------------- Super-admin (Plan B) --------------------
 
@@ -4864,6 +4873,10 @@ components:
         estado:
           type: string
           enum: [pendiente_verificacion, aprobado, rechazado]
+        motivo_rechazo:
+          type: string
+          nullable: true
+          description: Motivo que cargo la administracion al rechazar. Null si no se rechazo o si no se escribio ninguno.
 
     ComprobanteActualizar:
       type: object
@@ -4874,6 +4887,11 @@ components:
           enum: [aprobado, rechazado]
           description: Decisión final sobre el comprobante.
         caja_destino_id: { type: integer, nullable: true }
+        motivo_rechazo:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Motivo del rechazo, visible para el departamento. Se ignora si `estado` es `aprobado`.
 
     # ---------------------------- Tareas ----------------------------------
 
@@ -4894,6 +4912,10 @@ components:
         estado:
           type: string
           enum: [abierta, convertida_en_trabajo, rechazada, cancelada]
+        motivo_rechazo:
+          type: string
+          nullable: true
+          description: Motivo que cargo la administracion al rechazar. Null si no se rechazo o si no se escribio ninguno.
         fecha_creacion:
           type: string
           format: date-time
@@ -4915,6 +4937,11 @@ components:
           type: string
           enum: [rechazada]
           description: Único estado al que se puede transicionar manualmente.
+        motivo_rechazo:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Motivo del rechazo, visible para el departamento que la creó.
 
     Trabajo:
       type: object
@@ -5525,6 +5552,8 @@ components:
         recargo_segundo_vencimiento_pct: { type: number, minimum: 0 }
         tasa_interes_mensual_pct: { type: number, minimum: 0 }
         caja_default_pagos_id: { type: integer, nullable: true }
+        reportes_visibles_a_depto: { type: boolean }
+        peticiones_visibles_a_depto: { type: boolean }
 
     ConfiguracionConsorcioActualizar:
       type: object
@@ -5556,6 +5585,8 @@ components:
         recargo_segundo_vencimiento_pct: { type: number, minimum: 0 }
         tasa_interes_mensual_pct: { type: number, minimum: 0 }
         caja_default_pagos_id: { type: integer, nullable: true }
+        reportes_visibles_a_depto: { type: boolean, default: false }
+        peticiones_visibles_a_depto: { type: boolean, default: true }
 
     CoeficienteItem:
       type: object

@@ -93,7 +93,13 @@ export function escribir(estado, method, ruta, body, sesion) {
       return conflicto("El comprobante ya fue resuelto.");
     }
     comprobante.estado = body?.estado ?? "aprobado";
-    if (comprobante.estado === "aprobado") registrarPago(estado, comprobante);
+    if (comprobante.estado === "aprobado") {
+      registrarPago(estado, comprobante);
+    } else {
+      // Rechazar con motivo es parte del circuito que la demo sí escribe: sin
+      // guardarlo, el visitante escribe la explicación y la ve desaparecer.
+      comprobante.motivo_rechazo = (body?.motivo_rechazo ?? "").trim() || null;
+    }
     return ok(comprobante);
   }
 

@@ -595,16 +595,19 @@ td button {
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-sm);
-  color: var(--color-text);
+  /* La campanita vive en `.app-header`, que se pinta con `--color-modulo`.
+     Con `--color-text` el ícono quedaba negro sobre color: mismo tratamiento
+     blanco-sobre-color que `.hamburguesa` y `.avatar-boton`, sus vecinos. */
+  color: #fff;
 }
 
 .campanita-boton:hover:not(:disabled) {
-  background: var(--color-surface);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .campanita-boton.abierto {
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
 }
 
 /* Punto discreto (patrón Linear/Notion) en vez de badge numérico: el
@@ -619,9 +622,10 @@ td button {
   height: 8px;
   border-radius: var(--radius-pill);
   background: var(--color-danger);
-  /* El borde del color de la superficie separa el punto del ícono: sin él,
-     el punto se funde con el trazo de la campana. */
-  border: 2px solid var(--color-surface);
+  /* El borde separa el punto del trazo de la campana: sin él se funden. Va
+     del color del header (`--color-modulo`), no de la superficie blanca —
+     si no, el punto rojo queda con un anillo claro sobre el color. */
+  border: 2px solid var(--color-modulo);
 }
 
 /* Base (mobile): sheet a lo ancho, anclada abajo. Mismo patrón y misma
@@ -2376,10 +2380,18 @@ td.monto {
   /* El tope de 960px es para las pantallas de lectura: una línea de texto de
      1900px cansa. Las pantallas densas piden lo contrario, y encerrar una tabla
      de siete columnas en 960px la desborda y esconde la última. Se sale del tope
-     marcando la pantalla con `pantalla-ancha`; el techo de 1600px evita que en
-     un monitor ultrawide la tabla se estire hasta ser ilegible. */
+     marcando la pantalla con `pantalla-ancha`; el techo evita que en un monitor
+     grande la tabla se estire hasta ser ilegible.
+
+     1280 y no 1600: a 1600 la fila de Cobranzas se despatarraba en un monitor
+     grande (el contenedor daba 1552px para siete columnas que necesitan
+     ~1062). 1280 deja 1232px de contenedor una vez descontado el padding —
+     todavía por encima de `UMBRAL_PRIO_3` (1062, ver TablaResponsive.jsx), así
+     que las columnas de prioridad 3 se siguen viendo en desktop grande. No
+     bajar de ~1110px de tope sin rehacer esa cuenta: por debajo de 1062 de
+     contenedor los dos vencimientos de Expensas se esconden. */
   .app-content:has(.pantalla-ancha) {
-    max-width: 1600px;
+    max-width: 1280px;
   }
 }
 
@@ -3384,6 +3396,13 @@ td.monto {
    `!important`. */
 .tabla-datos .col-chevron {
   text-align: center;
+  padding: 0;
+}
+
+/* Columna vacía que absorbe el sobrante cuando ninguna columna visible está en
+   `auto` (ver el comentario en TablaResponsive.jsx). Sin padding para que no
+   sume ancho propio: existe sólo para que la tabla no se despatarre. */
+.tabla-datos .col-espaciador {
   padding: 0;
 }
 

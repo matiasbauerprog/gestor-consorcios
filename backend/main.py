@@ -135,6 +135,34 @@ def _migrar_gasto_pagado() -> None:
             ))
 
 
+def _migrar_consorcio_peticiones_visibles() -> None:
+    """ALTER TABLE idempotente: agrega `peticiones_visibles_a_depto` a
+    consorcios. Arranca en 1 — es lo que estos consorcios ya venían haciendo
+    (todos los departamentos veían todas las peticiones); apagarlo es una
+    decisión nueva de cada administración, no algo que la migración deba
+    tomar por ellos."""
+    with engine.begin() as conn:
+        cols = {r[1] for r in conn.execute(text("PRAGMA table_info(consorcios)"))}
+        if cols and "peticiones_visibles_a_depto" not in cols:
+            conn.execute(text(
+                "ALTER TABLE consorcios ADD COLUMN peticiones_visibles_a_depto "
+                "BOOLEAN NOT NULL DEFAULT 1"
+            ))
+
+
+def _migrar_motivo_rechazo() -> None:
+    """ALTER TABLE idempotente: agrega `motivo_rechazo` a peticiones y
+    comprobantes. Los rechazos viejos quedan en NULL — nadie escribió un
+    motivo cuando no había dónde, y la UI trata NULL como "sin motivo"."""
+    with engine.begin() as conn:
+        for tabla in ("peticiones", "comprobantes"):
+            cols = {r[1] for r in conn.execute(text(f"PRAGMA table_info({tabla})"))}
+            if cols and "motivo_rechazo" not in cols:
+                conn.execute(text(
+                    f"ALTER TABLE {tabla} ADD COLUMN motivo_rechazo VARCHAR(1000)"
+                ))
+
+
 def _migrar_unique_gasto_habitual_periodo() -> None:
     """Índice único idempotente (consorcio_id, periodo, gasto_habitual_id) en
     gastos. Cierra la carrera de `_materializar_habituales`, que chequea y
@@ -206,6 +234,8 @@ async def lifespan(_: FastAPI):
         _migrar_administracion_modulos()
         _migrar_expensa_recargo_evaluado()
         _migrar_gasto_pagado()
+        _migrar_consorcio_peticiones_visibles()
+        _migrar_motivo_rechazo()
         _migrar_unique_gasto_habitual_periodo()
         _migrar_unique_movimiento_expensa_tipo()
     if get_settings().SEED_ENABLED:

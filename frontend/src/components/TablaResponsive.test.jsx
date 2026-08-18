@@ -282,3 +282,42 @@ describe("TablaResponsive — namespacing de ids entre instancias", () => {
     });
   });
 });
+
+describe("TablaResponsive — columna espaciadora", () => {
+  const SOLO_FIJAS = [
+    { clave: "fecha", titulo: "Fecha", celda: (f) => f.fecha, ancho: "10ch" },
+    { clave: "monto", titulo: "Monto", celda: (f) => f.monto, ancho: "12ch" },
+  ];
+
+  it("no agrega espaciador si alguna columna visible está en auto", () => {
+    setAnchoContenedor(1400);
+    const { container } = montar();
+    expect(container.querySelector("col.col-espaciador")).toBeNull();
+    expect(container.querySelectorAll("th.col-espaciador")).toHaveLength(0);
+  });
+
+  it("agrega un espaciador cuando todas las columnas visibles tienen ancho declarado", () => {
+    setAnchoContenedor(1400);
+    const { container } = montar({ columnas: SOLO_FIJAS });
+    // Sin él, `width: 100%` reparte el sobrante entre Fecha y Monto y las
+    // estira a lo ancho del monitor.
+    expect(container.querySelector("col.col-espaciador")).toHaveStyle({ width: "auto" });
+    expect(container.querySelectorAll("tbody td.col-espaciador")).toHaveLength(2);
+  });
+
+  it("aparece también cuando la única columna en auto se cayó por prioridad", () => {
+    // `concepto` (prioridad 3) no entra por debajo de 1062px: quedan sólo
+    // columnas de ancho fijo, que es justo el caso que estiraba la tabla.
+    setAnchoContenedor(900);
+    const { container } = montar();
+    expect(container.querySelector("col.col-espaciador")).not.toBeNull();
+  });
+
+  it("el detalle desplegable sigue cubriendo toda la fila con espaciador", () => {
+    setAnchoContenedor(900);
+    const { container } = montar();
+    const detalle = container.querySelector("tr.fila-detalle td");
+    const celdasVisibles = container.querySelectorAll("tr.fila-datos:first-of-type td");
+    expect(Number(detalle.getAttribute("colspan"))).toBe(celdasVisibles.length);
+  });
+});

@@ -707,3 +707,72 @@ def test_aprobar_comprobante_genera_descripcion_humana(client, headers_admin, he
     assert "#" not in mov_cuenta.descripcion
     assert "UF-1A" in mov_caja.descripcion
     assert "#" not in mov_caja.descripcion
+
+
+# ---------------------------------------------------------------------------
+# Motivo del rechazo
+# ---------------------------------------------------------------------------
+
+
+def test_rechazar_guarda_el_motivo(client, headers_admin, db_session):
+    """El motivo queda en el comprobante y lo devuelve el listado: el depto
+    tiene que poder ver qué corregir antes de volver a presentar el pago."""
+    c = _crear_comprobante(
+        db_session, 1, date(2026, 6, 5), 30000, EstadoComprobante.pendiente_verificacion
+    )
+    r = client.patch(
+        f"/comprobantes/{c.id}",
+        json={"estado": "rechazado", "motivo_rechazo": "El monto no coincide con la transferencia."},
+        headers=headers_admin,
+    )
+    assert r.status_code == 200
+    assert r.json()["motivo_rechazo"] == "El monto no coincide con la transferencia."
+
+    r = client.get("/comprobantes", headers=headers_admin)
+    guardado = next(x for x in r.json() if x["id"] == c.id)
+    assert guardado["motivo_rechazo"] == "El monto no coincide con la transferencia."
+
+
+def test_rechazar_con_motivo_en_blanco_queda_en_null(client, headers_admin, db_session):
+    c = _crear_comprobante(
+        db_session, 1, date(2026, 6, 5), 30000, EstadoComprobante.pendiente_verificacion
+    )
+    r = client.patch(
+        f"/comprobantes/{c.id}",
+        json={"estado": "rechazado", "motivo_rechazo": "  \n "},
+        headers=headers_admin,
+    )
+    assert r.status_code == 200
+    assert r.json()["motivo_rechazo"] is None
+
+
+def test_aprobar_ignora_el_motivo_de_rechazo(client, headers_admin, db_session):
+    """Un motivo colado en una aprobación no se guarda: sólo tiene sentido
+    cuando el comprobante quedó rechazado."""
+    c = _crear_comprobante(
+        db_session, 1, date(2026, 6, 5), 30000, EstadoComprobante.pendiente_verificacion
+    )
+    r = client.patch(
+        f"/comprobantes/{c.id}",
+        json={"estado": "aprobado", "motivo_rechazo": "no debería quedar"},
+        headers=headers_admin,
+    )
+    assert r.status_code == 200
+    assert r.json()["motivo_rechazo"] is None
+
+
+def test_departamento_ve_el_motivo_de_su_comprobante_rechazado(
+    client, headers_admin, headers_depto_a, db_session
+):
+    c = _crear_comprobante(
+        db_session, 1, date(2026, 6, 5), 30000, EstadoComprobante.pendiente_verificacion
+    )
+    client.patch(
+        f"/comprobantes/{c.id}",
+        json={"estado": "rechazado", "motivo_rechazo": "El comprobante está ilegible."},
+        headers=headers_admin,
+    )
+    r = client.get("/comprobantes", headers=headers_depto_a)
+    assert r.status_code == 200
+    visto = next(x for x in r.json() if x["id"] == c.id)
+    assert visto["motivo_rechazo"] == "El comprobante está ilegible."
