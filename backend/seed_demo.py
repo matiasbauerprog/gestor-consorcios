@@ -1323,9 +1323,10 @@ def _generar(seed_password, sa_email, sa_password, t0, TestClient, app,
             destino = Path(__file__).parent.parent / "frontend" / "src" / "demo" / "dataset.json"
             datos = exportar(api, admin_token, m["tokens_depto"], m["consorcio_id"])
 
-            # Imágenes de comprobante reales, no la URL "/uploads/..." del
-            # backend (que en la demo sin backend no carga nada). Reescribe
-            # `datos["/comprobantes"]` in-place con el path estático.
+            # Imágenes de comprobante reales, no la clave de almacenamiento que
+            # devuelve la API (que en la demo sin backend no tiene a quién
+            # pedirle la URL firmada). Reescribe `datos["/comprobantes"]`
+            # in-place con el path estático.
             mapa_comprobantes = exportar_comprobantes(
                 datos, Path(get_settings().UPLOAD_DIR), _DIR_ASSETS,
                 Path(__file__).parent.parent / "frontend" / "public" / "demo-comprobantes",

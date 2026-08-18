@@ -169,8 +169,8 @@ def test_exporta_las_tres_imagenes_unicas_y_reescribe_el_path(tmp_path):
 
     destino = tmp_path / "public" / "demo-comprobantes"
     datos = {"/comprobantes": [
-        {"id": 1, "archivo_path": "/uploads/comprobantes/aaa.png"},
-        {"id": 2, "archivo_path": "/uploads/comprobantes/bbb.png"},
+        {"id": 1, "archivo_path": "comprobantes/aaa.png"},
+        {"id": 2, "archivo_path": "comprobantes/bbb.png"},
     ]}
 
     mapa = exportar_comprobantes(datos, uploads, assets, destino)

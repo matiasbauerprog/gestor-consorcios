@@ -129,6 +129,58 @@ antes de levantar el servidor, y si una migración falla el servidor **no** arra
 Es a propósito — un despliegue caído y visible es preferible a uno que sirve tráfico
 contra un esquema a medio migrar.
 
+### Archivos adjuntos
+
+Los comprobantes de pago y los adjuntos de presupuestos **no se sirven
+públicamente**. Para abrir uno hacen falta dos pasos:
+
+1. El frontend pide la URL a un endpoint autenticado —
+   `GET /comprobantes/{id}/archivo` o
+   `GET /trabajos/{t}/presupuestos/{p}/archivo`— que valida pertenencia mirando
+   la fila en la base. Un departamento que pide el comprobante de otro recibe
+   404, no 403: un 403 distinguido confirmaría que ese comprobante existe.
+2. Ese endpoint devuelve una **URL firmada de vida corta**
+   (`URL_FIRMADA_SEGUNDOS`, 300 por defecto) que el frontend usa como `src`.
+
+El paso extra no es capricho: `<img src>` y `<a href>` no mandan el header
+`Authorization`, así que un endpoint protegido por token no se puede usar
+directamente como origen de una imagen.
+
+`archivo_path` en las respuestas de la API es la **clave de almacenamiento**, no
+una URL. Sirve sólo para saber si hay adjunto.
+
+#### Dónde se guardan
+
+Lo decide `STORAGE_BACKEND`:
+
+- **`local`** (default) — disco, bajo `UPLOAD_DIR`. Es lo que corre en
+  desarrollo, en los tests y en CI. No necesita ninguna configuración extra.
+- **`s3`** — cualquier almacén S3-compatible. Está probado contra la interfaz,
+  no contra un proveedor: sirve igual Supabase Storage, Cloudflare R2 o AWS S3,
+  y lo único que cambia es `S3_ENDPOINT_URL`.
+
+#### Pasar a almacén externo
+
+En producción el disco del servicio web es efímero: cada despliegue lo reinicia
+y se lleva puestos todos los archivos subidos. Antes de tener un cliente real
+hay que mover esto a un almacén externo.
+
+1. Crear el bucket. **Tiene que ser privado.** Si queda público, la firma no
+   protege nada: el objeto se abre por su URL directa sin pasar por la API.
+2. Cargar las cinco variables `S3_*` del `.env.example`, todavía con
+   `STORAGE_BACKEND=local`.
+3. Subir lo que ya existe:
+   ```bash
+   STORAGE_BACKEND=s3 python -m backend.migrar_archivos
+   ```
+   La clave de cada archivo es su ruta relativa al directorio de subidas, que es
+   exactamente lo que ya está guardado en la base. No hace falta tocar ninguna fila.
+4. Recién ahí poner `STORAGE_BACKEND=s3` y reiniciar.
+
+Si `STORAGE_BACKEND=s3` y falta alguna credencial, **el sistema no arranca**: es
+preferible a que cada subida falle en tiempo de request con un error de la
+librería de S3.
+
 ### 3. Levantar el frontend (en otra terminal)
 
 ```bash
