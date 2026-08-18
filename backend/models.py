@@ -8,6 +8,7 @@ from sqlalchemy import (
     Enum as SqlEnum,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -1050,11 +1051,49 @@ class Notificacion(Base):
         ForeignKey("usuarios.id", ondelete="CASCADE"),
         nullable=False, index=True,
     )
+    tipo: Mapped[str] = mapped_column(
+        String(60), nullable=False, server_default="legacy", index=True,
+    )
     mensaje: Mapped[str] = mapped_column(String(500), nullable=False)
     link: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # Entero suelto a propósito, NO foreign key: la notificación tiene que
+    # sobrevivir al borrado de la cosa que la originó (una petición borrada
+    # por el depto deja su aviso en el historial del administrador).
+    entidad_tipo: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    entidad_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     leida: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(),
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_notificaciones_pendiente",
+            "consorcio_id", "entidad_tipo", "entidad_id", "leida",
+        ),
+    )
+
+
+class PreferenciaNotificacion(Base):
+    """Diferencia contra el default del catálogo, no la tabla completa.
+
+    Un usuario que nunca tocó un interruptor no tiene fila y le vale
+    `email_por_defecto` del evento. Eso permite cambiar un default más
+    adelante y que alcance a todos los que no opinaron, respetando a los
+    que sí. Poner un interruptor en su valor por defecto borra la fila.
+    """
+    __tablename__ = "preferencias_notificacion"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    tipo: Mapped[str] = mapped_column(String(60), nullable=False)
+    email_activo: Mapped[bool] = mapped_column(Boolean, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("usuario_id", "tipo", name="uq_preferencia_usuario_tipo"),
     )
 
 

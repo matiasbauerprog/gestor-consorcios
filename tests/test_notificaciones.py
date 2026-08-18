@@ -65,3 +65,37 @@ def test_marcar_leida_solo_propia(client, headers_depto_a, db):
     db.add(notif_ajena); db.commit()
     r = client.post(f"/notificaciones/{notif_ajena.id}/marcar-leida", headers=headers_depto_a)
     assert r.status_code == 404
+
+
+def test_notificacion_guarda_tipo_y_entidad(db):
+    from backend.models import Notificacion
+
+    n = Notificacion(
+        consorcio_id=1,
+        usuario_id=2,
+        tipo="peticion_nueva",
+        mensaje="X",
+        link="/peticiones",
+        entidad_tipo="peticion",
+        entidad_id=10,
+    )
+    db.add(n)
+    db.commit()
+    assert n.tipo == "peticion_nueva"
+    assert n.entidad_tipo == "peticion"
+    assert n.entidad_id == 10
+
+
+def test_preferencia_notificacion_unica_por_usuario_y_tipo(db):
+    import pytest
+    from sqlalchemy.exc import IntegrityError
+
+    from backend.models import PreferenciaNotificacion
+
+    db.add(PreferenciaNotificacion(usuario_id=2, tipo="comunicado_publicado", email_activo=False))
+    db.commit()
+
+    db.add(PreferenciaNotificacion(usuario_id=2, tipo="comunicado_publicado", email_activo=True))
+    with pytest.raises(IntegrityError):
+        db.commit()
+    db.rollback()
