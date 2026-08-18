@@ -23,6 +23,20 @@ def _enmascarar(secreto: str) -> str:
     return f"{secreto[:4]}***{secreto[-2:]}"
 
 
+def _direccion_valida(direccion: str) -> bool:
+    """Chequeo mínimo de forma: parte local, arroba y dominio con punto.
+
+    No pretende validar un email de verdad —eso sólo lo hace mandarlo— sino
+    atajar el error de tipeo que se ve a simple vista y que el servidor rechaza
+    con un mensaje incomprensible: escribir `noreply.dominio.com` con un punto
+    donde va la arroba.
+    """
+    if direccion.count("@") != 1:
+        return False
+    local, _, dominio = direccion.partition("@")
+    return bool(local) and "." in dominio and not dominio.startswith(".")
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if not argv:
@@ -52,6 +66,23 @@ def main(argv: list[str] | None = None) -> int:
             "SMTP_HOST está vacío: el sistema está en MODO CONSOLA. Los mensajes "
             "se imprimen acá y no salen a ningún lado.\n"
             "Cargá SMTP_HOST, SMTP_PORT, SMTP_USER y SMTP_PASSWORD en el .env."
+        )
+        return 1
+
+    if not _direccion_valida(s.SMTP_FROM_EMAIL):
+        print(
+            f"El remitente no es una dirección válida: {s.SMTP_FROM_EMAIL!r}\n"
+            "Le falta la arroba, o el dominio está mal. Tiene que ser de la "
+            "forma nombre@dominio.com — un error típico es escribir un punto "
+            "donde va la arroba.\n"
+            "Corregí SMTP_FROM_EMAIL en el .env."
+        )
+        return 1
+
+    if not _direccion_valida(destino):
+        print(
+            f"El destinatario no es una dirección válida: {destino!r}\n"
+            "Tiene que ser de la forma nombre@dominio.com"
         )
         return 1
 
