@@ -1,12 +1,10 @@
 import logging
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import get_settings
@@ -14,6 +12,7 @@ from .database import SessionLocal
 from .middleware.impersonate_audit import ImpersonateAuditMiddleware
 from .routers import (
     amenities,
+    archivos,
     auth,
     cajas,
     clases_prorrateo,
@@ -132,6 +131,7 @@ async def validation_exception_handler(_: Request, exc: RequestValidationError) 
     )
 
 
+app.include_router(archivos.router)
 app.include_router(auth.router)
 app.include_router(me.router)
 app.include_router(empleados.router)
@@ -172,7 +172,3 @@ if get_settings().DEMO_MODE:
     from .routers import demo as demo_router
     app.include_router(demo_router.router)
 
-_uploads_path = Path(get_settings().UPLOAD_DIR)
-_uploads_path.mkdir(parents=True, exist_ok=True)
-(_uploads_path / "comprobantes").mkdir(parents=True, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=str(_uploads_path)), name="uploads")
