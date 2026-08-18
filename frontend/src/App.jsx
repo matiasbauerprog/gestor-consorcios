@@ -14,6 +14,7 @@ import WizardNuevoConsorcio from "./screens/WizardNuevoConsorcio";
 import SuperAdminAdministraciones from "./screens/SuperAdminAdministraciones";
 import SuperAdminMetricas from "./screens/SuperAdminMetricas";
 import SuperAdminAuditLog from "./screens/SuperAdminAuditLog";
+import SuperAdminErrores from "./screens/SuperAdminErrores";
 import Comunicados from "./screens/Comunicados";
 import Expensas from "./screens/Expensas";
 import Comprobantes from "./screens/Comprobantes";
@@ -175,6 +176,7 @@ export default function App() {
             <Route path="super-admin/administraciones" element={<SoloEnSistemaCompleto modulo="super-admin"><SuperAdminAdministraciones /></SoloEnSistemaCompleto>} />
             <Route path="super-admin/metricas" element={<SoloEnSistemaCompleto modulo="super-admin"><SuperAdminMetricas /></SoloEnSistemaCompleto>} />
             <Route path="super-admin/audit-log" element={<SoloEnSistemaCompleto modulo="super-admin"><SuperAdminAuditLog /></SoloEnSistemaCompleto>} />
+            <Route path="super-admin/errores" element={<SoloEnSistemaCompleto modulo="super-admin"><SuperAdminErrores /></SoloEnSistemaCompleto>} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
