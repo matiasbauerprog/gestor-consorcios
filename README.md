@@ -181,6 +181,61 @@ Si `STORAGE_BACKEND=s3` y falta alguna credencial, **el sistema no arranca**: es
 preferible a que cada subida falle en tiempo de request con un error de la
 librería de S3.
 
+### Recuperación de contraseña
+
+Un vecino que olvidó su contraseña la recupera solo, sin que intervenga el
+administrador ni el dueño de la plataforma. Son dos pasos:
+
+1. **`POST /auth/recuperar-password`** — recibe un email y manda un link de un
+   solo uso. **Responde 202 siempre**, exista o no la cuenta.
+2. **`POST /auth/restablecer-password`** — canjea el token del link por una
+   contraseña nueva.
+
+En el frontend son `/recuperar-password` y `/restablecer-password`, ambas
+públicas y enlazadas desde el login.
+
+#### Las decisiones que no son obvias
+
+**Por qué siempre 202.** Si la respuesta cambiara según el email exista o no,
+el formulario se convertiría en un verificador de qué cuentas están registradas
+en el sistema. Por eso el código, el cuerpo y el comportamiento son idénticos
+para un email registrado, uno inexistente, uno dado de baja y uno que superó el
+límite de pedidos. La pantalla del frontend hace lo mismo: muestra el mismo
+mensaje incluso si el servidor falla.
+
+**En la base va el hash, no el token.** El token en claro sólo existe en el
+email. En `tokens_recuperacion` se guarda su sha256, así que una filtración de
+la base no permite resetear la contraseña de nadie. (Alcanza sha256 y no hace
+falta bcrypt: el token tiene 256 bits de aleatoriedad, no hay diccionario que lo
+adivine.)
+
+**Pedir un link nuevo invalida los anteriores.** Si no, un link viejo reenviado
+o filtrado seguiría sirviendo.
+
+**Restablecer baja `must_change_password`.** Sin eso, un usuario con cambio
+obligatorio pendiente resetea su clave y sigue recibiendo 403 en todo endpoint
+operacional.
+
+**El límite de pedidos se cuenta contra la base**, no en memoria: sobrevive a un
+reinicio del servidor y funciona igual con más de una instancia.
+
+#### Probarlo en desarrollo
+
+Sin `SMTP_HOST` configurado, `mail_service` imprime el mensaje en la consola del
+backend en vez de mandarlo. El link con el token se lee ahí — es como se prueba
+el circuito completo sin cuenta de correo.
+
+En producción hay que configurar `SMTP_*` (ver arriba) y, sobre todo,
+**`FRONTEND_URL` con el dominio real**: si queda apuntando a localhost, el link
+que recibe el vecino no le sirve.
+
+#### Lo que no hace
+
+Restablecer la contraseña **no cierra las sesiones que ya estaban abiertas** con
+la contraseña vieja. La lista de revocación del proyecto trabaja por `jti` y no
+hay índice de los `jti` vigentes de un usuario. Para el caso que motiva esta
+función —"me olvidé la clave"— no hace falta; para "me robaron la cuenta", sí.
+
 ### 3. Levantar el frontend (en otra terminal)
 
 ```bash

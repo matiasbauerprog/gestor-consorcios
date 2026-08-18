@@ -5,6 +5,8 @@ import { ES_DEMO } from "./api/demo";
 import AppLayout from "./components/AppLayout";
 import RequireAuth from "./components/RequireAuth";
 import Login from "./screens/Login";
+import RecuperarPassword from "./screens/RecuperarPassword";
+import RestablecerPassword from "./screens/RestablecerPassword";
 import DemoLogin from "./screens/DemoLogin";
 import CambiarPassword from "./screens/CambiarPassword";
 import AdministracionConsorcios from "./screens/AdministracionConsorcios";
@@ -119,6 +121,9 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<PantallaLogin />} />
+          {/* Publicas: quien las usa, por definicion, no puede entrar. */}
+          <Route path="/recuperar-password" element={<RecuperarPassword />} />
+          <Route path="/restablecer-password" element={<RestablecerPassword />} />
           <Route
             path="/"
             element={

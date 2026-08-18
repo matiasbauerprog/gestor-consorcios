@@ -161,6 +161,71 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /auth/recuperar-password:
+    post:
+      tags: [Auth]
+      summary: Pedir un link para restablecer la contraseña
+      description: |
+        Endpoint **público**. Manda por email un link de un solo uso para elegir
+        una contraseña nueva.
+
+        **Responde 202 siempre**, exista o no la cuenta, y con el mismo cuerpo.
+        Es deliberado: cualquier respuesta distinta —otro código, otro mensaje, o
+        un error cuando falla el envío del correo— convertiría este formulario en
+        un verificador de qué emails están registrados en el sistema.
+
+        Tampoco emite link para usuarios dados de baja ni de administraciones
+        suspendidas, ni supera `RECUPERACION_MAX_POR_HORA` pedidos por usuario y
+        por hora. En ninguno de esos casos cambia la respuesta.
+      operationId: recuperarPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecuperarPasswordIn'
+      responses:
+        '202':
+          description: Pedido recibido. No indica si el email existe.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                    example: Si el email está registrado, te va a llegar un mensaje.
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+
+  /auth/restablecer-password:
+    post:
+      tags: [Auth]
+      summary: Restablecer la contraseña con el token del email
+      description: |
+        Endpoint **público**. Canjea el token que llegó por email por una
+        contraseña nueva.
+
+        El token es de **un solo uso** y vence a los `RECUPERACION_TOKEN_MINUTOS`
+        minutos. Pedir un link nuevo invalida los anteriores. Al restablecer se
+        baja `must_change_password`, para que el usuario pueda operar de una.
+
+        No cierra las sesiones que ya estaban abiertas con la contraseña vieja.
+      operationId: restablecerPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestablecerPasswordIn'
+      responses:
+        '204':
+          description: Contraseña actualizada.
+        '400':
+          description: El token es inválido, ya se usó o venció; o la contraseña nueva no cumple el mínimo.
+
   /auth/cambiar-password:
     post:
       tags: [Auth]
@@ -4828,6 +4893,33 @@ components:
           minLength: 1
           maxLength: 255
           format: password
+
+    RecuperarPasswordIn:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          minLength: 3
+          maxLength: 255
+          description: Email de la cuenta. La respuesta no revela si existe.
+          example: vecino@ejemplo.com
+
+    RestablecerPasswordIn:
+      type: object
+      required: [token, new_password]
+      properties:
+        token:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: El token que viajó en el link del email. De un solo uso.
+        new_password:
+          type: string
+          minLength: 8
+          maxLength: 255
+          format: password
+          description: Contraseña nueva, mínimo 8 caracteres.
 
     CambiarPasswordIn:
       type: object

@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     SMTP_FROM_NAME: str = "Consorcio"
     SUPER_ADMIN_EMAIL: str = ""
     SUPER_ADMIN_PASSWORD: str = ""
+    # Base del link que se manda por email al recuperar la contraseña. En
+    # producción, el dominio real del frontend: si apunta a localhost, el link
+    # que recibe el vecino no le sirve.
+    FRONTEND_URL: str = "http://localhost:5173"
+    RECUPERACION_TOKEN_MINUTOS: int = 60
+    RECUPERACION_MAX_POR_HORA: int = 3
     CORS_ORIGINS: str = (
         "http://localhost:5173,http://127.0.0.1:5173,"
         "http://localhost:5174,http://127.0.0.1:5174,"
