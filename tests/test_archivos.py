@@ -160,6 +160,84 @@ def test_endpoint_de_archivos_404_si_la_clave_no_existe(client):
     assert client.get(storage.firmar_clave("comprobantes/fantasma.jpg")).status_code == 404
 
 
+# --- Quien puede pedir la URL de un adjunto --------------------------------
+
+
+@pytest.fixture()
+def comprobante_de_a(client, headers_depto_a) -> int:
+    """Comprobante presentado por el departamento A. Devuelve su id."""
+    from datetime import date
+
+    r = client.post(
+        "/comprobantes",
+        headers=headers_depto_a,
+        data={"fecha_pago": date.today().isoformat(), "monto": "1000"},
+        files={"archivo": ("recibo.png", b"png-falso", "image/png")},
+    )
+    assert r.status_code == 201, r.text
+    return r.json()["id"]
+
+
+def test_depto_obtiene_la_url_de_su_propio_comprobante(
+    client, headers_depto_a, comprobante_de_a
+):
+    r = client.get(f"/comprobantes/{comprobante_de_a}/archivo", headers=headers_depto_a)
+
+    assert r.status_code == 200
+    assert r.json()["url"].startswith("/archivos/comprobantes/")
+    assert r.json()["expira_en"] > 0
+
+
+def test_depto_no_obtiene_la_url_del_comprobante_de_otro(
+    client, headers_depto_b, comprobante_de_a
+):
+    """El agujero que se esta cerrando: son fotos de transferencias bancarias."""
+    r = client.get(f"/comprobantes/{comprobante_de_a}/archivo", headers=headers_depto_b)
+
+    assert r.status_code == 404
+
+
+def test_sin_token_no_se_obtiene_ninguna_url(client, comprobante_de_a):
+    assert client.get(f"/comprobantes/{comprobante_de_a}/archivo").status_code == 401
+
+
+def test_admin_obtiene_la_url_de_cualquier_comprobante_de_su_consorcio(
+    client, headers_admin, comprobante_de_a
+):
+    r = client.get(f"/comprobantes/{comprobante_de_a}/archivo", headers=headers_admin)
+    assert r.status_code == 200
+
+
+def test_comprobante_inexistente_devuelve_404(client, headers_admin):
+    assert client.get("/comprobantes/999999/archivo", headers=headers_admin).status_code == 404
+
+
+def test_la_url_entregada_sirve_para_bajar_el_archivo(
+    client, headers_depto_a, comprobante_de_a
+):
+    """El circuito completo: pido la URL con mi token, y la uso sin token."""
+    url = client.get(
+        f"/comprobantes/{comprobante_de_a}/archivo", headers=headers_depto_a
+    ).json()["url"]
+
+    r = client.get(url)
+
+    assert r.status_code == 200
+    assert r.content == b"png-falso"
+
+
+def test_comprobante_out_ya_no_fabrica_la_ruta_de_uploads(
+    client, headers_depto_a, comprobante_de_a
+):
+    """archivo_path vuelve a ser la clave cruda: el frontend solo la usa para
+    saber si hay adjunto, nunca para armar una URL."""
+    r = client.get("/comprobantes", headers=headers_depto_a)
+
+    comprobante = next(c for c in r.json() if c["id"] == comprobante_de_a)
+    assert not comprobante["archivo_path"].startswith("/uploads/")
+    assert comprobante["archivo_path"].startswith("comprobantes/")
+
+
 def test_uploads_ya_no_esta_montado():
     """El montaje publico de /uploads era el agujero: cualquiera con la URL
     abria el comprobante de cualquier vecino sin estar logueado.

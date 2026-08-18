@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, require_roles
+from ..config import get_settings
 from ..database import get_db
 from ..models import (
     Caja,
@@ -26,8 +27,10 @@ from ..models import (
     TipoMovimiento,
     TipoMovimientoCaja,
 )
-from ..schemas import ComprobanteActualizar, ComprobanteOut
-from ..storage import guardar_archivo
+from ..modulos import require_modulo
+from ..schemas import ArchivoUrlOut, ComprobanteActualizar, ComprobanteOut
+from ..storage import firmar_clave, guardar_archivo
+from ..tenant import get_consorcio_activo
 
 
 def _descripcion_pago(comprobante: Comprobante) -> str:
@@ -35,8 +38,6 @@ def _descripcion_pago(comprobante: Comprobante) -> str:
     Prefiere el código del depto (UF-XX) sobre el ID interno del comprobante."""
     codigo = comprobante.departamento.codigo if comprobante.departamento else "?"
     return f"Pago {codigo} - {comprobante.fecha_pago.isoformat()}"
-from ..modulos import require_modulo
-from ..tenant import get_consorcio_activo
 
 router = APIRouter(
     prefix="/comprobantes",
@@ -78,6 +79,44 @@ def listar_comprobantes(
 
     stmt = stmt.offset(offset).limit(limit)
     return list(db.scalars(stmt).all())
+
+
+@router.get(
+    "/{comprobante_id}/archivo",
+    response_model=ArchivoUrlOut,
+    status_code=status.HTTP_200_OK,
+    summary="Obtener la URL firmada del comprobante",
+)
+def url_del_comprobante(
+    comprobante_id: int,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_roles(Rol.administracion, Rol.departamento)),
+    cid: int = Depends(get_consorcio_activo),
+) -> ArchivoUrlOut:
+    comprobante = db.get(Comprobante, comprobante_id)
+    # Un 403 distinguido de un 404 le confirmaria al que prueba ids que ese
+    # comprobante existe. Todo lo que no le corresponde al usuario es 404.
+    if (
+        comprobante is None
+        or comprobante.consorcio_id != cid
+        or comprobante.eliminado_at is not None
+        or not comprobante.archivo_path
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Comprobante no encontrado."
+        )
+    if (
+        user.rol == Rol.departamento
+        and comprobante.departamento_id != user.departamento_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Comprobante no encontrado."
+        )
+
+    return ArchivoUrlOut(
+        url=firmar_clave(comprobante.archivo_path),
+        expira_en=get_settings().URL_FIRMADA_SEGUNDOS,
+    )
 
 
 @router.post(

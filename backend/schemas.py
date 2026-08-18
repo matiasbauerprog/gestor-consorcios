@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .models import (
     CategoriaEmpleado,
@@ -164,6 +164,17 @@ class ComprobanteActualizar(BaseModel):
     motivo_rechazo: str | None = Field(default=None, max_length=1000)
 
 
+class ArchivoUrlOut(BaseModel):
+    """URL de vida corta para abrir un archivo adjunto.
+
+    Se entrega por separado del recurso porque `<img src>` no manda headers:
+    el frontend pide esto con su token y usa la URL resultante como src.
+    """
+
+    url: str
+    expira_en: int
+
+
 class ComprobanteOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -175,12 +186,6 @@ class ComprobanteOut(BaseModel):
     archivo_path: str | None
     estado: EstadoComprobante
     motivo_rechazo: str | None = None
-
-    @field_serializer("archivo_path")
-    def _archivo_path_to_url(self, v: str | None) -> str | None:
-        if v is None:
-            return None
-        return f"/uploads/{v}"
 
     @model_validator(mode="before")
     @classmethod

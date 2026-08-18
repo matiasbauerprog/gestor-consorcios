@@ -350,7 +350,10 @@ def test_presentar_comprobante_como_departamento_dueno_201(client, headers_depto
     assert body["departamento_id"] == 1
     assert body["monto"] == 85000.00
     assert body["fecha_pago"] == "2026-05-28"
-    assert body["archivo_path"].startswith("/uploads/comprobantes/")
+    # `archivo_path` es la clave de almacenamiento, no una URL: los adjuntos ya
+    # no se sirven publicos. Para abrirlo hay que pedir una URL firmada a
+    # GET /comprobantes/{id}/archivo (ver tests/test_archivos.py).
+    assert body["archivo_path"].startswith("comprobantes/")
     assert body["archivo_path"].endswith(".jpg")
     # Estado inicial siempre pendiente_verificacion, independiente del cuerpo.
     assert body["estado"] == "pendiente_verificacion"

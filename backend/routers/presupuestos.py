@@ -11,11 +11,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, get_current_user, require_roles
+from ..config import get_settings
 from ..database import get_db
 from ..models import EstadoPresupuesto, Presupuesto, Proveedor, Rol, Trabajo
 from ..modulos import require_modulo
-from ..schemas import PresupuestoActualizar, PresupuestoOut
-from ..storage import guardar_archivo
+from ..schemas import ArchivoUrlOut, PresupuestoActualizar, PresupuestoOut
+from ..storage import firmar_clave, guardar_archivo
 from ..tenant import get_consorcio_activo
 
 router = APIRouter(
@@ -37,6 +38,36 @@ def _validar_proveedor(db: Session, cid: int, proveedor_id: int) -> Proveedor:
     if p is None or p.consorcio_id != cid:
         raise HTTPException(404, f"Proveedor {proveedor_id} no encontrado.")
     return p
+
+
+@router.get(
+    "/{trabajo_id}/presupuestos/{presupuesto_id}/archivo",
+    response_model=ArchivoUrlOut,
+    status_code=status.HTTP_200_OK,
+    summary="Obtener la URL firmada del presupuesto",
+)
+def url_del_presupuesto(
+    trabajo_id: int,
+    presupuesto_id: int,
+    db: Session = Depends(get_db),
+    _u: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
+) -> ArchivoUrlOut:
+    # Mismo criterio de rol que listar_presupuestos: cualquier usuario
+    # autenticado del consorcio. El aislamiento lo da _validar_trabajo.
+    _validar_trabajo(db, cid, trabajo_id)
+    presupuesto = db.get(Presupuesto, presupuesto_id)
+    if (
+        presupuesto is None
+        or presupuesto.trabajo_id != trabajo_id
+        or not presupuesto.archivo_path
+    ):
+        raise HTTPException(404, "Presupuesto no encontrado.")
+
+    return ArchivoUrlOut(
+        url=firmar_clave(presupuesto.archivo_path),
+        expira_en=get_settings().URL_FIRMADA_SEGUNDOS,
+    )
 
 
 @router.get("/{trabajo_id}/presupuestos", response_model=list[PresupuestoOut])
