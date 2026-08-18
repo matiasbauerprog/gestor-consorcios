@@ -313,13 +313,16 @@ def crear_reserva(
     if user.rol == Rol.departamento:
         # `actor_usuario_id=None` a propósito: es la confirmación al propio
         # reservante, el único caso donde el actor sí debe recibir el aviso
-        # porque el mail es el comprobante de su propia acción.
+        # porque el mail es el comprobante de su propia acción. Y va acotado a
+        # él solo: el texto le habla de "tu reserva" y "tu cuenta corriente",
+        # así que al otro habitante de la unidad no le corresponde.
         emitir(
             db, RESERVA_CONFIRMADA,
             consorcio_id=cid, contexto=ctx_reserva,
             actor_usuario_id=None,
             departamento_id=user.departamento_id,
             tareas=tareas,
+            restringir_a_usuario_id=user.id,
         )
 
     db.commit()

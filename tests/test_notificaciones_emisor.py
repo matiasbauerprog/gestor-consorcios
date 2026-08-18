@@ -69,6 +69,51 @@ def test_evento_solo_mail_no_crea_campanita(db, capsys):
     assert "a@test.local" in capsys.readouterr().out
 
 
+def test_restringir_a_usuario_deja_afuera_al_resto_del_departamento(db, capsys):
+    """El aviso en segunda persona va sólo a quien hizo la acción.
+
+    En la unidad 1 pueden convivir propietario e inquilino. "Tu reserva fue
+    confirmada" le hablaría al segundo de algo que no hizo.
+    """
+    conviviente = Usuario(
+        id=51, email="conviviente@test.local", password_hash="x",
+        rol=db.get(Usuario, 2).rol, departamento_id=1,
+    )
+    db.add(conviviente)
+    db.flush()
+    capsys.readouterr()  # descartar salida previa
+
+    emitir(
+        db, "reserva_confirmada",
+        consorcio_id=1,
+        contexto={"amenity": "SUM", "fecha": "2026-09-01 14:00", "monto": 1500.0},
+        actor_usuario_id=None, departamento_id=1,
+        restringir_a_usuario_id=2,
+    )
+    db.commit()
+
+    salida = capsys.readouterr().out
+    assert "To: a@test.local" in salida
+    assert "conviviente@test.local" not in salida
+    assert salida.count("[EMAIL CONSOLE MODE] To:") == 1
+
+
+def test_restringir_a_usuario_ajeno_no_emite_nada(db, capsys):
+    """El usuario 3 es del departamento 2: no está entre los resueltos."""
+    capsys.readouterr()
+
+    emitir(
+        db, "comunicado_publicado",
+        consorcio_id=1, contexto=_ctx_comunicado(),
+        actor_usuario_id=1, departamento_id=1,
+        restringir_a_usuario_id=3,
+    )
+    db.commit()
+
+    assert db.query(Notificacion).filter_by(tipo="comunicado_publicado").count() == 0
+    assert "[EMAIL CONSOLE MODE] To:" not in capsys.readouterr().out
+
+
 def test_preferencia_apagada_no_manda_mail_pero_si_campanita(db, capsys):
     guardar_preferencia(db, 2, evento("comunicado_publicado"), False)
     db.flush()

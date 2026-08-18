@@ -25,11 +25,19 @@ def emitir(
     departamento_id: int | None = None,
     entidad_id: int | None = None,
     tareas: BackgroundTasks | None = None,
+    restringir_a_usuario_id: int | None = None,
 ) -> None:
     """Emite un evento del catálogo. NO commitea — el caller lo hace.
 
     Va dentro de la transacción de la operación que lo causó: si esa
     operación falla, no queda un aviso fantasma.
+
+    `restringir_a_usuario_id` acota los destinatarios ya resueltos a esa única
+    persona. Existe para los avisos redactados en segunda persona hacia alguien
+    concreto y no hacia la unidad: "tu reserva fue confirmada, se cargó $N a tu
+    cuenta". Si en la unidad viven propietario e inquilino y reserva uno, al
+    otro ese texto le hablaría de algo que no hizo. Si el usuario no está entre
+    los destinatarios resueltos, no se emite nada.
     """
     ev = _evento(clave)
 
@@ -39,6 +47,10 @@ def emitir(
         departamento_id=departamento_id,
         excluir_usuario_id=actor_usuario_id,
     )
+    if restringir_a_usuario_id is not None:
+        destinatarios = [
+            u for u in destinatarios if u.id == restringir_a_usuario_id
+        ]
     if not destinatarios:
         return
 
