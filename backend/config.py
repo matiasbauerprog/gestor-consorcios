@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:5173"
     RECUPERACION_TOKEN_MINUTOS: int = 60
     RECUPERACION_MAX_POR_HORA: int = 3
+    # Días que se conserva un error registrado antes de borrarse solo.
+    ERRORES_RETENCION_DIAS: int = 90
+    # Opcional. Con esto cargado, los errores además se mandan a Sentry, que es
+    # lo que avisa. Va por variable de entorno y no por la interfaz: tiene que
+    # arrancar antes de que algo pueda fallar, y una config guardada en la base
+    # no está disponible si el problema es justamente la base.
+    SENTRY_DSN: str = ""
     CORS_ORIGINS: str = (
         "http://localhost:5173,http://127.0.0.1:5173,"
         "http://localhost:5174,http://127.0.0.1:5174,"

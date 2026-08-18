@@ -23,6 +23,7 @@ from ..models import (
     AuditLogSuperAdmin,
     Consorcio,
     Departamento,
+    ErrorRegistrado,
     Expensa,
     Rol,
     Usuario,
@@ -32,6 +33,7 @@ from ..schemas import (
     AdministracionCrear,
     AdministracionOut,
     AuditLogEntryOut,
+    ErrorRegistradoOut,
     ImpersonateStartIn,
     ImpersonateStartOut,
     MetricasOut,
@@ -427,6 +429,53 @@ def impersonate_end(
 # ---------------------------------------------------------------------------
 # Métricas
 # ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/errores",
+    response_model=list[ErrorRegistradoOut],
+    status_code=status.HTTP_200_OK,
+    summary="Últimos errores inesperados del sistema",
+)
+def listar_errores(
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    _sa: CurrentUser = Depends(_bloquear_impersonate_activo),
+) -> list[ErrorRegistrado]:
+    return list(
+        db.scalars(
+            select(ErrorRegistrado)
+            .order_by(ErrorRegistrado.ocurrido_at.desc(), ErrorRegistrado.id.desc())
+            .offset(offset)
+            .limit(limit)
+        ).all()
+    )
+
+
+@router.get(
+    "/errores/{codigo}",
+    response_model=ErrorRegistradoOut,
+    status_code=status.HTTP_200_OK,
+    summary="Buscar un error por su código",
+)
+def obtener_error(
+    codigo: str,
+    db: Session = Depends(get_db),
+    _sa: CurrentUser = Depends(_bloquear_impersonate_activo),
+) -> ErrorRegistrado:
+    # El código se dicta por teléfono: se acepta en minúsculas y con espacios
+    # de más, que es como llega la mitad de las veces.
+    normalizado = codigo.strip().upper()
+    error = db.scalar(
+        select(ErrorRegistrado).where(ErrorRegistrado.codigo == normalizado)
+    )
+    if error is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No hay ningún error con el código {normalizado}.",
+        )
+    return error
 
 
 @router.get(

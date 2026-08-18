@@ -284,6 +284,58 @@ la contraseña vieja. La lista de revocación del proyecto trabaja por `jti` y n
 hay índice de los `jti` vigentes de un usuario. Para el caso que motiva esta
 función —"me olvidé la clave"— no hace falta; para "me robaron la cuenta", sí.
 
+### Encontrar errores
+
+Cuando algo falla de forma inesperada, el usuario ve **un código corto**
+(`E-7K3MQ9`). Ese código es lo único que viaja del vecino al soporte: con él se
+llega a qué pasó, a quién y en qué consorcio.
+
+Se busca en **Super-Admin → Errores**, pegando el código. La pantalla también
+lista los últimos, para mirar de vez en cuando si algo está fallando en
+silencio.
+
+#### Dónde queda cada error
+
+En **dos lugares**, y en este orden:
+
+1. **La salida del servidor**, siempre. Es la fuente de verdad: sobrevive a que
+   la base esté caída, que es justo cuando más se necesita el rastro.
+2. **La tabla `errores_registrados`**, si se puede. Es la copia cómoda de
+   consultar desde el panel.
+
+Por eso el registro nunca puede levantar una excepción propia: taparía el error
+original y le cambiaría la respuesta al usuario. Está fijado por test.
+
+#### Qué se registra y qué no
+
+Sólo lo **inesperado**. Los 404, 403 y errores de validación son parte del
+funcionamiento normal: registrarlos ahogaría la tabla y la pantalla.
+
+La traza completa **nunca se le devuelve al usuario** — va al log y a la tabla.
+Y sólo la ve el super admin: no se le muestran detalles técnicos del sistema al
+administrador de un consorcio.
+
+En el mensaje se tacha lo que parezca contraseña o token. Es **mejor esfuerzo**,
+no una garantía: la protección de verdad es no meter payloads en los mensajes de
+excepción.
+
+Se conservan `ERRORES_RETENCION_DIAS` (90 por defecto) y después se borran
+solos. La purga corre al arrancar el servicio, no en una tarea programada: los
+despliegues son suficientemente frecuentes y no amerita una pieza más. Un
+servidor que quede meses en pie sin redesplegar no purga.
+
+#### Enterarse sin que nadie avise
+
+Todo lo anterior deja **encontrar** un error, no **enterarse**. Para que llegue
+un aviso solo, cargar `SENTRY_DSN` e instalar `sentry-sdk`. Sin eso, el sistema
+funciona igual.
+
+Va por variable de entorno y **no por la interfaz** a propósito: tiene que
+arrancar antes de que algo pueda fallar, y una configuración guardada en la base
+no está disponible si el problema es justamente la base. Si iniciar Sentry falla,
+se avisa en el log y el servicio arranca igual — sería absurdo que la
+herramienta de avisar errores tire el sistema.
+
 ### 3. Levantar el frontend (en otra terminal)
 
 ```bash

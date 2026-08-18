@@ -22,7 +22,12 @@ import backend.models  # noqa: F401 — registra las 32 tablas en Base.metadata
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # disable_existing_loggers=False es obligatorio acá: el default de
+    # fileConfig es True, y apaga todos los loggers que ya existían. Como
+    # `backend/seed_demo.py` corre `alembic upgrade` en proceso, sin esto la
+    # aplicación queda muda justo después de migrar — incluido el registro de
+    # errores, que es lo último que uno quiere perder.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # El '%' es el carácter de interpolación de ConfigParser: una password de
 # Postgres que lo contenga rompe el parseo con un error incomprensible.

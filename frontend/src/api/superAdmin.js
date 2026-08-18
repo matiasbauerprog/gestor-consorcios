@@ -62,6 +62,15 @@ export async function obtenerMetricas() {
   return apiFetch("/super-admin/metricas");
 }
 
+export async function listarErrores({ limit = 50, offset = 0 } = {}) {
+  const p = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  return apiFetch(`/super-admin/errores?${p.toString()}`);
+}
+
+export async function buscarErrorPorCodigo(codigo) {
+  return apiFetch(`/super-admin/errores/${encodeURIComponent(codigo.trim())}`);
+}
+
 export async function listarAuditLog({
   accion,
   administracionId,

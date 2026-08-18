@@ -4,6 +4,7 @@ const ITEMS = [
   { ruta: "/super-admin/administraciones", nombre: "Administraciones" },
   { ruta: "/super-admin/metricas", nombre: "Métricas" },
   { ruta: "/super-admin/audit-log", nombre: "Audit log" },
+  { ruta: "/super-admin/errores", nombre: "Errores" },
 ];
 
 export default function SidebarSuperAdmin({ abierto, onCerrar }) {

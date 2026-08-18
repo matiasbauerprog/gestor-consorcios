@@ -3449,6 +3449,21 @@ td.monto {
 /* El adjunto se pide al servidor antes de mostrarse (la URL viene firmada y
    vence). Estos dos estados ocupan el mismo alto que la miniatura para que la
    fila no salte cuando la imagen finalmente aparece. */
+/* La traza de un error es larga y ancha: se contiene sola en vez de estirar la
+   página. Scroll propio horizontal, alto acotado con scroll vertical. */
+.traza-error {
+  max-height: 24rem;
+  overflow: auto;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  white-space: pre;
+  tab-size: 4;
+}
+
 .adjunto-estado {
   display: inline-flex;
   align-items: center;
