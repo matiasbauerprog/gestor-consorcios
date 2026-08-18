@@ -125,7 +125,11 @@ def actualizar_presupuesto(
     payload: PresupuestoActualizar,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion, Rol.representante)),
+    cid: int = Depends(get_consorcio_activo),
 ):
+    # _validar_trabajo ancla la operacion al consorcio activo. Sin esto,
+    # db.get(Presupuesto, id) resuelve el presupuesto de cualquier consorcio.
+    _validar_trabajo(db, cid, trabajo_id)
     p = db.get(Presupuesto, presupuesto_id)
     if p is None or p.trabajo_id != trabajo_id:
         raise HTTPException(404, "Presupuesto no encontrado.")
@@ -146,7 +150,11 @@ def eliminar_presupuesto(
     presupuesto_id: int,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion, Rol.representante)),
+    cid: int = Depends(get_consorcio_activo),
 ):
+    # _validar_trabajo ancla la operacion al consorcio activo. Sin esto,
+    # db.get(Presupuesto, id) resuelve el presupuesto de cualquier consorcio.
+    _validar_trabajo(db, cid, trabajo_id)
     p = db.get(Presupuesto, presupuesto_id)
     if p is None or p.trabajo_id != trabajo_id:
         raise HTTPException(404, "Presupuesto no encontrado.")
@@ -162,7 +170,11 @@ def aprobar_presupuesto(
     presupuesto_id: int,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion, Rol.representante)),
+    cid: int = Depends(get_consorcio_activo),
 ):
+    # _validar_trabajo ancla la operacion al consorcio activo. Sin esto,
+    # db.get(Presupuesto, id) resuelve el presupuesto de cualquier consorcio.
+    _validar_trabajo(db, cid, trabajo_id)
     p = db.get(Presupuesto, presupuesto_id)
     if p is None or p.trabajo_id != trabajo_id:
         raise HTTPException(404, "Presupuesto no encontrado.")
@@ -190,7 +202,11 @@ def rechazar_presupuesto(
     presupuesto_id: int,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion, Rol.representante)),
+    cid: int = Depends(get_consorcio_activo),
 ):
+    # _validar_trabajo ancla la operacion al consorcio activo. Sin esto,
+    # db.get(Presupuesto, id) resuelve el presupuesto de cualquier consorcio.
+    _validar_trabajo(db, cid, trabajo_id)
     p = db.get(Presupuesto, presupuesto_id)
     if p is None or p.trabajo_id != trabajo_id:
         raise HTTPException(404, "Presupuesto no encontrado.")
