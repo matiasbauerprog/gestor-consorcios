@@ -46,6 +46,15 @@ class CambiarPasswordIn(BaseModel):
     new_password: str = Field(..., min_length=8, max_length=255)
 
 
+class RecuperarPasswordIn(BaseModel):
+    email: str = Field(..., min_length=3, max_length=255)
+
+
+class RestablecerPasswordIn(BaseModel):
+    token: str = Field(..., min_length=1, max_length=255)
+    new_password: str = Field(..., min_length=8, max_length=255)
+
+
 class UsuarioOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -6,8 +6,17 @@ from .. import blacklist
 from ..auth import CurrentUser, create_access_token, get_current_user
 from ..config import get_settings
 from ..database import get_db
+from ..mail_service import enviar_email
 from ..models import Administracion, Consorcio, Departamento, Rol, Usuario
-from ..schemas import CambiarPasswordIn, LoginIn, TokenOut, UsuarioOut
+from ..recuperacion import canjear_token, emitir_token
+from ..schemas import (
+    CambiarPasswordIn,
+    LoginIn,
+    RecuperarPasswordIn,
+    RestablecerPasswordIn,
+    TokenOut,
+    UsuarioOut,
+)
 from ..security import hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -118,6 +127,75 @@ def logout(user: CurrentUser = Depends(get_current_user)) -> Response:
     # Revoca el jti del token hasta su `exp` natural. A partir de acá, cualquier
     # request que lo presente verá 401 "Token revocado." en `decode_token`.
     blacklist.revoke(user.jti, user.exp)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/recuperar-password",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Pedir un link para restablecer la contraseña",
+)
+def recuperar_password(
+    payload: RecuperarPasswordIn, db: Session = Depends(get_db)
+) -> dict:
+    """Siempre responde 202, exista o no la cuenta.
+
+    Cualquier ramificación observable —código distinto, mensaje distinto, o un
+    error cuando falla el envío— convierte este formulario en un verificador de
+    qué emails están registrados. `enviar_email` devuelve False ante un fallo
+    en vez de levantar excepción, así que el 202 se mantiene igual.
+    """
+    usuario = db.scalar(select(Usuario).where(Usuario.email == payload.email))
+
+    if (
+        usuario is not None
+        and usuario.activa
+        and _administracion_activa_para(db, usuario)
+    ):
+        claro = emitir_token(db, usuario)
+        if claro is not None:  # None = superó el límite de pedidos por hora
+            settings = get_settings()
+            link = f"{settings.FRONTEND_URL}/restablecer-password?token={claro}"
+            enviar_email(
+                to=usuario.email,
+                subject="Restablecer tu contraseña",
+                body=(
+                    "Hola,\n\n"
+                    "Pediste restablecer tu contraseña. Entrá acá para elegir "
+                    "una nueva:\n\n"
+                    f"{link}\n\n"
+                    f"El link vence en {settings.RECUPERACION_TOKEN_MINUTOS} "
+                    "minutos y se puede usar una sola vez.\n\n"
+                    "Si no fuiste vos, ignorá este mensaje: tu contraseña no "
+                    "cambió.\n\n"
+                    "Administración."
+                ),
+            )
+
+    return {"detail": "Si el email está registrado, te va a llegar un mensaje."}
+
+
+@router.post(
+    "/restablecer-password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Restablecer la contraseña con el token del email",
+    response_class=Response,
+)
+def restablecer_password(
+    payload: RestablecerPasswordIn, db: Session = Depends(get_db)
+) -> Response:
+    usuario = canjear_token(db, payload.token)
+    if usuario is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El link es inválido o venció. Pedí uno nuevo.",
+        )
+
+    usuario.password_hash = hash_password(payload.new_password)
+    # Sin esto, quien tenía cambio obligatorio pendiente resetea su clave y
+    # sigue recibiendo 403 en todo endpoint operacional.
+    usuario.must_change_password = False
+    db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

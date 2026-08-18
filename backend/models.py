@@ -191,6 +191,34 @@ class Usuario(Base):
     departamento: Mapped["Departamento | None"] = relationship(back_populates="usuarios")
 
 
+class TokenRecuperacion(Base):
+    """Token de un solo uso para restablecer la contraseña.
+
+    Se guarda el **hash** del token, nunca el token en claro: el claro sólo
+    viaja en el email. Así una filtración de la base no permite resetear las
+    contraseñas de nadie.
+
+    No lleva `consorcio_id`: cuelga del usuario, que ya define el alcance.
+    """
+
+    __tablename__ = "tokens_recuperacion"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    token_hash: Mapped[str] = mapped_column(
+        String(64), nullable=False, unique=True, index=True
+    )
+    expira_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    usado_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    creado_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class Peticion(Base):
     __tablename__ = "peticiones"
 
