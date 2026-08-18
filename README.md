@@ -94,6 +94,41 @@ La primera vez, si la base está vacía, se siembra automáticamente con:
 
 También se cargan expensas de muestra, movimientos de cuenta corriente y un par de notas crédito/débito para que se vea algo desde el primer login.
 
+### Esquema de la base
+
+El esquema lo maneja **Alembic**. La app no crea tablas al arrancar.
+
+Poner la base al día (hay que correrlo la primera vez y después de cada `git pull`):
+
+```bash
+alembic upgrade head
+```
+
+**Agregar o cambiar una columna:**
+
+1. Editar `backend/models.py`.
+2. Generar la revisión: `alembic revision --autogenerate -m "descripción del cambio"`
+3. **Leer el archivo generado.** La autogeneración acierta casi siempre pero no
+   siempre: revisar renombres (los detecta como borrar + crear, y eso pierde datos)
+   y los `server_default` de columnas nuevas `NOT NULL` sobre tablas con filas.
+4. Aplicarla: `alembic upgrade head`
+5. Correr `pytest tests/test_migraciones.py` — la guarda de deriva confirma que
+   la migración y los modelos quedaron alineados.
+6. Commitear el archivo de revisión junto con el cambio de `models.py`.
+
+**Una base que ya tiene el esquema al día pero nunca vio Alembic** (por ejemplo un
+`consorcio.db` local de antes de esta migración) se marca como al día sin
+re-aplicar nada:
+
+```bash
+alembic stamp head
+```
+
+En el deploy no hay que acordarse de nada: el `Procfile` corre `alembic upgrade head`
+antes de levantar el servidor, y si una migración falla el servidor **no** arranca.
+Es a propósito — un despliegue caído y visible es preferible a uno que sirve tráfico
+contra un esquema a medio migrar.
+
 ### 3. Levantar el frontend (en otra terminal)
 
 ```bash

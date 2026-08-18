@@ -1241,6 +1241,24 @@ def _resetear_esquema(engine) -> None:
         engine.dispose()
 
 
+def _aplicar_migraciones() -> None:
+    """Deja el esquema al día con `alembic upgrade head`.
+
+    Se llama en proceso (no por subprocess) para que herede la DATABASE_URL ya
+    resuelta por Settings: quien invoca este módulo pasa la URL por variable de
+    entorno y un subprocess podría leer un .env distinto.
+    """
+    from pathlib import Path
+
+    from alembic import command
+    from alembic.config import Config
+
+    raiz = Path(__file__).resolve().parents[1]
+    cfg = Config(str(raiz / "alembic.ini"))
+    cfg.set_main_option("script_location", str(raiz / "backend" / "migrations"))
+    command.upgrade(cfg, "head")
+
+
 def generar_dataset_demo(*, seed_password: str, sa_email: str, sa_password: str,
                          reset: bool = False, hacer_export: bool = False) -> dict:
     """Genera el dataset demo completo. Núcleo reusable.
@@ -1263,6 +1281,8 @@ def generar_dataset_demo(*, seed_password: str, sa_email: str, sa_password: str,
     if reset:
         print("[demo] reset: borrando todas las tablas")
         _resetear_esquema(engine)
+        print("[demo] aplicando migraciones")
+        _aplicar_migraciones()
 
     t0 = time.monotonic()
     return _generar(seed_password, sa_email, sa_password, t0, TestClient,
