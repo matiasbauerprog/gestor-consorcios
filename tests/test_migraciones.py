@@ -100,6 +100,22 @@ def test_las_migraciones_reproducen_exactamente_los_modelos(tmp_path):
     )
 
 
+def test_el_arranque_no_crea_el_esquema():
+    """El esquema lo crea Alembic, no el arranque de la app.
+
+    Mientras `create_all` siga en el lifespan, una base de producción a la que
+    le falte una columna se ve 'sana' al arrancar y explota recién cuando
+    alguien toca esa columna.
+    """
+    main_py = (RAIZ / "backend" / "main.py").read_text(encoding="utf-8")
+    assert "create_all" not in main_py, (
+        "backend/main.py no debe crear tablas: eso lo hace `alembic upgrade head`."
+    )
+    assert "_migrar_" not in main_py, (
+        "Las migraciones a mano se reemplazaron por revisiones de Alembic."
+    )
+
+
 def test_hay_exactamente_un_head():
     """Dos heads significan historial ramificado: `upgrade head` falla y el
     deploy se cae. Pasa al mergear dos ramas que agregaron migraciones."""
