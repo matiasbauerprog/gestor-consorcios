@@ -1,6 +1,6 @@
 from datetime import date, datetime, time
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -188,6 +188,7 @@ def consultar_disponibilidad(
 def crear_reserva(
     amenity_id: int,
     payload: ReservaCrear,
+    tareas: BackgroundTasks,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.administracion, Rol.departamento)),
     cid: int = Depends(get_consorcio_activo),
@@ -296,13 +297,33 @@ def crear_reserva(
         db.flush()
         reserva.movimiento_cuenta_id = movimiento.id
 
+    from ..notificaciones import emitir
+    from ..notificaciones.catalogo import RESERVA_CONFIRMADA
+
+    monto = (
+        amenity.precio_reserva
+        if (user.rol == Rol.departamento and amenity.precio_reserva is not None)
+        else None
+    )
+    ctx_reserva = {
+        "amenity": amenity.nombre,
+        "fecha": inicio_naive.strftime("%Y-%m-%d %H:%M"),
+        "monto": monto,
+    }
+    if user.rol == Rol.departamento:
+        # `actor_usuario_id=None` a propósito: es la confirmación al propio
+        # reservante, el único caso donde el actor sí debe recibir el aviso
+        # porque el mail es el comprobante de su propia acción.
+        emitir(
+            db, RESERVA_CONFIRMADA,
+            consorcio_id=cid, contexto=ctx_reserva,
+            actor_usuario_id=None,
+            departamento_id=user.departamento_id,
+            tareas=tareas,
+        )
+
     db.commit()
     db.refresh(reserva)
-
-    from ..notificaciones import notificar_reserva_creada
-    monto = amenity.precio_reserva if (user.rol == Rol.departamento and amenity.precio_reserva is not None) else None
-    notificar_reserva_creada(db, reserva, amenity.nombre, monto)
-
     return reserva
 
 

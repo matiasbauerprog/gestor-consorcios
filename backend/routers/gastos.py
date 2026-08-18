@@ -1,6 +1,14 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Query,
+    Response,
+    status,
+)
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -23,7 +31,6 @@ from ..models import (
     Rubro,
     TipoMovimientoCaja,
     Trabajo,
-    Usuario,
 )
 from ..modulos import require_modulo
 from ..tenant import get_consorcio_activo
@@ -281,8 +288,9 @@ def listar_gastos(
 )
 def crear_gasto(
     payload: GastoCrear,
+    tareas: BackgroundTasks,
     db: Session = Depends(get_db),
-    _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    user: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
 ) -> Gasto:
     _bloquear_si_periodo_cerrado(db, cid, payload.periodo)
@@ -317,31 +325,26 @@ def crear_gasto(
 
     # Integración Fase 11: si vino trabajo_id, marcar el trabajo finalizado
     if payload.trabajo_id:
-        from ..notificaciones import crear_notificacion
+        from ..notificaciones import emitir
+        from ..notificaciones.catalogo import TRABAJO_COMPLETADO
+
         t = db.get(Trabajo, payload.trabajo_id)
         if t is None or t.consorcio_id != cid:
             raise HTTPException(404, f"Trabajo {payload.trabajo_id} no encontrado.")
         t.gasto_id = gasto.id
         t.estado = EstadoTrabajo.finalizado
-        # Notificar al depto de la petición (si la hay)
+
         if t.peticion_id:
             pet = db.get(Peticion, t.peticion_id)
             if pet:
-                usuarios = list(db.scalars(
-                    select(Usuario).where(
-                        Usuario.departamento_id == pet.departamento_id,
-                        Usuario.rol == Rol.departamento,
-                    )
-                ).all())
-                mensaje = f"El trabajo de tu petición '{pet.titulo}' fue completado."
-                for u in usuarios:
-                    crear_notificacion(
-                        db,
-                        consorcio_id=cid,
-                        usuario_id=u.id,
-                        mensaje=mensaje,
-                        link="/peticiones",
-                    )
+                emitir(
+                    db, TRABAJO_COMPLETADO,
+                    consorcio_id=cid,
+                    contexto={"titulo": pet.titulo},
+                    actor_usuario_id=user.id,
+                    departamento_id=pet.departamento_id,
+                    tareas=tareas,
+                )
 
     db.commit()
     db.refresh(gasto)

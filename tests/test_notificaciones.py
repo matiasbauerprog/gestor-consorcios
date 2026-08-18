@@ -1,38 +1,39 @@
 """Tests del módulo y router de notificaciones."""
-from backend.models import EstadoPeticion, Notificacion, Peticion, Rol, Usuario
-from backend.notificaciones import crear_notificacion, notificar_cambio_estado_peticion
+from backend.models import Notificacion, Usuario
 
 
-def test_crear_notificacion_persiste(db):
-    u = db.query(Usuario).filter_by(rol=Rol.departamento).first()
-    n = crear_notificacion(db, consorcio_id=1, usuario_id=u.id, mensaje="Test", link="/test")
+def test_emitir_persiste_la_campanita(db):
+    from backend.notificaciones import emitir
+
+    emitir(
+        db, "peticion_estado_cambiado",
+        consorcio_id=1,
+        contexto={"titulo": "Test", "estado": "rechazada", "peticion_id": 10},
+        actor_usuario_id=1, departamento_id=1,
+    )
     db.commit()
-    assert n.id is not None
+    n = db.query(Notificacion).filter_by(tipo="peticion_estado_cambiado").one()
+    assert n.usuario_id == 2
     assert n.leida is False
-    assert n.usuario_id == u.id
+    assert n.link == "/peticiones"
 
 
-def test_notificar_abierta_a_convertida_crea_notif(db, capsys):
-    p = Peticion(consorcio_id=1, departamento_id=1, titulo="Test peti",
-        descripcion="x", estado=EstadoPeticion.convertida_en_trabajo,
+def test_emitir_conversion_menciona_el_estado_crudo(db):
+    from backend.notificaciones import emitir
+
+    emitir(
+        db, "peticion_estado_cambiado",
+        consorcio_id=1,
+        contexto={
+            "titulo": "Test peti",
+            "estado": "convertida_en_trabajo",
+            "peticion_id": 10,
+        },
+        actor_usuario_id=1, departamento_id=1,
     )
-    db.add(p); db.flush()
-    before = db.query(Notificacion).filter_by(link="/peticiones").count()
-    notificar_cambio_estado_peticion(db, p, EstadoPeticion.abierta)
     db.commit()
-    after = db.query(Notificacion).filter_by(link="/peticiones").count()
-    assert after > before
-
-
-def test_notificar_sin_cambio_estado_no_hace_nada(db):
-    p = Peticion(consorcio_id=1, departamento_id=1, titulo="X", descripcion="x",
-        estado=EstadoPeticion.convertida_en_trabajo,
-    )
-    db.add(p); db.flush()
-    before = db.query(Notificacion).count()
-    notificar_cambio_estado_peticion(db, p, EstadoPeticion.convertida_en_trabajo)
-    after = db.query(Notificacion).count()
-    assert before == after
+    n = db.query(Notificacion).filter_by(tipo="peticion_estado_cambiado").one()
+    assert "convertida_en_trabajo" in n.mensaje
 
 
 def test_get_notificaciones_filtra_por_usuario(client, headers_depto_a, headers_depto_b, db):

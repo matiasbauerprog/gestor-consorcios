@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -6,7 +6,8 @@ from ..auth import CurrentUser, get_current_user, require_roles
 from ..database import get_db
 from ..models import Consorcio, EstadoPeticion, Peticion, Rol
 from ..modulos import require_modulo
-from ..notificaciones import notificar_cambio_estado_peticion
+from ..notificaciones import emitir, resolver_pendiente
+from ..notificaciones.catalogo import PETICION_ESTADO_CAMBIADO
 from ..schemas import PeticionActualizar, PeticionCrear, PeticionOut
 from ..tenant import get_consorcio_activo
 
@@ -110,8 +111,9 @@ def obtener_peticion(
 def actualizar_peticion(
     peticion_id: int,
     payload: PeticionActualizar,
+    tareas: BackgroundTasks,
     db: Session = Depends(get_db),
-    _user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
+    user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
     cid: int = Depends(get_consorcio_activo),
 ) -> Peticion:
     peticion = db.get(Peticion, peticion_id)
@@ -129,8 +131,6 @@ def actualizar_peticion(
             detail="La petición no se puede modificar en su estado actual.",
         )
 
-    # Capturar estado anterior para notificar cambio
-    estado_anterior = peticion.estado
     peticion.estado = payload.estado
     # `strip()` para que un textarea con espacios no cuente como motivo: o hay
     # texto real o queda NULL, que es como la UI distingue "sin motivo".
@@ -138,8 +138,23 @@ def actualizar_peticion(
     peticion.motivo_rechazo = motivo or None
     db.flush()
 
-    # Disparar notificación si el estado cambió (a convertida_en_trabajo o rechazada)
-    notificar_cambio_estado_peticion(db, peticion, estado_anterior)
+    # El rechazo saca la petición de "abierta": el pendiente del admin ya no
+    # es trabajo por hacer.
+    resolver_pendiente(
+        db, consorcio_id=cid, entidad_tipo="peticion", entidad_id=peticion.id,
+    )
+    emitir(
+        db, PETICION_ESTADO_CAMBIADO,
+        consorcio_id=cid,
+        contexto={
+            "titulo": peticion.titulo,
+            "estado": peticion.estado.value,
+            "peticion_id": peticion.id,
+        },
+        actor_usuario_id=user.id,
+        departamento_id=peticion.departamento_id,
+        tareas=tareas,
+    )
 
     db.commit()
     db.refresh(peticion)
