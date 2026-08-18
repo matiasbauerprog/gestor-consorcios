@@ -117,6 +117,18 @@ son 40 handshakes SMTP con el request abierto. Pasa a `BackgroundTasks`:
 - Un fallo de correo nunca puede propagarse a la respuesta del usuario: la tarea
   atrapa todo.
 
+### Dos cambios sutiles de comportamiento
+
+Los anoto porque son fáciles de romper sin querer al mudar los eventos:
+
+- **`reserva_confirmada` hoy se emite después del `commit`**, no antes. Al
+  mudarlo al emisor pasa a emitirse dentro de la transacción, como todos los
+  demás. El mail sale igual (encolado, después de la respuesta), pero si la
+  reserva falla al guardarse ya no se manda un correo de una reserva que no
+  existe. Es una mejora, no un efecto colateral.
+- **La petición borrada por el depto emite antes del `delete`.** El orden importa:
+  resolver el pendiente y emitir el informativo, y recién entonces borrar.
+
 ## Modelo de datos
 
 ### `notificaciones` (tabla existente, tres columnas nuevas)
@@ -160,7 +172,7 @@ usuario ve.
 
 | Clave | Se dispara en | Campanita | Mail default | Pendiente |
 |---|---|---|---|---|
-| `peticion_estado_cambiado` | `PATCH /peticiones/{id}`, conversión y cancelación de trabajo | sí | sí | no |
+| `peticion_estado_cambiado` | `PATCH /peticiones/{id}` (rechazo), `POST /trabajos` (conversión), `POST /trabajos/{id}/cancelar` (cascada) | sí | sí | no |
 | `trabajo_completado` | `POST /gastos` con `trabajo_id` | sí | no | no |
 | `reserva_confirmada` | `POST /amenities/{id}/reservas` | **no** | sí | no |
 | `reserva_cancelada_por_admin` | `DELETE /reservas/{id}` por admin | sí | sí | no |
@@ -180,21 +192,27 @@ manual que ya existe y **no** se toca.
 |---|---|---|---|---|
 | `peticion_nueva` | `POST /peticiones` | sí | no | `peticion` |
 | `comprobante_presentado` | `POST /comprobantes` | sí | no | `comprobante` |
-| `peticion_cancelada_por_depto` | `PATCH /peticiones/{id}` → cancelada por el depto | sí | no | no |
+| `peticion_borrada_por_depto` | `DELETE /peticiones/{id}` hecho por el propio depto | sí | no | no |
 | `reserva_nueva_de_depto` | `POST /amenities/{id}/reservas` | sí | no | no |
 
 ### Resolución de pendientes
 
 | Entidad | Se resuelve cuando |
 |---|---|
-| `peticion` | la petición sale de `abierta` — convertida, rechazada o cancelada, por quien sea |
+| `peticion` | la petición deja de estar `abierta` (rechazo o conversión) **o** se borra, por quien sea |
 | `comprobante` | `PATCH /comprobantes/{id}` lo lleva a aprobado o rechazado |
 
-En el caso de cancelación por el depto, el mismo request resuelve el pendiente
-`peticion_nueva` y emite `peticion_cancelada_por_depto`. Es correcto: deja de ser
-trabajo por hacer y pasa a ser un hecho informativo. Ese mismo request dispara
-además `peticion_estado_cambiado` hacia el departamento, y el usuario que canceló
-no lo recibe — lo evita el filtro de actor, sin ninguna condición especial.
+El borrado merece una aclaración. El departamento no "cancela" su petición: la
+**borra**, y sólo si sigue abierta (`DELETE /peticiones/{id}`). Ese request tiene
+que hacer dos cosas antes del `delete`: resolver el pendiente `peticion_nueva` —
+si no, el administrador queda con un pendiente que apunta a una petición que ya
+no existe — y emitir `peticion_borrada_por_depto`, que es informativo. El
+administrador también puede borrar peticiones; en ese caso sólo se resuelve el
+pendiente y no se emite nada, porque el filtro de actor descarta al único
+destinatario posible que hay del otro lado.
+
+`entidad_id` es un entero suelto, no una foreign key. Es a propósito: la
+notificación tiene que sobrevivir al borrado de la cosa que la originó.
 
 ### Fuera de alcance, explícitamente
 
@@ -321,5 +339,25 @@ Transversales:
 8. **Preferencias**: default sin fila; poner en no-default crea fila; volver al
    default borra la fila; `tipo` ajeno al rol ⇒ 400.
 
-Los tests actuales de los cuatro eventos existentes **no se tocan**. Que sigan
-verdes es la prueba de que la mudanza al catálogo no cambió comportamiento.
+### Qué pasa con los tests actuales
+
+Los que ejercitan un evento **a través de la API** no se tocan. Que sigan verdes
+sin una sola línea modificada es la prueba de que la mudanza al catálogo no
+cambió comportamiento. Están en `tests/test_peticiones.py`,
+`tests/test_trabajos.py` y `tests/test_reservas.py`.
+
+Dos de ellos imponen restricciones concretas sobre el catálogo, y hay que
+respetarlas:
+
+- `test_trabajos.py` filtra por `Notificacion.mensaje.contains("convertida_en_trabajo")`.
+  El texto de `peticion_estado_cambiado` **tiene que seguir incluyendo el valor
+  crudo del estado**, tal como hoy.
+- `test_reservas.py::test_depto_cancela_su_reserva_no_genera_notificacion`
+  cuenta filas totales antes y después. Que un depto cancele su propia reserva
+  tiene que seguir sin generar **ninguna** notificación, ni a él ni al
+  administrador.
+
+Los tres tests de `tests/test_notificaciones.py` que llaman a los helpers viejos
+(`crear_notificacion`, `notificar_cambio_estado_peticion`) sí se reescriben contra
+`emitir`, en la misma tarea que borra esos helpers. No hay forma de conservarlos:
+prueban funciones que dejan de existir.
