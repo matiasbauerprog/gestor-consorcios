@@ -107,6 +107,71 @@ def test_detiene_el_envio_si_el_destinatario_no_tiene_arroba(monkeypatch, capsys
     assert enviados == []
 
 
+def test_dominios_lista_lo_que_resend_ve_con_esa_clave(monkeypatch, capsys):
+    """El caso que motiva esto: el panel muestra el dominio verificado pero el
+    envío lo rechaza. Casi siempre es que la clave pertenece a otra cuenta, o
+    que lo verificado es un subdominio y se manda desde el dominio pelado."""
+    from backend.config import get_settings
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "SMTP_HOST", "smtp.resend.com")
+    monkeypatch.setattr(settings, "SMTP_PASSWORD", "re_clave")
+    monkeypatch.setattr(settings, "SMTP_FROM_EMAIL", "noreply@midominio.com.ar")
+    monkeypatch.setattr(
+        probar_email,
+        "_pedir_dominios",
+        lambda clave: [
+            {"name": "notificaciones.midominio.com.ar", "status": "verified"},
+            {"name": "otro.com", "status": "pending"},
+        ],
+    )
+
+    codigo = probar_email.main(["--dominios"])
+
+    salida = capsys.readouterr().out
+    assert codigo == 1, "el remitente no coincide con ningun dominio verificado"
+    assert "notificaciones.midominio.com.ar" in salida
+    assert "verified" in salida
+    assert "midominio.com.ar" in salida
+    # Y explica el desajuste concreto en vez de dejarlo a la vista nada mas.
+    assert "no coincide" in salida.lower()
+
+
+def test_dominios_confirma_cuando_el_remitente_si_corresponde(monkeypatch, capsys):
+    from backend.config import get_settings
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "SMTP_HOST", "smtp.resend.com")
+    monkeypatch.setattr(settings, "SMTP_PASSWORD", "re_clave")
+    monkeypatch.setattr(settings, "SMTP_FROM_EMAIL", "noreply@midominio.com.ar")
+    monkeypatch.setattr(
+        probar_email,
+        "_pedir_dominios",
+        lambda clave: [{"name": "midominio.com.ar", "status": "verified"}],
+    )
+
+    codigo = probar_email.main(["--dominios"])
+
+    assert codigo == 0
+    assert "corresponde" in capsys.readouterr().out.lower()
+
+
+def test_dominios_avisa_si_la_clave_no_ve_ninguno(monkeypatch, capsys):
+    """Lista vacía = la clave es de otra cuenta, o de una sin dominios."""
+    from backend.config import get_settings
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "SMTP_HOST", "smtp.resend.com")
+    monkeypatch.setattr(settings, "SMTP_PASSWORD", "re_clave")
+    monkeypatch.setattr(probar_email, "_pedir_dominios", lambda clave: [])
+
+    codigo = probar_email.main(["--dominios"])
+
+    salida = capsys.readouterr().out.lower()
+    assert codigo == 1
+    assert "ningún dominio" in salida or "ningun dominio" in salida
+
+
 def test_un_remitente_valido_deja_seguir(monkeypatch, capsys):
     from backend.config import get_settings
 

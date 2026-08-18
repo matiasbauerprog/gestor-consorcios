@@ -37,14 +37,97 @@ def _direccion_valida(direccion: str) -> bool:
     return bool(local) and "." in dominio and not dominio.startswith(".")
 
 
+def _pedir_dominios(clave: str) -> list[dict]:
+    """Le pregunta a Resend qué dominios ve **esa clave**.
+
+    Es lo que zanja el caso confuso: el panel muestra el dominio verificado
+    pero el envío lo rechaza. Casi siempre la clave pertenece a otra cuenta o
+    equipo, o lo verificado es un subdominio y se manda desde el dominio pelado.
+    """
+    import json
+    import urllib.request
+
+    pedido = urllib.request.Request(
+        "https://api.resend.com/domains",
+        headers={"Authorization": f"Bearer {clave}"},
+    )
+    with urllib.request.urlopen(pedido, timeout=15) as respuesta:
+        return json.loads(respuesta.read()).get("data", [])
+
+
+def _dominio_de(direccion: str) -> str:
+    return direccion.rpartition("@")[2].lower()
+
+
+def _listar_dominios(s) -> int:
+    """Imprime los dominios que ve la clave y compara con el remitente."""
+    if "resend" not in s.SMTP_HOST:
+        print(
+            f"--dominios sólo sabe consultarle a Resend, y SMTP_HOST es "
+            f"{s.SMTP_HOST!r}."
+        )
+        return 2
+
+    try:
+        dominios = _pedir_dominios(s.SMTP_PASSWORD)
+    except Exception as e:  # noqa: BLE001 — se reporta tal cual, es diagnóstico
+        print(f"No se pudo consultar la API de Resend: {e}")
+        print(
+            "Si dice 401 o 403, la clave está mal o no tiene permiso de lectura."
+        )
+        return 1
+
+    if not dominios:
+        print(
+            "Esa clave no ve ningún dominio.\n"
+            "Lo más probable: la clave pertenece a otra cuenta o a otro equipo "
+            "de Resend, distinto de aquel donde verificaste el dominio.\n"
+            "Generá una clave nueva desde el mismo equipo que aparece arriba de "
+            "la lista de dominios en el panel."
+        )
+        return 1
+
+    print("Dominios que ve esta clave:")
+    for d in dominios:
+        print(f"  {d.get('name')}  [{d.get('status')}]")
+    print()
+
+    esperado = _dominio_de(s.SMTP_FROM_EMAIL)
+    verificados = {
+        d.get("name", "").lower()
+        for d in dominios
+        if d.get("status") == "verified"
+    }
+
+    if esperado in verificados:
+        print(f"El remitente corresponde: {esperado} está verificado.")
+        return 0
+
+    print(
+        f"El remitente NO coincide con ningún dominio verificado.\n"
+        f"  mandás desde : {esperado}\n"
+        f"  verificados  : {', '.join(sorted(verificados)) or '(ninguno)'}\n\n"
+        "Resend trata el dominio pelado y cada subdominio como cosas distintas: "
+        "verificar notificaciones.midominio.com no habilita midominio.com.\n"
+        "O cambiás SMTP_FROM_EMAIL para que use un dominio de la lista, o "
+        "verificás en Resend el que querés usar."
+    )
+    return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if not argv:
         print("Uso: python -m backend.probar_email destinatario@ejemplo.com")
+        print("     python -m backend.probar_email --dominios")
         return 2
 
-    destino = argv[0]
     s = get_settings()
+
+    if argv[0] == "--dominios":
+        return _listar_dominios(s)
+
+    destino = argv[0]
 
     print("Configuración de correo:")
     print(f"  servidor   : {s.SMTP_HOST or '(vacío)'}:{s.SMTP_PORT}")

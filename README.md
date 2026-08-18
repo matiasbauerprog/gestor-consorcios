@@ -260,6 +260,23 @@ tiene que pertenecer a un dominio verificado en Resend; ellos recomiendan usar
 un **subdominio** (`notificaciones.tudominio.com`) para aislar la reputación de
 envío del dominio principal.
 
+**Si el envío dice que el dominio no está verificado pero en el panel figura
+verificado:**
+
+```bash
+python -m backend.probar_email --dominios
+```
+
+Le pregunta a la API de Resend qué dominios ve **esa clave concreta** y los
+compara con el remitente configurado. Las dos causas de ese desajuste:
+
+- La clave pertenece a **otra cuenta o equipo** de Resend, distinto de aquel
+  donde verificaste el dominio. Se ve porque la lista sale vacía o con otros
+  dominios.
+- Verificaste un **subdominio** y mandás desde el dominio pelado (o al revés).
+  Resend los trata como dominios distintos: verificar
+  `notificaciones.midominio.com` no habilita `midominio.com`.
+
 #### Lo que no hace
 
 Restablecer la contraseña **no cierra las sesiones que ya estaban abiertas** con
