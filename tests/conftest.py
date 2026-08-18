@@ -9,6 +9,13 @@ os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 # de arriba no contiene "demo", así que con DEMO_MODE=true el validator de
 # Settings tira ValidationError al importar backend.main más abajo.
 os.environ["DEMO_MODE"] = "false"
+# Idem, y por un motivo más caro: con SMTP_HOST cargado en el .env -lo normal
+# apenas se da de alta el proveedor de correo- el suite manda mensajes REALES
+# por la cuenta de quien lo corra. Gasta cuota, ensucia la reputación del
+# dominio y le escribe a cualquier dirección que aparezca en un test.
+# Vacío = `mail_service` imprime a stdout, que es además de donde varios tests
+# leen el contenido del mensaje.
+os.environ["SMTP_HOST"] = ""
 
 from collections.abc import Iterator  # noqa: E402
 

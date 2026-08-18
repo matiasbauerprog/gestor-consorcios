@@ -41,7 +41,11 @@ def test_muestra_la_configuracion_sin_revelar_la_clave(monkeypatch, capsys):
 def test_devuelve_cero_cuando_el_envio_sale_bien(monkeypatch, capsys):
     from backend.config import get_settings
 
-    monkeypatch.setattr(get_settings(), "SMTP_HOST", "smtp.resend.com")
+    settings = get_settings()
+    monkeypatch.setattr(settings, "SMTP_HOST", "smtp.resend.com")
+    # El default de Settings es `consorcio@local`, que no es una direccion
+    # real: hay que fijar una valida o la validacion de forma corta antes.
+    monkeypatch.setattr(settings, "SMTP_FROM_EMAIL", "noreply@midominio.com.ar")
     monkeypatch.setattr(probar_email, "enviar_email", lambda **kw: True)
 
     assert probar_email.main(["vecino@ejemplo.com"]) == 0
@@ -50,7 +54,9 @@ def test_devuelve_cero_cuando_el_envio_sale_bien(monkeypatch, capsys):
 def test_devuelve_uno_cuando_el_envio_falla(monkeypatch, capsys):
     from backend.config import get_settings
 
-    monkeypatch.setattr(get_settings(), "SMTP_HOST", "smtp.resend.com")
+    settings = get_settings()
+    monkeypatch.setattr(settings, "SMTP_HOST", "smtp.resend.com")
+    monkeypatch.setattr(settings, "SMTP_FROM_EMAIL", "noreply@midominio.com.ar")
     monkeypatch.setattr(probar_email, "enviar_email", lambda **kw: False)
 
     codigo = probar_email.main(["vecino@ejemplo.com"])
@@ -64,3 +70,49 @@ def test_sin_destinatario_explica_como_usarlo(capsys):
 
     assert codigo == 2
     assert "uso:" in capsys.readouterr().out.lower()
+
+
+def test_detiene_el_envio_si_el_remitente_no_tiene_arroba(monkeypatch, capsys):
+    """Un punto en lugar de la arroba (`noreply.dominio.com`) es un error de
+    tipeo fácil y el servidor lo rechaza con un mensaje poco claro. Se corta
+    antes, diciendo exactamente qué está mal."""
+    from backend.config import get_settings
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "SMTP_HOST", "smtp.resend.com")
+    monkeypatch.setattr(settings, "SMTP_FROM_EMAIL", "noreply.midominio.com.ar")
+    enviados = []
+    monkeypatch.setattr(probar_email, "enviar_email", lambda **kw: enviados.append(kw))
+
+    codigo = probar_email.main(["vecino@ejemplo.com"])
+
+    salida = capsys.readouterr().out
+    assert codigo == 1
+    assert "@" in salida and "remitente" in salida.lower()
+    assert enviados == [], "no debe intentar mandar con un remitente invalido"
+
+
+def test_detiene_el_envio_si_el_destinatario_no_tiene_arroba(monkeypatch, capsys):
+    from backend.config import get_settings
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "SMTP_HOST", "smtp.resend.com")
+    monkeypatch.setattr(settings, "SMTP_FROM_EMAIL", "noreply@midominio.com.ar")
+    enviados = []
+    monkeypatch.setattr(probar_email, "enviar_email", lambda **kw: enviados.append(kw))
+
+    codigo = probar_email.main(["vecino.ejemplo.com"])
+
+    assert codigo == 1
+    assert enviados == []
+
+
+def test_un_remitente_valido_deja_seguir(monkeypatch, capsys):
+    from backend.config import get_settings
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "SMTP_HOST", "smtp.resend.com")
+    monkeypatch.setattr(settings, "SMTP_FROM_EMAIL", "noreply@midominio.com.ar")
+    monkeypatch.setattr(probar_email, "enviar_email", lambda **kw: True)
+
+    assert probar_email.main(["vecino@ejemplo.com"]) == 0
