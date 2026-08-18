@@ -21,6 +21,13 @@ class Settings(BaseSettings):
     DEMO_MODE: bool = False
     UPLOAD_DIR: str = "backend/uploads"
     MAX_UPLOAD_SIZE_BYTES: int = 5 * 1024 * 1024
+    STORAGE_BACKEND: str = "local"  # "local" | "s3"
+    URL_FIRMADA_SEGUNDOS: int = 300
+    S3_ENDPOINT_URL: str = ""
+    S3_REGION: str = "auto"
+    S3_BUCKET: str = ""
+    S3_ACCESS_KEY_ID: str = ""
+    S3_SECRET_ACCESS_KEY: str = ""
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
@@ -55,6 +62,26 @@ class Settings(BaseSettings):
         if v.startswith("postgres://"):
             return v.replace("postgres://", "postgresql://", 1)
         return v
+
+    @model_validator(mode="after")
+    def _s3_exige_credenciales(self) -> "Settings":
+        """Con STORAGE_BACKEND=s3 faltando credenciales, cada subida fallaría
+        recién en tiempo de request y con un error de boto3 incomprensible.
+        Mejor no arrancar."""
+        if self.STORAGE_BACKEND == "s3":
+            faltan = [
+                nombre
+                for nombre in ("S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY")
+                if not getattr(self, nombre)
+            ]
+            if faltan:
+                raise ValueError(f"STORAGE_BACKEND=s3 exige {', '.join(faltan)}.")
+        elif self.STORAGE_BACKEND != "local":
+            raise ValueError(
+                f"STORAGE_BACKEND invalido: {self.STORAGE_BACKEND!r}. "
+                "Valores validos: 'local', 's3'."
+            )
+        return self
 
     @model_validator(mode="after")
     def _demo_mode_requiere_db_demo(self) -> "Settings":

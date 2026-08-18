@@ -260,8 +260,9 @@ def exportar_comprobantes(datos: dict, origen_uploads: Path, origen_assets: Path
     `archivo_path` en `datos["/comprobantes"]` para que apunten ahí.
 
     En la demo sin backend, `archivo_path` como lo devuelve la API
-    ("/uploads/comprobantes/<hash>.png") no sirve: apunta a un servidor que
-    no existe. `imagen_comprobante` (backend/seed_demo.py) rota entre sólo
+    ("comprobantes/<hash>.png") no sirve: es una clave de almacenamiento que
+    sólo se puede resolver pidiendo una URL firmada a un servidor que en la
+    demo no existe. `imagen_comprobante` (backend/seed_demo.py) rota entre sólo
     TRES imágenes reales para los 82 comprobantes del dataset, así que se
     copian esas tres una única vez desde `origen_assets` —no una por
     comprobante— y se identifica cuál le tocó a cada uno por el hash del
@@ -283,7 +284,9 @@ def exportar_comprobantes(datos: dict, origen_uploads: Path, origen_assets: Path
         ruta = c.get("archivo_path")
         if not ruta:
             continue
-        origen = origen_uploads / ruta.removeprefix("/uploads/")
+        # `ruta` es la clave de almacenamiento relativa a UPLOAD_DIR
+        # (`comprobantes/<hash>.png`), que es como se persiste en la base.
+        origen = origen_uploads / ruta
         if not origen.exists():
             continue
         contenido = origen.read_bytes()

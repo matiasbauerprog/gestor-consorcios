@@ -4,7 +4,8 @@ import {
   listarComprobantes,
   actualizarComprobante,
 } from "../api/comprobantes";
-import { API_BASE } from "../api/client";
+import { rutaAdjuntoComprobante } from "../api/archivos";
+import ArchivoAdjunto from "./ArchivoAdjunto";
 import BadgeEstado from "./BadgeEstado";
 import Modal from "./Modal";
 import Tarjeta from "./Tarjeta";
@@ -97,17 +98,11 @@ export default function ModalComprobantesExpensa({ expensa, onClose }) {
                 <p className="meta">Pagado {formatFecha(c.fecha_pago)}</p>
                 <p><BadgeEstado estado={c.estado} /></p>
                 {c.archivo_path && (
-                  <a
-                    href={`${API_BASE}${c.archivo_path}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <img
-                      src={`${API_BASE}${c.archivo_path}`}
-                      alt="Comprobante"
-                      className="comprobante-img"
-                    />
-                  </a>
+                  <ArchivoAdjunto
+                    ruta={rutaAdjuntoComprobante(c)}
+                    alt="Comprobante"
+                    className="comprobante-img"
+                  />
                 )}
                 {esAdmin && c.estado === "pendiente_verificacion" && (
                   <div className="tarjeta-acciones">

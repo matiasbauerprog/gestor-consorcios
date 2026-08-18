@@ -3,9 +3,7 @@
 Anida bajo /trabajos/{trabajo_id}/presupuestos. Acceso admin/representante para
 POST/PATCH/DELETE/aprobar/rechazar. GET: admin/representante/depto (lectura).
 """
-import uuid
 from datetime import date
-from pathlib import Path as PathlibPath
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -17,7 +15,8 @@ from ..config import get_settings
 from ..database import get_db
 from ..models import EstadoPresupuesto, Presupuesto, Proveedor, Rol, Trabajo
 from ..modulos import require_modulo
-from ..schemas import PresupuestoActualizar, PresupuestoOut
+from ..schemas import ArchivoUrlOut, PresupuestoActualizar, PresupuestoOut
+from ..storage import firmar_clave, guardar_archivo
 from ..tenant import get_consorcio_activo
 
 router = APIRouter(
@@ -25,9 +24,6 @@ router = APIRouter(
     tags=["Presupuestos"],
     dependencies=[Depends(require_modulo("operacion"))],
 )
-
-ALLOWED_EXTS = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
-MAX_ARCHIVO_BYTES = 5 * 1024 * 1024  # 5MB
 
 
 def _validar_trabajo(db: Session, cid: int, trabajo_id: int) -> Trabajo:
@@ -44,21 +40,34 @@ def _validar_proveedor(db: Session, cid: int, proveedor_id: int) -> Proveedor:
     return p
 
 
-def _guardar_archivo(archivo: UploadFile) -> str:
-    """Guarda en uploads/presupuestos/ con nombre random. Devuelve path relativo a UPLOAD_DIR."""
-    ext = PathlibPath(archivo.filename or "").suffix.lower()
-    if ext not in ALLOWED_EXTS:
-        raise HTTPException(400, f"Extensión no permitida ({ext}). Use PDF/JPG/PNG/WebP.")
-    contenido = archivo.file.read()
-    if len(contenido) > MAX_ARCHIVO_BYTES:
-        raise HTTPException(400, "Archivo > 5MB.")
-    settings = get_settings()
-    target_dir = PathlibPath(settings.UPLOAD_DIR) / "presupuestos"
-    target_dir.mkdir(parents=True, exist_ok=True)
-    nombre = f"{uuid.uuid4().hex}{ext}"
-    target_path = target_dir / nombre
-    target_path.write_bytes(contenido)
-    return str(PathlibPath("presupuestos") / nombre)
+@router.get(
+    "/{trabajo_id}/presupuestos/{presupuesto_id}/archivo",
+    response_model=ArchivoUrlOut,
+    status_code=status.HTTP_200_OK,
+    summary="Obtener la URL firmada del presupuesto",
+)
+def url_del_presupuesto(
+    trabajo_id: int,
+    presupuesto_id: int,
+    db: Session = Depends(get_db),
+    _u: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
+) -> ArchivoUrlOut:
+    # Mismo criterio de rol que listar_presupuestos: cualquier usuario
+    # autenticado del consorcio. El aislamiento lo da _validar_trabajo.
+    _validar_trabajo(db, cid, trabajo_id)
+    presupuesto = db.get(Presupuesto, presupuesto_id)
+    if (
+        presupuesto is None
+        or presupuesto.trabajo_id != trabajo_id
+        or not presupuesto.archivo_path
+    ):
+        raise HTTPException(404, "Presupuesto no encontrado.")
+
+    return ArchivoUrlOut(
+        url=firmar_clave(presupuesto.archivo_path),
+        expira_en=get_settings().URL_FIRMADA_SEGUNDOS,
+    )
 
 
 @router.get("/{trabajo_id}/presupuestos", response_model=list[PresupuestoOut])
@@ -92,7 +101,7 @@ def crear_presupuesto(
     _validar_proveedor(db, cid, proveedor_id)
 
     fecha = date.fromisoformat(fecha_presentacion) if fecha_presentacion else date.today()
-    archivo_path = _guardar_archivo(archivo) if (archivo and archivo.filename) else None
+    archivo_path = guardar_archivo(archivo, "presupuestos") if (archivo and archivo.filename) else None
 
     p = Presupuesto(
         consorcio_id=cid,

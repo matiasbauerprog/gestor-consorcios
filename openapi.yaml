@@ -605,6 +605,38 @@ paths:
         '413':
           $ref: '#/components/responses/PayloadGrande'
 
+  /comprobantes/{comprobante_id}/archivo:
+    get:
+      tags: [Expensas]
+      summary: Obtener la URL firmada del comprobante
+      description: |
+        Devuelve una URL de vida corta con la que se puede mostrar o descargar el
+        comprobante. Se entrega por separado del recurso porque `<img src>` y
+        `<a href>` no mandan el header `Authorization`: la autorización se
+        verifica en esta llamada y la URL resultante ya sirve sin token.
+
+        Un departamento sólo obtiene la URL de sus propios comprobantes; pedir la
+        de otro devuelve **404** (no 403, para no confirmar que ese comprobante
+        existe). Administración accede a los de su consorcio.
+      operationId: urlDelComprobante
+      parameters:
+        - $ref: '#/components/parameters/xConsorcioIdHeader'
+        - name: comprobante_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: URL firmada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArchivoUrlOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          description: No existe, no tiene adjunto, o no le corresponde al usuario.
+
   /comprobantes/{comprobante_id}:
     patch:
       tags: [Expensas]
@@ -1097,6 +1129,81 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+
+  /trabajos/{trabajo_id}/presupuestos/{presupuesto_id}/archivo:
+    get:
+      tags: [Presupuestos]
+      summary: Obtener la URL firmada del presupuesto
+      description: |
+        Devuelve una URL de vida corta para abrir el adjunto del presupuesto.
+        Mismo criterio de rol que listar presupuestos: cualquier usuario
+        autenticado del consorcio. El aislamiento entre consorcios lo da la
+        validación del trabajo.
+      operationId: urlDelPresupuesto
+      parameters:
+        - $ref: '#/components/parameters/xConsorcioIdHeader'
+        - name: trabajo_id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: presupuesto_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: URL firmada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArchivoUrlOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '404':
+          description: El trabajo o el presupuesto no existen, o el presupuesto no tiene adjunto.
+
+  /archivos/{clave}:
+    get:
+      tags: [Archivos]
+      summary: Descargar un archivo con URL firmada
+      description: |
+        **Endpoint público a propósito.** No exige `Authorization` porque lo
+        consumen `<img src>` y `<a href>`, que no mandan headers. La
+        autorización ya ocurrió cuando el usuario pidió la URL a un endpoint
+        autenticado; acá sólo se verifica que la firma sea auténtica y no haya
+        vencido.
+
+        No construir esta URL a mano: se obtiene de los endpoints `.../archivo`.
+      operationId: descargarArchivo
+      security: []
+      parameters:
+        - name: clave
+          in: path
+          required: true
+          description: Clave de almacenamiento del archivo (puede contener `/`).
+          schema: { type: string }
+        - name: exp
+          in: query
+          required: true
+          description: Vencimiento de la firma, en epoch segundos.
+          schema: { type: integer }
+        - name: firma
+          in: query
+          required: true
+          description: HMAC-SHA256 de `clave:exp`.
+          schema: { type: string }
+      responses:
+        '200':
+          description: El archivo.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '403':
+          description: Firma inválida o vencida.
+        '404':
+          description: El archivo no existe.
 
   /trabajos/{trabajo_id}/presupuestos/{presupuesto_id}/aprobar:
     post:
@@ -4389,6 +4496,19 @@ components:
 
   schemas:
 
+    ArchivoUrlOut:
+      type: object
+      required: [url, expira_en]
+      properties:
+        url:
+          type: string
+          description: Ruta firmada, relativa al host de la API. Usable directamente como `src` o `href`.
+          example: /archivos/comprobantes/9f3a1c.jpg?exp=1755561600&firma=a1b2c3
+        expira_en:
+          type: integer
+          description: Segundos de vida de la URL desde que se emitió.
+          example: 300
+
     Error:
       type: object
       required: [detail]
@@ -4868,7 +4988,10 @@ components:
           format: double
         archivo_path:
           type: string
-          description: URL pública relativa de la imagen (`/uploads/comprobantes/<uuid>.<ext>`) o `null` si no se adjuntó archivo.
+          description: |
+            Clave de almacenamiento del adjunto (`comprobantes/<uuid>.<ext>`) o `null` si no se adjuntó archivo.
+            **No es una URL y no se puede abrir directamente**: sirve sólo para saber si hay adjunto.
+            Para mostrarlo hay que pedir una URL firmada a `GET /comprobantes/{comprobante_id}/archivo`.
           nullable: true
         estado:
           type: string

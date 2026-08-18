@@ -8,7 +8,8 @@ import {
 } from "../api/comprobantes";
 import { listarCajas } from "../api/cajas";
 import { obtenerConfiguracion } from "../api/configuracion";
-import { API_BASE } from "../api/client";
+import { rutaAdjuntoComprobante } from "../api/archivos";
+import ArchivoAdjunto from "../components/ArchivoAdjunto";
 import BadgeEstado from "../components/BadgeEstado";
 import TablaResponsive from "../components/TablaResponsive";
 import MenuAcciones from "../components/MenuAcciones";
@@ -254,13 +255,10 @@ export default function Comprobantes({ embebida = false }) {
       ancho: "8rem",
       celda: (c) =>
         c.archivo_path ? (
-          <a href={`${API_BASE}${c.archivo_path}`} target="_blank" rel="noopener noreferrer">
-            <img
-              src={`${API_BASE}${c.archivo_path}`}
-              alt={`Comprobante del ${formatFecha(c.fecha_pago)}`}
-              className="comprobante-thumb"
-            />
-          </a>
+          <ArchivoAdjunto
+            ruta={rutaAdjuntoComprobante(c)}
+            alt={`Comprobante del ${formatFecha(c.fecha_pago)}`}
+          />
         ) : (
           "—"
         ),
@@ -350,13 +348,11 @@ export default function Comprobantes({ embebida = false }) {
               <p className="meta">Motivo: {c.motivo_rechazo}</p>
             )}
             {c.archivo_path && (
-              <a href={`${API_BASE}${c.archivo_path}`} target="_blank" rel="noopener noreferrer">
-                <img
-                  src={`${API_BASE}${c.archivo_path}`}
-                  alt="Comprobante"
-                  className="comprobante-img"
-                />
-              </a>
+              <ArchivoAdjunto
+                ruta={rutaAdjuntoComprobante(c)}
+                alt="Comprobante"
+                className="comprobante-img"
+              />
             )}
             <div className="tarjeta-acciones">
               {esAdmin && c.estado === "pendiente_verificacion" && (

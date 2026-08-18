@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Modal from "./Modal";
-import { API_BASE } from "../api/client";
+import ArchivoAdjunto from "./ArchivoAdjunto";
 import { completarTrabajo, cancelarTrabajo } from "../api/trabajos";
 import {
   listarPresupuestos,
@@ -163,13 +163,11 @@ export default function ModalDetalleTrabajo({
                 <td>{formatFecha(p.fecha_presentacion)}</td>
                 <td>
                   {p.archivo_path ? (
-                    <a
-                      href={`${API_BASE}/uploads/${p.archivo_path}`}
-                      target="_blank"
-                      rel="noreferrer"
+                    <ArchivoAdjunto
+                      ruta={`/trabajos/${trabajo.id}/presupuestos/${p.id}/archivo`}
                     >
                       Ver
-                    </a>
+                    </ArchivoAdjunto>
                   ) : (
                     "—"
                   )}
