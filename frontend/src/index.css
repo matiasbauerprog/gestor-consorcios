@@ -3446,6 +3446,23 @@ td.monto {
   cursor: zoom-in;
 }
 
+/* El adjunto se pide al servidor antes de mostrarse (la URL viene firmada y
+   vence). Estos dos estados ocupan el mismo alto que la miniatura para que la
+   fila no salte cuando la imagen finalmente aparece. */
+.adjunto-estado {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 44px;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.adjunto-error {
+  color: var(--color-danger);
+}
+
 /* ---------- Reservas: dos columnas en desktop ---------- */
 
 .reservas-grid {

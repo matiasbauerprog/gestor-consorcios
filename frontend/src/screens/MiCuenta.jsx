@@ -5,7 +5,8 @@ import { listarMisMovimientos } from "../api/movimientos";
 import { listarExpensas } from "../api/expensas";
 import { listarComprobantes, presentarComprobante } from "../api/comprobantes";
 import { abrirPdfExpensa } from "../api/pdf";
-import { API_BASE } from "../api/client";
+import { rutaAdjuntoComprobante } from "../api/archivos";
+import ArchivoAdjunto from "../components/ArchivoAdjunto";
 import Modal from "../components/Modal";
 import TabsPanel from "../components/TabsPanel";
 import Tarjeta from "../components/Tarjeta";
@@ -295,17 +296,11 @@ function SeccionComprobantes({ comprobantes }) {
               <p className="meta">Motivo: {c.motivo_rechazo}</p>
             )}
             {c.archivo_path && (
-              <a
-                href={`${API_BASE}${c.archivo_path}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <img
-                  src={`${API_BASE}${c.archivo_path}`}
-                  alt="Comprobante"
-                  className="comprobante-img"
-                />
-              </a>
+              <ArchivoAdjunto
+                ruta={rutaAdjuntoComprobante(c)}
+                alt="Comprobante"
+                className="comprobante-img"
+              />
             )}
           </Tarjeta>
         </li>
