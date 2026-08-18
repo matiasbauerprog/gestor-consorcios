@@ -191,6 +191,38 @@ class Usuario(Base):
     departamento: Mapped["Departamento | None"] = relationship(back_populates="usuarios")
 
 
+class ErrorRegistrado(Base):
+    """Un error inesperado, con el contexto para poder rastrearlo.
+
+    El `codigo` es lo que se le muestra al usuario y lo que después se busca en
+    el panel: es la única pieza que viaja del vecino al soporte.
+
+    Esta tabla es la copia cómoda de consultar, **no** la fuente de verdad: si
+    el error fue una falla de base, la fila no se llega a escribir. Por eso
+    `backend/errores.py` escribe siempre primero a la salida del servidor.
+    """
+
+    __tablename__ = "errores_registrados"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    codigo: Mapped[str] = mapped_column(
+        String(16), nullable=False, unique=True, index=True
+    )
+    ocurrido_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
+    )
+    ruta: Mapped[str] = mapped_column(String(255), nullable=False)
+    metodo: Mapped[str] = mapped_column(String(10), nullable=False)
+    tipo: Mapped[str] = mapped_column(String(120), nullable=False)
+    mensaje: Mapped[str] = mapped_column(String(1000), nullable=False)
+    traza: Mapped[str] = mapped_column(Text, nullable=False)
+    # Sin FK a usuarios: si el usuario se borra, el error tiene que sobrevivir
+    # -- justamente puede ser la pista de por qué se borró.
+    usuario_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    rol: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    consorcio_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
 class TokenRecuperacion(Base):
     """Token de un solo uso para restablecer la contraseña.
 
