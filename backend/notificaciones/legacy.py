@@ -9,8 +9,8 @@ Helper `crear_notificacion` reusable para cualquier evento futuro.
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .mail_service import enviar_email
-from .models import EstadoPeticion, Notificacion, Peticion, Rol, Usuario
+from ..mail_service import enviar_email
+from ..models import EstadoPeticion, Notificacion, Peticion, Rol, Usuario
 
 
 def crear_notificacion(
@@ -84,7 +84,7 @@ def notificar_reserva_creada(
     monto_cobrado: float | None,
 ) -> None:
     """Email-only al depto que reservó. Sin campanita (acaba de ver la confirmación)."""
-    from .models import Rol, Usuario
+    from ..models import Rol, Usuario
 
     usuario = db.get(Usuario, reserva.usuario_id)
     if usuario is None or usuario.rol != Rol.departamento or not usuario.email:
@@ -111,7 +111,7 @@ def notificar_reserva_cancelada_por_admin(
     monto_reversado: float | None,
 ) -> None:
     """Doble canal cuando admin cancela una reserva ajena."""
-    from .models import Rol, Usuario
+    from ..models import Rol, Usuario
 
     usuarios = list(db.scalars(
         select(Usuario).where(
