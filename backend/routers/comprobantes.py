@@ -2,6 +2,7 @@ from datetime import date, datetime, timezone
 
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Depends,
     File,
     Form,
@@ -28,6 +29,8 @@ from ..models import (
     TipoMovimientoCaja,
 )
 from ..modulos import require_modulo
+from ..notificaciones import emitir, resolver_pendiente
+from ..notificaciones.catalogo import COMPROBANTE_APROBADO, COMPROBANTE_RECHAZADO
 from ..schemas import ArchivoUrlOut, ComprobanteActualizar, ComprobanteOut
 from ..storage import firmar_clave, guardar_archivo
 from ..tenant import get_consorcio_activo
@@ -170,8 +173,9 @@ def presentar_comprobante(
 def actualizar_comprobante(
     comprobante_id: int,
     payload: ComprobanteActualizar,
+    tareas: BackgroundTasks,
     db: Session = Depends(get_db),
-    _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    user: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
 ) -> Comprobante:
     comprobante = db.get(Comprobante, comprobante_id)
@@ -244,6 +248,26 @@ def actualizar_comprobante(
                 comprobante_id=comprobante.id,
             )
         )
+
+    # El comprobante deja de estar esperando verificación: el pendiente del
+    # admin se apaga para todos, lo haya resuelto quien lo haya resuelto.
+    resolver_pendiente(
+        db, consorcio_id=cid, entidad_tipo="comprobante", entidad_id=comprobante.id,
+    )
+
+    aprobado = comprobante.estado == EstadoComprobante.aprobado
+    emitir(
+        db,
+        COMPROBANTE_APROBADO if aprobado else COMPROBANTE_RECHAZADO,
+        consorcio_id=cid,
+        contexto={
+            "monto": comprobante.monto,
+            "motivo": comprobante.motivo_rechazo,
+        },
+        actor_usuario_id=user.id,
+        departamento_id=comprobante.departamento_id,
+        tareas=tareas,
+    )
 
     db.commit()
     db.refresh(comprobante)

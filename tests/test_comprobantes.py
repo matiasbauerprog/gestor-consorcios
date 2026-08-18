@@ -779,3 +779,54 @@ def test_departamento_ve_el_motivo_de_su_comprobante_rechazado(
     assert r.status_code == 200
     visto = next(x for x in r.json() if x["id"] == c.id)
     assert visto["motivo_rechazo"] == "El comprobante está ilegible."
+
+
+# ---------------------------------------------------------------------------
+# Notificaciones al verificar un comprobante
+# ---------------------------------------------------------------------------
+
+
+def test_aprobar_comprobante_notifica_al_depto(client, headers_admin, headers_depto_a, db):
+    from backend.models import Notificacion
+
+    with open(__file__, "rb") as f:
+        r = client.post(
+            "/comprobantes",
+            data={"fecha_pago": "2026-08-01", "monto": "1000"},
+            files={"archivo": ("c.pdf", f.read(), "application/pdf")},
+            headers=headers_depto_a,
+        )
+    assert r.status_code == 201
+    cid_comp = r.json()["id"]
+
+    r2 = client.patch(
+        f"/comprobantes/{cid_comp}",
+        json={"estado": "aprobado"},
+        headers=headers_admin,
+    )
+    assert r2.status_code == 200
+
+    ns = db.query(Notificacion).filter_by(tipo="comprobante_aprobado").all()
+    assert [n.usuario_id for n in ns] == [2]
+
+
+def test_rechazar_comprobante_incluye_el_motivo(client, headers_admin, headers_depto_a, db):
+    from backend.models import Notificacion
+
+    with open(__file__, "rb") as f:
+        r = client.post(
+            "/comprobantes",
+            data={"fecha_pago": "2026-08-01", "monto": "1000"},
+            files={"archivo": ("c.pdf", f.read(), "application/pdf")},
+            headers=headers_depto_a,
+        )
+    cid_comp = r.json()["id"]
+
+    client.patch(
+        f"/comprobantes/{cid_comp}",
+        json={"estado": "rechazado", "motivo_rechazo": "El monto no coincide"},
+        headers=headers_admin,
+    )
+
+    n = db.query(Notificacion).filter_by(tipo="comprobante_rechazado").one()
+    assert "El monto no coincide" in n.mensaje

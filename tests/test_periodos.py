@@ -242,3 +242,35 @@ def test_cierre_propio_sigue_bloqueando_gastos(client, headers_admin, db_lista_p
         "forma_pago": "efectivo", "caja_id": 900, "fecha_pago": "2026-07-12",
     }, headers=headers_admin)
     assert r.status_code == 409
+
+
+# ---------------------------------------------------------------------------
+# Notificación de expensa emitida al cerrar el período
+# ---------------------------------------------------------------------------
+
+
+def test_cerrar_periodo_notifica_la_expensa_a_cada_depto(client, headers_admin, db_session):
+    from backend.models import (
+        CoeficienteDepartamento, FormaPago, Gasto, Notificacion, Rubro,
+    )
+
+    db_session.add(CoeficienteDepartamento(
+        consorcio_id=1, departamento_id=1, clase_prorrateo_id=500, porcentaje=50,
+    ))
+    db_session.add(CoeficienteDepartamento(
+        consorcio_id=1, departamento_id=2, clase_prorrateo_id=500, porcentaje=50,
+    ))
+    db_session.add(Gasto(
+        consorcio_id=1, periodo="2026-06", monto=1000, rubro=Rubro.servicios_publicos,
+        clase_prorrateo_id=500, departamento_id=None, proveedor_id=600,
+        concepto="Luz", forma_pago=FormaPago.efectivo, caja_id=900,
+        fecha_pago=date(2026, 6, 10),
+    ))
+    db_session.commit()
+
+    r = client.post("/periodos/2026-06/cerrar", json={}, headers=headers_admin)
+    assert r.status_code == 201
+
+    ns = db_session.query(Notificacion).filter_by(tipo="expensa_emitida").all()
+    assert sorted(n.usuario_id for n in ns) == [2, 3]
+    assert all("2026-06" in n.mensaje for n in ns)

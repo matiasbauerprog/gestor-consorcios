@@ -1,13 +1,15 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, get_current_user, require_roles
 from ..database import get_db
-from ..models import Comunicado, Rol
+from ..models import Comunicado, Departamento, Rol
 from ..modulos import require_modulo
+from ..notificaciones import emitir
+from ..notificaciones.catalogo import COMUNICADO_PUBLICADO
 from ..schemas import ComunicadoCrear, ComunicadoOut
 from ..tenant import get_consorcio_activo
 
@@ -45,6 +47,7 @@ def listar_comunicados(
 )
 def crear_comunicado(
     payload: ComunicadoCrear,
+    tareas: BackgroundTasks,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
@@ -57,6 +60,24 @@ def crear_comunicado(
         autor_id=user.id,
     )
     db.add(comunicado)
+    db.flush()
+
+    # Un comunicado le habla a todos los departamentos del consorcio, así que
+    # hay que emitir uno por departamento: la audiencia del catálogo apunta a
+    # un departamento concreto, no a "todos".
+    deptos = db.scalars(
+        select(Departamento.id).where(Departamento.consorcio_id == cid)
+    ).all()
+    for depto_id in deptos:
+        emitir(
+            db, COMUNICADO_PUBLICADO,
+            consorcio_id=cid,
+            contexto={"titulo": comunicado.titulo, "cuerpo": comunicado.cuerpo},
+            actor_usuario_id=user.id,
+            departamento_id=depto_id,
+            tareas=tareas,
+        )
+
     db.commit()
     db.refresh(comunicado)
     return comunicado
