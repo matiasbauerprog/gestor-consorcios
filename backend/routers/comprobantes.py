@@ -27,7 +27,7 @@ from ..models import (
     TipoMovimientoCaja,
 )
 from ..schemas import ComprobanteActualizar, ComprobanteOut
-from ..storage import guardar_imagen_comprobante
+from ..storage import guardar_archivo
 
 
 def _descripcion_pago(comprobante: Comprobante) -> str:
@@ -106,7 +106,7 @@ def presentar_comprobante(
             detail="El archivo del comprobante es obligatorio.",
         )
 
-    archivo_path = guardar_imagen_comprobante(archivo)
+    archivo_path = guardar_archivo(archivo, "comprobantes")
 
     comprobante = Comprobante(
         consorcio_id=cid,
