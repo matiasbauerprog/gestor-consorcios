@@ -7,7 +7,15 @@ garantizar dos invariantes propias:
 """
 from pathlib import Path
 
+from alembic import command
+from alembic.autogenerate import compare_metadata
 from alembic.config import Config
+from alembic.migration import MigrationContext
+from alembic.script import ScriptDirectory
+from sqlalchemy import create_engine
+
+from backend.database import Base
+import backend.models  # noqa: F401 — puebla Base.metadata
 
 RAIZ = Path(__file__).resolve().parents[1]
 ALEMBIC_INI = RAIZ / "alembic.ini"
@@ -47,4 +55,57 @@ def test_env_toma_la_url_de_settings():
     assert "render_as_batch=True" in env_py, (
         "SQLite no soporta la mayoría de los ALTER TABLE: sin batch mode "
         "cualquier migración de columna revienta en desarrollo."
+    )
+
+
+def _sin_tabla_de_versiones(name, type_, parent_names):
+    """`alembic_version` es tabla interna de Alembic y no está en los modelos:
+    sin este filtro el diff siempre reportaría que sobra."""
+    return not (type_ == "table" and name == "alembic_version")
+
+
+def test_las_migraciones_reproducen_exactamente_los_modelos(tmp_path):
+    """Construye la base corriendo TODAS las migraciones y la compara contra
+    los modelos. Si alguien agrega una columna a models.py y se olvida de
+    generar la revisión, esto falla acá y no en producción.
+
+    Si este test falla, el arreglo va en una migración nueva — nunca en
+    aflojar el test.
+    """
+    db = tmp_path / "deriva.db"
+    url = f"sqlite:///{db}"
+
+    command.upgrade(alembic_config(url), "head")
+
+    engine = create_engine(url)
+    try:
+        with engine.connect() as conn:
+            ctx = MigrationContext.configure(
+                conn,
+                opts={
+                    "compare_type": True,
+                    "include_name": _sin_tabla_de_versiones,
+                    "render_as_batch": True,
+                },
+            )
+            diferencias = compare_metadata(ctx, Base.metadata)
+    finally:
+        engine.dispose()
+
+    assert diferencias == [], (
+        "Los modelos y las migraciones se despegaron. Generá la revisión que "
+        "falta con:\n"
+        '  alembic revision --autogenerate -m "<que cambiaste>"\n'
+        f"Diferencias detectadas: {diferencias}"
+    )
+
+
+def test_hay_exactamente_un_head():
+    """Dos heads significan historial ramificado: `upgrade head` falla y el
+    deploy se cae. Pasa al mergear dos ramas que agregaron migraciones."""
+    script = ScriptDirectory.from_config(alembic_config("sqlite://"))
+    heads = script.get_heads()
+    assert len(heads) == 1, (
+        f"Hay {len(heads)} heads de migración: {heads}. Unificalos con "
+        "`alembic merge`."
     )
