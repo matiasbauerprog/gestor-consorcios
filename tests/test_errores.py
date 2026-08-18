@@ -181,6 +181,99 @@ def test_correr_alembic_en_proceso_no_apaga_el_registro_de_errores(tmp_path):
     )
 
 
+# --- El manejador de errores no atrapados ----------------------------------
+
+
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+
+
+@pytest.fixture()
+def cliente_con_ruta_que_explota(db_session, monkeypatch):
+    """App real con una ruta que revienta, y sin re-lanzar la excepción.
+
+    `TestClient` por defecto re-lanza las excepciones del servidor en vez de
+    dejar que el manejador responda, así que no se vería la respuesta que
+    recibe el usuario.
+    """
+    from backend import main as main_module
+    from backend.database import get_db
+    from backend.main import app
+
+    @app.get("/_boom_de_prueba")
+    def _boom():
+        raise ValueError("explosión de prueba")
+
+    def _override():
+        yield db_session
+
+    class _SesionDePrueba:
+        """Envuelve la session del test soportando `with`, y sin cerrarla.
+
+        Hace falta parchear el nombre en `backend.main` y no en
+        `backend.database`: main hace `from .database import SessionLocal`, así
+        que tiene su propia referencia y parchear el módulo no le llega.
+        """
+
+        def __init__(self, s):
+            self._s = s
+
+        def __enter__(self):
+            return self._s
+
+        def __exit__(self, *_):
+            return False
+
+    monkeypatch.setattr(main_module, "SessionLocal", lambda: _SesionDePrueba(db_session))
+
+    app.dependency_overrides[get_db] = _override
+    with TestClient(app, raise_server_exceptions=False) as c:
+        yield c
+    app.dependency_overrides.clear()
+    app.router.routes = [
+        r for r in app.router.routes
+        if getattr(r, "path", None) != "/_boom_de_prueba"
+    ]
+
+
+def test_un_error_inesperado_devuelve_500_con_codigo(cliente_con_ruta_que_explota):
+    r = cliente_con_ruta_que_explota.get("/_boom_de_prueba")
+
+    assert r.status_code == 500
+    assert r.json()["codigo"].startswith("E-")
+
+
+def test_el_codigo_de_la_respuesta_es_el_que_quedo_guardado(
+    cliente_con_ruta_que_explota, db_session
+):
+    """Es todo el punto: el vecino dicta el código y tiene que encontrarse."""
+    codigo = cliente_con_ruta_que_explota.get("/_boom_de_prueba").json()["codigo"]
+
+    fila = db_session.query(ErrorRegistrado).filter_by(codigo=codigo).one()
+    assert fila.ruta == "/_boom_de_prueba"
+    assert fila.tipo == "ValueError"
+
+
+def test_la_respuesta_no_filtra_la_traza_al_usuario(cliente_con_ruta_que_explota):
+    """El detalle técnico va al log y a la tabla, nunca al navegador."""
+    cuerpo = cliente_con_ruta_que_explota.get("/_boom_de_prueba").text
+
+    assert "Traceback" not in cuerpo
+    assert "explosión de prueba" not in cuerpo
+    assert "errores.py" not in cuerpo
+
+
+def test_los_errores_esperados_siguen_saliendo_como_antes(client, headers_admin):
+    """El manejador nuevo no debe capturar 404 ni validaciones: son parte del
+    funcionamiento normal y ahogarían la tabla."""
+    from backend.models import ErrorRegistrado as _E
+
+    r = client.get("/gastos/999999", headers=headers_admin)
+
+    assert r.status_code == 404
+    assert "codigo" not in r.json()
+
+
 def test_purgar_borra_solo_lo_mas_viejo_que_la_retencion(db_session):
     ahora = datetime.now(timezone.utc)
     db_session.add_all([

@@ -9,6 +9,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import get_settings
 from .database import SessionLocal
+from .errores import purgar_viejos, registrar as registrar_error
 from .middleware.impersonate_audit import ImpersonateAuditMiddleware
 from .routers import (
     amenities,
@@ -50,6 +51,7 @@ from .seed import seed_if_empty
 from .seed_super_admin import seed as seed_super_admin
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -63,6 +65,19 @@ async def lifespan(_: FastAPI):
             seed_if_empty(db)
             if get_settings().SUPER_ADMIN_EMAIL and get_settings().SUPER_ADMIN_PASSWORD:
                 seed_super_admin(db)
+
+    # Los errores registrados se borran solos pasada la retención. Va acá y no
+    # en una tarea programada porque no amerita una pieza más: los despliegues
+    # son suficientemente frecuentes. Envuelto en try porque una falla de
+    # limpieza no puede impedir que el servicio arranque.
+    try:
+        with SessionLocal() as db:
+            borrados = purgar_viejos(db, get_settings().ERRORES_RETENCION_DIAS)
+            if borrados:
+                logger.info("purgados %d errores registrados vencidos", borrados)
+    except Exception:  # noqa: BLE001
+        logger.exception("no se pudieron purgar los errores viejos")
+
     yield
 
 
@@ -128,6 +143,60 @@ async def validation_exception_handler(_: Request, exc: RequestValidationError) 
     return JSONResponse(
         status_code=400,
         content={"detail": "El pedido es inválido o le faltan campos requeridos."},
+    )
+
+
+def _contexto_del_request(request: Request) -> dict:
+    """Quién estaba haciendo qué, si se puede saber.
+
+    No re-autentica ni levanta: un error puede pasar antes de resolver el
+    usuario, y ahí igual hay que registrar lo que se tenga.
+    """
+    contexto = {"usuario_id": None, "rol": None, "consorcio_id": None}
+    usuario = getattr(request.state, "user", None)
+    if usuario is not None:
+        contexto["usuario_id"] = getattr(usuario, "id", None)
+        rol = getattr(usuario, "rol", None)
+        contexto["rol"] = getattr(rol, "value", None) or (str(rol) if rol else None)
+    crudo = request.headers.get("X-Consorcio-Id")
+    if crudo and crudo.isdigit():
+        contexto["consorcio_id"] = int(crudo)
+    return contexto
+
+
+@app.exception_handler(Exception)
+async def error_inesperado_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Todo lo que no previmos.
+
+    Le devuelve al usuario un código corto y nada más: la traza va al log y a
+    la tabla, nunca al navegador. Ese código es lo que después se busca en el
+    panel de super admin.
+
+    La sesión de base es propia y no la del request: si el error fue una falla
+    de base, la del request quedó en estado inválido.
+    """
+    codigo = "E-000000"
+    try:
+        with SessionLocal() as db:
+            codigo = registrar_error(
+                exc,
+                ruta=request.url.path,
+                metodo=request.method,
+                db=db,
+                **_contexto_del_request(request),
+            )
+    except Exception:  # noqa: BLE001 — ni siquiera abrir la sesión puede romper esto
+        logger.exception("fallo el registro del error, la traza original sigue")
+
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": (
+                "Ocurrió un error inesperado. Si necesitás reportarlo, pasá "
+                f"este código: {codigo}"
+            ),
+            "codigo": codigo,
+        },
     )
 
 
