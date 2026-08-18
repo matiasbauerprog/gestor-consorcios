@@ -33,6 +33,8 @@ from ..models import (
     Trabajo,
 )
 from ..modulos import require_modulo
+from ..notificaciones import emitir
+from ..notificaciones.catalogo import TRABAJO_COMPLETADO
 from ..tenant import get_consorcio_activo
 from ..schemas import (
     CargarHabitualesIn,
@@ -325,9 +327,6 @@ def crear_gasto(
 
     # Integración Fase 11: si vino trabajo_id, marcar el trabajo finalizado
     if payload.trabajo_id:
-        from ..notificaciones import emitir
-        from ..notificaciones.catalogo import TRABAJO_COMPLETADO
-
         t = db.get(Trabajo, payload.trabajo_id)
         if t is None or t.consorcio_id != cid:
             raise HTTPException(404, f"Trabajo {payload.trabajo_id} no encontrado.")

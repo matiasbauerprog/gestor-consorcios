@@ -372,3 +372,42 @@ def test_depto_cancela_su_reserva_no_genera_notificacion(client, headers_depto_a
 
     notif_despues = db_session.query(Notificacion).count()
     assert notif_despues == notif_antes
+
+
+def test_admin_cancela_reserva_solo_avisa_a_quien_reservo(
+    client, headers_admin, headers_depto_a, db_session
+):
+    """En la unidad pueden convivir propietario e inquilino.
+
+    "La administración canceló TU reserva... se reversó el cargo de $N" está
+    escrito hacia quien reservó: al conviviente le hablaría de una reserva y de
+    un cargo que no son suyos.
+    """
+    from backend.models import Notificacion, Rol, Usuario
+
+    conviviente = Usuario(
+        id=77, email="conviviente@test.local", password_hash="x",
+        rol=Rol.departamento, departamento_id=1,
+    )
+    db_session.add(conviviente)
+    db_session.commit()
+
+    inicio, fin = _en_futuro()
+    r = client.post(
+        "/amenities/301/reservas",
+        json={"inicio": inicio, "fin": fin},
+        headers=headers_depto_a,
+    )
+    reserva_id = r.json()["id"]
+    reserva = db_session.get(Reserva, reserva_id)
+    assert reserva.usuario_id == 2  # el depto A, no el conviviente
+
+    rc = client.delete(f"/reservas/{reserva_id}", headers=headers_admin)
+    assert rc.status_code == 200
+
+    avisos = (
+        db_session.query(Notificacion)
+        .filter_by(tipo="reserva_cancelada_por_admin")
+        .all()
+    )
+    assert [n.usuario_id for n in avisos] == [2]

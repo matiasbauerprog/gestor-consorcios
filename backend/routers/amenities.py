@@ -8,6 +8,8 @@ from ..auth import CurrentUser, get_current_user, require_roles
 from ..database import get_db
 from ..models import Amenity, EstadoReserva, MovimientoCuenta, Reserva, Rol, TipoMovimiento
 from ..modulos import require_modulo
+from ..notificaciones import emitir
+from ..notificaciones.catalogo import RESERVA_CONFIRMADA
 from ..tenant import get_consorcio_activo
 from ..schemas import (
     AmenityActualizar,
@@ -296,9 +298,6 @@ def crear_reserva(
         db.add(movimiento)
         db.flush()
         reserva.movimiento_cuenta_id = movimiento.id
-
-    from ..notificaciones import emitir
-    from ..notificaciones.catalogo import RESERVA_CONFIRMADA
 
     monto = (
         amenity.precio_reserva

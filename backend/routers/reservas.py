@@ -10,6 +10,8 @@ from ..models import (
     Amenity, EstadoReserva, MovimientoCuenta, Reserva, Rol, TipoMovimiento, Usuario,
 )
 from ..modulos import require_modulo
+from ..notificaciones import emitir
+from ..notificaciones.catalogo import RESERVA_CANCELADA_POR_ADMIN
 from ..schemas import ReservaOut
 from ..tenant import get_consorcio_activo
 
@@ -136,9 +138,6 @@ def cancelar_reserva(
             monto_reversado = mov_original.monto
 
     if es_admin and not es_dueno:
-        from ..notificaciones import emitir
-        from ..notificaciones.catalogo import RESERVA_CANCELADA_POR_ADMIN
-
         amenity_n = db.get(Amenity, reserva.amenity_id)
         dueno = db.get(Usuario, reserva.usuario_id)
         # Un admin puede cancelar la reserva de otro admin: ahí no hay depto a
@@ -156,6 +155,9 @@ def cancelar_reserva(
                 actor_usuario_id=user.id,
                 departamento_id=dueno.departamento_id,
                 tareas=tareas,
+                # "Canceló TU reserva... se reversó TU cargo": segunda persona
+                # hacia quien reservó. Al conviviente le hablaría de algo ajeno.
+                restringir_a_usuario_id=reserva.usuario_id,
             )
 
     db.commit()

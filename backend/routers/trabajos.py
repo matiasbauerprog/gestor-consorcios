@@ -61,9 +61,14 @@ def crear_trabajo(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="La petición indicada no existe.",
             )
+        # `crear_trabajo` no valida de dónde viene la petición: pisa el estado
+        # igual. Sin comparar contra el origen, convertir dos veces la misma
+        # petición —un doble clic alcanza— manda el aviso y el mail duplicados.
+        estado_anterior = peticion.estado
         peticion.estado = EstadoPeticion.convertida_en_trabajo
         peticion_id = peticion.id
-        peticion_a_notificar = peticion
+        if estado_anterior != peticion.estado:
+            peticion_a_notificar = peticion
 
     trabajo = Trabajo(
         consorcio_id=cid,
