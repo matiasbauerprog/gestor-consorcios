@@ -238,6 +238,99 @@ def test_comprobante_out_ya_no_fabrica_la_ruta_de_uploads(
     assert comprobante["archivo_path"].startswith("comprobantes/")
 
 
+# --- Backend S3-compatible --------------------------------------------------
+#
+# Nunca contra un bucket real: se verifica que se llame con el bucket y la
+# clave correctos, no que Amazon funcione.
+
+
+class _ClienteS3Falso:
+    """Doble del cliente boto3: registra las llamadas en vez de salir a la red."""
+
+    def __init__(self):
+        self.objetos: dict[str, bytes] = {}
+        self.puestos: list[dict] = []
+
+    def put_object(self, **kwargs):
+        self.puestos.append(kwargs)
+        self.objetos[kwargs["Key"]] = kwargs["Body"].read()
+
+    def get_object(self, Bucket, Key):  # noqa: N803 — firma de boto3
+        if Key not in self.objetos:
+            from botocore.exceptions import ClientError
+
+            raise ClientError({"Error": {"Code": "NoSuchKey"}}, "GetObject")
+        contenido = self.objetos[Key]
+
+        class _Cuerpo:
+            def iter_chunks(self, chunk_size=8192):
+                yield contenido
+
+        return {"Body": _Cuerpo(), "ContentType": "image/png"}
+
+
+@pytest.fixture()
+def s3_falso(monkeypatch) -> _ClienteS3Falso:
+    from backend import storage_s3
+
+    falso = _ClienteS3Falso()
+    monkeypatch.setattr(storage_s3, "_cliente", lambda: falso)
+    monkeypatch.setattr(storage_s3, "_bucket", lambda: "comprobantes-test")
+    return falso
+
+
+def test_backend_s3_sube_con_el_bucket_y_la_clave_correctos(s3_falso):
+    from backend import storage_s3
+
+    storage_s3.subir(
+        _upload("r.png", b"png-falso", "image/png"), "comprobantes/x.png", 1000
+    )
+
+    assert s3_falso.puestos[0]["Bucket"] == "comprobantes-test"
+    assert s3_falso.puestos[0]["Key"] == "comprobantes/x.png"
+    assert s3_falso.puestos[0]["ContentType"] == "image/png"
+
+
+def test_backend_s3_rechaza_archivo_demasiado_grande(s3_falso):
+    from backend import storage_s3
+
+    with pytest.raises(HTTPException) as e:
+        storage_s3.subir(_upload("g.png", b"x" * 50, "image/png"), "comprobantes/g.png", 10)
+
+    assert e.value.status_code == 413
+    assert s3_falso.puestos == [], "no debe subir nada si excede el limite"
+
+
+def test_backend_s3_devuelve_contenido_y_tipo(s3_falso):
+    from backend import storage_s3
+
+    storage_s3.subir(_upload("r.png", b"png-falso", "image/png"), "comprobantes/x.png", 1000)
+    chunks, content_type = storage_s3.abrir("comprobantes/x.png")
+
+    assert b"".join(chunks) == b"png-falso"
+    assert content_type == "image/png"
+
+
+def test_backend_s3_clave_inexistente_levanta_filenotfound(s3_falso):
+    from backend import storage_s3
+
+    with pytest.raises(FileNotFoundError):
+        storage_s3.abrir("comprobantes/no-existe.png")
+
+
+def test_storage_delega_en_s3_cuando_el_backend_es_s3(s3_falso, monkeypatch):
+    """La interfaz es la misma: los routers no saben cual backend esta activo."""
+    from backend.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "STORAGE_BACKEND", "s3")
+
+    clave = storage.guardar_archivo(_upload("r.png", b"png-falso", "image/png"), "comprobantes")
+
+    assert clave.startswith("comprobantes/")
+    assert s3_falso.puestos[0]["Key"] == clave
+    assert b"".join(storage.abrir_archivo(clave)[0]) == b"png-falso"
+
+
 def test_uploads_ya_no_esta_montado():
     """El montaje publico de /uploads era el agujero: cualquiera con la URL
     abria el comprobante de cualquier vecino sin estar logueado.
