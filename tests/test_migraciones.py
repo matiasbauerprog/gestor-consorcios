@@ -116,6 +116,16 @@ def test_el_arranque_no_crea_el_esquema():
     )
 
 
+def test_el_reset_de_demo_reconstruye_el_esquema():
+    """`_resetear_esquema` borra las tablas; algo tiene que volver a crearlas.
+    Antes lo hacía el `create_all` del lifespan, que ya no existe."""
+    seed_demo = (RAIZ / "backend" / "seed_demo.py").read_text(encoding="utf-8")
+    assert "alembic" in seed_demo.lower(), (
+        "generar_dataset_demo(reset=True) debe aplicar las migraciones después "
+        "de resetear el esquema, o la demo queda sin tablas."
+    )
+
+
 def test_hay_exactamente_un_head():
     """Dos heads significan historial ramificado: `upgrade head` falla y el
     deploy se cae. Pasa al mergear dos ramas que agregaron migraciones."""
