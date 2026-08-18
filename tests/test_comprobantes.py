@@ -830,3 +830,50 @@ def test_rechazar_comprobante_incluye_el_motivo(client, headers_admin, headers_d
 
     n = db.query(Notificacion).filter_by(tipo="comprobante_rechazado").one()
     assert "El monto no coincide" in n.mensaje
+
+
+def test_reverificar_comprobante_ya_verificado_devuelve_409_y_no_duplica_el_aviso(
+    client, headers_admin, headers_depto_a, db
+):
+    """El 409 sobre un estado terminal es la única guarda que evita que
+    aprobar dos veces el mismo comprobante dispare el aviso (y el mail) de
+    nuevo. Si mañana alguien afloja esa guarda, este test tiene que
+    romperse — por eso lo que importa no es sólo el 409, sino que después
+    de él siga habiendo un único aviso y ningún pendiente revivido."""
+    from backend.models import Notificacion
+
+    with open(__file__, "rb") as f:
+        r = client.post(
+            "/comprobantes",
+            data={"fecha_pago": "2026-08-01", "monto": "1000"},
+            files={"archivo": ("c.pdf", f.read(), "application/pdf")},
+            headers=headers_depto_a,
+        )
+    assert r.status_code == 201
+    cid_comp = r.json()["id"]
+
+    r2 = client.patch(
+        f"/comprobantes/{cid_comp}",
+        json={"estado": "aprobado"},
+        headers=headers_admin,
+    )
+    assert r2.status_code == 200
+    assert db.query(Notificacion).filter_by(tipo="comprobante_aprobado").count() == 1
+
+    # Reintentar sobre el mismo comprobante, ya en estado terminal.
+    r3 = client.patch(
+        f"/comprobantes/{cid_comp}",
+        json={"estado": "aprobado"},
+        headers=headers_admin,
+    )
+    assert r3.status_code == 409
+
+    # El 409 corta ANTES de llegar a resolver_pendiente/emitir: sigue
+    # habiendo un solo aviso de aprobación (no dos)...
+    assert db.query(Notificacion).filter_by(tipo="comprobante_aprobado").count() == 1
+    # ...y ninguna notificación ligada a este comprobante quedó marcada
+    # como no-leída de nuevo (el pendiente del admin no "revivió").
+    revividos = db.query(Notificacion).filter_by(
+        entidad_tipo="comprobante", entidad_id=cid_comp, leida=False,
+    ).count()
+    assert revividos == 0
