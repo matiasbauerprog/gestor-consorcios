@@ -53,6 +53,10 @@ RUTAS_EXPORTADAS: list[tuple[str, str]] = [
     ("admin", "/reportes/proveedores"),
     ("admin", "/notificaciones"),
     ("admin", "/notificaciones/no-leidas-count"),
+    # Preferencias de aviso de ADMINISTRACIÓN. La versión de depto no entra acá
+    # -- ver el bloque dedicado al final de `exportar()`, porque comparte path
+    # con ésta y en este dict plano la segunda pisaría a la primera.
+    ("admin", "/notificaciones/preferencias"),
     # Módulo Personal. El generador ya crea el legajo del encargado, el
     # catálogo de haberes, los conceptos de liquidación y las liquidaciones
     # mensuales (`crear_catalogo_personal` en backend/seed_demo.py); sin
@@ -205,6 +209,21 @@ def exportar(api, admin_token: str, tokens_depto: dict[int, str], cid: int) -> d
             r = api.req("GET", path, token=token, cid=cid)
             _verificar(path, r)
             datos[clave] = r.json()
+
+    # Preferencias de aviso de DEPARTAMENTO. `eventos_para_rol` (backend/
+    # notificaciones/catalogo.py) devuelve catálogos disjuntos por rol -- no
+    # hay ítems en común entre administración y depto -- así que la lista de
+    # depto no puede guardarse bajo el mismo path limpio que la de admin sin
+    # pisarla en este dict plano. Va aparte, bajo una clave auxiliar (mismo
+    # criterio que `_pdfs`) que `frontend/src/demo/servidor.js` sabe elegir
+    # según quién entró. Cualquier token de depto sirve: a diferencia de
+    # `/movimientos/mi-cuenta`, acá el resultado no depende de qué unidad es
+    # -- es el mismo catálogo para todo el rol, y el dataset no siembra
+    # preferencias personalizadas por usuario.
+    token_depto = next(iter(tokens_depto.values()))
+    r = api.req("GET", "/notificaciones/preferencias", token=token_depto, cid=cid)
+    _verificar("/notificaciones/preferencias", r)
+    datos["_preferencias_depto"] = r.json()
 
     for depto in datos.get("/departamentos", []):
         for plantilla in RUTAS_POR_DEPARTAMENTO:

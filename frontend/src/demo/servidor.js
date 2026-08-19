@@ -31,6 +31,10 @@ export function responder(estado, method, path, body, sesion) {
     return miCuenta(estado, method, sesion);
   }
 
+  if (ruta === "/notificaciones/preferencias") {
+    return preferenciasDeAviso(estado, sesion);
+  }
+
   const datos = estado.leer(ruta);
   if (datos === undefined) {
     return noImplementado(method, ruta, "no está en el dataset exportado");
@@ -89,6 +93,25 @@ function miCuenta(estado, method, sesion) {
     );
   }
   return { ok: true, status: 200, data: cuenta };
+}
+
+/**
+ * Preferencias de aviso de quien entró.
+ *
+ * El catálogo es disjunto por rol (`eventos_para_rol` en el backend): admin y
+ * depto no comparten ni un tipo. El export guarda la lista de depto aparte,
+ * bajo `_preferencias_depto` (ver `backend/export_demo.py`), así que acá hay
+ * que elegir cuál devolver. La sesión de la demo no guarda el rol -- sólo
+ * `departamento_id`, igual que en `miCuenta` -- pero alcanza como proxy:
+ * sólo un departamento lo tiene seteado.
+ */
+function preferenciasDeAviso(estado, sesion) {
+  const clave = sesion?.departamento_id ? "_preferencias_depto" : "/notificaciones/preferencias";
+  const datos = estado.leer(clave);
+  if (datos === undefined) {
+    return noImplementado("GET", "/notificaciones/preferencias", "no está en el dataset exportado");
+  }
+  return { ok: true, status: 200, data: datos };
 }
 
 /**

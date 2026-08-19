@@ -140,3 +140,62 @@ describe("mi cuenta según quién entró", () => {
     expect(r.status).toBe(403);
   });
 });
+
+describe("preferencias de aviso según quién entró", () => {
+  // El catálogo es disjunto por rol (eventos_para_rol en el backend): admin
+  // y depto no comparten ni un tipo. Acá se los deja compartir un mismo
+  // `tipo` a propósito (algo que nunca pasa con datos reales) para que un
+  // guardado que le pegara a la lista equivocada sea imposible de no ver:
+  // si la ruta no separara por rol, cambiar uno cambiaría el otro.
+  const DATASET_PREFS = {
+    ...DATASET,
+    "/notificaciones/preferencias": [
+      { tipo: "x", etiqueta: "Admin", email_activo: true, editable: true, motivo_no_editable: null },
+    ],
+    _preferencias_depto: [
+      { tipo: "x", etiqueta: "Depto", email_activo: true, editable: true, motivo_no_editable: null },
+    ],
+  };
+
+  it("un departamento ve la lista de depto, no la de admin", () => {
+    const local = crearEstado(DATASET_PREFS, new Date(2026, 7, 20));
+    const r = responder(local, "GET", "/notificaciones/preferencias", null, { departamento_id: 1 });
+    expect(r.status).toBe(200);
+    expect(r.data[0].etiqueta).toBe("Depto");
+  });
+
+  it("administración ve su propia lista, no la de depto", () => {
+    const local = crearEstado(DATASET_PREFS, new Date(2026, 7, 20));
+    const r = responder(local, "GET", "/notificaciones/preferencias", null, { departamento_id: null });
+    expect(r.status).toBe(200);
+    expect(r.data[0].etiqueta).toBe("Admin");
+  });
+
+  it("el PUT de un departamento cambia sólo la lista de depto", () => {
+    const local = crearEstado(DATASET_PREFS, new Date(2026, 7, 20));
+    const put = responder(
+      local, "PUT", "/notificaciones/preferencias",
+      [{ tipo: "x", email_activo: false }],
+      { departamento_id: 1 },
+    );
+    expect(put.status).toBe(204);
+
+    expect(local.leer("_preferencias_depto")[0].email_activo).toBe(false);
+    // La de admin no se tocó -- si compartieran clave, este PUT la hubiera
+    // apagado también.
+    expect(local.leer("/notificaciones/preferencias")[0].email_activo).toBe(true);
+  });
+
+  it("el PUT de administración cambia sólo la lista de admin", () => {
+    const local = crearEstado(DATASET_PREFS, new Date(2026, 7, 20));
+    const put = responder(
+      local, "PUT", "/notificaciones/preferencias",
+      [{ tipo: "x", email_activo: false }],
+      { departamento_id: null },
+    );
+    expect(put.status).toBe(204);
+
+    expect(local.leer("/notificaciones/preferencias")[0].email_activo).toBe(false);
+    expect(local.leer("_preferencias_depto")[0].email_activo).toBe(true);
+  });
+});
