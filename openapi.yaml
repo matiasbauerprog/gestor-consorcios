@@ -1611,6 +1611,49 @@ paths:
         '401':
           $ref: '#/components/responses/NoAutenticado'
 
+  /notificaciones/preferencias:
+    get:
+      tags: [Notificaciones]
+      summary: Listar preferencias de aviso del usuario actual
+      description: |
+        Devuelve, para cada evento del catálogo que aplica al rol del usuario
+        autenticado, si le llega por correo además de por campanita. La
+        campanita nunca se puede apagar: sólo existe el interruptor de mail.
+      operationId: listarPreferenciasNotificacion
+      responses:
+        '200':
+          description: Preferencias de aviso del usuario, una por evento de su rol.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PreferenciaNotificacionOut'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+    put:
+      tags: [Notificaciones]
+      summary: Guardar preferencias de aviso del usuario actual
+      description: |
+        Sólo acepta eventos del rol del usuario y marcados como `editable`;
+        un tipo desconocido, ajeno al rol, o no editable devuelve 400.
+      operationId: guardarPreferenciasNotificacion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/PreferenciaNotificacionIn'
+      responses:
+        '204':
+          description: Preferencias guardadas.
+        '400':
+          $ref: '#/components/responses/PedidoInvalido'
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+
   /notificaciones/{notificacion_id}/marcar-leida:
     post:
       tags: [Notificaciones]
@@ -5490,6 +5533,41 @@ components:
           description: >-
             No leídas del usuario en los demás consorcios de su administración.
             Siempre 0 para departamento y representante (tienen un solo consorcio).
+
+    PreferenciaNotificacionOut:
+      type: object
+      required: [tipo, etiqueta, email_activo, editable, motivo_no_editable]
+      properties:
+        tipo:
+          type: string
+          description: Código del evento del catálogo (ej. "comunicado_publicado").
+        etiqueta:
+          type: string
+          description: Texto legible del evento para mostrar en la UI.
+        email_activo:
+          type: boolean
+          description: Si este evento le llega por correo al usuario, además de por campanita.
+        editable:
+          type: boolean
+          description: >-
+            False si el interruptor se muestra pero no se puede tocar: el
+            evento nunca manda mail, o es sólo-mail y apagarlo dejaría al
+            usuario sin ningún aviso.
+        motivo_no_editable:
+          type: string
+          nullable: true
+          description: Explicación a mostrar junto al interruptor cuando `editable` es false.
+
+    PreferenciaNotificacionIn:
+      type: object
+      required: [tipo, email_activo]
+      properties:
+        tipo:
+          type: string
+          description: Código del evento del catálogo a configurar.
+        email_activo:
+          type: boolean
+          description: Nuevo valor del interruptor de correo para ese evento.
 
     # ---------------------------- Comunicación ----------------------------
 

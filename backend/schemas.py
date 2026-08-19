@@ -1206,6 +1206,20 @@ class NotificacionesCountOut(BaseModel):
     otros_consorcios: int = 0
 
 
+class PreferenciaNotificacionOut(BaseModel):
+    tipo: str
+    etiqueta: str
+    email_activo: bool
+    # False ⇒ el interruptor se muestra pero no se puede tocar.
+    editable: bool
+    motivo_no_editable: str | None
+
+
+class PreferenciaNotificacionIn(BaseModel):
+    tipo: str
+    email_activo: bool
+
+
 class CompletarTrabajoOut(BaseModel):
     proveedor_id: int
     monto: float

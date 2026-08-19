@@ -207,3 +207,94 @@ def test_marcar_todas_alcanza_solo_al_consorcio_activo(client, db, dos_consorcio
     assert r.status_code == 204
     db.refresh(n2)
     assert n2.leida is False
+
+
+def test_preferencias_depto_lista_sus_ocho_eventos(client, headers_depto_a):
+    r = client.get("/notificaciones/preferencias", headers=headers_depto_a)
+    assert r.status_code == 200
+    assert len(r.json()) == 8
+
+
+def test_preferencias_admin_lista_sus_cuatro_eventos(client, headers_admin):
+    r = client.get("/notificaciones/preferencias", headers=headers_admin)
+    assert r.status_code == 200
+    assert len(r.json()) == 4
+
+
+def test_preferencias_representante_lista_vacia(client, headers_representante):
+    r = client.get("/notificaciones/preferencias", headers=headers_representante)
+    assert r.status_code == 200
+    assert r.json() == []
+
+
+def test_preferencias_devuelve_los_defaults_del_catalogo(client, headers_depto_a):
+    r = client.get("/notificaciones/preferencias", headers=headers_depto_a)
+    por_tipo = {p["tipo"]: p for p in r.json()}
+    assert por_tipo["comunicado_publicado"]["email_activo"] is True
+    assert por_tipo["comprobante_aprobado"]["email_activo"] is False
+
+
+def test_reserva_confirmada_no_es_editable(client, headers_depto_a):
+    r = client.get("/notificaciones/preferencias", headers=headers_depto_a)
+    por_tipo = {p["tipo"]: p for p in r.json()}
+    assert por_tipo["reserva_confirmada"]["editable"] is False
+    assert por_tipo["reserva_confirmada"]["motivo_no_editable"] == "Sólo se envía por correo."
+
+
+def test_put_preferencias_apaga_el_mail(client, headers_depto_a):
+    r = client.put(
+        "/notificaciones/preferencias",
+        json=[{"tipo": "comunicado_publicado", "email_activo": False}],
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 204
+
+    r2 = client.get("/notificaciones/preferencias", headers=headers_depto_a)
+    por_tipo = {p["tipo"]: p for p in r2.json()}
+    assert por_tipo["comunicado_publicado"]["email_activo"] is False
+
+
+def test_put_preferencias_tipo_desconocido_es_400(client, headers_depto_a):
+    r = client.put(
+        "/notificaciones/preferencias",
+        json=[{"tipo": "no_existe", "email_activo": False}],
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 400
+
+
+def test_put_preferencias_tipo_de_otro_rol_es_400(client, headers_depto_a):
+    r = client.put(
+        "/notificaciones/preferencias",
+        json=[{"tipo": "peticion_nueva", "email_activo": True}],
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 400
+
+
+def test_put_preferencias_no_editable_es_400(client, headers_depto_a):
+    r = client.put(
+        "/notificaciones/preferencias",
+        json=[{"tipo": "reserva_confirmada", "email_activo": False}],
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 400
+
+
+def test_las_preferencias_afectan_el_envio_real(client, headers_admin, headers_depto_a, db, capsys):
+    client.put(
+        "/notificaciones/preferencias",
+        json=[{"tipo": "comunicado_publicado", "email_activo": False}],
+        headers=headers_depto_a,
+    )
+    capsys.readouterr()
+
+    client.post(
+        "/comunicados",
+        json={"titulo": "Corte", "cuerpo": "X"},
+        headers=headers_admin,
+    )
+    salida = capsys.readouterr().out
+    # Al depto A (usuario 2) no le llega mail; al B (usuario 3) sí.
+    assert "a@test.local" not in salida
+    assert "b@test.local" in salida

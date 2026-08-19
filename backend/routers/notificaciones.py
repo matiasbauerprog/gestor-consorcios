@@ -16,7 +16,14 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, get_current_user
 from ..database import get_db
 from ..models import Notificacion
-from ..schemas import NotificacionOut, NotificacionesCountOut
+from ..notificaciones.catalogo import eventos_para_rol
+from ..notificaciones.preferencias import email_activo_para, guardar_preferencia
+from ..schemas import (
+    NotificacionOut,
+    NotificacionesCountOut,
+    PreferenciaNotificacionIn,
+    PreferenciaNotificacionOut,
+)
 from ..tenant import get_consorcio_activo
 
 router = APIRouter(prefix="/notificaciones", tags=["Notificaciones"])
@@ -95,6 +102,61 @@ def marcar_todas_leidas(
     ).all())
     for n in notifs:
         n.leida = True
+    db.commit()
+
+
+@router.get(
+    "/preferencias",
+    response_model=list[PreferenciaNotificacionOut],
+    status_code=status.HTTP_200_OK,
+    summary="Listar preferencias de aviso del usuario",
+)
+def listar_preferencias(
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
+) -> list[PreferenciaNotificacionOut]:
+    return [
+        PreferenciaNotificacionOut(
+            tipo=ev.clave,
+            etiqueta=ev.etiqueta,
+            email_activo=email_activo_para(db, user.id, ev),
+            editable=ev.editable,
+            motivo_no_editable=ev.motivo_no_editable,
+        )
+        for ev in eventos_para_rol(user.rol)
+    ]
+
+
+@router.put(
+    "/preferencias",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Guardar preferencias de aviso del usuario",
+)
+def guardar_preferencias(
+    payload: list[PreferenciaNotificacionIn],
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+    cid: int = Depends(get_consorcio_activo),
+) -> None:
+    # Sólo eventos del propio rol del usuario (según token) son tocables acá;
+    # el catálogo decide además cuáles de ésos son editables.
+    permitidos = {ev.clave: ev for ev in eventos_para_rol(user.rol)}
+
+    for item in payload:
+        ev = permitidos.get(item.tipo)
+        if ev is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Aviso desconocido para tu rol: {item.tipo}.",
+            )
+        if not ev.editable:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"El aviso '{ev.etiqueta}' no se puede configurar.",
+            )
+        guardar_preferencia(db, user.id, ev, item.email_activo)
+
     db.commit()
 
 
