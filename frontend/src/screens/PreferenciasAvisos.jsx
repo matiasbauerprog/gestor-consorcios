@@ -19,7 +19,8 @@ export default function PreferenciasAvisos() {
     setMensaje("");
   }
 
-  async function handleGuardar() {
+  async function handleGuardar(e) {
+    e.preventDefault();
     setGuardando(true);
     // Sólo los editables: el backend rechaza los otros con 400.
     const payload = items
@@ -43,32 +44,34 @@ export default function PreferenciasAvisos() {
       {items.length === 0 ? (
         <p>Tu rol no recibe avisos configurables.</p>
       ) : (
-        <ul className="lista-preferencias">
-          {items.map((p) => (
-            <li key={p.tipo}>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={p.email_activo}
-                  disabled={!p.editable}
-                  onChange={() => alternar(p.tipo)}
-                />
-                <span className="preferencia-etiqueta">{p.etiqueta}</span>
-              </label>
-              {!p.editable && (
-                <span className="preferencia-nota">{p.motivo_no_editable}</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+        <form onSubmit={handleGuardar}>
+          <ul className="lista-preferencias">
+            {items.map((p) => (
+              <li key={p.tipo}>
+                <label className="label-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={p.email_activo}
+                    disabled={!p.editable}
+                    onChange={() => alternar(p.tipo)}
+                  />
+                  <span className="preferencia-etiqueta">{p.etiqueta}</span>
+                </label>
+                {!p.editable && (
+                  <span className="preferencia-nota">{p.motivo_no_editable}</span>
+                )}
+              </li>
+            ))}
+          </ul>
 
-      <footer>
-        <button type="button" onClick={handleGuardar} disabled={guardando || items.length === 0}>
-          {guardando ? "Guardando…" : "Guardar"}
-        </button>
-        {mensaje && <span role="status">{mensaje}</span>}
-      </footer>
+          <footer className="cabecera-acciones">
+            <button type="submit" disabled={guardando}>
+              {guardando ? "Guardando…" : "Guardar"}
+            </button>
+            {mensaje && <span role="status">{mensaje}</span>}
+          </footer>
+        </form>
+      )}
     </section>
   );
 }

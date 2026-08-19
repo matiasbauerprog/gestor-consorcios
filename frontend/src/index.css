@@ -182,6 +182,7 @@ td button,
 .periodo-nav,
 .campanita-boton,
 .campanita-marcar-todas,
+.campanita-engranaje,
 .sidebar-cerrar,
 .cerrar-modal,
 .accion-discreta,
@@ -890,6 +891,14 @@ td button {
     width: fit-content;
     min-width: 18rem;
   }
+
+  /* Densidad del proyecto: en mobile es CTA fiel al mockup (ancho completo,
+     heredado de la regla base de `button`); desde tablet pasa a fit-content
+     como .campanita-ver-todas, para no estirar la paginación a todo el
+     viewport. */
+  .pantalla-notificaciones-cargar-mas {
+    width: fit-content;
+  }
 }
 
 .pantalla-notificaciones-lista {
@@ -904,6 +913,10 @@ td button {
 .pantalla-notificaciones-vacio {
   color: var(--color-text-muted);
   padding: 1.5rem 0;
+}
+
+.pantalla-notificaciones-cargar-mas {
+  margin-top: 0.75rem;
 }
 
 .pantalla-preferencias-avisos {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   listarNotificaciones,
@@ -17,9 +17,15 @@ export default function Notificaciones() {
   const [offset, setOffset] = useState(0);
   const [hayMas, setHayMas] = useState(false);
   const [cargando, setCargando] = useState(false);
+  // Número de secuencia del pedido vigente: si "Cargar más" queda en vuelo
+  // y mientras tanto el buscador dispara uno nuevo (que reemplaza en vez de
+  // acumular), la respuesta vieja llega después y no debe tocar el estado
+  // — se mezclaría la página anterior con la búsqueda nueva.
+  const pedidoActual = useRef(0);
 
   const cargar = useCallback(
     async (nuevoOffset, reemplazar) => {
+      const idPedido = ++pedidoActual.current;
       setCargando(true);
       const r = await listarNotificaciones({
         limit: POR_PAGINA,
@@ -27,6 +33,7 @@ export default function Notificaciones() {
         soloNoLeidas,
         q: busqueda,
       });
+      if (idPedido !== pedidoActual.current) return; // respuesta descartada, ya no es la vigente
       setCargando(false);
       if (r.status !== 200) return;
       setItems((prev) => (reemplazar ? r.data : [...prev, ...r.data]));
@@ -58,7 +65,9 @@ export default function Notificaciones() {
     <section className="pantalla-notificaciones">
       <header className="pantalla-notificaciones-header">
         <h1>Notificaciones</h1>
-        <button type="button" onClick={handleMarcarTodas}>Marcar todas</button>
+        <button type="button" onClick={handleMarcarTodas} className="campanita-marcar-todas">
+          Marcar todas
+        </button>
       </header>
 
       <div className="pantalla-notificaciones-filtros">
@@ -69,7 +78,7 @@ export default function Notificaciones() {
           placeholder="Buscar en las notificaciones"
           aria-label="Buscar en las notificaciones"
         />
-        <label>
+        <label className="label-checkbox">
           <input
             type="checkbox"
             checked={soloNoLeidas}
@@ -108,7 +117,12 @@ export default function Notificaciones() {
       )}
 
       {hayMas && (
-        <button type="button" onClick={() => cargar(offset, false)} disabled={cargando}>
+        <button
+          type="button"
+          onClick={() => cargar(offset, false)}
+          disabled={cargando}
+          className="pantalla-notificaciones-cargar-mas"
+        >
           {cargando ? "Cargando…" : "Cargar más"}
         </button>
       )}
