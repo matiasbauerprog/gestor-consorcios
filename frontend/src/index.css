@@ -687,6 +687,62 @@ td button {
   border-color: var(--color-primary);
 }
 
+/* El engranaje va a la izquierda del "Marcar todas": es configuración, no
+   acción sobre la lista, así que no compite con el botón principal. */
+.campanita-engranaje {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  padding: 0.25rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  min-width: 44px;
+  justify-content: center;
+}
+
+.campanita-engranaje:hover:not(:disabled) {
+  color: var(--color-primary);
+}
+
+.campanita-panel-header .campanita-acciones {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.campanita-panel-pie {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 0.5rem 0.8rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.campanita-ver-todas {
+  background: transparent;
+  border: none;
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  padding: 0.25rem 0;
+  cursor: pointer;
+  /* Ancho al contenido: un botón de texto estirado a todo el panel se lee
+     como barra de acción y este no lo es. */
+  width: fit-content;
+  min-height: 44px;
+}
+
+.campanita-ver-todas:hover {
+  text-decoration: underline;
+}
+
+.campanita-otros-consorcios {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+}
+
 .campanita-vacio {
   padding: 1rem;
   color: var(--color-text-muted);
