@@ -21,14 +21,31 @@ const FILTROS = {
   // `saldo <= 0.01` no es deudor. Con `> 0` entrarían unidades con un centavo
   // de diferencia por redondeo que el backend no cuenta como morosas.
   solo_deudores: (item, valor) => valor !== "true" || item.saldo > 0.01,
+  // La pantalla /notificaciones (frontend/src/screens/Notificaciones.jsx):
+  // buscador y checkbox "Solo no leídas". Mismo criterio que el backend real
+  // (backend/routers/notificaciones.py): `q` busca en `mensaje` sin
+  // distinguir mayúsculas (`ilike`), `solo_no_leidas` deja las `leida: false`.
+  q: (item, valor) => (item.mensaje ?? "").toLowerCase().includes(valor.toLowerCase()),
+  solo_no_leidas: (item, valor) => valor !== "true" || item.leida === false,
 };
 
+//: `offset`/`limit` no comparan contra un campo del item -- son un recorte de
+//: la lista ya filtrada, no un filtro de igualdad -- así que no entran en
+//: `FILTROS` (cuya forma es `(item, valor) => boolean`) y se aplican aparte,
+//: después de los filtros de igualdad, imitando la paginación del backend
+//: real (`GET /notificaciones`: `stmt.offset(offset).limit(limit)`).
 export function aplicarFiltros(lista, params) {
   if (!Array.isArray(lista)) return lista;
   let resultado = lista;
   for (const [clave, valor] of params.entries()) {
+    if (clave === "offset" || clave === "limit") continue;
     const filtro = FILTROS[clave];
     if (filtro) resultado = resultado.filter((item) => filtro(item, valor));
+  }
+  if (params.has("offset") || params.has("limit")) {
+    const offset = Number(params.get("offset") ?? 0);
+    const limit = params.has("limit") ? Number(params.get("limit")) : undefined;
+    resultado = resultado.slice(offset, limit === undefined ? undefined : offset + limit);
   }
   return resultado;
 }

@@ -18,6 +18,18 @@ Uso:
 `seed_if_empty`, que sobre una base vacía crea la "Administración Demo" y el
 "Consorcio Demo" del smoke-test. Ese consorcio fantasma quedaría a la vista del
 visitante junto al demo real.
+
+Para regenerar SÓLO dataset.json a partir de una `demo.db` que ya existe y
+está poblada (por ejemplo, después de un cambio en qué exporta
+`export_demo.py`, sin tocar los datos) — sin re-sembrar los 6 meses de
+`poblar_demo()`, que tarda ~2 minutos —, usar `--solo-exportar` en vez de
+`--reset`/`--exportar`. No necesita SUPER_ADMIN_EMAIL/PASSWORD: no siembra
+nada nuevo, sólo loguea contra usuarios que ya existen en la base:
+
+    DEMO_SEED_PASSWORD=... DATABASE_URL=sqlite:///./demo.db \\
+    SEED_ENABLED=false python -m backend.seed_demo --solo-exportar
+
+Ver `exportar_desde_db()` para el detalle de qué asume sobre la base.
 """
 import os
 import sys
@@ -1357,6 +1369,86 @@ def _generar(seed_password, sa_email, sa_password, t0, TestClient, app,
     return m
 
 
+def exportar_desde_db(seed_password: str) -> None:
+    """Sólo-exportar: regenera dataset.json a partir de una `demo.db` ya
+    poblada, SIN volver a correr `poblar_demo()` (que tarda ~2 minutos).
+
+    Existe porque regenerar el dataset no tenía otro camino documentado que
+    re-sembrar desde cero: `_generar()` siempre llama a `poblar_demo()`. Un
+    cambio de contrato que sólo toca qué se exporta (agregar una ruta,
+    cambiar cómo se arma una clave auxiliar) no necesita datos nuevos, sólo
+    reflejar los que ya están.
+
+    No pasa por `seed_super_admin` ni por la creación del consorcio: loguea
+    directo contra los usuarios que YA existen en la base — el admin y los
+    dos deptos pinneados del selector de demo-login (`CODIGO_PUNTUAL_FIJO` /
+    `CODIGO_MOROSO_FIJO`), con la MISMA `seed_password` que se les puso al
+    sembrar (el admin ya tiene la definitiva, no la de alta). Si `demo.db`
+    no tiene lo que el export espera (por ejemplo, está vacía), revienta con
+    el mismo `RuntimeError` de `_verificar` en vez de escribir un dataset a
+    medias.
+
+    Uso:
+        DEMO_SEED_PASSWORD=... DATABASE_URL=sqlite:///./demo.db \\
+        SEED_ENABLED=false python -m backend.seed_demo --solo-exportar
+    """
+    from fastapi.testclient import TestClient
+
+    from .main import app
+
+    with TestClient(app) as client:
+        api = Api(client)
+        admin_token = api.login(EMAIL_ADMIN_DEMO, seed_password)
+
+        r = api.req("GET", "/me/consorcios", token=admin_token, expect=200)
+        consorcios = r.json()
+        if not consorcios:
+            raise RuntimeError(
+                "demo.db no tiene ningún consorcio: --solo-exportar necesita "
+                "una base ya poblada por poblar_demo() (corré sin --reset "
+                "primero, o con --reset una única vez)."
+            )
+        cid = consorcios[0]["id"]
+
+        # Sólo los dos deptos que el export realmente usa (ver
+        # _CODIGOS_DEPTOS_NOTIFICACIONES en export_demo.py): son los únicos
+        # con login desde el selector de demo-login, así que son los únicos
+        # cuya password conocemos acá.
+        r = api.req("GET", "/departamentos", token=admin_token, cid=cid, expect=200)
+        tokens_depto: dict[int, str] = {}
+        for depto in r.json():
+            if depto["codigo"] not in (CODIGO_PUNTUAL_FIJO, CODIGO_MOROSO_FIJO):
+                continue
+            email = f"uf{depto['codigo'][3:].lower()}@{DOMINIO_DEMO}"
+            tokens_depto[depto["id"]] = api.login(email, seed_password)
+
+        from .config import get_settings
+        from .export_demo import escribir, exportar, exportar_comprobantes, exportar_pdfs
+
+        destino = Path(__file__).parent.parent / "frontend" / "src" / "demo" / "dataset.json"
+        datos = exportar(api, admin_token, tokens_depto, cid)
+
+        mapa_comprobantes = exportar_comprobantes(
+            datos, Path(get_settings().UPLOAD_DIR), _DIR_ASSETS,
+            Path(__file__).parent.parent / "frontend" / "public" / "demo-comprobantes",
+        )
+        print(f"[demo] {len(mapa_comprobantes)} comprobantes con imagen exportada")
+
+        # Período más reciente entre los ya cerrados: mismo criterio que
+        # `m["meses"][-1]` en `_generar()`, pero leído de la base en vez de
+        # recalculado — acá no corrió `meses_demo()`.
+        ultimo = max(p["periodo"] for p in datos["/periodos"])
+        expensas_ultimas = [e for e in datos["/expensas"] if e["periodo"] == ultimo]
+        mapa = exportar_pdfs(
+            api, admin_token, cid, expensas_ultimas,
+            Path(__file__).parent.parent / "frontend" / "public" / "demo-pdfs",
+        )
+        datos["_pdfs"] = mapa
+        escribir(datos, destino)
+        print(f"[demo] dataset exportado a {destino}")
+        print(f"[demo] {len(mapa)} PDFs exportados")
+
+
 def main() -> None:
     """Entrypoint de CLI: valida el entorno y delega."""
     try:
@@ -1365,15 +1457,24 @@ def main() -> None:
     except ImportError:
         pass
 
-    sa_email = os.environ.get("SUPER_ADMIN_EMAIL", "")
-    sa_password = os.environ.get("SUPER_ADMIN_PASSWORD", "")
     seed_password = os.environ.get("DEMO_SEED_PASSWORD", "")
-    if not sa_email or not sa_password or not seed_password:
-        print("Faltan SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD / DEMO_SEED_PASSWORD",
-              file=sys.stderr)
+    if not seed_password:
+        print("Falta DEMO_SEED_PASSWORD", file=sys.stderr)
         sys.exit(1)
     if len(seed_password) < 8:
         print("DEMO_SEED_PASSWORD debe tener al menos 8 caracteres", file=sys.stderr)
+        sys.exit(1)
+
+    if "--solo-exportar" in sys.argv:
+        # No hace falta SUPER_ADMIN_EMAIL/PASSWORD acá: no se siembra nada,
+        # sólo se loguea contra usuarios que ya existen en demo.db.
+        exportar_desde_db(seed_password)
+        return
+
+    sa_email = os.environ.get("SUPER_ADMIN_EMAIL", "")
+    sa_password = os.environ.get("SUPER_ADMIN_PASSWORD", "")
+    if not sa_email or not sa_password:
+        print("Faltan SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD", file=sys.stderr)
         sys.exit(1)
 
     generar_dataset_demo(

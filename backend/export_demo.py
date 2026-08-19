@@ -145,6 +145,16 @@ def _pedir_paginado(api, path: str, token: str, cid: int) -> list:
 #: donde cualquier token del rol alcanza para el mismo resultado.
 _CODIGO_DEPTO_MI_CUENTA = "UF-01A"
 
+#: Códigos de los DOS perfiles de depto del selector de demo-login
+#: (`PERFILES_DEMO` en frontend/src/demo/rutas.js: "UF-01A" y "UF-03C").
+#: A diferencia de `_CODIGO_DEPTO_MI_CUENTA` (alcanza con fijar UNO porque
+#: `/movimientos/mi-cuenta` da lo mismo con cualquier token de depto salvo
+#: por de quién es la cuenta), acá hacen falta los DOS: `/notificaciones` es
+#: historia personal de la unidad, no un catálogo compartido por rol como
+#: preferencias, así que una sola variante le mostraría a un perfil la
+#: bandeja de la unidad ajena — ver el bloque dedicado en `exportar()`.
+_CODIGOS_DEPTOS_NOTIFICACIONES = ("UF-01A", "UF-03C")
+
 
 def _token_mi_cuenta(datos: dict, tokens_depto: dict[int, str]) -> str:
     """Token del depto pinneado para `/movimientos/mi-cuenta`.
@@ -224,6 +234,33 @@ def exportar(api, admin_token: str, tokens_depto: dict[int, str], cid: int) -> d
     r = api.req("GET", "/notificaciones/preferencias", token=token_depto, cid=cid)
     _verificar("/notificaciones/preferencias", r)
     datos["_preferencias_depto"] = r.json()
+
+    # Notificaciones y contador de DEPARTAMENTO. A diferencia del bloque de
+    # arriba, acá el contenido SÍ depende de qué unidad es: son avisos en
+    # segunda persona atados a la cuenta de cada usuario ("tu comprobante fue
+    # aprobado"), no un catálogo compartido por rol. Con una sola variante,
+    # el perfil que no coincidiera vería la bandeja de la unidad ajena — así
+    # que se piden las DOS, una por cada código de _CODIGOS_DEPTOS_NOTIFICACIONES,
+    # y se guardan bajo una clave auxiliar {departamento_id: datos} que
+    # `frontend/src/demo/servidor.js` indexa por `sesion.departamento_id`
+    # (mismo criterio que `_pdfs`: dict por id bajo una clave aparte).
+    notifs_por_depto: dict[int, list] = {}
+    count_por_depto: dict[int, dict] = {}
+    for depto in datos.get("/departamentos", []):
+        if depto.get("codigo") not in _CODIGOS_DEPTOS_NOTIFICACIONES:
+            continue
+        token = tokens_depto.get(depto["id"])
+        if token is None:
+            continue
+        r = api.req("GET", "/notificaciones", token=token, cid=cid)
+        _verificar("/notificaciones", r)
+        notifs_por_depto[depto["id"]] = r.json()
+
+        r = api.req("GET", "/notificaciones/no-leidas-count", token=token, cid=cid)
+        _verificar("/notificaciones/no-leidas-count", r)
+        count_por_depto[depto["id"]] = r.json()
+    datos["_notificaciones_depto"] = notifs_por_depto
+    datos["_notificaciones_no_leidas_depto"] = count_por_depto
 
     for depto in datos.get("/departamentos", []):
         for plantilla in RUTAS_POR_DEPARTAMENTO:

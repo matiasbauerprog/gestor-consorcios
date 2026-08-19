@@ -199,3 +199,57 @@ describe("preferencias de aviso según quién entró", () => {
     expect(local.leer("_preferencias_depto")[0].email_activo).toBe(true);
   });
 });
+
+describe("notificaciones según quién entró", () => {
+  // A diferencia de las preferencias (un catálogo compartido por rol),
+  // /notificaciones es historia personal de cada unidad: administración ve
+  // sus doce avisos ("UF-02E creó la petición..."), y cada uno de los dos
+  // deptos del selector de demo-login ve SÓLO los suyos -- nunca los del
+  // otro ni los de administración. Regresión real: antes de este arreglo
+  // (backend/export_demo.py + frontend/src/demo/servidor.js) cualquier
+  // perfil, incluido un depto, veía la campanita de administración entera.
+  const DATASET_NOTIFS = {
+    ...DATASET,
+    "/notificaciones": [{ id: 100, mensaje: "UF-02E creó la petición 'Ruido'.", leida: false }],
+    "/notificaciones/no-leidas-count": { count: 12, otros_consorcios: 0 },
+    _notificaciones_depto: {
+      1: [{ id: 1, mensaje: "Tu comprobante de pago fue aprobado.", leida: false }],
+      2: [{ id: 2, mensaje: "Tu comprobante de pago fue rechazado.", leida: true }],
+    },
+    _notificaciones_no_leidas_depto: {
+      1: { count: 1, otros_consorcios: 0 },
+      2: { count: 0, otros_consorcios: 0 },
+    },
+  };
+
+  it("administración ve su propia bandeja, no la de ningún depto", () => {
+    const local = crearEstado(DATASET_NOTIFS, new Date(2026, 7, 20));
+    const r = responder(local, "GET", "/notificaciones", null, { departamento_id: null });
+    expect(r.status).toBe(200);
+    expect(r.data).toEqual([{ id: 100, mensaje: "UF-02E creó la petición 'Ruido'.", leida: false }]);
+  });
+
+  it("un depto ve su propia bandeja, no la de administración ni la del otro depto", () => {
+    const local = crearEstado(DATASET_NOTIFS, new Date(2026, 7, 20));
+    const r1 = responder(local, "GET", "/notificaciones", null, { departamento_id: 1 });
+    expect(r1.data.map((n) => n.id)).toEqual([1]);
+
+    const r2 = responder(local, "GET", "/notificaciones", null, { departamento_id: 2 });
+    expect(r2.data.map((n) => n.id)).toEqual([2]);
+  });
+
+  it("el contador de no leídas también se ramifica por quién entró", () => {
+    const local = crearEstado(DATASET_NOTIFS, new Date(2026, 7, 20));
+    const admin = responder(local, "GET", "/notificaciones/no-leidas-count", null, { departamento_id: null });
+    expect(admin.data.count).toBe(12);
+
+    const depto = responder(local, "GET", "/notificaciones/no-leidas-count", null, { departamento_id: 1 });
+    expect(depto.data.count).toBe(1);
+  });
+
+  it("los filtros de la pantalla siguen aplicando sobre la bandeja de un depto", () => {
+    const local = crearEstado(DATASET_NOTIFS, new Date(2026, 7, 20));
+    const r = responder(local, "GET", "/notificaciones?q=rechazado", null, { departamento_id: 2 });
+    expect(r.data.map((n) => n.id)).toEqual([2]);
+  });
+});

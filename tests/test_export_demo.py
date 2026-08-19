@@ -318,6 +318,47 @@ def test_resuelve_la_plantilla_por_caja():
     assert "/cajas/1/movimientos" in datos
 
 
+def test_notificaciones_se_exportan_solo_para_los_dos_perfiles_de_depto():
+    # /notificaciones es historia personal de la unidad (avisos en segunda
+    # persona: "tu comprobante fue aprobado"), no un catálogo compartido por
+    # rol como preferencias -- no alcanza una sola variante de depto. Ver el
+    # comentario junto a _CODIGOS_DEPTOS_NOTIFICACIONES en export_demo.py.
+    class _ApiDeptos:
+        def req(self, metodo, path, **kwargs):
+            token = kwargs.get("token")
+
+            class _R:
+                status_code = 200
+
+                @staticmethod
+                def json():
+                    if path == "/departamentos":
+                        return [
+                            {"id": 1, "codigo": "UF-01A"},
+                            {"id": 2, "codigo": "UF-02B"},
+                            {"id": 3, "codigo": "UF-03C"},
+                        ]
+                    if path in ("/periodos", "/cajas", "/trabajos"):
+                        return []
+                    if path == "/notificaciones":
+                        return [{"mensaje": f"para {token}"}]
+                    if path == "/notificaciones/no-leidas-count":
+                        return {"count": 1, "otros_consorcios": 0}
+                    return [{"id": 1, "periodo": "2026-01"}]
+
+            return _R()
+
+    tokens_depto = {1: "tok-1", 2: "tok-2", 3: "tok-3"}
+    datos = exportar(_ApiDeptos(), "tok-admin", tokens_depto, cid=1)
+
+    # Sólo UF-01A (id 1) y UF-03C (id 3): UF-02B (id 2) no es un perfil del
+    # selector de demo-login y no tiene por qué llevarse notificaciones.
+    assert set(datos["_notificaciones_depto"].keys()) == {1, 3}
+    assert set(datos["_notificaciones_no_leidas_depto"].keys()) == {1, 3}
+    assert datos["_notificaciones_depto"][1][0]["mensaje"] == "para tok-1"
+    assert datos["_notificaciones_depto"][3][0]["mensaje"] == "para tok-3"
+
+
 def test_el_export_deja_la_fecha_de_generacion():
     # Sin esto no se puede calcular cuánto correr las fechas al abrir la demo.
     class _Api:

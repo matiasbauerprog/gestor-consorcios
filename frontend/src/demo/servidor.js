@@ -35,6 +35,10 @@ export function responder(estado, method, path, body, sesion) {
     return preferenciasDeAviso(estado, sesion);
   }
 
+  if (ruta === "/notificaciones" || ruta === "/notificaciones/no-leidas-count") {
+    return notificacionesDeQuienEntro(estado, sesion, ruta, params);
+  }
+
   const datos = estado.leer(ruta);
   if (datos === undefined) {
     return noImplementado(method, ruta, "no está en el dataset exportado");
@@ -112,6 +116,32 @@ function preferenciasDeAviso(estado, sesion) {
     return noImplementado("GET", "/notificaciones/preferencias", "no está en el dataset exportado");
   }
   return { ok: true, status: 200, data: datos };
+}
+
+/**
+ * Notificaciones (lista y contador) de quien entró.
+ *
+ * A diferencia de las preferencias -- un catálogo compartido por rol, sin
+ * personalizar -- acá el contenido SÍ depende de qué unidad es: son avisos en
+ * segunda persona atados a la cuenta de cada usuario ("tu comprobante fue
+ * aprobado", "UF-02E creó la petición..."). Una sola variante de depto le
+ * mostraría a un perfil la bandeja de la unidad ajena, así que el export
+ * (backend/export_demo.py) guarda una por cada uno de los dos perfiles de
+ * depto del selector de demo-login, bajo una clave auxiliar que es un mapa
+ * {departamento_id: datos} -- mismo criterio que `_pdfs`.
+ */
+function notificacionesDeQuienEntro(estado, sesion, ruta, params) {
+  const claveAux = ruta === "/notificaciones" ? "_notificaciones_depto" : "_notificaciones_no_leidas_depto";
+  let datos;
+  if (sesion?.departamento_id) {
+    datos = (estado.leer(claveAux) ?? {})[sesion.departamento_id];
+  } else {
+    datos = estado.leer(ruta);
+  }
+  if (datos === undefined) {
+    return noImplementado("GET", ruta, "no está en el dataset exportado para este perfil");
+  }
+  return { ok: true, status: 200, data: ruta === "/notificaciones" ? aplicarFiltros(datos, params) : datos };
 }
 
 /**
