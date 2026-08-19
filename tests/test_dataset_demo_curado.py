@@ -335,3 +335,17 @@ def test_los_trabajos_muestran_el_ciclo_completo(con):
     # justifica el módulo.
     estados = {e for (e,) in con.execute("select estado from trabajos")}
     assert {"en_curso", "finalizado", "cancelado"} <= estados, estados
+
+
+def test_las_reservas_caen_en_horario_de_uso_real(con):
+    # El generador tomaba la hora en que se lo corría y le sumaba unas horas,
+    # así que regenerar el demo de madrugada dejaba el SUM alquilado de 3 a 6
+    # AM. Ningún consorcio hace eso, y es lo primero que ve un interesado que
+    # entra a la demo. La hora tiene que salir de una decisión, no del reloj
+    # de quien apretó el botón.
+    filas = con.execute("select inicio, fin from reservas").fetchall()
+    assert filas
+    for inicio, fin in filas:
+        hora_inicio = int(str(inicio)[11:13])
+        assert 8 <= hora_inicio <= 21, (inicio, "arranca fuera de horario de uso")
+        assert str(fin)[:10] == str(inicio)[:10], (inicio, fin, "cruza la medianoche")

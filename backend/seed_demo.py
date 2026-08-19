@@ -1009,8 +1009,13 @@ def poblar_demo(api, admin_token, seed_password: str) -> dict:
     reservas_canceladas = 0
     for depto_id in reservantes:
         amenity = RNG.choice(list(amenities.values()))
-        inicio = datetime.now().replace(minute=0, second=0, microsecond=0) + timedelta(
-            days=RNG.randint(2, 40), hours=RNG.randint(1, 5)
+        # La hora sale de una decisión, no del reloj de quien corre esto. Antes
+        # era `now() + 1..5 h`: regenerar el demo de madrugada dejaba el SUM
+        # alquilado de 3 a 6 AM, que es lo primero que ve un interesado. El
+        # tope de las 19 deja lugar a las 3 h de duración máxima de abajo sin
+        # que la reserva cruce la medianoche.
+        inicio = (datetime.now() + timedelta(days=RNG.randint(2, 40))).replace(
+            hour=RNG.randint(10, 19), minute=0, second=0, microsecond=0
         )
         r = api.req("POST", f"/amenities/{amenity}/reservas", token=tokens_depto[depto_id],
                     cid=cid, json={
@@ -1224,12 +1229,23 @@ def _resetear_esquema(engine) -> None:
                 # dropea cada tabla de los modelos con CASCADE para ignorar ciclos de FK.
                 for table in reversed(Base.metadata.sorted_tables):
                     conn.execute(text(f'DROP TABLE IF EXISTS "{table.name}" CASCADE'))
+                # Idem que en SQLite: sin esto el upgrade posterior es un no-op
+                # y la base queda vacía. El camino de arriba no lo necesita
+                # porque DROP SCHEMA se lleva todo.
+                conn.execute(text('DROP TABLE IF EXISTS "alembic_version" CASCADE'))
         return
 
     try:
         with engine.connect() as conn:
             conn.execute(text("PRAGMA foreign_keys=OFF"))
             Base.metadata.drop_all(bind=conn)
+            # `alembic_version` no está en Base.metadata —la maneja Alembic—,
+            # así que drop_all no la toca. Si sobrevive marcada en la cabeza,
+            # el `alembic upgrade head` de acá abajo concluye que no hay nada
+            # que aplicar y la base queda sin una sola tabla: el generador
+            # muere después con "no such table: usuarios". Sólo se nota
+            # regenerando sobre una demo.db que ya existía.
+            conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
             conn.commit()
     finally:
         # Salir del `with` NO cierra la conexión física: la devuelve al
