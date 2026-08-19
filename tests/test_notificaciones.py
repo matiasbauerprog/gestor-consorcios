@@ -100,3 +100,110 @@ def test_preferencia_notificacion_unica_por_usuario_y_tipo(db):
     with pytest.raises(IntegrityError):
         db.commit()
     db.rollback()
+
+
+def test_listado_filtra_por_consorcio_activo(client, headers_admin, db, dos_consorcios):
+    from backend.models import Notificacion
+
+    db.add(Notificacion(consorcio_id=1, usuario_id=1, tipo="peticion_nueva", mensaje="del 1"))
+    db.add(Notificacion(consorcio_id=2, usuario_id=1, tipo="peticion_nueva", mensaje="del 2"))
+    db.commit()
+
+    r = client.get("/notificaciones", headers=headers_admin)
+    assert r.status_code == 200
+    mensajes = [n["mensaje"] for n in r.json()]
+    assert "del 1" in mensajes
+    assert "del 2" not in mensajes
+
+
+def test_listado_expone_el_tipo(client, headers_depto_a, db):
+    from backend.models import Notificacion
+
+    db.add(Notificacion(consorcio_id=1, usuario_id=2, tipo="comunicado_publicado", mensaje="X"))
+    db.commit()
+    r = client.get("/notificaciones", headers=headers_depto_a)
+    assert r.json()[0]["tipo"] == "comunicado_publicado"
+
+
+def test_listado_solo_no_leidas(client, headers_depto_a, db):
+    from backend.models import Notificacion
+
+    db.add(Notificacion(consorcio_id=1, usuario_id=2, tipo="x", mensaje="pendiente", leida=False))
+    db.add(Notificacion(consorcio_id=1, usuario_id=2, tipo="x", mensaje="vista", leida=True))
+    db.commit()
+
+    r = client.get("/notificaciones?solo_no_leidas=true", headers=headers_depto_a)
+    assert [n["mensaje"] for n in r.json()] == ["pendiente"]
+
+
+def test_listado_busca_por_texto_sin_distinguir_mayusculas(client, headers_depto_a, db):
+    from backend.models import Notificacion
+
+    db.add(Notificacion(consorcio_id=1, usuario_id=2, tipo="x", mensaje="Corte de AGUA"))
+    db.add(Notificacion(consorcio_id=1, usuario_id=2, tipo="x", mensaje="Reunión"))
+    db.commit()
+
+    r = client.get("/notificaciones?q=agua", headers=headers_depto_a)
+    assert [n["mensaje"] for n in r.json()] == ["Corte de AGUA"]
+
+
+def test_listado_pagina_con_offset(client, headers_depto_a, db):
+    from backend.models import Notificacion
+
+    for i in range(5):
+        db.add(Notificacion(consorcio_id=1, usuario_id=2, tipo="x", mensaje=f"n{i}"))
+    db.commit()
+
+    primera = client.get("/notificaciones?limit=2", headers=headers_depto_a).json()
+    segunda = client.get("/notificaciones?limit=2&offset=2", headers=headers_depto_a).json()
+    assert len(primera) == 2
+    assert len(segunda) == 2
+    assert {n["id"] for n in primera}.isdisjoint({n["id"] for n in segunda})
+
+
+def test_contador_reporta_otros_consorcios(client, db, dos_consorcios):
+    """Un admin de una administración con dos consorcios ve el contador del otro."""
+    from backend.auth import create_access_token
+    from backend.models import Consorcio, Notificacion, Rol
+
+    # Mover el consorcio 2 bajo la administración 1: mismo admin, dos edificios.
+    db.get(Consorcio, 2).administracion_id = 1
+    db.add(Notificacion(consorcio_id=1, usuario_id=1, tipo="x", mensaje="acá", leida=False))
+    db.add(Notificacion(consorcio_id=2, usuario_id=1, tipo="x", mensaje="allá", leida=False))
+    db.add(Notificacion(consorcio_id=2, usuario_id=1, tipo="x", mensaje="allá2", leida=False))
+    db.commit()
+
+    token = create_access_token(user_id=1, rol=Rol.administracion, departamento_id=None)
+    headers = {"Authorization": f"Bearer {token}", "X-Consorcio-Id": "1"}
+
+    r = client.get("/notificaciones/no-leidas-count", headers=headers)
+    assert r.status_code == 200
+    assert r.json() == {"count": 1, "otros_consorcios": 2}
+
+
+def test_contador_de_depto_no_tiene_otros_consorcios(client, headers_depto_a, db):
+    from backend.models import Notificacion
+
+    db.add(Notificacion(consorcio_id=1, usuario_id=2, tipo="x", mensaje="X", leida=False))
+    db.commit()
+    r = client.get("/notificaciones/no-leidas-count", headers=headers_depto_a)
+    assert r.json()["otros_consorcios"] == 0
+
+
+def test_marcar_todas_alcanza_solo_al_consorcio_activo(client, db, dos_consorcios):
+    from backend.auth import create_access_token
+    from backend.models import Consorcio, Notificacion, Rol
+
+    db.get(Consorcio, 2).administracion_id = 1
+    db.add(Notificacion(consorcio_id=1, usuario_id=1, tipo="x", mensaje="acá", leida=False))
+    n2 = Notificacion(consorcio_id=2, usuario_id=1, tipo="x", mensaje="allá", leida=False)
+    db.add(n2)
+    db.commit()
+
+    token = create_access_token(user_id=1, rol=Rol.administracion, departamento_id=None)
+    headers = {"Authorization": f"Bearer {token}", "X-Consorcio-Id": "1"}
+
+    r = client.post("/notificaciones/marcar-todas-leidas", headers=headers)
+    assert r.status_code == 204
+    db.refresh(n2)
+    assert n2.leida is False

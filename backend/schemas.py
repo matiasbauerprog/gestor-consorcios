@@ -1192,6 +1192,7 @@ class NotificacionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     usuario_id: int
+    tipo: str
     mensaje: str
     link: str | None
     leida: bool
@@ -1200,6 +1201,9 @@ class NotificacionOut(BaseModel):
 
 class NotificacionesCountOut(BaseModel):
     count: int
+    # No leídas del usuario en los OTROS consorcios de su administración.
+    # Siempre 0 para departamento y representante: tienen uno solo.
+    otros_consorcios: int = 0
 
 
 class CompletarTrabajoOut(BaseModel):
