@@ -322,5 +322,13 @@ def eliminar_comprobante(
             detail="No tiene permisos para acceder a este recurso.",
         )
 
+    # El pendiente apunta a este comprobante y no puede quedar vivo señalando
+    # algo que ya no existe. Va después de los chequeos de permiso, no antes:
+    # así ninguna rama que termina en 403/404 lo toca (mismo criterio que
+    # backend/routers/peticiones.py:208).
+    resolver_pendiente(
+        db, consorcio_id=cid, entidad_tipo="comprobante", entidad_id=comprobante.id,
+    )
+
     comprobante.eliminado_at = datetime.now(timezone.utc)
     db.commit()

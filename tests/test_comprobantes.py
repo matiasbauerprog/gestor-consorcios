@@ -636,6 +636,25 @@ def test_eliminar_comprobante_ya_eliminado_404(client, headers_admin, headers_de
     assert r.status_code == 404
 
 
+def test_eliminar_comprobante_apaga_el_pendiente_del_admin(client, headers_admin, headers_depto_a, db_session):
+    """El comprobante_presentado no puede quedar prendido apuntando a un
+    comprobante ya borrado -- ver backend/routers/comprobantes.py y el mismo
+    arreglo ya aplicado en peticiones (backend/routers/peticiones.py:208)."""
+    from backend.models import Notificacion
+
+    comp_id = _crear_comprobante_depto_a(client, headers_depto_a)
+    assert db_session.query(Notificacion).filter_by(
+        tipo="comprobante_presentado", leida=False,
+    ).count() == 1
+
+    r = client.delete(f"/comprobantes/{comp_id}", headers=headers_depto_a)
+    assert r.status_code == 204
+
+    assert db_session.query(Notificacion).filter_by(
+        tipo="comprobante_presentado", leida=False,
+    ).count() == 0
+
+
 def test_get_comprobantes_excluye_eliminados(client, headers_admin, headers_depto_a):
     comp_id = _crear_comprobante_depto_a(client, headers_depto_a)
 

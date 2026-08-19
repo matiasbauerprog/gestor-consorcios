@@ -114,7 +114,7 @@ def marcar_todas_leidas(
 def listar_preferencias(
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
-    cid: int = Depends(get_consorcio_activo),
+    _cid: int = Depends(get_consorcio_activo),
 ) -> list[PreferenciaNotificacionOut]:
     return [
         PreferenciaNotificacionOut(
@@ -137,7 +137,7 @@ def guardar_preferencias(
     payload: list[PreferenciaNotificacionIn],
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
-    cid: int = Depends(get_consorcio_activo),
+    _cid: int = Depends(get_consorcio_activo),
 ) -> None:
     # Sólo eventos del propio rol del usuario (según token) son tocables acá;
     # el catálogo decide además cuáles de ésos son editables.
