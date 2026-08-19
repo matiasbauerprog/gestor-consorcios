@@ -32,7 +32,6 @@ import ConceptosLiquidacion from "./screens/ConceptosLiquidacion";
 import Liquidaciones from "./screens/Liquidaciones";
 import MiCuenta from "./screens/MiCuenta";
 import DepartamentoCuenta from "./screens/DepartamentoCuenta";
-import CuentasCorrientes from "./screens/CuentasCorrientes";
 import CierreDePeriodo from "./screens/CierreDePeriodo";
 import Tesoreria from "./screens/Tesoreria";
 import ReporteMorosos from "./screens/ReporteMorosos";
@@ -142,7 +141,7 @@ export default function App() {
             <Route path="expensas" element={<ExpensasRoute />} />
             <Route path="mi-cuenta" element={<MiCuentaRoute />} />
             <Route path="departamentos/:id/cuenta" element={<DepartamentoCuenta />} />
-            <Route path="cuentas-corrientes" element={<CuentasCorrientes />} />
+            <Route path="cuentas-corrientes" element={<Navigate to="/cobranzas?tab=cuentas" replace />} />
             <Route path="comprobantes" element={<ComprobantesRoute />} />
             <Route path="cierre-de-periodo" element={<CierreDePeriodo />} />
             <Route path="periodos" element={<Navigate to="/cobranzas?tab=cierres" replace />} />
@@ -160,7 +159,7 @@ export default function App() {
             <Route path="liquidaciones" element={<Liquidaciones />} />
             <Route path="liquidaciones/historial" element={<Liquidaciones vistaHistorial />} />
             <Route path="tesoreria" element={<Tesoreria />} />
-            <Route path="estado-financiero" element={<Navigate to="/tesoreria?tab=estado" replace />} />
+            <Route path="estado-financiero" element={<Navigate to="/tesoreria?tab=resumen" replace />} />
             <Route path="cajas" element={<Navigate to="/tesoreria?tab=cajas" replace />} />
             <Route path="transferencias" element={<Navigate to="/tesoreria?tab=transferencias" replace />} />
             <Route path="reportes/morosos" element={<ReporteMorosos />} />

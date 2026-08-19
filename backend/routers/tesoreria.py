@@ -1,4 +1,8 @@
-"""GET /estado-financiero — dashboard de tesorería + PDF de movimientos."""
+"""GET /tesoreria — resumen de tesorería + PDF de movimientos.
+
+No confundir con `/reportes/estado-financiero`: eso es el balance contable
+(activo/pasivo/patrimonio a una fecha). Esto es el saldo de las cajas hoy.
+"""
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -11,23 +15,23 @@ from ..database import get_db
 from ..models import Caja, Consorcio, MovimientoCaja, Rol
 from ..modulos import require_modulo
 from ..pdf import generar_pdf_movimientos_caja
-from ..schemas import CajaOut, EstadoFinancieroOut, MovimientoCajaOut
+from ..schemas import CajaOut, MovimientoCajaOut, ResumenTesoreriaOut
 from ..tenant import get_consorcio_activo
 
 router = APIRouter(
-    prefix="/estado-financiero",
-    tags=["EstadoFinanciero"],
+    prefix="/tesoreria",
+    tags=["Tesoreria"],
     dependencies=[Depends(require_modulo("finanzas"))],
 )
 
 
-@router.get("", response_model=EstadoFinancieroOut)
-def obtener_estado_financiero(
+@router.get("", response_model=ResumenTesoreriaOut)
+def obtener_resumen_tesoreria(
     ultimos: int = 20,
     db: Session = Depends(get_db),
     _u: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
-) -> EstadoFinancieroOut:
+) -> ResumenTesoreriaOut:
     cajas_activas = list(db.scalars(
         select(Caja).where(
             Caja.activa == True,  # noqa: E712
@@ -53,7 +57,7 @@ def obtener_estado_financiero(
         .order_by(MovimientoCaja.fecha.desc(), MovimientoCaja.id.desc())
         .limit(ultimos)
     ).all())
-    return EstadoFinancieroOut(
+    return ResumenTesoreriaOut(
         cajas=cajas_out,
         total=round(total, 2),
         ultimos_movimientos=[MovimientoCajaOut.model_validate(m) for m in ultimos_movs],

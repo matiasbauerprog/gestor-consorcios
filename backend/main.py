@@ -25,7 +25,6 @@ from .routers import (
     consorcios,
     departamentos,
     empleados,
-    estado_financiero,
     expensas,
     gastos,
     gastos_habituales,
@@ -42,6 +41,7 @@ from .routers import (
     reportes,
     reservas,
     super_admin,
+    tesoreria,
     trabajos,
     trabajos_recurrentes,
     transferencias_caja,
@@ -263,7 +263,7 @@ app.include_router(cajas.router)
 app.include_router(transferencias_caja.router)
 app.include_router(super_admin.router)
 app.include_router(padron.router)
-app.include_router(estado_financiero.router)
+app.include_router(tesoreria.router)
 app.include_router(reportes.router)
 
 # Candado 2: la ruta del demo no se registra fuera del modo demo. No es un 403

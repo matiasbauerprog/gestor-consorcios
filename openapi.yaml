@@ -25,8 +25,12 @@ servers:
     description: Servidor local de desarrollo
 
 tags:
+  - name: Salud
+    description: Healthchecks públicos, sin token
   - name: Auth
     description: Autenticación e intercambio de credenciales por token JWT
+  - name: Archivos
+    description: Descarga de archivos subidos (comprobantes, adjuntos)
   - name: Expensas
     description: Gestión de expensas y comprobantes de pago
   - name: Tareas
@@ -51,8 +55,8 @@ tags:
     description: Cuentas financieras del consorcio
   - name: TransferenciasCaja
     description: Transferencias entre cajas
-  - name: EstadoFinanciero
-    description: Dashboard de tesorería
+  - name: Tesoreria
+    description: Resumen de tesorería (saldos de cajas y últimos movimientos)
   - name: Reportes
     description: Reportes consultables (morosos, estado financiero, gastos, proveedores)
   - name: Presupuestos
@@ -76,6 +80,23 @@ paths:
   # =========================================================================
   # 0. SALUD
   # =========================================================================
+
+  /:
+    get:
+      tags: [Salud]
+      summary: Raíz de la API — healthcheck público
+      operationId: root
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  message: { type: string }
 
   /health:
     get:
@@ -526,7 +547,7 @@ paths:
       tags: [Expensas]
       summary: Eliminar una expensa (admin, sin pagos aplicados)
       security:
-        - BearerAuth: []
+        - bearerAuth: []
       parameters:
         - in: path
           name: expensa_id
@@ -640,7 +661,7 @@ paths:
       tags: [Expensas]
       summary: Presentar comprobante de pago (depto)
       security:
-        - BearerAuth: []
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -747,6 +768,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Expensas]
+      summary: Eliminar un comprobante
+      description: |
+        Soft-delete: el comprobante queda oculto de las vistas pero no se borra
+        de la base. Administración puede eliminar cualquiera; un Departamento,
+        sólo los propios.
+      operationId: eliminarComprobante
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: comprobante_id
+          in: path
+          required: true
+          description: Identificador único del comprobante.
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Comprobante eliminado.
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+        '404':
+          $ref: '#/components/responses/NoEncontrado'
 
   # =========================================================================
   # 2. TAREAS PARA HACER
@@ -2736,7 +2783,7 @@ paths:
       tags: [Movimientos]
       summary: Cuenta corriente de un departamento (admin)
       security:
-        - BearerAuth: []
+        - bearerAuth: []
       parameters:
         - in: path
           name: departamento_id
@@ -3467,12 +3514,31 @@ paths:
   # MOVIMIENTOS / CUENTA CORRIENTE
   # =========================================================================
 
+  /movimientos/cuentas:
+    get:
+      tags: [Movimientos]
+      summary: Listado consolidado de saldos por departamento (admin)
+      operationId: listarCuentas
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CuentaResumenOut' }
+        '401':
+          $ref: '#/components/responses/NoAutenticado'
+        '403':
+          $ref: '#/components/responses/AccesoDenegado'
+
   /movimientos/mi-cuenta:
     get:
       tags: [Movimientos]
       summary: Cuenta corriente del depto autenticado
       security:
-        - BearerAuth: []
+        - bearerAuth: []
       parameters:
         - in: query
           name: desde
@@ -3496,7 +3562,7 @@ paths:
       tags: [Movimientos]
       summary: Crear nota de crédito o débito (admin)
       security:
-        - BearerAuth: []
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -3798,11 +3864,11 @@ paths:
         '400': { description: Origen=destino, monto<=0, caja inactiva }
         '409': { description: Período cerrado }
 
-  /estado-financiero:
+  /tesoreria:
     get:
-      tags: [EstadoFinanciero]
-      summary: Dashboard de tesorería (admin)
-      operationId: obtenerEstadoFinanciero
+      tags: [Tesoreria]
+      summary: Resumen de tesorería (admin)
+      operationId: obtenerResumenTesoreria
       security: [{bearerAuth: []}]
       parameters:
         - name: ultimos
@@ -3813,7 +3879,34 @@ paths:
           description: OK
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/EstadoFinancieroOut' }
+              schema: { $ref: '#/components/schemas/ResumenTesoreriaOut' }
+        '401': { description: Token ausente }
+        '403': { description: Rol no autorizado }
+
+  /tesoreria/movimientos-pdf:
+    get:
+      tags: [Tesoreria]
+      summary: PDF de movimientos de caja por rango de fechas (admin)
+      operationId: pdfMovimientosCaja
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: desde
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: hasta
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        '400': { description: '`desde` posterior a `hasta`' }
+        '401': { description: Token ausente }
+        '403': { description: Rol no autorizado }
 
   # =========================================================================
   # REPORTES
@@ -4487,7 +4580,7 @@ paths:
 
   /super-admin/errores:
     get:
-      tags: [Super-Admin]
+      tags: [SuperAdmin]
       summary: Últimos errores inesperados del sistema
       description: |
         Lista los errores no previstos, más nuevos primero. **Sólo super admin**:
@@ -4523,7 +4616,7 @@ paths:
 
   /super-admin/errores/{codigo}:
     get:
-      tags: [Super-Admin]
+      tags: [SuperAdmin]
       summary: Buscar un error por su código
       description: |
         El código es lo que ve el usuario cuando algo falla y lo único que viaja
@@ -6507,7 +6600,16 @@ components:
         fecha: { type: string, format: date }
         descripcion: { type: string }
 
-    EstadoFinancieroOut:
+    CuentaResumenOut:
+      type: object
+      properties:
+        departamento_id: { type: integer }
+        codigo: { type: string }
+        ubicacion: { type: string, nullable: true }
+        saldo_total: { type: number }
+        en_mora: { type: boolean }
+
+    ResumenTesoreriaOut:
       type: object
       properties:
         cajas:

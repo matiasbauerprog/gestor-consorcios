@@ -1070,7 +1070,7 @@ class TransferenciaCajaOut(BaseModel):
     descripcion: str
 
 
-class EstadoFinancieroOut(BaseModel):
+class ResumenTesoreriaOut(BaseModel):
     cajas: list[CajaOut]
     total: float
     ultimos_movimientos: list[MovimientoCajaOut]

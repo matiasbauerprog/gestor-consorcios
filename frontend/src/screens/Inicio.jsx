@@ -7,7 +7,7 @@ import { obtenerGastosDelPeriodo, listarMorosos } from "../api/reportes";
 import { listarPeticiones } from "../api/peticiones";
 import { estadoPeriodo, listarPeriodos } from "../api/periodos";
 import { periodoDelTablero } from "../utils/periodoDelTablero";
-import { obtenerEstadoFinanciero } from "../api/estadoFinanciero";
+import { obtenerResumenTesoreria } from "../api/tesoreria";
 import { listarGastos } from "../api/gastos";
 import { listarGastosHabituales } from "../api/gastosHabituales";
 import { listarReservas } from "../api/reservas";
@@ -82,7 +82,7 @@ export default function Inicio() {
           listarMorosos({ soloDeudores: true }),
           listarPeticiones(),
           estadoPeriodo(periodo),
-          obtenerEstadoFinanciero({ ultimos: 10 }),
+          obtenerResumenTesoreria({ ultimos: 10 }),
           listarGastos({ periodo }),
           listarGastosHabituales(),
           listarReservas(),

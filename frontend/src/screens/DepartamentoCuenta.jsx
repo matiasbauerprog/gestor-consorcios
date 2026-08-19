@@ -76,7 +76,7 @@ export default function DepartamentoCuenta() {
   return (
     <main className="pantalla">
       <p style={{ marginBottom: "0.5rem" }}>
-        <Link to="/cuentas-corrientes" className="breadcrumb-atras">
+        <Link to="/cobranzas?tab=cuentas" className="breadcrumb-atras">
           ← Volver a cuentas corrientes
         </Link>
       </p>

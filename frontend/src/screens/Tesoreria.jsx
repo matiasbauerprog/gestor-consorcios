@@ -1,11 +1,11 @@
 import { useSearchParams } from "react-router-dom";
 import TabsPanel from "../components/TabsPanel";
-import EstadoFinanciero from "./EstadoFinanciero";
+import ResumenTesoreria from "./ResumenTesoreria";
 import Cajas from "./Cajas";
 import Transferencias from "./Transferencias";
 
 const TABS = [
-  { valor: "estado", label: "Estado financiero" },
+  { valor: "resumen", label: "Resumen" },
   { valor: "cajas", label: "Cajas" },
   { valor: "transferencias", label: "Transferencias" },
 ];
@@ -15,7 +15,7 @@ const TABS_VALIDOS = new Set(TABS.map((t) => t.valor));
 export default function Tesoreria() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const tabActivo = TABS_VALIDOS.has(tabParam) ? tabParam : "estado";
+  const tabActivo = TABS_VALIDOS.has(tabParam) ? tabParam : "resumen";
 
   function cambiarTab(valor) {
     const params = new URLSearchParams(searchParams);
@@ -34,7 +34,7 @@ export default function Tesoreria() {
         ariaLabel="Secciones de tesorería"
       />
 
-      {tabActivo === "estado" && <EstadoFinanciero />}
+      {tabActivo === "resumen" && <ResumenTesoreria />}
       {tabActivo === "cajas" && <Cajas />}
       {tabActivo === "transferencias" && <Transferencias />}
     </main>

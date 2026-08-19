@@ -3,10 +3,12 @@ import TabsPanel from "../components/TabsPanel";
 import Expensas from "./Expensas";
 import Comprobantes from "./Comprobantes";
 import Periodos from "./Periodos";
+import CuentasCorrientes from "./CuentasCorrientes";
 
 const TABS = [
   { valor: "expensas", label: "Expensas" },
   { valor: "comprobantes", label: "Comprobantes" },
+  { valor: "cuentas", label: "Cuentas corrientes" },
   { valor: "cierres", label: "Historial de cierres" },
 ];
 
@@ -38,6 +40,7 @@ export default function Cobranzas() {
 
       {tabActivo === "expensas" && <Expensas embebida />}
       {tabActivo === "comprobantes" && <Comprobantes embebida />}
+      {tabActivo === "cuentas" && <CuentasCorrientes embebida />}
       {tabActivo === "cierres" && <Periodos />}
     </main>
   );

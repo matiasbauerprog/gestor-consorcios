@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { abrirPdfMovimientos, obtenerEstadoFinanciero } from "../api/estadoFinanciero";
+import { abrirPdfMovimientos, obtenerResumenTesoreria } from "../api/tesoreria";
 import Tarjeta from "../components/Tarjeta";
 import TablaResponsive from "../components/TablaResponsive";
 import ModalNuevaTransferencia from "../components/ModalNuevaTransferencia";
@@ -21,13 +21,13 @@ function fmtMoney(n) {
   });
 }
 
-export default function EstadoFinanciero() {
+export default function ResumenTesoreria() {
   const [data, setData] = useState(null);
   const [modalTransfer, setModalTransfer] = useState(false);
   const [modalPdf, setModalPdf] = useState(false);
 
   async function cargar() {
-    const r = await obtenerEstadoFinanciero();
+    const r = await obtenerResumenTesoreria();
     if (r.status === 200) setData(r.data);
   }
 
@@ -38,7 +38,7 @@ export default function EstadoFinanciero() {
   return (
     <section>
       <header className="cabecera-pantalla">
-        <h2>Estado financiero</h2>
+        <h2>Resumen</h2>
         <div className="cabecera-acciones">
           <button type="button" onClick={() => setModalPdf(true)}>
             📄 Descargar movimientos

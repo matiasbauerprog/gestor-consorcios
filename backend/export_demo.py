@@ -14,7 +14,7 @@ from pathlib import Path
 #: La mayoría queda como "admin": se relevó cada router y no necesita el
 #: token de un departamento para devolver datos útiles para la demo — son
 #: admin-only (gastos, proveedores, periodos, clases-prorrateo, cajas,
-#: estado-financiero, configuración, departamentos, movimientos/cuentas,
+#: tesorería, configuración, departamentos, movimientos/cuentas,
 #: gastos-habituales, reportes) o de lectura abierta a cualquier rol
 #: autenticado donde el admin ve el conjunto más amplio, no uno recortado por
 #: depto (expensas, comprobantes, comunicados, peticiones, reservas,
@@ -37,7 +37,7 @@ RUTAS_EXPORTADAS: list[tuple[str, str]] = [
     ("admin", "/periodos"),
     ("admin", "/clases-prorrateo"),
     ("admin", "/cajas"),
-    ("admin", "/estado-financiero"),
+    ("admin", "/tesoreria"),
     # Sin filtrar: el padrón entero, deudores y al día. El default del
     # endpoint es `solo_deudores=True`, y con ese recorte la casilla "excluir
     # saldos al día y a favor" de la pantalla queda muerta — no tiene de dónde

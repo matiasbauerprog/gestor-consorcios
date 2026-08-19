@@ -30,7 +30,7 @@ const RECORRIDO = [
   ["/proveedores", "Reporte de proveedores"],
   ["/clases-prorrateo", "formulario de gasto"],
   ["/cajas", "Tesorería"],
-  ["/estado-financiero", "Inicio y Tesorería"],
+  ["/tesoreria", "Inicio y Tesorería"],
   ["/configuracion", "Configuración"],
   ["/movimientos/cuentas", "Cuentas corrientes"],
   ["/reportes/morosos", "Inicio y reporte"],

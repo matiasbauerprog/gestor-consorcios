@@ -27,7 +27,7 @@ const ESTILOS_ESTADO = {
   al_dia: { clase: "al-dia", label: "Al día" },
 };
 
-export default function CuentasCorrientes() {
+export default function CuentasCorrientes({ embebida = false }) {
   const [cuentas, setCuentas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
@@ -47,7 +47,14 @@ export default function CuentasCorrientes() {
 
   useEffect(() => { cargar(); }, []);
 
-  if (cargando) return <main className="pantalla"><p>Cargando…</p></main>;
+  // Embebida dentro de Cobranzas es una pestaña más (hermana de Expensas y
+  // Comprobantes): no abre <main> propio ni repite el título, que ya lo pone
+  // la cabecera de la sección.
+  const Contenedor = embebida ? "section" : "main";
+  const claseContenedor = embebida ? "pantalla pantalla-ancha" : "pantalla";
+
+  if (cargando)
+    return <Contenedor className={claseContenedor}><p>Cargando…</p></Contenedor>;
 
   const q = busqueda.trim().toLowerCase();
   const filtradas = cuentas.filter((c) => {
@@ -61,10 +68,12 @@ export default function CuentasCorrientes() {
   const deudaMorosos = morosos.reduce((s, c) => s + c.saldo_total, 0);
 
   return (
-    <main className="pantalla">
+    <Contenedor className={claseContenedor}>
       <header className="padron-cabecera">
         <div>
-          <h2 style={{ marginBottom: "0.15rem" }}>Cuentas corrientes</h2>
+          {!embebida && (
+            <h2 style={{ marginBottom: "0.15rem" }}>Cuentas corrientes</h2>
+          )}
           <p className="padron-contador">
             {cuentas.length} departamentos · {morosos.length} en mora ·
             deuda vencida {formatMoney(deudaMorosos)}
@@ -150,6 +159,6 @@ export default function CuentasCorrientes() {
           );
         }}
       />
-    </main>
+    </Contenedor>
   );
 }
