@@ -612,3 +612,24 @@ def test_fecha_fija_no_admite_construccion_directa():
     with reloj_en(date(2026, 3, 1)):
         with pytest.raises(TypeError):
             periodos.date(2026, 3, 10)
+
+
+def test_resetear_esquema_tambien_borra_la_version_de_alembic(engine_demo):
+    # `alembic_version` no pertenece a Base.metadata —la maneja Alembic—, así
+    # que `drop_all` no la toca y sobrevivía al reset marcada en la cabeza. El
+    # `alembic upgrade head` que viene después la leía, concluía que no había
+    # nada que aplicar, y dejaba la base sin una sola tabla: el generador moría
+    # con "no such table: usuarios". Sólo se notaba regenerando sobre una
+    # demo.db ya existente; con el archivo borrado a mano andaba, y por eso
+    # pasó desapercibido.
+    from sqlalchemy import text
+
+    _poblar_con_fks(engine_demo)
+    with engine_demo.begin() as conn:
+        conn.execute(text("CREATE TABLE alembic_version (version_num varchar(32) NOT NULL)"))
+        conn.execute(text("INSERT INTO alembic_version VALUES ('2f598eb91171')"))
+    assert "alembic_version" in inspect(engine_demo).get_table_names()
+
+    _resetear_esquema(engine_demo)
+
+    assert inspect(engine_demo).get_table_names() == []

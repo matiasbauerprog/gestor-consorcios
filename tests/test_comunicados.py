@@ -181,3 +181,55 @@ def test_borrar_comunicado_ya_borrado_devuelve_404(client, headers_admin):
     r2 = client.delete("/comunicados/200", headers=headers_admin)
     assert r2.status_code == 404
     assert r2.json()["detail"] == "El comunicado no existe."
+
+
+# ---------------------------------------------------------------------------
+# Notificaciones al publicar un comunicado
+# ---------------------------------------------------------------------------
+
+
+def test_publicar_comunicado_notifica_a_los_deptos(client, headers_admin, db):
+    from backend.models import Notificacion
+
+    r = client.post(
+        "/comunicados",
+        json={"titulo": "Corte de agua", "cuerpo": "Mañana de 9 a 13."},
+        headers=headers_admin,
+    )
+    assert r.status_code == 201
+
+    ns = db.query(Notificacion).filter_by(tipo="comunicado_publicado").all()
+    assert sorted(n.usuario_id for n in ns) == [2, 3]
+    assert all("Corte de agua" in n.mensaje for n in ns)
+
+
+def test_publicar_comunicado_no_notifica_al_admin(client, headers_admin, db):
+    from backend.models import Notificacion
+
+    client.post(
+        "/comunicados",
+        json={"titulo": "X", "cuerpo": "Y"},
+        headers=headers_admin,
+    )
+    ns = db.query(Notificacion).filter_by(tipo="comunicado_publicado").all()
+    assert 1 not in [n.usuario_id for n in ns]
+
+
+def test_un_smtp_caido_no_rompe_la_publicacion(client, headers_admin, db, monkeypatch):
+    """La operación devuelve 2xx, la campanita queda, y el error se registra."""
+    from backend.models import ErrorRegistrado, Notificacion
+    from backend.notificaciones import correo
+
+    def _explota(**kwargs):
+        raise RuntimeError("SMTP caído")
+
+    monkeypatch.setattr(correo, "enviar_email", _explota)
+
+    r = client.post(
+        "/comunicados",
+        json={"titulo": "Corte", "cuerpo": "X"},
+        headers=headers_admin,
+    )
+    assert r.status_code == 201
+    assert db.query(Notificacion).filter_by(tipo="comunicado_publicado").count() == 2
+    assert db.query(ErrorRegistrado).count() >= 1

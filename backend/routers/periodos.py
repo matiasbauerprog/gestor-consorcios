@@ -1,7 +1,7 @@
 import re
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -19,6 +19,8 @@ from ..models import (
     TipoMovimiento,
     Usuario,
 )
+from ..notificaciones import emitir
+from ..notificaciones.catalogo import EXPENSA_EMITIDA
 from ..pdf import generar_pdf_boleta
 from ..tenant import get_consorcio_activo
 from ..schemas import (
@@ -125,6 +127,7 @@ def preview_periodo(
 def cerrar_periodo(
     periodo: str,
     payload: CerrarPeriodoIn,
+    tareas: BackgroundTasks,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
@@ -186,6 +189,21 @@ def cerrar_periodo(
             monto=exp.monto_primer_vencimiento,
             expensa_id=e.id,
         ))
+
+        # Cada unidad se entera de su propia expensa: una por departamento,
+        # no un aviso genérico "se cerró el período".
+        emitir(
+            db, EXPENSA_EMITIDA,
+            consorcio_id=cid,
+            contexto={
+                "periodo": periodo,
+                "monto": exp.monto_primer_vencimiento,
+                "vencimiento": preview.fecha_primer_vencimiento.isoformat(),
+            },
+            actor_usuario_id=user.id,
+            departamento_id=exp.departamento_id,
+            tareas=tareas,
+        )
 
     cerrado = PeriodoCerrado(
         periodo=periodo,

@@ -1,13 +1,23 @@
 from datetime import date, datetime, time
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, get_current_user, require_roles
 from ..database import get_db
-from ..models import Amenity, EstadoReserva, MovimientoCuenta, Reserva, Rol, TipoMovimiento
+from ..models import (
+    Amenity,
+    Departamento,
+    EstadoReserva,
+    MovimientoCuenta,
+    Reserva,
+    Rol,
+    TipoMovimiento,
+)
 from ..modulos import require_modulo
+from ..notificaciones import emitir
+from ..notificaciones.catalogo import RESERVA_CONFIRMADA, RESERVA_NUEVA_DE_DEPTO
 from ..tenant import get_consorcio_activo
 from ..schemas import (
     AmenityActualizar,
@@ -188,6 +198,7 @@ def consultar_disponibilidad(
 def crear_reserva(
     amenity_id: int,
     payload: ReservaCrear,
+    tareas: BackgroundTasks,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.administracion, Rol.departamento)),
     cid: int = Depends(get_consorcio_activo),
@@ -296,13 +307,48 @@ def crear_reserva(
         db.flush()
         reserva.movimiento_cuenta_id = movimiento.id
 
+    monto = (
+        amenity.precio_reserva
+        if (user.rol == Rol.departamento and amenity.precio_reserva is not None)
+        else None
+    )
+    ctx_reserva = {
+        "amenity": amenity.nombre,
+        "fecha": inicio_naive.strftime("%Y-%m-%d %H:%M"),
+        "monto": monto,
+    }
+    if user.rol == Rol.departamento:
+        # `actor_usuario_id=None` a propósito: es la confirmación al propio
+        # reservante, el único caso donde el actor sí debe recibir el aviso
+        # porque el mail es el comprobante de su propia acción. Y va acotado a
+        # él solo: el texto le habla de "tu reserva" y "tu cuenta corriente",
+        # así que al otro habitante de la unidad no le corresponde.
+        emitir(
+            db, RESERVA_CONFIRMADA,
+            consorcio_id=cid, contexto=ctx_reserva,
+            actor_usuario_id=None,
+            departamento_id=user.departamento_id,
+            tareas=tareas,
+            restringir_a_usuario_id=user.id,
+        )
+
+        # A la administración también le interesa: un depto acaba de tomar un
+        # turno de un espacio común, no es sólo un aviso para quien reservó.
+        depto = db.get(Departamento, user.departamento_id)
+        emitir(
+            db, RESERVA_NUEVA_DE_DEPTO,
+            consorcio_id=cid,
+            contexto={
+                "codigo_depto": depto.codigo if depto else "Un departamento",
+                "amenity": amenity.nombre,
+                "fecha": inicio_naive.strftime("%Y-%m-%d %H:%M"),
+            },
+            actor_usuario_id=user.id,
+            tareas=tareas,
+        )
+
     db.commit()
     db.refresh(reserva)
-
-    from ..notificaciones import notificar_reserva_creada
-    monto = amenity.precio_reserva if (user.rol == Rol.departamento and amenity.precio_reserva is not None) else None
-    notificar_reserva_creada(db, reserva, amenity.nombre, monto)
-
     return reserva
 
 

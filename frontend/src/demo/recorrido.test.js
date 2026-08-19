@@ -38,6 +38,7 @@ const RECORRIDO = [
   ["/reportes/proveedores", "Reporte"],
   ["/notificaciones", "campanita"],
   ["/notificaciones/no-leidas-count", "campanita"],
+  ["/notificaciones/preferencias", "Preferencias de avisos"],
   ["/empleados", "Personal"],
   ["/haberes", "Haberes"],
   ["/conceptos-liquidacion", "Conceptos de liquidación"],

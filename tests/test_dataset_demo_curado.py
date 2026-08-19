@@ -292,8 +292,15 @@ def test_ningun_presupuesto_es_anterior_al_reclamo_que_lo_originó(con):
     # un campo de fecha al backend sólo para maquillar la demo. Lo que sí
     # tiene que cumplirse es el orden: primero el reclamo, después el
     # presupuesto.
+    # `fecha_creacion` la escribe la base con su reloj, que es UTC; en cambio
+    # `fecha_presentacion` es una fecha comercial que pone el router con el
+    # reloj local. Compararlas crudas es comparar un instante contra una fecha
+    # de calendario: al este de Greenwich la petición queda fechada al día
+    # siguiente durante las últimas horas del día, y este test se ponía rojo
+    # sólo por la hora a la que se hubiera generado el demo. `localtime` lleva
+    # el instante al mismo huso en el que se eligió la fecha comercial.
     filas = con.execute("""
-        select date(p.fecha_creacion), pr.fecha_presentacion
+        select date(p.fecha_creacion, 'localtime'), pr.fecha_presentacion
         from presupuestos pr
         join trabajos t on t.id = pr.trabajo_id
         join peticiones p on p.id = t.peticion_id
@@ -328,3 +335,17 @@ def test_los_trabajos_muestran_el_ciclo_completo(con):
     # justifica el módulo.
     estados = {e for (e,) in con.execute("select estado from trabajos")}
     assert {"en_curso", "finalizado", "cancelado"} <= estados, estados
+
+
+def test_las_reservas_caen_en_horario_de_uso_real(con):
+    # El generador tomaba la hora en que se lo corría y le sumaba unas horas,
+    # así que regenerar el demo de madrugada dejaba el SUM alquilado de 3 a 6
+    # AM. Ningún consorcio hace eso, y es lo primero que ve un interesado que
+    # entra a la demo. La hora tiene que salir de una decisión, no del reloj
+    # de quien apretó el botón.
+    filas = con.execute("select inicio, fin from reservas").fetchall()
+    assert filas
+    for inicio, fin in filas:
+        hora_inicio = int(str(inicio)[11:13])
+        assert 8 <= hora_inicio <= 21, (inicio, "arranca fuera de horario de uso")
+        assert str(fin)[:10] == str(inicio)[:10], (inicio, fin, "cruza la medianoche")

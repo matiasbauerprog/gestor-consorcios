@@ -140,3 +140,116 @@ describe("mi cuenta según quién entró", () => {
     expect(r.status).toBe(403);
   });
 });
+
+describe("preferencias de aviso según quién entró", () => {
+  // El catálogo es disjunto por rol (eventos_para_rol en el backend): admin
+  // y depto no comparten ni un tipo. Acá se los deja compartir un mismo
+  // `tipo` a propósito (algo que nunca pasa con datos reales) para que un
+  // guardado que le pegara a la lista equivocada sea imposible de no ver:
+  // si la ruta no separara por rol, cambiar uno cambiaría el otro.
+  const DATASET_PREFS = {
+    ...DATASET,
+    "/notificaciones/preferencias": [
+      { tipo: "x", etiqueta: "Admin", email_activo: true, editable: true, motivo_no_editable: null },
+    ],
+    _preferencias_depto: [
+      { tipo: "x", etiqueta: "Depto", email_activo: true, editable: true, motivo_no_editable: null },
+    ],
+  };
+
+  it("un departamento ve la lista de depto, no la de admin", () => {
+    const local = crearEstado(DATASET_PREFS, new Date(2026, 7, 20));
+    const r = responder(local, "GET", "/notificaciones/preferencias", null, { departamento_id: 1 });
+    expect(r.status).toBe(200);
+    expect(r.data[0].etiqueta).toBe("Depto");
+  });
+
+  it("administración ve su propia lista, no la de depto", () => {
+    const local = crearEstado(DATASET_PREFS, new Date(2026, 7, 20));
+    const r = responder(local, "GET", "/notificaciones/preferencias", null, { departamento_id: null });
+    expect(r.status).toBe(200);
+    expect(r.data[0].etiqueta).toBe("Admin");
+  });
+
+  it("el PUT de un departamento cambia sólo la lista de depto", () => {
+    const local = crearEstado(DATASET_PREFS, new Date(2026, 7, 20));
+    const put = responder(
+      local, "PUT", "/notificaciones/preferencias",
+      [{ tipo: "x", email_activo: false }],
+      { departamento_id: 1 },
+    );
+    expect(put.status).toBe(204);
+
+    expect(local.leer("_preferencias_depto")[0].email_activo).toBe(false);
+    // La de admin no se tocó -- si compartieran clave, este PUT la hubiera
+    // apagado también.
+    expect(local.leer("/notificaciones/preferencias")[0].email_activo).toBe(true);
+  });
+
+  it("el PUT de administración cambia sólo la lista de admin", () => {
+    const local = crearEstado(DATASET_PREFS, new Date(2026, 7, 20));
+    const put = responder(
+      local, "PUT", "/notificaciones/preferencias",
+      [{ tipo: "x", email_activo: false }],
+      { departamento_id: null },
+    );
+    expect(put.status).toBe(204);
+
+    expect(local.leer("/notificaciones/preferencias")[0].email_activo).toBe(false);
+    expect(local.leer("_preferencias_depto")[0].email_activo).toBe(true);
+  });
+});
+
+describe("notificaciones según quién entró", () => {
+  // A diferencia de las preferencias (un catálogo compartido por rol),
+  // /notificaciones es historia personal de cada unidad: administración ve
+  // sus doce avisos ("UF-02E creó la petición..."), y cada uno de los dos
+  // deptos del selector de demo-login ve SÓLO los suyos -- nunca los del
+  // otro ni los de administración. Regresión real: antes de este arreglo
+  // (backend/export_demo.py + frontend/src/demo/servidor.js) cualquier
+  // perfil, incluido un depto, veía la campanita de administración entera.
+  const DATASET_NOTIFS = {
+    ...DATASET,
+    "/notificaciones": [{ id: 100, mensaje: "UF-02E creó la petición 'Ruido'.", leida: false }],
+    "/notificaciones/no-leidas-count": { count: 12, otros_consorcios: 0 },
+    _notificaciones_depto: {
+      1: [{ id: 1, mensaje: "Tu comprobante de pago fue aprobado.", leida: false }],
+      2: [{ id: 2, mensaje: "Tu comprobante de pago fue rechazado.", leida: true }],
+    },
+    _notificaciones_no_leidas_depto: {
+      1: { count: 1, otros_consorcios: 0 },
+      2: { count: 0, otros_consorcios: 0 },
+    },
+  };
+
+  it("administración ve su propia bandeja, no la de ningún depto", () => {
+    const local = crearEstado(DATASET_NOTIFS, new Date(2026, 7, 20));
+    const r = responder(local, "GET", "/notificaciones", null, { departamento_id: null });
+    expect(r.status).toBe(200);
+    expect(r.data).toEqual([{ id: 100, mensaje: "UF-02E creó la petición 'Ruido'.", leida: false }]);
+  });
+
+  it("un depto ve su propia bandeja, no la de administración ni la del otro depto", () => {
+    const local = crearEstado(DATASET_NOTIFS, new Date(2026, 7, 20));
+    const r1 = responder(local, "GET", "/notificaciones", null, { departamento_id: 1 });
+    expect(r1.data.map((n) => n.id)).toEqual([1]);
+
+    const r2 = responder(local, "GET", "/notificaciones", null, { departamento_id: 2 });
+    expect(r2.data.map((n) => n.id)).toEqual([2]);
+  });
+
+  it("el contador de no leídas también se ramifica por quién entró", () => {
+    const local = crearEstado(DATASET_NOTIFS, new Date(2026, 7, 20));
+    const admin = responder(local, "GET", "/notificaciones/no-leidas-count", null, { departamento_id: null });
+    expect(admin.data.count).toBe(12);
+
+    const depto = responder(local, "GET", "/notificaciones/no-leidas-count", null, { departamento_id: 1 });
+    expect(depto.data.count).toBe(1);
+  });
+
+  it("los filtros de la pantalla siguen aplicando sobre la bandeja de un depto", () => {
+    const local = crearEstado(DATASET_NOTIFS, new Date(2026, 7, 20));
+    const r = responder(local, "GET", "/notificaciones?q=rechazado", null, { departamento_id: 2 });
+    expect(r.data.map((n) => n.id)).toEqual([2]);
+  });
+});

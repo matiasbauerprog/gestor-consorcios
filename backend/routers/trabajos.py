@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -16,7 +16,8 @@ from ..models import (
 )
 from ..modulos import require_modulo
 from ..tenant import get_consorcio_activo
-from ..notificaciones import notificar_cambio_estado_peticion
+from ..notificaciones import emitir, resolver_pendiente
+from ..notificaciones.catalogo import PETICION_ESTADO_CAMBIADO
 from ..schemas import (
     CompletarTrabajoOut,
     PresupuestoCrear,
@@ -43,13 +44,13 @@ _ADMIN_O_REPRESENTANTE = (Rol.administracion, Rol.representante)
 )
 def crear_trabajo(
     payload: TrabajoCrear,
+    tareas: BackgroundTasks,
     db: Session = Depends(get_db),
-    _user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
+    user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
     cid: int = Depends(get_consorcio_activo),
 ) -> Trabajo:
     peticion_id: int | None = None
     peticion_a_notificar: Peticion | None = None
-    estado_anterior: EstadoPeticion | None = None
 
     # Si el trabajo viene de una petición existente, validamos y la marcamos
     # como convertida. Si no, queda como trabajo "desde cero" (peticion_id null).
@@ -60,10 +61,14 @@ def crear_trabajo(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="La petición indicada no existe.",
             )
+        # `crear_trabajo` no valida de dónde viene la petición: pisa el estado
+        # igual. Sin comparar contra el origen, convertir dos veces la misma
+        # petición —un doble clic alcanza— manda el aviso y el mail duplicados.
         estado_anterior = peticion.estado
         peticion.estado = EstadoPeticion.convertida_en_trabajo
         peticion_id = peticion.id
-        peticion_a_notificar = peticion
+        if estado_anterior != peticion.estado:
+            peticion_a_notificar = peticion
 
     trabajo = Trabajo(
         consorcio_id=cid,
@@ -76,7 +81,22 @@ def crear_trabajo(
 
     # Notificar al depto que su petición pasó a convertida_en_trabajo.
     if peticion_a_notificar is not None:
-        notificar_cambio_estado_peticion(db, peticion_a_notificar, estado_anterior)
+        resolver_pendiente(
+            db, consorcio_id=cid, entidad_tipo="peticion",
+            entidad_id=peticion_a_notificar.id,
+        )
+        emitir(
+            db, PETICION_ESTADO_CAMBIADO,
+            consorcio_id=cid,
+            contexto={
+                "titulo": peticion_a_notificar.titulo,
+                "estado": peticion_a_notificar.estado.value,
+                "peticion_id": peticion_a_notificar.id,
+            },
+            actor_usuario_id=user.id,
+            departamento_id=peticion_a_notificar.departamento_id,
+            tareas=tareas,
+        )
 
     db.commit()
     db.refresh(trabajo)
@@ -177,8 +197,9 @@ def completar_trabajo(
 @router.post("/{trabajo_id}/cancelar", status_code=status.HTTP_204_NO_CONTENT)
 def cancelar_trabajo(
     trabajo_id: int,
+    tareas: BackgroundTasks,
     db: Session = Depends(get_db),
-    _user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
+    user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
     cid: int = Depends(get_consorcio_activo),
 ):
     t = db.get(Trabajo, trabajo_id)
@@ -195,9 +216,21 @@ def cancelar_trabajo(
     if t.peticion_id:
         peticion = db.get(Peticion, t.peticion_id)
         if peticion and peticion.estado == EstadoPeticion.convertida_en_trabajo:
-            estado_anterior = peticion.estado
             peticion.estado = EstadoPeticion.cancelada
             db.flush()
-            notificar_cambio_estado_peticion(db, peticion, estado_anterior)
+            # Sin `resolver_pendiente`: la petición ya había salido de
+            # "abierta" al convertirse en trabajo.
+            emitir(
+                db, PETICION_ESTADO_CAMBIADO,
+                consorcio_id=cid,
+                contexto={
+                    "titulo": peticion.titulo,
+                    "estado": peticion.estado.value,
+                    "peticion_id": peticion.id,
+                },
+                actor_usuario_id=user.id,
+                departamento_id=peticion.departamento_id,
+                tareas=tareas,
+            )
 
     db.commit()

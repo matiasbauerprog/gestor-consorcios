@@ -45,6 +45,25 @@ export function escribir(estado, method, ruta, body, sesion) {
     return creado(peticion);
   }
 
+  if (method === "PUT" && ruta === "/notificaciones/preferencias") {
+    // La demo corre entera en el navegador: guardar en el estado en memoria
+    // alcanza para que la pantalla responda como la real. Igual que al leer
+    // (ver `preferenciasDeAviso` en servidor.js), el catálogo es disjunto por
+    // rol, así que hay que pegarle a la lista que corresponde según quién
+    // entró -- si no, un depto podría terminar reescribiendo el catálogo de
+    // administración, o viceversa.
+    const clave = sesion?.departamento_id ? "_preferencias_depto" : "/notificaciones/preferencias";
+    const actuales = estado.leer(clave) ?? [];
+    const porTipo = new Map((body ?? []).map((p) => [p.tipo, p.email_activo]));
+    estado.reemplazar(
+      clave,
+      actuales.map((p) =>
+        porTipo.has(p.tipo) ? { ...p, email_activo: porTipo.get(p.tipo) } : p,
+      ),
+    );
+    return { ok: true, status: 204, data: null };
+  }
+
   const reserva = /^\/amenities\/(\d+)\/reservas$/.exec(ruta);
   if (method === "POST" && reserva) {
     const amenityId = Number(reserva[1]);

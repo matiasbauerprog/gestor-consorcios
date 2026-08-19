@@ -310,3 +310,94 @@ def test_admin_y_representante_no_se_ven_afectados_por_la_visibilidad(
         r = client.get("/peticiones", headers=headers)
         assert r.status_code == 200
         assert {p["departamento_id"] for p in r.json()} == {1, 2}
+
+
+def test_crear_peticion_avisa_al_admin_como_pendiente(client, headers_depto_a, db):
+    from backend.models import Notificacion
+
+    r = client.post(
+        "/peticiones",
+        json={"titulo": "Filtración", "descripcion": "Cocina"},
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 201
+    pid = r.json()["id"]
+
+    n = db.query(Notificacion).filter_by(tipo="peticion_nueva").one()
+    assert n.usuario_id == 1
+    assert n.entidad_tipo == "peticion"
+    assert n.entidad_id == pid
+    assert "UF-1A" in n.mensaje
+
+
+def test_rechazar_peticion_apaga_el_pendiente_del_admin(client, headers_depto_a, headers_admin, db):
+    from backend.models import Notificacion
+
+    r = client.post(
+        "/peticiones",
+        json={"titulo": "Filtración", "descripcion": "Cocina"},
+        headers=headers_depto_a,
+    )
+    pid = r.json()["id"]
+    assert db.query(Notificacion).filter_by(tipo="peticion_nueva", leida=False).count() == 1
+
+    client.patch(
+        f"/peticiones/{pid}",
+        json={"estado": "rechazada", "motivo_rechazo": "No corresponde"},
+        headers=headers_admin,
+    )
+    assert db.query(Notificacion).filter_by(tipo="peticion_nueva", leida=False).count() == 0
+
+
+def test_convertir_en_trabajo_apaga_el_pendiente(client, headers_depto_a, headers_admin, db):
+    from backend.models import Notificacion
+
+    r = client.post(
+        "/peticiones",
+        json={"titulo": "Filtración", "descripcion": "Cocina"},
+        headers=headers_depto_a,
+    )
+    pid = r.json()["id"]
+
+    r2 = client.post(
+        "/trabajos",
+        json={"peticion_id": pid, "descripcion": "Arreglar caño"},
+        headers=headers_admin,
+    )
+    assert r2.status_code == 201
+    assert db.query(Notificacion).filter_by(tipo="peticion_nueva", leida=False).count() == 0
+
+
+def test_depto_borra_su_peticion_avisa_y_apaga_el_pendiente(client, headers_depto_a, db):
+    from backend.models import Notificacion
+
+    r = client.post(
+        "/peticiones",
+        json={"titulo": "Filtración", "descripcion": "Cocina"},
+        headers=headers_depto_a,
+    )
+    pid = r.json()["id"]
+
+    r2 = client.delete(f"/peticiones/{pid}", headers=headers_depto_a)
+    assert r2.status_code == 204
+
+    assert db.query(Notificacion).filter_by(tipo="peticion_nueva", leida=False).count() == 0
+    n = db.query(Notificacion).filter_by(tipo="peticion_borrada_por_depto").one()
+    assert n.usuario_id == 1
+    assert "Filtración" in n.mensaje
+
+
+def test_admin_borra_una_peticion_apaga_el_pendiente_sin_avisar(client, headers_depto_a, headers_admin, db):
+    from backend.models import Notificacion
+
+    r = client.post(
+        "/peticiones",
+        json={"titulo": "Filtración", "descripcion": "Cocina"},
+        headers=headers_depto_a,
+    )
+    pid = r.json()["id"]
+
+    client.delete(f"/peticiones/{pid}", headers=headers_admin)
+
+    assert db.query(Notificacion).filter_by(tipo="peticion_nueva", leida=False).count() == 0
+    assert db.query(Notificacion).filter_by(tipo="peticion_borrada_por_depto").count() == 0

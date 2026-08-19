@@ -636,6 +636,25 @@ def test_eliminar_comprobante_ya_eliminado_404(client, headers_admin, headers_de
     assert r.status_code == 404
 
 
+def test_eliminar_comprobante_apaga_el_pendiente_del_admin(client, headers_admin, headers_depto_a, db_session):
+    """El comprobante_presentado no puede quedar prendido apuntando a un
+    comprobante ya borrado -- ver backend/routers/comprobantes.py y el mismo
+    arreglo ya aplicado en peticiones (backend/routers/peticiones.py:208)."""
+    from backend.models import Notificacion
+
+    comp_id = _crear_comprobante_depto_a(client, headers_depto_a)
+    assert db_session.query(Notificacion).filter_by(
+        tipo="comprobante_presentado", leida=False,
+    ).count() == 1
+
+    r = client.delete(f"/comprobantes/{comp_id}", headers=headers_depto_a)
+    assert r.status_code == 204
+
+    assert db_session.query(Notificacion).filter_by(
+        tipo="comprobante_presentado", leida=False,
+    ).count() == 0
+
+
 def test_get_comprobantes_excluye_eliminados(client, headers_admin, headers_depto_a):
     comp_id = _crear_comprobante_depto_a(client, headers_depto_a)
 
@@ -779,3 +798,120 @@ def test_departamento_ve_el_motivo_de_su_comprobante_rechazado(
     assert r.status_code == 200
     visto = next(x for x in r.json() if x["id"] == c.id)
     assert visto["motivo_rechazo"] == "El comprobante está ilegible."
+
+
+# ---------------------------------------------------------------------------
+# Notificaciones al verificar un comprobante
+# ---------------------------------------------------------------------------
+
+
+def test_aprobar_comprobante_notifica_al_depto(client, headers_admin, headers_depto_a, db):
+    from backend.models import Notificacion
+
+    with open(__file__, "rb") as f:
+        r = client.post(
+            "/comprobantes",
+            data={"fecha_pago": "2026-08-01", "monto": "1000"},
+            files={"archivo": ("c.pdf", f.read(), "application/pdf")},
+            headers=headers_depto_a,
+        )
+    assert r.status_code == 201
+    cid_comp = r.json()["id"]
+
+    r2 = client.patch(
+        f"/comprobantes/{cid_comp}",
+        json={"estado": "aprobado"},
+        headers=headers_admin,
+    )
+    assert r2.status_code == 200
+
+    ns = db.query(Notificacion).filter_by(tipo="comprobante_aprobado").all()
+    assert [n.usuario_id for n in ns] == [2]
+
+
+def test_rechazar_comprobante_incluye_el_motivo(client, headers_admin, headers_depto_a, db):
+    from backend.models import Notificacion
+
+    with open(__file__, "rb") as f:
+        r = client.post(
+            "/comprobantes",
+            data={"fecha_pago": "2026-08-01", "monto": "1000"},
+            files={"archivo": ("c.pdf", f.read(), "application/pdf")},
+            headers=headers_depto_a,
+        )
+    cid_comp = r.json()["id"]
+
+    client.patch(
+        f"/comprobantes/{cid_comp}",
+        json={"estado": "rechazado", "motivo_rechazo": "El monto no coincide"},
+        headers=headers_admin,
+    )
+
+    n = db.query(Notificacion).filter_by(tipo="comprobante_rechazado").one()
+    assert "El monto no coincide" in n.mensaje
+
+
+def test_reverificar_comprobante_ya_verificado_devuelve_409_y_no_duplica_el_aviso(
+    client, headers_admin, headers_depto_a, db
+):
+    """El 409 sobre un estado terminal es la única guarda que evita que
+    aprobar dos veces el mismo comprobante dispare el aviso (y el mail) de
+    nuevo. Si mañana alguien afloja esa guarda, este test tiene que
+    romperse — por eso lo que importa no es sólo el 409, sino que después
+    de él siga habiendo un único aviso y ningún pendiente revivido."""
+    from backend.models import Notificacion
+
+    with open(__file__, "rb") as f:
+        r = client.post(
+            "/comprobantes",
+            data={"fecha_pago": "2026-08-01", "monto": "1000"},
+            files={"archivo": ("c.pdf", f.read(), "application/pdf")},
+            headers=headers_depto_a,
+        )
+    assert r.status_code == 201
+    cid_comp = r.json()["id"]
+
+    r2 = client.patch(
+        f"/comprobantes/{cid_comp}",
+        json={"estado": "aprobado"},
+        headers=headers_admin,
+    )
+    assert r2.status_code == 200
+    assert db.query(Notificacion).filter_by(tipo="comprobante_aprobado").count() == 1
+
+    # Reintentar sobre el mismo comprobante, ya en estado terminal.
+    r3 = client.patch(
+        f"/comprobantes/{cid_comp}",
+        json={"estado": "aprobado"},
+        headers=headers_admin,
+    )
+    assert r3.status_code == 409
+
+    # El 409 corta ANTES de llegar a resolver_pendiente/emitir: sigue
+    # habiendo un solo aviso de aprobación (no dos)...
+    assert db.query(Notificacion).filter_by(tipo="comprobante_aprobado").count() == 1
+    # ...y ninguna notificación ligada a este comprobante quedó marcada
+    # como no-leída de nuevo (el pendiente del admin no "revivió").
+    revividos = db.query(Notificacion).filter_by(
+        entidad_tipo="comprobante", entidad_id=cid_comp, leida=False,
+    ).count()
+    assert revividos == 0
+
+
+def test_presentar_comprobante_avisa_al_admin_como_pendiente(client, headers_depto_a, db):
+    from backend.models import Notificacion
+
+    with open(__file__, "rb") as f:
+        r = client.post(
+            "/comprobantes",
+            data={"fecha_pago": "2026-08-01", "monto": "1000"},
+            files={"archivo": ("c.pdf", f.read(), "application/pdf")},
+            headers=headers_depto_a,
+        )
+    assert r.status_code == 201
+
+    n = db.query(Notificacion).filter_by(tipo="comprobante_presentado").one()
+    assert n.usuario_id == 1
+    assert n.entidad_tipo == "comprobante"
+    assert n.entidad_id == r.json()["id"]
+    assert "UF-1A" in n.mensaje

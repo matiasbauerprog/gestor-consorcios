@@ -1,12 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, get_current_user, require_roles
 from ..database import get_db
-from ..models import Consorcio, EstadoPeticion, Peticion, Rol
+from ..models import Consorcio, Departamento, EstadoPeticion, Peticion, Rol
 from ..modulos import require_modulo
-from ..notificaciones import notificar_cambio_estado_peticion
+from ..notificaciones import emitir, resolver_pendiente
+from ..notificaciones.catalogo import (
+    PETICION_BORRADA_POR_DEPTO,
+    PETICION_ESTADO_CAMBIADO,
+    PETICION_NUEVA,
+)
 from ..schemas import PeticionActualizar, PeticionCrear, PeticionOut
 from ..tenant import get_consorcio_activo
 
@@ -56,6 +61,7 @@ def listar_peticiones(
 )
 def crear_peticion(
     payload: PeticionCrear,
+    tareas: BackgroundTasks,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(require_roles(Rol.departamento)),
     cid: int = Depends(get_consorcio_activo),
@@ -69,6 +75,21 @@ def crear_peticion(
         estado=EstadoPeticion.abierta,
     )
     db.add(peticion)
+    db.flush()
+
+    depto = db.get(Departamento, user.departamento_id)
+    emitir(
+        db, PETICION_NUEVA,
+        consorcio_id=cid,
+        contexto={
+            "codigo_depto": depto.codigo if depto else "Un departamento",
+            "titulo": peticion.titulo,
+        },
+        actor_usuario_id=user.id,
+        entidad_id=peticion.id,
+        tareas=tareas,
+    )
+
     db.commit()
     db.refresh(peticion)
     return peticion
@@ -110,8 +131,9 @@ def obtener_peticion(
 def actualizar_peticion(
     peticion_id: int,
     payload: PeticionActualizar,
+    tareas: BackgroundTasks,
     db: Session = Depends(get_db),
-    _user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
+    user: CurrentUser = Depends(require_roles(*_ADMIN_O_REPRESENTANTE)),
     cid: int = Depends(get_consorcio_activo),
 ) -> Peticion:
     peticion = db.get(Peticion, peticion_id)
@@ -129,8 +151,6 @@ def actualizar_peticion(
             detail="La petición no se puede modificar en su estado actual.",
         )
 
-    # Capturar estado anterior para notificar cambio
-    estado_anterior = peticion.estado
     peticion.estado = payload.estado
     # `strip()` para que un textarea con espacios no cuente como motivo: o hay
     # texto real o queda NULL, que es como la UI distingue "sin motivo".
@@ -138,8 +158,23 @@ def actualizar_peticion(
     peticion.motivo_rechazo = motivo or None
     db.flush()
 
-    # Disparar notificación si el estado cambió (a convertida_en_trabajo o rechazada)
-    notificar_cambio_estado_peticion(db, peticion, estado_anterior)
+    # El rechazo saca la petición de "abierta": el pendiente del admin ya no
+    # es trabajo por hacer.
+    resolver_pendiente(
+        db, consorcio_id=cid, entidad_tipo="peticion", entidad_id=peticion.id,
+    )
+    emitir(
+        db, PETICION_ESTADO_CAMBIADO,
+        consorcio_id=cid,
+        contexto={
+            "titulo": peticion.titulo,
+            "estado": peticion.estado.value,
+            "peticion_id": peticion.id,
+        },
+        actor_usuario_id=user.id,
+        departamento_id=peticion.departamento_id,
+        tareas=tareas,
+    )
 
     db.commit()
     db.refresh(peticion)
@@ -153,6 +188,7 @@ def actualizar_peticion(
 )
 def eliminar_peticion(
     peticion_id: int,
+    tareas: BackgroundTasks,
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
     cid: int = Depends(get_consorcio_activo),
@@ -166,6 +202,12 @@ def eliminar_peticion(
 
     # Admin/Representante: pueden borrar cualquier petición en cualquier estado
     if user.rol in (Rol.administracion, Rol.representante):
+        # El pendiente apunta a esta petición y no puede quedar vivo señalando
+        # algo que ya no existe. Va después de los chequeos de permiso, no
+        # antes: así ninguna rama que termina en 403/409 lo toca.
+        resolver_pendiente(
+            db, consorcio_id=cid, entidad_tipo="peticion", entidad_id=peticion.id,
+        )
         db.delete(peticion)
         db.commit()
         return
@@ -182,6 +224,21 @@ def eliminar_peticion(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Solo podés eliminar peticiones en estado abierta.",
             )
+
+        resolver_pendiente(
+            db, consorcio_id=cid, entidad_tipo="peticion", entidad_id=peticion.id,
+        )
+        depto = db.get(Departamento, user.departamento_id)
+        emitir(
+            db, PETICION_BORRADA_POR_DEPTO,
+            consorcio_id=cid,
+            contexto={
+                "codigo_depto": depto.codigo if depto else "Un departamento",
+                "titulo": peticion.titulo,
+            },
+            actor_usuario_id=user.id,
+            tareas=tareas,
+        )
         db.delete(peticion)
         db.commit()
         return

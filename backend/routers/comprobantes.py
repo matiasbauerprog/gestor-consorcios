@@ -2,6 +2,7 @@ from datetime import date, datetime, timezone
 
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Depends,
     File,
     Form,
@@ -20,6 +21,7 @@ from ..models import (
     Caja,
     Comprobante,
     Consorcio,
+    Departamento,
     EstadoComprobante,
     MovimientoCaja,
     MovimientoCuenta,
@@ -28,6 +30,12 @@ from ..models import (
     TipoMovimientoCaja,
 )
 from ..modulos import require_modulo
+from ..notificaciones import emitir, resolver_pendiente
+from ..notificaciones.catalogo import (
+    COMPROBANTE_APROBADO,
+    COMPROBANTE_PRESENTADO,
+    COMPROBANTE_RECHAZADO,
+)
 from ..schemas import ArchivoUrlOut, ComprobanteActualizar, ComprobanteOut
 from ..storage import firmar_clave, guardar_archivo
 from ..tenant import get_consorcio_activo
@@ -126,6 +134,7 @@ def url_del_comprobante(
     summary="Presentar comprobante de pago",
 )
 def presentar_comprobante(
+    tareas: BackgroundTasks,
     fecha_pago: date = Form(...),
     monto: float = Form(..., gt=0),
     archivo: UploadFile = File(...),
@@ -156,6 +165,21 @@ def presentar_comprobante(
         estado=EstadoComprobante.pendiente_verificacion,
     )
     db.add(comprobante)
+    db.flush()
+
+    depto = db.get(Departamento, user.departamento_id)
+    emitir(
+        db, COMPROBANTE_PRESENTADO,
+        consorcio_id=cid,
+        contexto={
+            "codigo_depto": depto.codigo if depto else "Un departamento",
+            "monto": comprobante.monto,
+        },
+        actor_usuario_id=user.id,
+        entidad_id=comprobante.id,
+        tareas=tareas,
+    )
+
     db.commit()
     db.refresh(comprobante)
     return comprobante
@@ -170,8 +194,9 @@ def presentar_comprobante(
 def actualizar_comprobante(
     comprobante_id: int,
     payload: ComprobanteActualizar,
+    tareas: BackgroundTasks,
     db: Session = Depends(get_db),
-    _user: CurrentUser = Depends(require_roles(Rol.administracion)),
+    user: CurrentUser = Depends(require_roles(Rol.administracion)),
     cid: int = Depends(get_consorcio_activo),
 ) -> Comprobante:
     comprobante = db.get(Comprobante, comprobante_id)
@@ -245,6 +270,26 @@ def actualizar_comprobante(
             )
         )
 
+    # El comprobante deja de estar esperando verificación: el pendiente del
+    # admin se apaga para todos, lo haya resuelto quien lo haya resuelto.
+    resolver_pendiente(
+        db, consorcio_id=cid, entidad_tipo="comprobante", entidad_id=comprobante.id,
+    )
+
+    aprobado = comprobante.estado == EstadoComprobante.aprobado
+    emitir(
+        db,
+        COMPROBANTE_APROBADO if aprobado else COMPROBANTE_RECHAZADO,
+        consorcio_id=cid,
+        contexto={
+            "monto": comprobante.monto,
+            "motivo": comprobante.motivo_rechazo,
+        },
+        actor_usuario_id=user.id,
+        departamento_id=comprobante.departamento_id,
+        tareas=tareas,
+    )
+
     db.commit()
     db.refresh(comprobante)
     return comprobante
@@ -276,6 +321,14 @@ def eliminar_comprobante(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tiene permisos para acceder a este recurso.",
         )
+
+    # El pendiente apunta a este comprobante y no puede quedar vivo señalando
+    # algo que ya no existe. Va después de los chequeos de permiso, no antes:
+    # así ninguna rama que termina en 403/404 lo toca (mismo criterio que
+    # backend/routers/peticiones.py:208).
+    resolver_pendiente(
+        db, consorcio_id=cid, entidad_tipo="comprobante", entidad_id=comprobante.id,
+    )
 
     comprobante.eliminado_at = datetime.now(timezone.utc)
     db.commit()

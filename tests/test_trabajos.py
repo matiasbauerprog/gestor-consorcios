@@ -303,3 +303,46 @@ def test_el_trabajo_informa_su_presupuesto_aprobado_y_su_gasto(client, headers_a
     listado = client.get("/trabajos", headers=headers_admin).json()
     assert "presupuesto_aprobado_id" in listado[0]
     assert "gasto_id" in listado[0]
+
+
+def test_convertir_dos_veces_la_misma_peticion_avisa_una_sola_vez(
+    client, headers_admin, db_session
+):
+    """`crear_trabajo` pisa el estado sin mirar de dónde viene.
+
+    Sin comparar contra el estado de origen, un doble clic en "convertir en
+    trabajo" le manda al departamento dos avisos idénticos y dos correos.
+    """
+    from backend.models import Notificacion
+
+    p = Peticion(
+        consorcio_id=1, departamento_id=1, titulo="Convertir dos veces",
+        descripcion="x", estado=EstadoPeticion.abierta,
+    )
+    db_session.add(p)
+    db_session.commit()
+    db_session.refresh(p)
+
+    def _avisos() -> int:
+        return (
+            db_session.query(Notificacion)
+            .filter_by(tipo="peticion_estado_cambiado")
+            .filter(Notificacion.mensaje.contains("Convertir dos veces"))
+            .count()
+        )
+
+    r1 = client.post(
+        "/trabajos",
+        json={"peticion_id": p.id, "descripcion": "primer trabajo"},
+        headers=headers_admin,
+    )
+    assert r1.status_code == 201
+    assert _avisos() == 1
+
+    r2 = client.post(
+        "/trabajos",
+        json={"peticion_id": p.id, "descripcion": "segundo trabajo"},
+        headers=headers_admin,
+    )
+    assert r2.status_code == 201
+    assert _avisos() == 1

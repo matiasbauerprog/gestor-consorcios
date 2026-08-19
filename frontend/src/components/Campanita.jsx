@@ -13,16 +13,20 @@ const POLL_INTERVAL_MS = 60_000;
 export default function Campanita() {
   const navigate = useNavigate();
   const [count, setCount] = useState(0);
+  const [otrosConsorcios, setOtrosConsorcios] = useState(0);
   const [items, setItems] = useState([]);
   const [abierto, setAbierto] = useState(false);
 
   async function refrescarCount() {
     const r = await obtenerNoLeidasCount();
-    if (r.status === 200) setCount(r.data.count);
+    if (r.status === 200) {
+      setCount(r.data.count);
+      setOtrosConsorcios(r.data.otros_consorcios ?? 0);
+    }
   }
 
   async function refrescarLista() {
-    const r = await listarNotificaciones(10);
+    const r = await listarNotificaciones({ limit: 10 });
     if (r.status === 200) setItems(r.data);
   }
 
@@ -91,15 +95,29 @@ export default function Campanita() {
         <section className="campanita-panel">
           <header className="campanita-panel-header">
             <strong>Notificaciones</strong>
-            {count > 0 && (
+            <div className="campanita-acciones">
               <button
                 type="button"
-                onClick={handleMarcarTodas}
-                className="campanita-marcar-todas"
+                onClick={() => { setAbierto(false); navigate("/notificaciones/preferencias"); }}
+                className="campanita-engranaje"
+                aria-label="Configurar avisos"
               >
-                Marcar todas
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
               </button>
-            )}
+              {count > 0 && (
+                <button
+                  type="button"
+                  onClick={handleMarcarTodas}
+                  className="campanita-marcar-todas"
+                >
+                  Marcar todas
+                </button>
+              )}
+            </div>
           </header>
           {items.length === 0 ? (
             <p className="campanita-vacio">Sin notificaciones.</p>
@@ -129,6 +147,23 @@ export default function Campanita() {
               ))}
             </ul>
           )}
+          <footer className="campanita-panel-pie">
+            <button
+              type="button"
+              className="campanita-ver-todas"
+              onClick={() => { setAbierto(false); navigate("/notificaciones"); }}
+            >
+              Ver todas
+            </button>
+            {/* Sólo la administración puede tener más de un consorcio; para
+                depto y representante el backend devuelve siempre 0, así que
+                esta línea no aparece sin necesidad de chequear el rol acá. */}
+            {otrosConsorcios > 0 && (
+              <span className="campanita-otros-consorcios">
+                {otrosConsorcios} sin leer en otros consorcios
+              </span>
+            )}
+          </footer>
         </section>
       )}
     </div>

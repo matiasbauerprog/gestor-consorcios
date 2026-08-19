@@ -182,6 +182,7 @@ td button,
 .periodo-nav,
 .campanita-boton,
 .campanita-marcar-todas,
+.campanita-engranaje,
 .sidebar-cerrar,
 .cerrar-modal,
 .accion-discreta,
@@ -687,6 +688,62 @@ td button {
   border-color: var(--color-primary);
 }
 
+/* El engranaje va a la izquierda del "Marcar todas": es configuración, no
+   acción sobre la lista, así que no compite con el botón principal. */
+.campanita-engranaje {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  padding: 0.25rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  min-width: 44px;
+  justify-content: center;
+}
+
+.campanita-engranaje:hover:not(:disabled) {
+  color: var(--color-primary);
+}
+
+.campanita-panel-header .campanita-acciones {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.campanita-panel-pie {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 0.5rem 0.8rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.campanita-ver-todas {
+  background: transparent;
+  border: none;
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  padding: 0.25rem 0;
+  cursor: pointer;
+  /* Ancho al contenido: un botón de texto estirado a todo el panel se lee
+     como barra de acción y este no lo es. */
+  width: fit-content;
+  min-height: 44px;
+}
+
+.campanita-ver-todas:hover {
+  text-decoration: underline;
+}
+
+.campanita-otros-consorcios {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+}
+
 .campanita-vacio {
   padding: 1rem;
   color: var(--color-text-muted);
@@ -777,6 +834,156 @@ td button {
   font-size: 0.68rem;
   font-weight: 600;
   color: var(--color-text-muted);
+}
+
+/* Las filas reusan .campanita-item*: ya resuelven el gutter del punto y el
+   estado de no-leída. Acá sólo va el envoltorio de pantalla. */
+.pantalla-notificaciones {
+  padding: 1rem;
+}
+
+.pantalla-notificaciones-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.pantalla-notificaciones-header h1 {
+  margin: 0;
+}
+
+.pantalla-notificaciones-filtros {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.pantalla-notificaciones-filtros input[type="search"] {
+  width: 100%;
+  min-height: 44px;
+}
+
+.pantalla-notificaciones-filtros label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+@media (min-width: 600px) {
+  .pantalla-notificaciones {
+    /* Ancho al contenido, no al viewport: una lista de una línea por fila
+       estirada a 1600px es ilegible. */
+    max-width: 46rem;
+  }
+
+  .pantalla-notificaciones-filtros {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .pantalla-notificaciones-filtros input[type="search"] {
+    width: fit-content;
+    min-width: 18rem;
+  }
+
+  /* Densidad del proyecto: en mobile es CTA fiel al mockup (ancho completo,
+     heredado de la regla base de `button`); desde tablet pasa a fit-content
+     como .campanita-ver-todas, para no estirar la paginación a todo el
+     viewport. */
+  .pantalla-notificaciones-cargar-mas {
+    width: fit-content;
+  }
+}
+
+.pantalla-notificaciones-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.pantalla-notificaciones-vacio {
+  color: var(--color-text-muted);
+  padding: 1.5rem 0;
+}
+
+.pantalla-notificaciones-cargar-mas {
+  margin-top: 0.75rem;
+}
+
+.pantalla-preferencias-avisos {
+  padding: 1rem;
+}
+
+.pantalla-preferencias-avisos header p {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  max-width: 34rem;
+}
+
+@media (min-width: 600px) {
+  .pantalla-preferencias-avisos {
+    max-width: 40rem;
+  }
+}
+
+.lista-preferencias {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.lista-preferencias li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.lista-preferencias li:last-child {
+  border-bottom: none;
+}
+
+.lista-preferencias label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.lista-preferencias label:has(input:disabled) {
+  cursor: default;
+}
+
+.preferencia-etiqueta {
+  font-size: 0.875rem;
+}
+
+/* La leyenda del interruptor bloqueado va debajo y alineada al texto, no
+   al checkbox: es una explicación de la fila, no una etiqueta más. */
+.preferencia-nota {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+  padding-left: 1.65rem;
+}
+
+.pantalla-preferencias-avisos footer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 /* ---------- App body (sidebar + content) — mobile-first ---------- */

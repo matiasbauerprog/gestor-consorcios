@@ -53,6 +53,10 @@ RUTAS_EXPORTADAS: list[tuple[str, str]] = [
     ("admin", "/reportes/proveedores"),
     ("admin", "/notificaciones"),
     ("admin", "/notificaciones/no-leidas-count"),
+    # Preferencias de aviso de ADMINISTRACIÓN. La versión de depto no entra acá
+    # -- ver el bloque dedicado al final de `exportar()`, porque comparte path
+    # con ésta y en este dict plano la segunda pisaría a la primera.
+    ("admin", "/notificaciones/preferencias"),
     # Módulo Personal. El generador ya crea el legajo del encargado, el
     # catálogo de haberes, los conceptos de liquidación y las liquidaciones
     # mensuales (`crear_catalogo_personal` en backend/seed_demo.py); sin
@@ -141,6 +145,16 @@ def _pedir_paginado(api, path: str, token: str, cid: int) -> list:
 #: donde cualquier token del rol alcanza para el mismo resultado.
 _CODIGO_DEPTO_MI_CUENTA = "UF-01A"
 
+#: Códigos de los DOS perfiles de depto del selector de demo-login
+#: (`PERFILES_DEMO` en frontend/src/demo/rutas.js: "UF-01A" y "UF-03C").
+#: A diferencia de `_CODIGO_DEPTO_MI_CUENTA` (alcanza con fijar UNO porque
+#: `/movimientos/mi-cuenta` da lo mismo con cualquier token de depto salvo
+#: por de quién es la cuenta), acá hacen falta los DOS: `/notificaciones` es
+#: historia personal de la unidad, no un catálogo compartido por rol como
+#: preferencias, así que una sola variante le mostraría a un perfil la
+#: bandeja de la unidad ajena — ver el bloque dedicado en `exportar()`.
+_CODIGOS_DEPTOS_NOTIFICACIONES = ("UF-01A", "UF-03C")
+
 
 def _token_mi_cuenta(datos: dict, tokens_depto: dict[int, str]) -> str:
     """Token del depto pinneado para `/movimientos/mi-cuenta`.
@@ -205,6 +219,48 @@ def exportar(api, admin_token: str, tokens_depto: dict[int, str], cid: int) -> d
             r = api.req("GET", path, token=token, cid=cid)
             _verificar(path, r)
             datos[clave] = r.json()
+
+    # Preferencias de aviso de DEPARTAMENTO. `eventos_para_rol` (backend/
+    # notificaciones/catalogo.py) devuelve catálogos disjuntos por rol -- no
+    # hay ítems en común entre administración y depto -- así que la lista de
+    # depto no puede guardarse bajo el mismo path limpio que la de admin sin
+    # pisarla en este dict plano. Va aparte, bajo una clave auxiliar (mismo
+    # criterio que `_pdfs`) que `frontend/src/demo/servidor.js` sabe elegir
+    # según quién entró. Cualquier token de depto sirve: a diferencia de
+    # `/movimientos/mi-cuenta`, acá el resultado no depende de qué unidad es
+    # -- es el mismo catálogo para todo el rol, y el dataset no siembra
+    # preferencias personalizadas por usuario.
+    token_depto = next(iter(tokens_depto.values()))
+    r = api.req("GET", "/notificaciones/preferencias", token=token_depto, cid=cid)
+    _verificar("/notificaciones/preferencias", r)
+    datos["_preferencias_depto"] = r.json()
+
+    # Notificaciones y contador de DEPARTAMENTO. A diferencia del bloque de
+    # arriba, acá el contenido SÍ depende de qué unidad es: son avisos en
+    # segunda persona atados a la cuenta de cada usuario ("tu comprobante fue
+    # aprobado"), no un catálogo compartido por rol. Con una sola variante,
+    # el perfil que no coincidiera vería la bandeja de la unidad ajena — así
+    # que se piden las DOS, una por cada código de _CODIGOS_DEPTOS_NOTIFICACIONES,
+    # y se guardan bajo una clave auxiliar {departamento_id: datos} que
+    # `frontend/src/demo/servidor.js` indexa por `sesion.departamento_id`
+    # (mismo criterio que `_pdfs`: dict por id bajo una clave aparte).
+    notifs_por_depto: dict[int, list] = {}
+    count_por_depto: dict[int, dict] = {}
+    for depto in datos.get("/departamentos", []):
+        if depto.get("codigo") not in _CODIGOS_DEPTOS_NOTIFICACIONES:
+            continue
+        token = tokens_depto.get(depto["id"])
+        if token is None:
+            continue
+        r = api.req("GET", "/notificaciones", token=token, cid=cid)
+        _verificar("/notificaciones", r)
+        notifs_por_depto[depto["id"]] = r.json()
+
+        r = api.req("GET", "/notificaciones/no-leidas-count", token=token, cid=cid)
+        _verificar("/notificaciones/no-leidas-count", r)
+        count_por_depto[depto["id"]] = r.json()
+    datos["_notificaciones_depto"] = notifs_por_depto
+    datos["_notificaciones_no_leidas_depto"] = count_por_depto
 
     for depto in datos.get("/departamentos", []):
         for plantilla in RUTAS_POR_DEPARTAMENTO:
