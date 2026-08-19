@@ -17,6 +17,7 @@ import SuperAdminAuditLog from "./screens/SuperAdminAuditLog";
 import SuperAdminErrores from "./screens/SuperAdminErrores";
 import Comunicados from "./screens/Comunicados";
 import Notificaciones from "./screens/Notificaciones";
+import PreferenciasAvisos from "./screens/PreferenciasAvisos";
 import Expensas from "./screens/Expensas";
 import Comprobantes from "./screens/Comprobantes";
 import Gastos from "./screens/Gastos";
@@ -137,6 +138,7 @@ export default function App() {
             <Route index element={<InicioRoute />} />
             <Route path="comunicados" element={<Comunicados />} />
             <Route path="notificaciones" element={<Notificaciones />} />
+            <Route path="notificaciones/preferencias" element={<PreferenciasAvisos />} />
             <Route path="expensas" element={<ExpensasRoute />} />
             <Route path="mi-cuenta" element={<MiCuentaRoute />} />
             <Route path="departamentos/:id/cuenta" element={<DepartamentoCuenta />} />

@@ -906,6 +906,73 @@ td button {
   padding: 1.5rem 0;
 }
 
+.pantalla-preferencias-avisos {
+  padding: 1rem;
+}
+
+.pantalla-preferencias-avisos header p {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  max-width: 34rem;
+}
+
+@media (min-width: 600px) {
+  .pantalla-preferencias-avisos {
+    max-width: 40rem;
+  }
+}
+
+.lista-preferencias {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.lista-preferencias li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.lista-preferencias li:last-child {
+  border-bottom: none;
+}
+
+.lista-preferencias label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.lista-preferencias label:has(input:disabled) {
+  cursor: default;
+}
+
+.preferencia-etiqueta {
+  font-size: 0.875rem;
+}
+
+/* La leyenda del interruptor bloqueado va debajo y alineada al texto, no
+   al checkbox: es una explicación de la fila, no una etiqueta más. */
+.preferencia-nota {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+  padding-left: 1.65rem;
+}
+
+.pantalla-preferencias-avisos footer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 /* ---------- App body (sidebar + content) — mobile-first ---------- */
 
 .app-body {
