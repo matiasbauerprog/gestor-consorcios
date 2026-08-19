@@ -21,6 +21,7 @@ from ..models import (
     Caja,
     Comprobante,
     Consorcio,
+    Departamento,
     EstadoComprobante,
     MovimientoCaja,
     MovimientoCuenta,
@@ -30,7 +31,11 @@ from ..models import (
 )
 from ..modulos import require_modulo
 from ..notificaciones import emitir, resolver_pendiente
-from ..notificaciones.catalogo import COMPROBANTE_APROBADO, COMPROBANTE_RECHAZADO
+from ..notificaciones.catalogo import (
+    COMPROBANTE_APROBADO,
+    COMPROBANTE_PRESENTADO,
+    COMPROBANTE_RECHAZADO,
+)
 from ..schemas import ArchivoUrlOut, ComprobanteActualizar, ComprobanteOut
 from ..storage import firmar_clave, guardar_archivo
 from ..tenant import get_consorcio_activo
@@ -129,6 +134,7 @@ def url_del_comprobante(
     summary="Presentar comprobante de pago",
 )
 def presentar_comprobante(
+    tareas: BackgroundTasks,
     fecha_pago: date = Form(...),
     monto: float = Form(..., gt=0),
     archivo: UploadFile = File(...),
@@ -159,6 +165,21 @@ def presentar_comprobante(
         estado=EstadoComprobante.pendiente_verificacion,
     )
     db.add(comprobante)
+    db.flush()
+
+    depto = db.get(Departamento, user.departamento_id)
+    emitir(
+        db, COMPROBANTE_PRESENTADO,
+        consorcio_id=cid,
+        contexto={
+            "codigo_depto": depto.codigo if depto else "Un departamento",
+            "monto": comprobante.monto,
+        },
+        actor_usuario_id=user.id,
+        entidad_id=comprobante.id,
+        tareas=tareas,
+    )
+
     db.commit()
     db.refresh(comprobante)
     return comprobante

@@ -877,3 +877,22 @@ def test_reverificar_comprobante_ya_verificado_devuelve_409_y_no_duplica_el_avis
         entidad_tipo="comprobante", entidad_id=cid_comp, leida=False,
     ).count()
     assert revividos == 0
+
+
+def test_presentar_comprobante_avisa_al_admin_como_pendiente(client, headers_depto_a, db):
+    from backend.models import Notificacion
+
+    with open(__file__, "rb") as f:
+        r = client.post(
+            "/comprobantes",
+            data={"fecha_pago": "2026-08-01", "monto": "1000"},
+            files={"archivo": ("c.pdf", f.read(), "application/pdf")},
+            headers=headers_depto_a,
+        )
+    assert r.status_code == 201
+
+    n = db.query(Notificacion).filter_by(tipo="comprobante_presentado").one()
+    assert n.usuario_id == 1
+    assert n.entidad_tipo == "comprobante"
+    assert n.entidad_id == r.json()["id"]
+    assert "UF-1A" in n.mensaje

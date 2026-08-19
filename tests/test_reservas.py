@@ -411,3 +411,35 @@ def test_admin_cancela_reserva_solo_avisa_a_quien_reservo(
         .all()
     )
     assert [n.usuario_id for n in avisos] == [2]
+
+
+def test_reserva_de_depto_avisa_al_admin(client, headers_depto_a, db_session):
+    from backend.models import Notificacion
+    from tests.conftest import RESERVA_INICIO
+
+    inicio = (RESERVA_INICIO.replace(hour=9)).isoformat()
+    fin = (RESERVA_INICIO.replace(hour=11)).isoformat()
+    r = client.post(
+        "/amenities/301/reservas",
+        json={"inicio": inicio, "fin": fin},
+        headers=headers_depto_a,
+    )
+    assert r.status_code == 201
+
+    n = db_session.query(Notificacion).filter_by(tipo="reserva_nueva_de_depto").one()
+    assert n.usuario_id == 1
+    assert "Laundry" in n.mensaje
+
+
+def test_reserva_del_admin_no_se_autoavisa(client, headers_admin, db_session):
+    from backend.models import Notificacion
+    from tests.conftest import RESERVA_INICIO
+
+    inicio = (RESERVA_INICIO.replace(hour=19)).isoformat()
+    fin = (RESERVA_INICIO.replace(hour=21)).isoformat()
+    client.post(
+        "/amenities/301/reservas",
+        json={"inicio": inicio, "fin": fin},
+        headers=headers_admin,
+    )
+    assert db_session.query(Notificacion).filter_by(tipo="reserva_nueva_de_depto").count() == 0
