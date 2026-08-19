@@ -292,8 +292,15 @@ def test_ningun_presupuesto_es_anterior_al_reclamo_que_lo_originó(con):
     # un campo de fecha al backend sólo para maquillar la demo. Lo que sí
     # tiene que cumplirse es el orden: primero el reclamo, después el
     # presupuesto.
+    # `fecha_creacion` la escribe la base con su reloj, que es UTC; en cambio
+    # `fecha_presentacion` es una fecha comercial que pone el router con el
+    # reloj local. Compararlas crudas es comparar un instante contra una fecha
+    # de calendario: al este de Greenwich la petición queda fechada al día
+    # siguiente durante las últimas horas del día, y este test se ponía rojo
+    # sólo por la hora a la que se hubiera generado el demo. `localtime` lleva
+    # el instante al mismo huso en el que se eligió la fecha comercial.
     filas = con.execute("""
-        select date(p.fecha_creacion), pr.fecha_presentacion
+        select date(p.fecha_creacion, 'localtime'), pr.fecha_presentacion
         from presupuestos pr
         join trabajos t on t.id = pr.trabajo_id
         join peticiones p on p.id = t.peticion_id

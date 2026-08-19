@@ -1,7 +1,14 @@
-from datetime import date, datetime
-from typing import Literal
+from datetime import date, datetime, timezone
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PlainSerializer,
+    field_validator,
+    model_validator,
+)
 
 from .models import (
     CategoriaEmpleado,
@@ -21,6 +28,24 @@ from .models import (
     TipoMovimiento,
     TipoMovimientoCaja,
 )
+
+
+def _marcar_utc(valor: datetime) -> datetime:
+    """Le pone la zona UTC al instante si viene sin ella.
+
+    Todo lo que la base guarda es UTC —lo escriba ella con `func.now()` o lo
+    escriba Python—, pero SQLite no guarda la zona, así que vuelve sin marca.
+    Serializado sin marca, el navegador lo lee como hora LOCAL y se corre por
+    el offset del huso: la campanita calculaba "hace cuánto" con una resta
+    negativa y mostraba "recién" en avisos de hace horas.
+    """
+    return valor if valor.tzinfo is not None else valor.replace(tzinfo=timezone.utc)
+
+
+#: Instante que sale al navegador. Usar en TODA salida de fecha y hora que
+#: venga de la base; las fechas comerciales (pago, factura, vencimiento) son
+#: `date` local y no llevan esto.
+InstanteUtc = Annotated[datetime, PlainSerializer(_marcar_utc, return_type=datetime)]
 
 
 class ErrorOut(BaseModel):
@@ -94,7 +119,7 @@ class PeticionOut(BaseModel):
     descripcion: str
     estado: EstadoPeticion
     motivo_rechazo: str | None = None
-    fecha_creacion: datetime
+    fecha_creacion: InstanteUtc
 
 
 class TrabajoCrear(BaseModel):
@@ -113,7 +138,7 @@ class TrabajoOut(BaseModel):
     peticion_id: int | None
     descripcion: str
     estado: EstadoTrabajo
-    fecha_creacion: datetime
+    fecha_creacion: InstanteUtc
     # La pantalla de Trabajos tiene una columna para cada uno. Sin devolverlos
     # muestran un guión siempre, incluso en un trabajo finalizado que sí tiene
     # presupuesto aprobado y gasto asociado.
@@ -149,7 +174,7 @@ class ComunicadoOut(BaseModel):
     id: int
     titulo: str
     cuerpo: str
-    fecha_publicacion: datetime
+    fecha_publicacion: InstanteUtc
     autor_id: int
 
 
@@ -185,7 +210,7 @@ class ErrorRegistradoOut(BaseModel):
 
     id: int
     codigo: str
-    ocurrido_at: datetime
+    ocurrido_at: InstanteUtc
     ruta: str
     metodo: str
     tipo: str
@@ -877,7 +902,7 @@ class LiquidacionEmpleadoOut(BaseModel):
     empleado_id: int
     periodo: str
     sueldo_bruto: float
-    fecha_creacion: datetime
+    fecha_creacion: InstanteUtc
     haberes: list[LiquidacionHaberOut]
     detalle: list[LiquidacionDetalleOut]
 
@@ -893,7 +918,7 @@ class MovimientoCuentaOut(BaseModel):
     monto: float
     expensa_id: int | None = None
     comprobante_id: int | None = None
-    fecha_creacion: datetime
+    fecha_creacion: InstanteUtc
 
 
 class EstadoCuentaOut(BaseModel):
@@ -971,7 +996,7 @@ class PeriodoCerradoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     periodo: str
-    fecha_cierre: datetime
+    fecha_cierre: InstanteUtc
     cerrado_por_usuario_id: int
     total_expensado: float
     total_intereses: float
@@ -1196,7 +1221,7 @@ class NotificacionOut(BaseModel):
     mensaje: str
     link: str | None
     leida: bool
-    created_at: datetime
+    created_at: InstanteUtc
 
 
 class NotificacionesCountOut(BaseModel):
@@ -1241,7 +1266,7 @@ class AdministracionOut(BaseModel):
     email_contacto: str
     activa: bool
     plan: str
-    fecha_creacion: datetime
+    fecha_creacion: InstanteUtc
 
 
 class AdministracionCrear(BaseModel):
@@ -1311,7 +1336,7 @@ class AuditLogEntryOut(BaseModel):
     administracion_id_afectada: int | None
     motivo: str | None
     detalles: str | None
-    fecha: datetime
+    fecha: InstanteUtc
 
 
 # ---------------------------------------------------------------------------
@@ -1349,7 +1374,7 @@ class ConsorcioOut(BaseModel):
     caja_default_pagos_id: int | None
     reportes_visibles_a_depto: bool
     peticiones_visibles_a_depto: bool
-    fecha_creacion: datetime
+    fecha_creacion: InstanteUtc
     modulos_habilitados: list[str] = []
 
     @model_validator(mode="before")
